@@ -57,7 +57,7 @@
 #endif
 
 #ifndef EU_LOG_LVL
-#define EU_LOG_LVL EU_WARN
+#define EU_LOG_LVL EU_ERR
 #endif
 
 #ifndef EU_LOG_PRINTLN
