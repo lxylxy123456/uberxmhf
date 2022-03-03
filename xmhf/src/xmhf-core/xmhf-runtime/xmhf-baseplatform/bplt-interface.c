@@ -51,47 +51,8 @@
 
 #include <xmhf.h>
 
-#define DEF_VAR(x) {x x##_var; (void)x##_var;}
-#define DEF_ENUM(x) {enum x x##_var; (void)x##_var;}
-
 //get CPU vendor
 u32 xmhf_baseplatform_getcpuvendor(void){
-	{
-		DEF_VAR(acm_flags_t)
-		DEF_VAR(acm_hdr_t)
-		DEF_VAR(acm_info_table_t)
-		DEF_VAR(acm_chipset_id_t)
-		DEF_VAR(acm_chipset_id_list_t)
-		DEF_VAR(txt_errorcode_t)
-		DEF_VAR(txt_ests_t)
-		DEF_VAR(txt_e2sts_t)
-		DEF_VAR(txt_sts_t)
-		DEF_VAR(txt_ver_fsbif_emif_t)
-		DEF_VAR(txt_dpr_t)
-		DEF_VAR(mle_join_t)
-		DEF_VAR(mseg_hdr_t)
-		DEF_VAR(txt_errorcode_sw_t)
-		DEF_VAR(acmod_error_t)
-		DEF_VAR(bios_data_t)
-		DEF_VAR(os_mle_data_t)
-		DEF_VAR(os_sinit_data_t)
-		DEF_VAR(sinit_mdr_t)
-		DEF_VAR(sinit_mle_data_t)
-		DEF_VAR(txt_caps_t)
-		DEF_VAR(uuid_t)
-		DEF_VAR(mle_hdr_t)
-		DEF_VAR(tb_error_t)
-		DEF_VAR(mtrr_fix_types_t)
-		DEF_VAR(mtrr_fix_types_t)
-		DEF_VAR(mtrr_cap_t)
-		DEF_VAR(mtrr_def_type_t)
-		DEF_VAR(mtrr_physbase_t)
-		DEF_VAR(mtrr_physmask_t)
-		DEF_VAR(mtrr_state_t)
-		DEF_VAR(getsec_parameters_t)
-		DEF_ENUM(var_mtrr_t)
-		DEF_ENUM(fix_mtrr_t)
-	}
 	return xmhf_baseplatform_arch_getcpuvendor();
 }
 
