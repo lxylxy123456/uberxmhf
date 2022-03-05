@@ -51,7 +51,7 @@ In controlling machine, add option `PubkeyAcceptedKeyTypes +ssh-rsa`
 apt-get install linux-generic
 ```
 
-### Build XMHF
+### Build old XMHF
 Follow `xmhf-v0.2.2/xmhf/doc/building-xmhf.md`
 ```sh
 cd xmhf-v0.2.2
@@ -72,6 +72,26 @@ This is just a workaround
 ```sh
 ./configure --with-approot=hypapps/trustvisor --enable-drt=no CC=i686-linux-gnu-gcc LD=i686-linux-gnu-ld
 ```
+
+### Build XMHF64
+
+Apt get install `crossbuild-essential-i386`. This is needed to build x64 XMHF
+on x64 Debian (because the bootloader is 32-bits).
+
+Compile x64 XMHF on x64 Debian:
+```sh
+./configure --with-approot=hypapps/trustvisor --with-target-hwplatform=x86_64
+```
+
+Cross compile x86 XMHF on x64 Debian:
+```sh
+./configure --with-approot=hypapps/trustvisor CC=i686-linux-gnu-gcc LD=i686-linux-gnu-ld
+```
+
+Other useful flags:
+* `--disable-drt`: Do not use DRT (e.g. Intel TXT)
+* `--enable-debug-symbols`: Generate debug symbol (add `-g` when compiling)
+* `--enable-debug-qemu`: Disable some VMCS fields unused by XMHF to support QEMU
 
 #### Installed files
 See `xmhf-v0.2.2/Makefile.in`'s `install-bin` target
