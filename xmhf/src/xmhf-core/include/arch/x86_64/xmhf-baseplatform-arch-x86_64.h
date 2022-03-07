@@ -56,6 +56,7 @@
 #include "_cmdline.h"		//GRUB command line handling functions
 #include "_error.h"      	//error handling and assertions
 #include "_processor.h"  	//CPU
+#include "_processor_ops.h" //Additional CPU ops
 #include "_msr.h"        	//model specific registers
 #include "_paging.h"     	//MMU
 #include "_io.h"         	//legacy I/O
