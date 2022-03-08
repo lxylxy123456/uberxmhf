@@ -276,7 +276,6 @@ bool xmhf_iommu_bind_device(iommu_pt_t pt_handle, DEVICEDESC* device)
 /// @brief Bind the untrusted OS's default IOMMU PT to the specific device
 bool xmhf_iommu_unbind_device(DEVICEDESC* device)
 {
-    IOMMU_PT_INFO* pt_info = NULL;
     bool status = false;
 
     status = iommu_x86vmx_unbind_device(device);

@@ -74,3 +74,14 @@ u32 xmhf_dmaprot_initialize(u64 protectedbuffer_paddr, u32 protectedbuffer_vaddr
 void xmhf_dmaprot_protect(u32 start_paddr, u32 size){
 	return xmhf_dmaprot_arch_protect(start_paddr, size);
 }
+
+//DMA unprotect a given region of memory, start_paddr is
+//assumed to be page aligned physical memory address
+void xmhf_dmaprot_unprotect(u32 start_paddr, u32 size){
+	return xmhf_dmaprot_arch_unprotect(start_paddr, size);
+}
+
+void xmhf_dmaprot_invalidate_cache(void)
+{
+	xmhf_dmaprot_arch_invalidate_cache();
+}

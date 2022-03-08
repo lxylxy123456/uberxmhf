@@ -103,6 +103,7 @@ extern RPB *rpb;
 //----------------------------------------------------------------------
 // component headers
 #include <xmhf-baseplatform.h>	//XMHF base platform component
+#include <xmhf-mm.h>            //XMHF memory management component
 #include <xmhf-memprot.h>		//XMHF memory protection component
 #include <xmhf-dmaprot.h>		//XMHF DMA protection component
 #include <xmhf-partition.h>		//XMHF partition component
