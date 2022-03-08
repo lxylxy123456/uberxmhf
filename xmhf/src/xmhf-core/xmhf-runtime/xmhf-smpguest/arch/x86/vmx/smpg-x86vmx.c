@@ -506,6 +506,10 @@ void xmhf_smpguest_arch_x86vmx_endquiesce(VCPU *vcpu){
         g_vmx_quiesce_resume_signal=0;
         spin_unlock(&g_vmx_lock_quiesce_resume_signal);
 
+        // Reset flush all TLB signal
+        if(g_vmx_flush_all_tlb_signal)
+          g_vmx_flush_all_tlb_signal = 0;
+
         //release quiesce lock
         //printf("\nCPU(0x%02x): releasing quiesce lock.", vcpu->id);
         spin_unlock(&g_vmx_lock_quiesce);
@@ -516,7 +520,8 @@ void xmhf_smpguest_arch_x86vmx_endquiesce(VCPU *vcpu){
 //note: we are in atomic processsing mode for this "vcpu"
 // fromhvm: 1 if NMI originated from the HVM (i.e. caller is intercept handler),
 // otherwise 0 (within the hypervisor, i.e. caller is exception handler)
-void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs *r, u32 fromhvm){
+void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs *r, u32 fromhvm)
+{
 	(void)r;
 
 	/*
@@ -527,7 +532,7 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 	 * This can only happen for the CPU calling
 	 * xmhf_smpguest_arch_x86vmx_quiesce(). For other CPUs, NMIs are
 	 * blocked during the time where vcpu->quiesced = 1.
-	 */
+	 */!!!!!!!!aaaa
 	if(g_vmx_quiesce && !vcpu->quiesced){
 		vcpu->quiesced=1;
 
@@ -540,6 +545,10 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		//printf("\nCPU(0x%02x): Quiesced", vcpu->id);
 		while(!g_vmx_quiesce_resume_signal);
 		//printf("\nCPU(0x%02x): EOQ received, resuming...", vcpu->id);
+
+    // Flush EPT TLB, if instructed so
+    if(g_vmx_flush_all_tlb_signal)
+      xmhf_memprot_flushmappings_localtlb(vcpu);
 
 		spin_lock(&g_vmx_lock_quiesce_resume_counter);
 		g_vmx_quiesce_resume_counter++;

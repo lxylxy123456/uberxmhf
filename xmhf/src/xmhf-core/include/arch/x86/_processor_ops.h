@@ -23,21 +23,21 @@ static inline ulong_t CPU_Reg_Read(struct regs* r, enum CPU_Reg_Sel sel)
     switch (sel)
     {
         case CPU_REG_AX:
-            return r->rax;
+            return r->eax;
         case CPU_REG_BX:
-            return r->rbx;
+            return r->ebx;
         case CPU_REG_CX:
-            return r->rcx;
+            return r->ecx;
         case CPU_REG_DX:
-            return r->rdx;
+            return r->edx;
         case CPU_REG_SI:
-            return r->rax;
+            return r->esi;
         case CPU_REG_DI:
-            return r->rbx;
+            return r->edi;
         case CPU_REG_SP:
-            return r->rcx;
+            return r->esp;
         case CPU_REG_BP:
-            return r->rdx;
+            return r->ebp;
 
         default:
             printf("CPU_Reg_Read: Invalid CPU register is given (sel:%u)!\n", sel);

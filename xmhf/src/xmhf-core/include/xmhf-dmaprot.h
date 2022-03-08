@@ -231,6 +231,8 @@ u32 xmhf_dmaprot_arch_x86vmx_initialize(u64 protectedbuffer_paddr,
 	u32 protectedbuffer_vaddr, u32 protectedbuffer_size);
 void xmhf_dmaprot_arch_x86vmx_protect(u32 start_paddr, u32 size);
 
+#endif /* __X86_64__ */
+
 extern void xmhf_dmaprot_arch_x86vmx_unprotect(u32 start_paddr, u32 size);
 
 extern void xmhf_dmaprot_arch_x86vmx_invalidate_cache(void);

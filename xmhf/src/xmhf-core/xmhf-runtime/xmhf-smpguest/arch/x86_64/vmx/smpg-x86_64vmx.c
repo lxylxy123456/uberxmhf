@@ -532,7 +532,7 @@ void xmhf_smpguest_arch_x86_64vmx_eventhandler_nmiexception(VCPU *vcpu, struct r
 	 * This can only happen for the CPU calling
 	 * xmhf_smpguest_arch_x86_64vmx_quiesce(). For other CPUs, NMIs are
 	 * blocked during the time where vcpu->quiesced = 1.
-	 */
+	 */!!!!!!!!aaaa
 	if(g_vmx_quiesce && !vcpu->quiesced){
 		vcpu->quiesced=1;
 

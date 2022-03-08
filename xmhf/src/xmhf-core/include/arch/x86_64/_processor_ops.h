@@ -40,13 +40,13 @@ static inline ulong_t CPU_Reg_Read(struct regs* r, enum CPU_Reg_Sel sel)
         case CPU_REG_DX:
             return r->rdx;
         case CPU_REG_SI:
-            return r->rax;
+            return r->rsi;
         case CPU_REG_DI:
-            return r->rbx;
+            return r->rdi;
         case CPU_REG_SP:
-            return r->rcx;
+            return r->rsp;
         case CPU_REG_BP:
-            return r->rdx;
+            return r->rbp;
 
         case CPU_REG_r8:
             return r->r8;

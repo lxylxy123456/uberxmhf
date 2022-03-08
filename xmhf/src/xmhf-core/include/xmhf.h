@@ -96,6 +96,9 @@
 extern RPB *rpb;	
 #endif	//__ASSEMBLY__
 
+// STL for XMHF
+#include <stl/xmhfc-bitmap.h>
+#include <stl/xmhfc-dlist.h>
 
 //----------------------------------------------------------------------
 // component headers
