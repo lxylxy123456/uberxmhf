@@ -47,7 +47,9 @@
 // EMHF DMA protection component implementation for x86 VMX
 // author: amit vasudevan (amitvasudevan@acm.org)
 
-#include <xmhf.h> 
+#include <xmhf.h>
+
+void* vtd_cet = NULL; // cet holds all its structures in the memory linearly
 
 //maximum number of RSDT entries we support
 #define	ACPI_MAX_RSDT_ENTRIES		(256)
@@ -634,8 +636,8 @@ void vmx_eap_zap(void){
 	u32 status;
 	VTD_DMAR dmar;
 	u32 i, dmarfound;
-	u32 dmaraddrphys, remappingstructuresaddrphys;
-
+	spa_t dmaraddrphys, remappingstructuresaddrphys;
+  spa_t rsdt_xsdt_spaddr = INVALID_SPADDR;
 
 	//zero out rsdp and rsdt structures
 	memset(&rsdp, 0, sizeof(ACPI_RSDP));
@@ -646,18 +648,28 @@ void vmx_eap_zap(void){
 	HALT_ON_ERRORCOND(status != 0);	//we need a valid RSDP to proceed
 	printf("\n%s: RSDP at %08x", __FUNCTION__, status);
 
+  // [Superymk] Use RSDT if it is ACPI v1, or use XSDT addr if it is ACPI v2
+  if(rsdp.revision == 0) // ACPI v1
+  {
+    rsdt_xsdt_spaddr = rsdp.rsdtaddress;
+  }
+  else if(rsdp.revision == 0x2) // ACPI v2
+  {
+    rsdt_xsdt_spaddr = (spa_t)rsdp.xsdtaddress;
+  }
+
 	//grab ACPI RSDT
-	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdp.rsdtaddress, sizeof(ACPI_RSDT));
+	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdt_xsdt_spaddr, sizeof(ACPI_RSDT));
 	printf("\n%s: RSDT at %08x, len=%u bytes, hdrlen=%u bytes", 
-		__FUNCTION__, rsdp.rsdtaddress, rsdt.length, sizeof(ACPI_RSDT));
+		__FUNCTION__, rsdt_xsdt_spaddr, rsdt.length, sizeof(ACPI_RSDT));
 
 	//get the RSDT entry list
 	num_rsdtentries = (rsdt.length - sizeof(ACPI_RSDT))/ sizeof(u32);
 	HALT_ON_ERRORCOND(num_rsdtentries < ACPI_MAX_RSDT_ENTRIES);
-	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdtentries, (u8 *)(rsdp.rsdtaddress + sizeof(ACPI_RSDT)),
+	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdtentries, (u8 *)(rsdt_xsdt_spaddr + sizeof(ACPI_RSDT)),
 			sizeof(u32)*num_rsdtentries);			
 	printf("\n%s: RSDT entry list at %08x, len=%u", __FUNCTION__,
-		(rsdp.rsdtaddress + sizeof(ACPI_RSDT)), num_rsdtentries);
+		(rsdt_xsdt_spaddr + sizeof(ACPI_RSDT)), num_rsdtentries);
 
 
 	//find the VT-d DMAR table in the list (if any)
@@ -869,11 +881,11 @@ u32 xmhf_dmaprot_arch_x86vmx_initialize(u64 protectedbuffer_paddr,
 	//Vt-d bootstrap has minimal DMA translation setup and protects entire
 	//system memory. Relax this by instantiating a complete DMA translation
 	//structure at a page granularity and protecting only the SL and Runtime
-	u32 vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr;
-	u32 vmx_eap_vtd_pdts_paddr, vmx_eap_vtd_pdts_vaddr;
-	u32 vmx_eap_vtd_pts_paddr, vmx_eap_vtd_pts_vaddr;
-	u32 vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr;
-	u32 vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr;
+	uintptr_t vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr;
+	uintptr_t vmx_eap_vtd_pdts_paddr, vmx_eap_vtd_pdts_vaddr;
+	uintptr_t vmx_eap_vtd_pts_paddr, vmx_eap_vtd_pts_vaddr;
+	uintptr_t vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr;
+	uintptr_t vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr;
 
 	HALT_ON_ERRORCOND(protectedbuffer_size >= (PAGE_SIZE_4K + (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT) 
 					+ (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT * PAE_PTRS_PER_PDT) + PAGE_SIZE_4K +
@@ -890,18 +902,20 @@ u32 xmhf_dmaprot_arch_x86vmx_initialize(u64 protectedbuffer_paddr,
 	vmx_eap_vtd_cet_paddr = vmx_eap_vtd_ret_paddr + PAGE_SIZE_4K; 
 	vmx_eap_vtd_cet_vaddr = vmx_eap_vtd_ret_vaddr + PAGE_SIZE_4K; 
 			
+  // [Superymk] [TODO] ugly hack...
+	vtd_cet = (void*)vmx_eap_vtd_cet_vaddr;
 	return vmx_eap_initialize(vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr, vmx_eap_vtd_pdts_paddr, vmx_eap_vtd_pdts_vaddr, vmx_eap_vtd_pts_paddr, vmx_eap_vtd_pts_vaddr, vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr, vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr, 0);
 }
 
-//DMA protect a given region of memory, start_paddr is
-//assumed to be page aligned physical memory address
-void xmhf_dmaprot_arch_x86vmx_protect(u32 start_paddr, u32 size){
+//DMA protect a given region of memory
+void xmhf_dmaprot_arch_x86vmx_protect(spa_t start_paddr, size_t size){
   pt_t pt;
-  u32 vaddr, end_paddr;
+  spa_t cur_spaddr, end_paddr;
   u32 pdptindex, pdtindex, ptindex;
   
   //compute page aligned end
   end_paddr = PAGE_ALIGN_4K(start_paddr + size);
+  start_paddr = PAGE_ALIGN_4K(start_paddr);
   
   //sanity check
   HALT_ON_ERRORCOND( (l_vtd_pdpt_paddr != 0) && (l_vtd_pdpt_vaddr != 0) );
@@ -909,12 +923,12 @@ void xmhf_dmaprot_arch_x86vmx_protect(u32 start_paddr, u32 size){
   HALT_ON_ERRORCOND( (l_vtd_pts_paddr != 0) && (l_vtd_pts_vaddr != 0) );
   
   #ifndef __XMHF_VERIFICATION__
-  for(vaddr=start_paddr; vaddr <= end_paddr; vaddr+=PAGE_SIZE_4K){
+  for(cur_spaddr=start_paddr; cur_spaddr <= end_paddr; cur_spaddr+=PAGE_SIZE_4K){
   
 		//compute pdpt, pdt and pt indices
-  	pdptindex= PAE_get_pdptindex(vaddr);
-	  pdtindex= PAE_get_pdtindex(vaddr);
-	  ptindex=PAE_get_ptindex(vaddr);
+  	pdptindex = PAE_get_pdptindex(cur_spaddr);
+	  pdtindex = PAE_get_pdtindex(cur_spaddr);
+	  ptindex = PAE_get_ptindex(cur_spaddr);
     
     //get the page-table for this physical page
 	  pt=(pt_t) (l_vtd_pts_vaddr + (pdptindex * PAGE_SIZE_4K * 512)+ (pdtindex * PAGE_SIZE_4K));
@@ -927,6 +941,46 @@ void xmhf_dmaprot_arch_x86vmx_protect(u32 start_paddr, u32 size){
   #endif
   
   //flush the caches
-_vtd_invalidatecaches();  
-
+  _vtd_invalidatecaches(); 
 }
+
+//DMA unprotect a given region of memory
+void xmhf_dmaprot_arch_x86vmx_unprotect(spa_t start_paddr, size_t size)
+{
+    pt_t pt;
+    spa_t cur_spaddr, end_paddr;
+    u32 pdptindex, pdtindex, ptindex;
+	
+    //compute page aligned end
+    end_paddr = PAGE_ALIGN_4K(start_paddr + size);
+    start_paddr = PAGE_ALIGN_4K(start_paddr);
+
+    //sanity check
+    HALT_ON_ERRORCOND( (l_vtd_pdpt_paddr != 0) && (l_vtd_pdpt_vaddr != 0) );
+    HALT_ON_ERRORCOND( (l_vtd_pdts_paddr != 0) && (l_vtd_pdts_vaddr != 0) );
+    HALT_ON_ERRORCOND( (l_vtd_pts_paddr != 0) && (l_vtd_pts_vaddr != 0) );
+
+#ifndef __XMHF_VERIFICATION__
+    for (cur_spaddr = start_paddr; cur_spaddr <= end_paddr; cur_spaddr += PAGE_SIZE_4K)
+    {
+        //compute pdpt, pdt and pt indices
+        pdptindex = PAE_get_pdptindex(cur_spaddr);
+        pdtindex = PAE_get_pdtindex(cur_spaddr);
+        ptindex = PAE_get_ptindex(cur_spaddr);
+
+        //get the page-table for this physical page
+        pt = (pt_t) (l_vtd_pts_vaddr + (pdptindex * PAGE_SIZE_4K * 512) + (pdtindex * PAGE_SIZE_4K));
+
+        //protect the physical page
+        //pt[ptindex] &= 0xFFFFFFFFFFFFFFFCULL;
+        pt[ptindex] |= ((u64)VTD_READ | (u64)VTD_WRITE);
+    }
+#endif
+}
+
+//flush the caches
+void xmhf_dmaprot_arch_x86vmx_invalidate_cache(void)
+{
+    _vtd_invalidatecaches();
+}
+

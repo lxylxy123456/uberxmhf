@@ -5,7 +5,7 @@
 
 extern void* vtd_cet; // cet holds all its structures in the memory linearly
 
-#define NUM_PT_ENTRIES      512 // The number of page table entries in the PML level
+#define NUM_PT_ENTRIES      512 // The number of page table entries in each level
 
 #define PAE_get_pdptindex(x)    ((x) >> 30) & (NUM_PT_ENTRIES - 1)
 #define PAE_get_pdtindex(x)     ( (x) >> 21) & (NUM_PT_ENTRIES - 1)
@@ -13,10 +13,10 @@ extern void* vtd_cet; // cet holds all its structures in the memory linearly
 
 
 //! Invalidate the IOMMU PageTable corresponding to <pt_info>
-void iommu_x86vmx_invalidate_pt(IOMMU_PT_INFO* pt_info)
+void iommu_vmx_invalidate_pt(IOMMU_PT_INFO* pt_info)
 {
 	(void)pt_info;
-// [TODO] We should invalidate this page table only later
+	// [TODO] We should invalidate this page table only later
     xmhf_dmaprot_invalidate_cache();
 }
 
@@ -50,7 +50,7 @@ static void _iommu_map_1GB_page(IOMMU_PT_INFO* pt_info, void* upper_level_pts, g
     return true;
 }
 
-bool iommu_x86vmx_map(IOMMU_PT_INFO* pt_info, gpa_t start_gpa, spa_t start_spa, uint32_t num_pages, uint32_t flags)
+bool iommu_vmx_map(IOMMU_PT_INFO* pt_info, gpa_t start_gpa, spa_t start_spa, uint32_t num_pages, uint32_t flags)
 {
     uint32_t remained_pages = num_pages;
 
@@ -68,7 +68,7 @@ bool iommu_x86vmx_map(IOMMU_PT_INFO* pt_info, gpa_t start_gpa, spa_t start_spa, 
     return true;
 }
 
-bool iommu_x86vmx_map_batch(IOMMU_PT_INFO* pt_info, gpa_t start_gpa, spa_t* spas, uint32_t num_pages, uint32_t flags)
+bool iommu_vmx_map_batch(IOMMU_PT_INFO* pt_info, gpa_t start_gpa, spa_t* spas, uint32_t num_pages, uint32_t flags)
 {
 
     // Step 1. Allocate root page table if not exist
@@ -115,7 +115,7 @@ static void* __vtd_get_nextlvl_pt(IOMMU_PT_INFO* pt_info, void* pt_base, uint32_
 	
 }
 
-bool iommu_x86vmx_map(IOMMU_PT_INFO* pt_info, gpa_t gpa, spa_t spa, uint32_t flags)
+bool iommu_vmx_map(IOMMU_PT_INFO* pt_info, gpa_t gpa, spa_t spa, uint32_t flags)
 {
 	void *pdp = NULL, *pd = NULL, *pt = NULL;
 	uint32_t pdp_idx, pd_idx, pt_idx = 0;
@@ -161,7 +161,7 @@ static void __x86vmx_bind_cet(DEVICEDESC* device, iommu_pt_t pt_id, spa_t iommu_
 	*value |= 0x1ULL; //present, enable fault recording/processing, multilevel pt translation
 }
 
-bool iommu_x86vmx_bind_device(IOMMU_PT_INFO* pt_info, DEVICEDESC* device)
+bool iommu_vmx_bind_device(IOMMU_PT_INFO* pt_info, DEVICEDESC* device)
 {
 	__x86vmx_bind_cet(device, pt_info->iommu_pt_id, hva2spa(pt_info->pt_root));
 	
@@ -169,7 +169,7 @@ bool iommu_x86vmx_bind_device(IOMMU_PT_INFO* pt_info, DEVICEDESC* device)
 }
 
 //! Bind the untrusted OS's default IOMMU PT to a device
-bool iommu_x86vmx_unbind_device(DEVICEDESC* device)
+bool iommu_vmx_unbind_device(DEVICEDESC* device)
 {
 	__x86vmx_bind_cet(device, UNTRUSTED_OS_IOMMU_PT_ID, hva2spa(g_rntm_dmaprot_buffer));
 

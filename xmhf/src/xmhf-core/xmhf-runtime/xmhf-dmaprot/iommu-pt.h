@@ -24,16 +24,16 @@ typedef struct
 
 /********* SUBARCH Specific functions *********/
 /// Invalidate the IOMMU PageTable corresponding to <pt_info>
-extern void iommu_x86vmx_invalidate_pt(IOMMU_PT_INFO* pt_info);
+extern void iommu_vmx_invalidate_pt(IOMMU_PT_INFO* pt_info);
 
 /// 
-extern bool iommu_x86vmx_map(IOMMU_PT_INFO* pt_info, gpa_t gpa, spa_t spa, uint32_t flags);
+extern bool iommu_vmx_map(IOMMU_PT_INFO* pt_info, gpa_t gpa, spa_t spa, uint32_t flags);
 
 /// Bind an IOMMU PT to a device
-extern bool iommu_x86vmx_bind_device(IOMMU_PT_INFO* pt_info, DEVICEDESC* device);
+extern bool iommu_vmx_bind_device(IOMMU_PT_INFO* pt_info, DEVICEDESC* device);
 
 /// Bind the untrusted OS's default IOMMU PT to a device
-extern bool iommu_x86vmx_unbind_device(DEVICEDESC* device);
+extern bool iommu_vmx_unbind_device(DEVICEDESC* device);
 #endif // __ASSEMBLY__
 
 #endif // XMHF_DMAP

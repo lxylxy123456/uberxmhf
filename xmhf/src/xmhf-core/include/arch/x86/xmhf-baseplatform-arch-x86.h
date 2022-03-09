@@ -326,7 +326,7 @@ void xmhf_baseplatform_arch_x86_wakeupAPs(void);
 void xmhf_baseplatform_arch_x86_reboot(void);
 
 //get the physical address of the root system description pointer (rsdp)
-u32 xmhf_baseplatform_arch_x86_acpi_getRSDP(ACPI_RSDP *rsdp);
+uintptr_t xmhf_baseplatform_arch_x86_acpi_getRSDP(ACPI_RSDP *rsdp);
 
 //PCI subsystem initialization
 void xmhf_baseplatform_arch_x86_pci_initialize(void);

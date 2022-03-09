@@ -69,6 +69,12 @@ typedef u64 gpa_t;  // guest physical address. can be 64-bit with PAE
 typedef u32 sla_t;  // secure loader address
 #endif /* __X86_64__ */
 
+
+#define INVALID_ADDR		        0
+#define INVALID_SPADDR		        (INVALID_ADDR)
+#define INVALID_GPADDR		        (INVALID_ADDR)
+#define INVALID_GVADDR		        (INVALID_ADDR)
+
 #define ADDR_TO_PFN(addr)		(addr >> PAGE_SHIFT_4K)
 
 //"golden" digest values injected using CFLAGS during build process

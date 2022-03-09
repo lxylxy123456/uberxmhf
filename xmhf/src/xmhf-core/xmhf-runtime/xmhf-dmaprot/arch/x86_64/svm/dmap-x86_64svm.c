@@ -465,3 +465,8 @@ void xmhf_dmaprot_arch_x86_64svm_protect(u32 start_paddr, u32 size){
 
 	svm_eap_dev_invalidate_cache();	//flush DEV cache
 }
+
+void xmhf_dmaprot_arch_x86_64svm_invalidate_cache(void)
+{
+	svm_eap_dev_invalidate_cache();	//flush DEV cache
+}

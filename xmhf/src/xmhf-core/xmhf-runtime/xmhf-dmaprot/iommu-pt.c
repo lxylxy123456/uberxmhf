@@ -81,7 +81,7 @@ static bool _iommu_pt_create_root(IOMMU_PT_INFO* pt_info)
     // Force allocation of the IOMMU PT root page structure.
     // [NOTE] Because IOMMU PT page structures are allocated on-demand, we can allocate the root page structure by 
     // creating a dummy mapping.
-    status = iommu_x86vmx_map(pt_info, 0, 0, DMA_DENY_ACCESS);
+    status = iommu_vmx_map(pt_info, 0, 0, DMA_DENY_ACCESS);
     return status;
 }
 
@@ -211,9 +211,9 @@ bool xmhf_iommu_pt_destroy(iommu_pt_t pt_handle)
     if (!pt_info)
         return false;
 
-    status = iommu_x86vmx_map(pt_info, start_gpa, start_gpa, num_pages, flags);
+    status = iommu_vmx_map(pt_info, start_gpa, start_gpa, num_pages, flags);
 
-    iommu_x86vmx_invalidate_pt(pt_info);
+    iommu_vmx_invalidate_pt(pt_info);
     return status;
 }
 
@@ -226,9 +226,9 @@ bool xmhf_iommu_pt_map_batch(iommu_pt_t pt_handle, gpa_t start_gpa, spa_t* spas,
     if (!pt_info)
         return false;
 
-    status = iommu_x86vmx_map_batch(pt_info, start_gpa, spas, num_pages, flags);
+    status = iommu_vmx_map_batch(pt_info, start_gpa, spas, num_pages, flags);
 
-    iommu_x86vmx_invalidate_pt(pt_info);
+    iommu_vmx_invalidate_pt(pt_info);
     return status;
 }*/
 
@@ -250,7 +250,7 @@ bool xmhf_iommu_pt_map(iommu_pt_t pt_handle, gpa_t gpa, spa_t spa, uint32_t flag
 
     // printf("<xmhf_iommu_pt_map> pt_handle:%u, gpa:%#X, spa:%#X, flags:%u\n",
 	// 			pt_handle, gpa, spa, flags);
-    status = iommu_x86vmx_map(pt_info, gpa, spa, flags);
+    status = iommu_vmx_map(pt_info, gpa, spa, flags);
     return status;
 }
 
@@ -264,7 +264,7 @@ bool xmhf_iommu_bind_device(iommu_pt_t pt_handle, DEVICEDESC* device)
     if (!pt_info)
         return false;
 
-    status = iommu_x86vmx_bind_device(pt_info, device);
+    status = iommu_vmx_bind_device(pt_info, device);
 
 	// Flush the IOMMU PT to the main memory
 	wbinvd(); 
@@ -278,7 +278,7 @@ bool xmhf_iommu_unbind_device(DEVICEDESC* device)
 {
     bool status = false;
 
-    status = iommu_x86vmx_unbind_device(device);
+    status = iommu_vmx_unbind_device(device);
 
 	// Flush the IOMMU PT to the main memory
 	wbinvd(); 

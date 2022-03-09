@@ -57,6 +57,10 @@
 #define ADDR_4GB 0x100000000
 #endif
 
+
+#define PAGE_MASK_4K				0xfffff000
+#define PAGE_MASK_1GB       0xC0000000
+
 // page sizes 
 #ifndef __ASSEMBLY__
 #define PAGE_SIZE_4K (1UL << 12)

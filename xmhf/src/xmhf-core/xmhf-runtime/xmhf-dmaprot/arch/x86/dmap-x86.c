@@ -89,20 +89,44 @@ u32 xmhf_dmaprot_arch_initialize(u64 protectedbuffer_paddr,
 	if(cpu_vendor == CPU_VENDOR_AMD){
 	  return xmhf_dmaprot_arch_x86svm_initialize(protectedbuffer_paddr,	protectedbuffer_vaddr, protectedbuffer_size);
 	}else{	//CPU_VENDOR_INTEL
-	  return 1; //we use Vtd PMRs to protect the SL + runtime during SL launch
+		return xmhf_dmaprot_arch_x86vmx_initialize(protectedbuffer_paddr,	protectedbuffer_vaddr, protectedbuffer_size);
+	//   return 1; //we use Vtd PMRs to protect the SL + runtime during SL launch
 	}
-		
 }
 
 
 //DMA protect a given region of memory, start_paddr is
 //assumed to be page aligned physical memory address
-void xmhf_dmaprot_arch_protect(u32 start_paddr, u32 size){
+void xmhf_dmaprot_arch_protect(spa_t start_paddr, size_t size){
 	u32 cpu_vendor = get_cpu_vendor_or_die();	//determine CPU vendor
 
 	if(cpu_vendor == CPU_VENDOR_AMD){
 	  return xmhf_dmaprot_arch_x86svm_protect(start_paddr, size);
 	}else{	//CPU_VENDOR_INTEL
-	  return; //we use Vtd PMRs to protect the SL + runtime during SL launch
+		return xmhf_dmaprot_arch_x86vmx_protect(start_paddr, size);
+	//   return; //we use Vtd PMRs to protect the SL + runtime during SL launch
+	} 
+}
+
+//DMA unprotect a given region of memory, start_paddr is
+//assumed to be page aligned physical memory address
+void xmhf_dmaprot_arch_unprotect(spa_t start_paddr, size_t size){
+	u32 cpu_vendor = get_cpu_vendor_or_die();	//determine CPU vendor
+
+	if(cpu_vendor == CPU_VENDOR_AMD){
+	  return;
+	}else{	//CPU_VENDOR_INTEL
+	  return xmhf_dmaprot_arch_x86vmx_unprotect(start_paddr, size);	
+	} 
+}
+
+void xmhf_dmaprot_arch_invalidate_cache(void)
+{
+	u32 cpu_vendor = get_cpu_vendor_or_die();	//determine CPU vendor
+
+	if(cpu_vendor == CPU_VENDOR_AMD){
+	  return xmhf_dmaprot_arch_x86svm_invalidate_cache();
+	}else{	//CPU_VENDOR_INTEL
+	  return xmhf_dmaprot_arch_x86vmx_invalidate_cache();	
 	} 
 }
