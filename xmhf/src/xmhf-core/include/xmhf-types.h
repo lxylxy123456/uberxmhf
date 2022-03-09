@@ -71,6 +71,7 @@ typedef u32 sla_t;  // secure loader address
 
 
 #define INVALID_ADDR		        0
+#define INVALID_VADDR		        (INVALID_ADDR)
 #define INVALID_SPADDR		        (INVALID_ADDR)
 #define INVALID_GPADDR		        (INVALID_ADDR)
 #define INVALID_GVADDR		        (INVALID_ADDR)

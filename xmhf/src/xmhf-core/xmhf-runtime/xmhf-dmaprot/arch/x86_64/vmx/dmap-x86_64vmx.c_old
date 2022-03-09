@@ -318,7 +318,7 @@ static void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr){
     
     //we use 3 level page-tables, so AGAW must support 39-bits
 		if(!(cap.bits.sagaw & 0x2)){
-      printf("\n	AGAW does not support 3-level page-table. Halting!");
+      printf("\n	AGAW does not support 3-level page-table. See sagaw capabilities:0x%08X. Halting!", cap.bits.sagaw);
       HALT();
     }
 
@@ -633,18 +633,19 @@ void vmx_eap_zap(void){
 	ACPI_RSDT rsdt;
 	u32 num_rsdtentries;
 	u32 rsdtentries[ACPI_MAX_RSDT_ENTRIES];
-	u32 status;
+	uintptr_t status;
 	VTD_DMAR dmar;
 	u32 i, dmarfound;
 	spa_t dmaraddrphys, remappingstructuresaddrphys;
   spa_t rsdt_xsdt_spaddr = INVALID_SPADDR;
+  hva_t rsdt_xsdt_vaddr = INVALID_VADDR;
 
 	//zero out rsdp and rsdt structures
 	memset(&rsdp, 0, sizeof(ACPI_RSDP));
 	memset(&rsdt, 0, sizeof(ACPI_RSDT));
 
 	//get ACPI RSDP
-	status=xmhf_baseplatform_arch_x86_acpi_getRSDP(&rsdp);
+	status=xmhf_baseplatform_arch_x86_64_acpi_getRSDP(&rsdp);
 	HALT_ON_ERRORCOND(status != 0);	//we need a valid RSDP to proceed
 	printf("\n%s: RSDP at %08x", __FUNCTION__, status);
 
@@ -666,17 +667,24 @@ void vmx_eap_zap(void){
   }
 
 	//grab ACPI RSDT
-	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdt_xsdt_spaddr, sizeof(ACPI_RSDT));
+#ifdef __X86__
+  // Note: <rsdt_xsdt_spaddr> should be in lower 4GB. So the conversion to vaddr is fine.
+  rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr; 
+#elif defined (__X86_64__)
+  rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr; 
+#endif
+
+	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdt_xsdt_vaddr, sizeof(ACPI_RSDT));
 	printf("\n%s: RSDT at %08x, len=%u bytes, hdrlen=%u bytes", 
-		__FUNCTION__, rsdt_xsdt_spaddr, rsdt.length, sizeof(ACPI_RSDT));
+		__FUNCTION__, rsdt_xsdt_vaddr, rsdt.length, sizeof(ACPI_RSDT));
 
 	//get the RSDT entry list
 	num_rsdtentries = (rsdt.length - sizeof(ACPI_RSDT))/ sizeof(u32);
 	HALT_ON_ERRORCOND(num_rsdtentries < ACPI_MAX_RSDT_ENTRIES);
-	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdtentries, (u8 *)(rsdt_xsdt_spaddr + sizeof(ACPI_RSDT)),
+	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdtentries, (u8 *)(rsdt_xsdt_vaddr + sizeof(ACPI_RSDT)),
 			sizeof(u32)*num_rsdtentries);			
 	printf("\n%s: RSDT entry list at %08x, len=%u", __FUNCTION__,
-		(rsdt_xsdt_spaddr + sizeof(ACPI_RSDT)), num_rsdtentries);
+		(rsdt_xsdt_vaddr + sizeof(ACPI_RSDT)), num_rsdtentries);
 
 
 	//find the VT-d DMAR table in the list (if any)
@@ -730,6 +738,7 @@ static u32 vmx_eap_initialize(u32 vtd_pdpt_paddr, u32 vtd_pdpt_vaddr,
 	u32 i, dmarfound;
 	spa_t dmaraddrphys, remappingstructuresaddrphys;
   spa_t rsdt_xsdt_spaddr = INVALID_SPADDR;
+  hva_t rsdt_xsdt_vaddr = INVALID_VADDR;
 	
 #ifndef __XMHF_VERIFICATION__	
 	//zero out rsdp and rsdt structures
@@ -737,7 +746,7 @@ static u32 vmx_eap_initialize(u32 vtd_pdpt_paddr, u32 vtd_pdpt_vaddr,
 	memset(&rsdt, 0, sizeof(ACPI_RSDT));
 
   //get ACPI RSDP
-  status=xmhf_baseplatform_arch_x86_acpi_getRSDP(&rsdp);
+  status=xmhf_baseplatform_arch_x86_64_acpi_getRSDP(&rsdp);
   HALT_ON_ERRORCOND(status != 0);	//we need a valid RSDP to proceed
   printf("\n%s: RSDP at %08x", __FUNCTION__, status);
 
@@ -759,22 +768,29 @@ static u32 vmx_eap_initialize(u32 vtd_pdpt_paddr, u32 vtd_pdpt_vaddr,
   }
   
 	//grab ACPI RSDT
-	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdt_xsdt_spaddr, sizeof(ACPI_RSDT));
+#ifdef __X86__
+  // Note: <rsdt_xsdt_spaddr> should be in lower 4GB. So the conversion to vaddr is fine.
+  rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr; 
+#elif defined (__X86_64__)
+  rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr; 
+#endif
+
+	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdt_xsdt_vaddr, sizeof(ACPI_RSDT));
 	printf("\n%s: RSDT at %08x, len=%u bytes, hdrlen=%u bytes", 
-		__FUNCTION__, rsdt_xsdt_spaddr, rsdt.length, sizeof(ACPI_RSDT));
+		__FUNCTION__, rsdt_xsdt_vaddr, rsdt.length, sizeof(ACPI_RSDT));
 	
 	//get the RSDT entry list
 	num_rsdtentries = (rsdt.length - sizeof(ACPI_RSDT))/ sizeof(u32);
 	HALT_ON_ERRORCOND(num_rsdtentries < ACPI_MAX_RSDT_ENTRIES);
-	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdtentries, (u8 *)(rsdt_xsdt_spaddr + sizeof(ACPI_RSDT)),
+	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdtentries, (u8 *)(rsdt_xsdt_vaddr + sizeof(ACPI_RSDT)),
 			sizeof(rsdtentries[0])*num_rsdtentries);			
   printf("\n%s: RSDT entry list at %08x, len=%u", __FUNCTION__,
-		(rsdt_xsdt_spaddr + sizeof(ACPI_RSDT)), num_rsdtentries);
+		(rsdt_xsdt_vaddr + sizeof(ACPI_RSDT)), num_rsdtentries);
 
 
 	//find the VT-d DMAR table in the list (if any)
   for(i=0; i< num_rsdtentries; i++){
-  	xmhf_baseplatform_arch_flat_copy((u8 *)&dmar, (u8 *)rsdtentries[i], sizeof(VTD_DMAR));  
+  	xmhf_baseplatform_arch_flat_copy((u8 *)&dmar, (u8 *)rsdtentries[i], sizeof(VTD_DMAR));
     if(dmar.signature == VTD_DMAR_SIGNATURE){
       dmarfound=1;
       break;
@@ -877,7 +893,7 @@ static u32 vmx_eap_initialize(u32 vtd_pdpt_paddr, u32 vtd_pdpt_vaddr,
 //"early" DMA protection initialization to setup minimal
 //structures to protect a range of physical memory
 //return 1 on success 0 on failure
-u32 xmhf_dmaprot_arch_x86vmx_earlyinitialize(u64 protectedbuffer_paddr, u32 protectedbuffer_vaddr, u32 protectedbuffer_size, u64 __attribute__((unused))memregionbase_paddr, u32 __attribute__((unused))memregion){
+u32 xmhf_dmaprot_arch_x86_vmx_earlyinitialize(u64 protectedbuffer_paddr, u32 protectedbuffer_vaddr, u32 protectedbuffer_size, u64 __attribute__((unused))memregionbase_paddr, u32 __attribute__((unused))memregion){
 	u32 vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr, vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr, vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr;
 
 	//(void)memregionbase_paddr;
@@ -901,7 +917,7 @@ u32 xmhf_dmaprot_arch_x86vmx_earlyinitialize(u64 protectedbuffer_paddr, u32 prot
 //"normal" DMA protection initialization to setup required
 //structures for DMA protection
 //return 1 on success 0 on failure
-u32 xmhf_dmaprot_arch_x86vmx_initialize(u64 protectedbuffer_paddr,
+u32 xmhf_dmaprot_arch_x86_vmx_initialize(u64 protectedbuffer_paddr,
 	u32 protectedbuffer_vaddr, u32 protectedbuffer_size){
 	//Vt-d bootstrap has minimal DMA translation setup and protects entire
 	//system memory. Relax this by instantiating a complete DMA translation
@@ -933,7 +949,7 @@ u32 xmhf_dmaprot_arch_x86vmx_initialize(u64 protectedbuffer_paddr,
 }
 
 //DMA protect a given region of memory
-void xmhf_dmaprot_arch_x86vmx_protect(spa_t start_paddr, size_t size){
+void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size){
   pt_t pt;
   spa_t cur_spaddr, end_paddr;
   u32 pdptindex, pdtindex, ptindex;
@@ -970,7 +986,7 @@ void xmhf_dmaprot_arch_x86vmx_protect(spa_t start_paddr, size_t size){
 }
 
 //DMA unprotect a given region of memory
-void xmhf_dmaprot_arch_x86vmx_unprotect(spa_t start_paddr, size_t size)
+void xmhf_dmaprot_arch_x86_vmx_unprotect(spa_t start_paddr, size_t size)
 {
     pt_t pt;
     spa_t cur_spaddr, end_paddr;
@@ -1004,8 +1020,7 @@ void xmhf_dmaprot_arch_x86vmx_unprotect(spa_t start_paddr, size_t size)
 }
 
 //flush the caches
-void xmhf_dmaprot_arch_x86vmx_invalidate_cache(void)
+void xmhf_dmaprot_arch_x86_vmx_invalidate_cache(void)
 {
     _vtd_invalidatecaches();
 }
-

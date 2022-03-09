@@ -75,7 +75,7 @@ u32 xmhf_dmaprot_arch_earlyinitialize(u64 protectedbuffer_paddr, u32 protectedbu
 	  return xmhf_dmaprot_arch_x86_64svm_earlyinitialize(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size, memregionbase_paddr,	memregion_size);
 	}
 	else{	//CPU_VENDOR_INTEL
-	  return xmhf_dmaprot_arch_x86_64vmx_earlyinitialize(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size, memregionbase_paddr, 	memregion_size);
+	  return xmhf_dmaprot_arch_x86_vmx_earlyinitialize(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size, memregionbase_paddr, 	memregion_size);
 	}
 }
 
@@ -89,7 +89,7 @@ u32 xmhf_dmaprot_arch_initialize(u64 protectedbuffer_paddr,
 	if(cpu_vendor == CPU_VENDOR_AMD){
 	  return xmhf_dmaprot_arch_x86_64svm_initialize(protectedbuffer_paddr,	protectedbuffer_vaddr, protectedbuffer_size);
 	}else{	//CPU_VENDOR_INTEL
-		return xmhf_dmaprot_arch_x86_64vmx_initialize(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size);
+		return xmhf_dmaprot_arch_x86_vmx_initialize(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size);
 	//   return 1; //we use Vtd PMRs to protect the SL + runtime during SL launch
 	}
 }
@@ -102,7 +102,7 @@ void xmhf_dmaprot_arch_protect(spa_t start_paddr, size_t size){
 	if(cpu_vendor == CPU_VENDOR_AMD){
 	  return xmhf_dmaprot_arch_x86_64svm_protect(start_paddr, size);
 	}else{	//CPU_VENDOR_INTEL
-		return xmhf_dmaprot_arch_x86_64vmx_protect(start_paddr, size);
+		return xmhf_dmaprot_arch_x86_vmx_protect(start_paddr, size);
 	//   return; //we use Vtd PMRs to protect the SL + runtime during SL launch
 	} 
 }
@@ -115,7 +115,7 @@ void xmhf_dmaprot_arch_unprotect(spa_t start_paddr, size_t size){
 	if(cpu_vendor == CPU_VENDOR_AMD){
 	  return;
 	}else{	//CPU_VENDOR_INTEL
-	  return xmhf_dmaprot_arch_x86_64vmx_unprotect(start_paddr, size);	
+	  return xmhf_dmaprot_arch_x86_vmx_unprotect(start_paddr, size);	
 	} 
 }
 
@@ -126,6 +126,6 @@ void xmhf_dmaprot_arch_invalidate_cache(void)
 	if(cpu_vendor == CPU_VENDOR_AMD){
 	  return xmhf_dmaprot_arch_x86_64svm_invalidate_cache();
 	}else{	//CPU_VENDOR_INTEL
-	  return xmhf_dmaprot_arch_x86_64vmx_invalidate_cache();	
+	  return xmhf_dmaprot_arch_x86_vmx_invalidate_cache();	
 	} 
 }

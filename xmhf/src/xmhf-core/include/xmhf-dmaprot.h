@@ -197,14 +197,14 @@ extern void xmhf_dmaprot_arch_x86_64svm_invalidate_cache(void);
 //----------------------------------------------------------------------
 //x86_64vmx SUBARCH. INTERFACES
 //----------------------------------------------------------------------
-u32 xmhf_dmaprot_arch_x86_64vmx_earlyinitialize(u64 protectedbuffer_paddr,
-	u32 protectedbuffer_vaddr, u32 protectedbuffer_size,
-	u64 memregionbase_paddr, u32 memregion_size);
-u32 xmhf_dmaprot_arch_x86_64vmx_initialize(u64 protectedbuffer_paddr,
-	u32 protectedbuffer_vaddr, u32 protectedbuffer_size);
-void xmhf_dmaprot_arch_x86_64vmx_protect(spa_t start_paddr, size_t size);
-extern void xmhf_dmaprot_arch_x86_64vmx_unprotect(spa_t start_paddr, size_t size);
-extern void xmhf_dmaprot_arch_x86_64vmx_invalidate_cache(void);
+// u32 xmhf_dmaprot_arch_x86_vmx_earlyinitialize(u64 protectedbuffer_paddr,
+// 	u32 protectedbuffer_vaddr, u32 protectedbuffer_size,
+// 	u64 memregionbase_paddr, u32 memregion_size);
+// u32 xmhf_dmaprot_arch_x86_vmx_initialize(u64 protectedbuffer_paddr,
+// 	u32 protectedbuffer_vaddr, u32 protectedbuffer_size);
+// void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size);
+// extern void xmhf_dmaprot_arch_x86_vmx_unprotect(spa_t start_paddr, size_t size);
+// extern void xmhf_dmaprot_arch_x86_vmx_invalidate_cache(void);
 
 #else /* !__X86_64__ */
 //----------------------------------------------------------------------
@@ -215,13 +215,13 @@ extern void xmhf_dmaprot_arch_x86_64vmx_invalidate_cache(void);
 //----------------------------------------------------------------------
 //x86vmx SUBARCH. INTERFACES
 //----------------------------------------------------------------------
-u32 xmhf_dmaprot_arch_x86svm_earlyinitialize(u64 protectedbuffer_paddr,
-	u32 protectedbuffer_vaddr, u32 protectedbuffer_size,
-	u64 memregionbase_paddr, u32 memregion_size);
-u32 xmhf_dmaprot_arch_x86svm_initialize(u64 protectedbuffer_paddr,
-	u32 protectedbuffer_vaddr, u32 protectedbuffer_size);
-void xmhf_dmaprot_arch_x86svm_protect(u32 start_paddr, u32 size);
-extern void xmhf_dmaprot_arch_x86svm_invalidate_cache(void);
+// u32 xmhf_dmaprot_arch_x86svm_earlyinitialize(u64 protectedbuffer_paddr,
+// 	u32 protectedbuffer_vaddr, u32 protectedbuffer_size,
+// 	u64 memregionbase_paddr, u32 memregion_size);
+// u32 xmhf_dmaprot_arch_x86svm_initialize(u64 protectedbuffer_paddr,
+// 	u32 protectedbuffer_vaddr, u32 protectedbuffer_size);
+// void xmhf_dmaprot_arch_x86svm_protect(u32 start_paddr, u32 size);
+// extern void xmhf_dmaprot_arch_x86svm_invalidate_cache(void);
 
 //----------------------------------------------------------------------
 //x86vmx SUBARCH. INTERFACES
@@ -236,6 +236,19 @@ extern void xmhf_dmaprot_arch_x86vmx_unprotect(spa_t start_paddr, size_t size);
 extern void xmhf_dmaprot_arch_x86vmx_invalidate_cache(void);
 
 #endif /* __X86_64__ */
+
+
+//----------------------------------------------------------------------
+//x86_vmx SUBARCH. INTERFACES
+//----------------------------------------------------------------------
+u32 xmhf_dmaprot_arch_x86_vmx_earlyinitialize(u64 protectedbuffer_paddr,
+	u32 protectedbuffer_vaddr, u32 protectedbuffer_size,
+	u64 memregionbase_paddr, u32 memregion_size);
+u32 xmhf_dmaprot_arch_x86_vmx_initialize(u64 protectedbuffer_paddr,
+	u32 protectedbuffer_vaddr, u32 protectedbuffer_size);
+void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size);
+extern void xmhf_dmaprot_arch_x86_vmx_unprotect(spa_t start_paddr, size_t size);
+extern void xmhf_dmaprot_arch_x86_vmx_invalidate_cache(void);
 
 //VMX VT-d page table buffers; we support a 3 level page-table walk, 
 //4kb pdpt, 4kb pdt and 4kb pt and each entry in pdpt, pdt and pt is 64-bits
