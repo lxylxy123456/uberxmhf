@@ -651,11 +651,18 @@ void vmx_eap_zap(void){
   // [Superymk] Use RSDT if it is ACPI v1, or use XSDT addr if it is ACPI v2
   if(rsdp.revision == 0) // ACPI v1
   {
+    printf("\n%s: ACPI v1", __FUNCTION__);
     rsdt_xsdt_spaddr = rsdp.rsdtaddress;
   }
   else if(rsdp.revision == 0x2) // ACPI v2
   {
+    printf("\n%s: ACPI v2", __FUNCTION__);
     rsdt_xsdt_spaddr = (spa_t)rsdp.xsdtaddress;
+  }
+  else // Unrecognized ACPI version
+  {
+    printf("\n%s: ACPI unsupported version!", __FUNCTION__);
+    return;
   }
 
 	//grab ACPI RSDT
@@ -721,7 +728,8 @@ static u32 vmx_eap_initialize(u32 vtd_pdpt_paddr, u32 vtd_pdpt_vaddr,
 	u32 status;
 	VTD_DMAR dmar;
 	u32 i, dmarfound;
-	uintptr_t dmaraddrphys, remappingstructuresaddrphys;
+	spa_t dmaraddrphys, remappingstructuresaddrphys;
+  spa_t rsdt_xsdt_spaddr = INVALID_SPADDR;
 	
 #ifndef __XMHF_VERIFICATION__	
 	//zero out rsdp and rsdt structures
@@ -732,19 +740,36 @@ static u32 vmx_eap_initialize(u32 vtd_pdpt_paddr, u32 vtd_pdpt_vaddr,
   status=xmhf_baseplatform_arch_x86_acpi_getRSDP(&rsdp);
   HALT_ON_ERRORCOND(status != 0);	//we need a valid RSDP to proceed
   printf("\n%s: RSDP at %08x", __FUNCTION__, status);
+
+  // [Superymk] Use RSDT if it is ACPI v1, or use XSDT addr if it is ACPI v2
+  if(rsdp.revision == 0) // ACPI v1
+  {
+    printf("\n%s: ACPI v1", __FUNCTION__);
+    rsdt_xsdt_spaddr = rsdp.rsdtaddress;
+  }
+  else if(rsdp.revision == 0x2) // ACPI v2
+  {
+    printf("\n%s: ACPI v2", __FUNCTION__);
+    rsdt_xsdt_spaddr = (spa_t)rsdp.xsdtaddress;
+  }
+  else // Unrecognized ACPI version
+  {
+    printf("\n%s: ACPI unsupported version!", __FUNCTION__);
+    return 0;
+  }
   
 	//grab ACPI RSDT
-	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdp.rsdtaddress, sizeof(ACPI_RSDT));
+	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdt_xsdt_spaddr, sizeof(ACPI_RSDT));
 	printf("\n%s: RSDT at %08x, len=%u bytes, hdrlen=%u bytes", 
-		__FUNCTION__, rsdp.rsdtaddress, rsdt.length, sizeof(ACPI_RSDT));
+		__FUNCTION__, rsdt_xsdt_spaddr, rsdt.length, sizeof(ACPI_RSDT));
 	
 	//get the RSDT entry list
 	num_rsdtentries = (rsdt.length - sizeof(ACPI_RSDT))/ sizeof(u32);
 	HALT_ON_ERRORCOND(num_rsdtentries < ACPI_MAX_RSDT_ENTRIES);
-	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdtentries, (u8 *)(rsdp.rsdtaddress + sizeof(ACPI_RSDT)),
+	xmhf_baseplatform_arch_flat_copy((u8 *)&rsdtentries, (u8 *)(rsdt_xsdt_spaddr + sizeof(ACPI_RSDT)),
 			sizeof(rsdtentries[0])*num_rsdtentries);			
   printf("\n%s: RSDT entry list at %08x, len=%u", __FUNCTION__,
-		(rsdp.rsdtaddress + sizeof(ACPI_RSDT)), num_rsdtentries);
+		(rsdt_xsdt_spaddr + sizeof(ACPI_RSDT)), num_rsdtentries);
 
 
 	//find the VT-d DMAR table in the list (if any)
