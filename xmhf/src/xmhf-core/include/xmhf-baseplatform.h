@@ -149,6 +149,11 @@ void xmhf_baseplatform_initialize(void);
 //reboot platform
 void xmhf_baseplatform_reboot(VCPU *vcpu);
 
+// Traverse the E820 map and return the lower and upper used system physical address (i.e., used by main memory and MMIO).
+// [NOTE] <machine_high_spa> must be u64 even on 32-bit machines, because it could be 4G, and hence overflow u32.
+// [TODO][Issue 85] Move this function to a better place
+extern bool xmhf_baseplatform_x86_e820_paddr_range(spa_t* machine_low_spa, u64* machine_high_spa);
+
 #ifndef __XMHF_VERIFICATION__
 
 	//hypervisor runtime virtual address to secure loader address

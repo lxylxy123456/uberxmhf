@@ -76,6 +76,9 @@ typedef u32 sla_t;  // secure loader address
 #define INVALID_GPADDR		        (INVALID_ADDR)
 #define INVALID_GVADDR		        (INVALID_ADDR)
 
+#define UINT32sToSPADDR(high, low) (spa_t)((((spa_t)high) << 32) | (low))
+#define UINT32sToSIZE(high, low) (size_t)((((size_t)high) << 32) | (low))
+
 #define ADDR_TO_PFN(addr)		(addr >> PAGE_SHIFT_4K)
 
 //"golden" digest values injected using CFLAGS during build process

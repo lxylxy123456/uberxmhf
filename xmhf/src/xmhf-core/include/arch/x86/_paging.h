@@ -146,10 +146,12 @@
 
 #ifndef __ASSEMBLY__
 
+typedef u64 pml4te_t;
 typedef u64 pdpte_t;
 typedef u64 pdte_t;
 typedef u64 pte_t;
 
+typedef pml4te_t *pml4t_t;
 typedef pdpte_t *pdpt_t;
 typedef pdte_t *pdt_t;
 typedef pte_t *pt_t;

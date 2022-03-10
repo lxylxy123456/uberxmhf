@@ -50,6 +50,7 @@
 #include <xmhf.h>
 
 void* vtd_cet = NULL; // cet holds all its structures in the memory linearly
+struct dmap_vmx_cap g_vtd_cap;
 
 //maximum number of RSDT entries we support
 #define	ACPI_MAX_RSDT_ENTRIES		(256)
@@ -62,37 +63,54 @@ void* vtd_cet = NULL; // cet holds all its structures in the memory linearly
 static VTD_DRHD vtd_drhd[VTD_MAX_DRHD];
 static u32 vtd_num_drhd=0;	//total number of DMAR h/w units
 
-//VT-d 3-level DMA protection page table data structure addresses
-static u32 l_vtd_pdpt_paddr=0;
-static u32 l_vtd_pdpt_vaddr=0;
-static u32 l_vtd_pdts_paddr=0;
-static u32 l_vtd_pdts_vaddr=0;
-static u32 l_vtd_pts_paddr=0;
-static u32 l_vtd_pts_vaddr=0;
+//VT-d 3-level/4-level DMA protection page table data structure addresses
+static spa_t l_vtd_pml4t_paddr=0;
+static hva_t l_vtd_pml4t_vaddr=0;
+static spa_t l_vtd_pdpt_paddr=0;
+static hva_t l_vtd_pdpt_vaddr=0;
+static spa_t l_vtd_pdts_paddr=0;
+static hva_t l_vtd_pdts_vaddr=0;
+static spa_t l_vtd_pts_paddr=0;
+static hva_t l_vtd_pts_vaddr=0;
 
 
 
 //------------------------------------------------------------------------------
 //setup VT-d DMA protection page tables
-static void _vtd_setuppagetables(uintptr_t vtd_pdpt_paddr, uintptr_t vtd_pdpt_vaddr,
-	uintptr_t vtd_pdts_paddr, uintptr_t vtd_pdts_vaddr,
-	uintptr_t vtd_pts_paddr, uintptr_t vtd_pts_vaddr){
-  
-	uintptr_t pdptphysaddr, pdtphysaddr, ptphysaddr;
+static bool _vtd_setuppagetables(struct dmap_vmx_cap* vtd_cap,
+  spa_t vtd_pml4t_paddr, hva_t vtd_pml4t_vaddr,
+  spa_t vtd_pdpt_paddr, hva_t vtd_pdpt_vaddr,
+	spa_t vtd_pdts_paddr, hva_t vtd_pdts_vaddr,
+	spa_t vtd_pts_paddr, hva_t vtd_pts_vaddr,
+  spa_t machine_low_spa, u64 machine_high_spa
+)
+{
+	spa_t pml4tphysaddr, pdptphysaddr, pdtphysaddr, ptphysaddr;
   u32 i,j,k;
+  pml4t_t pml4t;
   pdpt_t pdpt;
   pdt_t pdt;
   pt_t pt;
   uintptr_t physaddr=0;
-  
+  spa_t m_low_spa = PAGE_ALIGN_1G(machine_low_spa);
+  u64 m_high_spa = PAGE_ALIGN_UP1G(machine_high_spa);
+  u32 num_1G_entries = (m_high_spa - (u64)m_low_spa) >> PAGE_SHIFT_1G;
+
+  // Sanity checks
+  if(!vtd_cap)
+    return false;
+
+  pml4tphysaddr=vtd_pml4t_paddr;
   pdptphysaddr=vtd_pdpt_paddr;
   pdtphysaddr=vtd_pdts_paddr;
   ptphysaddr=vtd_pts_paddr;
   
   //ensure PDPT, PDTs and PTs are all page-aligned
-  HALT_ON_ERRORCOND( !(pdptphysaddr & 0x00000FFFUL) && !(pdtphysaddr & 0x00000FFFUL) && !((ptphysaddr & 0x00000FFFUL)) );
+  HALT_ON_ERRORCOND( !(pml4tphysaddr & 0x00000FFFUL) && !(pdptphysaddr & 0x00000FFFUL) && !(pdtphysaddr & 0x00000FFFUL) && !((ptphysaddr & 0x00000FFFUL)) );
 
-	//initialize our local variables 
+	//initialize our local variables
+  l_vtd_pml4t_paddr = vtd_pml4t_paddr;
+	l_vtd_pml4t_vaddr = vtd_pml4t_vaddr;
 	l_vtd_pdpt_paddr = vtd_pdpt_paddr;
 	l_vtd_pdpt_vaddr = vtd_pdpt_vaddr;
 	l_vtd_pdts_paddr = vtd_pdts_paddr;
@@ -100,11 +118,18 @@ static void _vtd_setuppagetables(uintptr_t vtd_pdpt_paddr, uintptr_t vtd_pdpt_va
 	l_vtd_pts_paddr = vtd_pts_paddr;
 	l_vtd_pts_vaddr = vtd_pts_vaddr;
 	
-  
+  // setup pml4t
+  // The VT-d page table created here is a partial one. If 4-level PT is used, then there is only one PML4 entry instead
+  // of 512 entries. This is sufficient because the lower 3-level PT covers 0 - 512GB physical memory space
+  pml4t=(pml4t_t)vtd_pml4t_vaddr;
+  pml4t[0] = (u64)(pdptphysaddr + (0 * PAGE_SIZE_4K));
+  pml4t[0] |= ((u64)VTD_READ | (u64)VTD_WRITE);
+
   //setup pdpt, pdt and pt
-  //initially set the entire 4GB as DMA read/write capable
+  //initially set the entire spaddr space [m_low_spa, m_high_spa) as DMA read/write capable
   pdpt=(pdpt_t)vtd_pdpt_vaddr;
-  for(i=0; i< PAE_PTRS_PER_PDPT; i++){
+  for(i=0; i< num_1G_entries; i++) // PAE_PTRS_PER_PDPT
+  {
     pdpt[i]=(u64)(pdtphysaddr + (i * PAGE_SIZE_4K));  
     pdpt[i] |= ((u64)VTD_READ | (u64)VTD_WRITE);
     
@@ -121,6 +146,8 @@ static void _vtd_setuppagetables(uintptr_t vtd_pdpt_paddr, uintptr_t vtd_pdpt_va
       }
     }
   }
+
+  return true;
 }
 
 
@@ -137,10 +164,19 @@ static void _vtd_setuppagetables(uintptr_t vtd_pdpt_paddr, uintptr_t vtd_pdpt_va
 //each CE points to a PDPT type paging structure. 
 //in our implementation, every CE will point to a single PDPT type paging
 //structure for the whole system
-static void _vtd_setupRETCET(uintptr_t vtd_pdpt_paddr, uintptr_t vtd_ret_paddr, uintptr_t vtd_ret_vaddr, uintptr_t vtd_cet_paddr, uintptr_t vtd_cet_vaddr){
+static bool _vtd_setupRETCET(struct dmap_vmx_cap* vtd_cap,
+  uintptr_t vtd_pml4t_paddr, uintptr_t vtd_pdpt_paddr, 
+  uintptr_t vtd_ret_paddr, uintptr_t vtd_ret_vaddr, 
+  uintptr_t vtd_cet_paddr, uintptr_t vtd_cet_vaddr
+)
+{
   uintptr_t retphysaddr, cetphysaddr;
   u32 i, j;
   u64 *value;
+
+  // Sanity checks
+  if(!vtd_cap)
+    return false;
   
   retphysaddr=vtd_ret_paddr;
   (void)retphysaddr;
@@ -166,12 +202,30 @@ static void _vtd_setupRETCET(uintptr_t vtd_pdpt_paddr, uintptr_t vtd_ret_paddr, 
   for(i=0; i < PCI_BUS_MAX; i++){
     for(j=0; j < PCI_BUS_MAX; j++){
       value= (u64 *)(vtd_cet_vaddr + (i * PAGE_SIZE_4K) + (j * 16));
-      *(value+1)=(u64)0x0000000000000101ULL; //domain:1, aw=39 bits, 3 level pt
-      *value=vtd_pdpt_paddr;
+
+      if(vtd_cap->sagaw & 0x4)
+      {
+        // Preferred to use 4-level PT
+        *(value+1)=(u64)0x0000000000000102ULL; //domain:1, aw=48 bits, 4 level pt
+        *value=vtd_pml4t_paddr;
+      }
+      else if(vtd_cap->sagaw & 0x2)
+      {
+        // If no 4-level PT, then try 3-level PT
+        *(value+1)=(u64)0x0000000000000101ULL; //domain:1, aw=39 bits, 3 level pt
+        *value=vtd_pdpt_paddr;
+      }
+      else
+      {
+          // Unsupported IOMMU
+          return false;
+      }
+
       *value |= 0x1ULL; //present, enable fault recording/processing, multilevel pt translation           
     }
   }
 
+  return true;
 }
 
 
@@ -282,6 +336,117 @@ static void _vtd_reg(VTD_DRHD *dmardevice, u32 access, u32 reg, void *value){
   return;
 }
 
+// Return true if verification of VT-d capabilities succeed.
+// Success means:
+// (0) <out_cap> must be valid
+// (1) Same AGAW, MGAW, and ND across VT-d units
+// (2) supported MGAW to ensure our host address width is supported (32-bits)
+// (3) AGAW must support 39-bits or 48-bits
+// (4) Number of domains must not be unsupported
+static bool _vtd_verify_cap(struct dmap_vmx_cap* out_cap)
+{
+  #define INVALID_SAGAW_VAL   0xFFFFFFFF
+  #define INVALID_MGAW_VAL    0xFFFFFFFF
+  #define INVALID_NUM_DOMAINS 0xFFFFFFFF
+
+  VTD_CAP_REG cap;
+  u32 i = 0;
+  u32 last_sagaw = INVALID_SAGAW_VAL;
+  u32 last_mgaw = INVALID_MGAW_VAL;
+  u32 last_nd = INVALID_NUM_DOMAINS;
+
+  // Sanity checks
+  if(!out_cap)
+    return false;
+
+  for(i=0; i < vtd_num_drhd; i++)
+  {
+    VTD_DRHD *drhd = &vtd_drhd[i];
+  	printf("\n%s: verifying DRHD unit %u...", __FUNCTION__, i);
+
+    //read CAP register
+    _vtd_reg(drhd, VTD_REG_READ, VTD_CAP_REG_OFF, (void *)&cap.value);
+
+    // Check: Same AGAW, MGAW and ND across VT-d units
+    if(cap.bits.sagaw != last_sagaw)
+    {
+      if(last_sagaw == INVALID_SAGAW_VAL)
+      {
+        // This must the first VT-d unit
+        last_sagaw = cap.bits.sagaw;
+      }
+      else
+      {
+        // The current VT-d unit has different capabilities with some other units
+        printf("\n  [VT-d] Check error! Different SAGAW capability found on VT-d unix %u. last sagaw:0x%08X, current sagaw:0x%08X", 
+          i, last_sagaw, cap.bits.sagaw);
+        return false;
+      }
+    }
+
+    if(cap.bits.mgaw != last_mgaw)
+    {
+      if(last_mgaw == INVALID_MGAW_VAL)
+      {
+        // This must the first VT-d unit
+        last_mgaw = cap.bits.mgaw;
+      }
+      else
+      {
+        // The current VT-d unit has different capabilities with some other units
+        printf("\n  [VT-d] Check error! Different MGAW capability found on VT-d unix %u. last mgaw:0x%08X, current mgaw:0x%08X", 
+          i, last_mgaw, cap.bits.mgaw);
+        return false;
+      } 
+    }
+
+    if(cap.bits.nd != last_nd)
+    {
+      if(last_nd == INVALID_NUM_DOMAINS)
+      {
+        // This must the first VT-d unit
+        last_nd = cap.bits.nd;
+      }
+      else
+      {
+        // The current VT-d unit has different capabilities with some other units
+        printf("\n  [VT-d] Check error! Different ND capability found on VT-d unix %u. last nd:0x%08X, current nd:0x%08X", 
+          i, last_nd, cap.bits.nd);
+        return false;
+      } 
+    }
+
+    // Check: supported MGAW to ensure our host address width is supported (32-bits)
+    if(cap.bits.mgaw < 31)
+    {
+      printf("\n  [VT-d] Check error! GAW < 31 (%u) unsupported.", cap.bits.mgaw);
+      return false;
+    }
+    
+    // Check: AGAW must support 39-bits or 48-bits
+    if(!(cap.bits.sagaw & 0x2 || cap.bits.sagaw & 0x4))
+    {
+      printf("\n	[VT-d] Check error! AGAW does not support 3-level or 4-level page-table. See sagaw capabilities:0x%08X. Halting!", cap.bits.sagaw);
+      return false;
+    }
+    else
+      {out_cap->sagaw = cap.bits.sagaw;}
+
+    // Check: Number of domains must not be unsupported
+    if(cap.bits.nd == 0x7)
+    {
+      printf("\n  [VT-d] Check error! ND == 0x7 unsupported on VT-d unix %u.", i);
+      return false;
+    }
+    else
+      {out_cap->nd = cap.bits.nd;}
+  }
+
+  printf("\n Verify all Vt-d units success");
+
+  return true;
+}
+
 //------------------------------------------------------------------------------
 //initialize a DRHD unit
 //note that the VT-d documentation does not describe the precise sequence of
@@ -298,35 +463,6 @@ static void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr){
   
   //sanity check
 	HALT_ON_ERRORCOND(drhd != NULL);
-
-	
-	//1. verify required capabilities
-	//more specifically...
-	//	verify supported MGAW to ensure our host address width is supported (32-bits)
-  //	verify supported AGAW, must support 39-bits for 3 level page-table walk
-  //	verify max domain id support (we use domain 1)
-  printf("\n	Verifying required capabilities...");
-  {
-  	//read CAP register
-		_vtd_reg(drhd, VTD_REG_READ, VTD_CAP_REG_OFF, (void *)&cap.value);
-    
-    //if MGAW is less than 32-bits bail out
-		if(cap.bits.mgaw < 31){
-      printf("\n	GAW < 31 (%u) unsupported. Halting!", cap.bits.mgaw);
-      HALT();
-    }
-    
-    //we use 3 level page-tables, so AGAW must support 39-bits
-		if(!(cap.bits.sagaw & 0x2)){
-      printf("\n	AGAW does not support 3-level page-table. See sagaw capabilities:0x%08X. Halting!", cap.bits.sagaw);
-      HALT();
-    }
-
-		//sanity check number of domains (if unsupported we bail out)
-    HALT_ON_ERRORCOND(cap.bits.nd != 0x7);
-    
-  }
-	printf("Done.");
 
 	//check VT-d snoop control capabilities
 	{
@@ -632,7 +768,7 @@ void vmx_eap_zap(void){
 	ACPI_RSDP rsdp;
 	ACPI_RSDT rsdt;
 	u32 num_rsdtentries;
-	u32 rsdtentries[ACPI_MAX_RSDT_ENTRIES];
+	uintptr_t rsdtentries[ACPI_MAX_RSDT_ENTRIES];
 	uintptr_t status;
 	VTD_DMAR dmar;
 	u32 i, dmarfound;
@@ -728,17 +864,21 @@ void vmx_eap_zap(void){
 //if input parameter bootstrap is 1 then we perform minimal translation
 //structure initialization, else we do the full DMA translation structure
 //initialization at a page-granularity
-static u32 vmx_eap_initialize(u32 vtd_pdpt_paddr, u32 vtd_pdpt_vaddr,
-		u32 vtd_pdts_paddr, u32 vtd_pdts_vaddr,
-		u32 vtd_pts_paddr, u32 vtd_pts_vaddr,
-		u32 vtd_ret_paddr, u32 vtd_ret_vaddr,
-		u32 vtd_cet_paddr, u32 vtd_cet_vaddr, u32 isbootstrap){
-
+static u32 vmx_eap_initialize(
+    spa_t vtd_pml4t_paddr, hva_t vtd_pml4t_vaddr,
+    spa_t vtd_pdpt_paddr, hva_t vtd_pdpt_vaddr,
+		spa_t vtd_pdts_paddr, hva_t vtd_pdts_vaddr,
+		spa_t vtd_pts_paddr, hva_t vtd_pts_vaddr,
+		spa_t vtd_ret_paddr, hva_t vtd_ret_vaddr,
+		spa_t vtd_cet_paddr, hva_t vtd_cet_vaddr, u32 isbootstrap
+)
+{
 	ACPI_RSDP rsdp;
 	ACPI_RSDT rsdt;
 	u32 num_rsdtentries;
 	uintptr_t rsdtentries[ACPI_MAX_RSDT_ENTRIES];
-	u32 status;
+	uintptr_t status;
+  bool status2 = false;
 	VTD_DMAR dmar;
 	u32 i, dmarfound;
 	spa_t dmaraddrphys, remappingstructuresaddrphys;
@@ -749,6 +889,7 @@ static u32 vmx_eap_initialize(u32 vtd_pdpt_paddr, u32 vtd_pdpt_vaddr,
 	//zero out rsdp and rsdt structures
 	memset(&rsdp, 0, sizeof(ACPI_RSDP));
 	memset(&rsdt, 0, sizeof(ACPI_RSDT));
+  memset(&g_vtd_cap, 0, sizeof(struct dmap_vmx_cap));
 
   //get ACPI RSDP
   // [TODO] Unify the name of <xmhf_baseplatform_arch_x86_acpi_getRSDP> and <xmhf_baseplatform_arch_x86_64_acpi_getRSDP>, and then remove the following #ifdef 
@@ -805,7 +946,7 @@ static u32 vmx_eap_initialize(u32 vtd_pdpt_paddr, u32 vtd_pdpt_vaddr,
       dmarfound=1;
       break;
     }
-  }     	
+  }
   
   //if no DMAR table, bail out
 	if(!dmarfound)
@@ -853,16 +994,47 @@ static u32 vmx_eap_initialize(u32 vtd_pdpt_paddr, u32 vtd_pdpt_vaddr,
     printf("\n		ecap=0x%016llx", (u64)ecap.value);
   }
 
+  // Verify VT-d capabilities
+  status2 = _vtd_verify_cap(&g_vtd_cap);
+  if(!status2)
+  {
+    printf("\n%s: verify VT-d units' capabilities error! Halting!", __FUNCTION__);
+    HALT();
+  }
 
   //initialize VT-d page tables (not done if we are bootstrapping)
 	if(!isbootstrap){
-		_vtd_setuppagetables(vtd_pdpt_paddr, vtd_pdpt_vaddr, vtd_pdts_paddr, vtd_pdts_vaddr, vtd_pts_paddr, vtd_pts_vaddr);
+    spa_t machine_low_spa = INVALID_SPADDR;
+    u64 machine_high_spa = INVALID_SPADDR;
+
+    // Get the lower and upper used system physical address from the E820 map
+    status2 = xmhf_baseplatform_x86_e820_paddr_range(&machine_low_spa, &machine_high_spa);
+    if(!status2)
+    {
+      printf("\n%s: Get system physical address range error! Halting!", __FUNCTION__);
+      HALT();
+    }
+
+		status2 = _vtd_setuppagetables(&g_vtd_cap, vtd_pml4t_paddr, vtd_pml4t_vaddr, vtd_pdpt_paddr, vtd_pdpt_vaddr, 
+      vtd_pdts_paddr, vtd_pdts_vaddr, vtd_pts_paddr, vtd_pts_vaddr, machine_low_spa, machine_high_spa);
+    if(!status2)
+    {
+      printf("\n%s: setup VT-d page tables (pdpt=%08x, pdts=%08x, pts=%08x) error! Halting!", __FUNCTION__, vtd_pdpt_paddr, vtd_pdts_paddr, vtd_pts_paddr);
+      HALT();
+    }
+
 		printf("\n%s: setup VT-d page tables (pdpt=%08x, pdts=%08x, pts=%08x).", __FUNCTION__, vtd_pdpt_paddr, vtd_pdts_paddr, vtd_pts_paddr);
 	}	
 		
 	//initialize VT-d RET and CET
 	if(!isbootstrap){
-		_vtd_setupRETCET(vtd_pdpt_paddr, vtd_ret_paddr, vtd_ret_vaddr, vtd_cet_paddr, vtd_cet_vaddr);
+		status2 = _vtd_setupRETCET(&g_vtd_cap, vtd_pml4t_paddr, vtd_pdpt_paddr, vtd_ret_paddr, vtd_ret_vaddr, vtd_cet_paddr, vtd_cet_vaddr);
+    if(!status2)
+    {
+      printf("\n%s: setup VT-d RET (%08x) and CET (%08x) error! Halting!", __FUNCTION__, vtd_ret_paddr, vtd_cet_paddr);
+      HALT();
+    }
+
 		printf("\n%s: setup VT-d RET (%08x) and CET (%08x).", __FUNCTION__, vtd_ret_paddr, vtd_cet_paddr);
 	}else{
 		//bootstrapping
@@ -900,50 +1072,32 @@ static u32 vmx_eap_initialize(u32 vtd_pdpt_paddr, u32 vtd_pdpt_vaddr,
 ////////////////////////////////////////////////////////////////////////
 // GLOBALS
 
-//"early" DMA protection initialization to setup minimal
-//structures to protect a range of physical memory
-//return 1 on success 0 on failure
-u32 xmhf_dmaprot_arch_x86_vmx_earlyinitialize(u64 protectedbuffer_paddr, u32 protectedbuffer_vaddr, u32 protectedbuffer_size, u64 __attribute__((unused))memregionbase_paddr, u32 __attribute__((unused))memregion){
-	u32 vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr, vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr, vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr;
-
-	//(void)memregionbase_paddr;
-	//(void)memregion_size;
-	
-	printf("\nSL: Bootstrapping VMX DMA protection...");
-			
-	//we use 3 pages for Vt-d bootstrapping
-	HALT_ON_ERRORCOND(protectedbuffer_size >= (3*PAGE_SIZE_4K));
-		
-	vmx_eap_vtd_pdpt_paddr = protectedbuffer_paddr; 
-	vmx_eap_vtd_pdpt_vaddr = protectedbuffer_vaddr; 
-	vmx_eap_vtd_ret_paddr = protectedbuffer_paddr + PAGE_SIZE_4K; 
-	vmx_eap_vtd_ret_vaddr = protectedbuffer_vaddr + PAGE_SIZE_4K; 
-	vmx_eap_vtd_cet_paddr = protectedbuffer_paddr + (2*PAGE_SIZE_4K); 
-	vmx_eap_vtd_cet_vaddr = protectedbuffer_vaddr + (2*PAGE_SIZE_4K); 
-			
-	return vmx_eap_initialize(vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr, 0, 0,	0, 0, vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr,	vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr, 1);
-}
-
 //"normal" DMA protection initialization to setup required
 //structures for DMA protection
 //return 1 on success 0 on failure
-u32 xmhf_dmaprot_arch_x86_vmx_initialize(u64 protectedbuffer_paddr,
-	u32 protectedbuffer_vaddr, u32 protectedbuffer_size){
+u32 xmhf_dmaprot_arch_x86_vmx_initialize(spa_t protectedbuffer_paddr,
+	hva_t protectedbuffer_vaddr, size_t protectedbuffer_size)
+{
 	//Vt-d bootstrap has minimal DMA translation setup and protects entire
 	//system memory. Relax this by instantiating a complete DMA translation
 	//structure at a page granularity and protecting only the SL and Runtime
+  uintptr_t vmx_eap_vtd_pml4t_paddr, vmx_eap_vtd_pml4t_vaddr;
 	uintptr_t vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr;
 	uintptr_t vmx_eap_vtd_pdts_paddr, vmx_eap_vtd_pdts_vaddr;
 	uintptr_t vmx_eap_vtd_pts_paddr, vmx_eap_vtd_pts_vaddr;
 	uintptr_t vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr;
 	uintptr_t vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr;
 
-	HALT_ON_ERRORCOND(protectedbuffer_size >= (PAGE_SIZE_4K + (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT) 
+	HALT_ON_ERRORCOND(protectedbuffer_size >= (PAGE_SIZE_4K + PAGE_SIZE_4K + (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT) 
 					+ (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT * PAE_PTRS_PER_PDT) + PAGE_SIZE_4K +
 					(PAGE_SIZE_4K * PCI_BUS_MAX)) );
 	
-	vmx_eap_vtd_pdpt_paddr = protectedbuffer_paddr; 
-	vmx_eap_vtd_pdpt_vaddr = protectedbuffer_vaddr; 
+  // The VT-d page table created here is a partial one. If 4-level PT is used, then there is only one PML4 entry instead
+  // of 512 entries. This is sufficient because the lower 3-level PT covers 0 - 512GB physical memory space
+  vmx_eap_vtd_pml4t_paddr = protectedbuffer_paddr; 
+	vmx_eap_vtd_pml4t_vaddr = protectedbuffer_vaddr; 
+	vmx_eap_vtd_pdpt_paddr = protectedbuffer_paddr + PAGE_SIZE_4K; 
+	vmx_eap_vtd_pdpt_vaddr = protectedbuffer_vaddr + PAGE_SIZE_4K; 
 	vmx_eap_vtd_pdts_paddr = vmx_eap_vtd_pdpt_paddr + PAGE_SIZE_4K; 
 	vmx_eap_vtd_pdts_vaddr = vmx_eap_vtd_pdpt_vaddr + PAGE_SIZE_4K;
 	vmx_eap_vtd_pts_paddr = vmx_eap_vtd_pdts_paddr + (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT); 
@@ -955,11 +1109,13 @@ u32 xmhf_dmaprot_arch_x86_vmx_initialize(u64 protectedbuffer_paddr,
 			
   // [Superymk] [TODO] ugly hack...
 	vtd_cet = (void*)vmx_eap_vtd_cet_vaddr;
-	return vmx_eap_initialize(vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr, vmx_eap_vtd_pdts_paddr, vmx_eap_vtd_pdts_vaddr, vmx_eap_vtd_pts_paddr, vmx_eap_vtd_pts_vaddr, vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr, vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr, 0);
+	return vmx_eap_initialize(vmx_eap_vtd_pml4t_paddr, vmx_eap_vtd_pml4t_vaddr, vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr, vmx_eap_vtd_pdts_paddr, vmx_eap_vtd_pdts_vaddr, 
+    vmx_eap_vtd_pts_paddr, vmx_eap_vtd_pts_vaddr, vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr, vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr, 0);
 }
 
 //DMA protect a given region of memory
-void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size){
+void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size)
+{
   pt_t pt;
   spa_t cur_spaddr, end_paddr;
   u32 pdptindex, pdtindex, ptindex;

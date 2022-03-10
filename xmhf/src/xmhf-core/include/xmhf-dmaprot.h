@@ -241,11 +241,19 @@ extern void xmhf_dmaprot_arch_x86vmx_invalidate_cache(void);
 //----------------------------------------------------------------------
 //x86_vmx SUBARCH. INTERFACES
 //----------------------------------------------------------------------
-u32 xmhf_dmaprot_arch_x86_vmx_earlyinitialize(u64 protectedbuffer_paddr,
-	u32 protectedbuffer_vaddr, u32 protectedbuffer_size,
-	u64 memregionbase_paddr, u32 memregion_size);
-u32 xmhf_dmaprot_arch_x86_vmx_initialize(u64 protectedbuffer_paddr,
-	u32 protectedbuffer_vaddr, u32 protectedbuffer_size);
+// Capabilities of Intel VT-d HW
+struct dmap_vmx_cap
+{
+	u32 nd:3;
+	u32 sagaw:5;
+	u32 _reserved1:24;
+} __attribute__ ((packed));
+
+u32 xmhf_dmaprot_arch_x86_vmx_earlyinitialize(sla_t protectedbuffer_paddr,
+	sla_t protectedbuffer_vaddr, size_t protectedbuffer_size,
+	sla_t memregionbase_paddr, u32 memregion_size);
+u32 xmhf_dmaprot_arch_x86_vmx_initialize(spa_t protectedbuffer_paddr,
+	hva_t protectedbuffer_vaddr, size_t protectedbuffer_size);
 void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size);
 extern void xmhf_dmaprot_arch_x86_vmx_unprotect(spa_t start_paddr, size_t size);
 extern void xmhf_dmaprot_arch_x86_vmx_invalidate_cache(void);

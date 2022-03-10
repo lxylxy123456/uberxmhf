@@ -41,8 +41,9 @@ OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/dmap-$(TARGET_HW
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/svm/dmap-$(TARGET_HWPLATFORM)svm.o
 # OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/vmx/dmap-$(TARGET_HWPLATFORM)vmx.o
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86_2/vmx/dmap-vmx.o
+OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86_2/vmx/dmap-vmx-runtime.o
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/vmx/dmap-$(TARGET_HWPLATFORM)vmx-data.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/vmx/dmap-$(TARGET_HWPLATFORM)vmx-runtime.o
+# OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/vmx/dmap-$(TARGET_HWPLATFORM)vmx-runtime.o
 
 OBJECTS_PRECOMPILED += ./xmhf-xcphandler/xcph-interface.o
 OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/$(TARGET_HWPLATFORM)/xcph-$(TARGET_HWPLATFORM).o
