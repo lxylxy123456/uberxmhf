@@ -4,8 +4,12 @@
 # source files
 AS_SOURCES =
 C_SOURCES = dmap-interface.c iommu-pt.c
-C_SOURCES += ./arch/x86_2/vmx/dmap-vmx.c
+C_SOURCES += ./arch/x86_2/dmap-x86-earlyinit.c
+C_SOURCES += ./arch/x86_2/dmap-x86-runtime.c
+C_SOURCES += ./arch/x86_2/vmx/dmap-vmx-earlyinit.c
+C_SOURCES += ./arch/x86_2/vmx/dmap-vmx-internal.c
 C_SOURCES += ./arch/x86_2/vmx/dmap-vmx-runtime.c
+C_SOURCES += ./arch/x86_2/vmx/dmap-vmx-utils.c
 
 	# ifeq ($(TARGET_HWPLATFORM), x86)
 	# 	C_SOURCES += ./arch/x86_2/vmx/dmap-vmx.c
@@ -13,7 +17,7 @@ C_SOURCES += ./arch/x86_2/vmx/dmap-vmx-runtime.c
 	# 	C_SOURCES += ./arch/x86_2/vmx/dmap-vmx.c
     # endif
 
-C_SOURCES += ./arch/$(TARGET_HWPLATFORM)/dmap-$(TARGET_HWPLATFORM).c
+# C_SOURCES += ./arch/$(TARGET_HWPLATFORM)/dmap-$(TARGET_HWPLATFORM).c
 C_SOURCES += ./arch/$(TARGET_HWPLATFORM)/svm/dmap-$(TARGET_HWPLATFORM)svm.c
 
 # C_SOURCES += ./arch/$(TARGET_HWPLATFORM)/vmx/dmap-$(TARGET_HWPLATFORM)vmx.c

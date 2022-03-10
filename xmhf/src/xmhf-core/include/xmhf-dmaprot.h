@@ -186,13 +186,13 @@ extern void xmhf_dmaprot_arch_invalidate_cache(void);
 //----------------------------------------------------------------------
 //x86_64vmx SUBARCH. INTERFACES
 //----------------------------------------------------------------------
-u32 xmhf_dmaprot_arch_x86_64svm_earlyinitialize(u64 protectedbuffer_paddr,
+u32 xmhf_dmaprot_arch_x86_svm_earlyinitialize(u64 protectedbuffer_paddr,
 	u32 protectedbuffer_vaddr, u32 protectedbuffer_size,
 	u64 memregionbase_paddr, u32 memregion_size);
-u32 xmhf_dmaprot_arch_x86_64svm_initialize(u64 protectedbuffer_paddr,
+u32 xmhf_dmaprot_arch_x86_svm_initialize(u64 protectedbuffer_paddr,
 	u32 protectedbuffer_vaddr, u32 protectedbuffer_size);
-void xmhf_dmaprot_arch_x86_64svm_protect(u32 start_paddr, u32 size);
-extern void xmhf_dmaprot_arch_x86_64svm_invalidate_cache(void);
+void xmhf_dmaprot_arch_x86_svm_protect(u32 start_paddr, u32 size);
+extern void xmhf_dmaprot_arch_x86_svm_invalidate_cache(void);
 
 //----------------------------------------------------------------------
 //x86_64vmx SUBARCH. INTERFACES
