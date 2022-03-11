@@ -65,36 +65,3 @@ void xmhf_baseplatform_initialize(void){
 void xmhf_baseplatform_cpuinitialize(void){
 	xmhf_baseplatform_arch_cpuinitialize();
 }
-
-extern RPB *rpb;
-// extern GRUBE820 g_e820map[];
-
-// Traverse the E820 map and return the lower and upper used system physical address (i.e., used by main memory and MMIO).
-// [NOTE] <machine_high_spa> must be u64 even on 32-bit machines, because it could be 4G, and hence overflow u32.
-// [TODO][Issue 85] Move this function to a better place
-bool xmhf_baseplatform_x86_e820_paddr_range(spa_t* machine_low_spa, u64* machine_high_spa)
-{
-	u32 e820_last_idx = 0;
-	spa_t last_e820_entry_base = INVALID_SPADDR;
-	size_t last_e820_entry_len = 0;
-
-	// Sanity checks
-	if(!machine_low_spa || !machine_high_spa)
-		return false;
-
-	if(!rpb)
-		return false;
-
-	if(!rpb->XtVmmE820NumEntries)
-		return false;
-
-	// Calc <machine_low_spa> and <machine_high_spa>
-	e820_last_idx = rpb->XtVmmE820NumEntries - 1;
-
-	*machine_low_spa = UINT32sToSPADDR(g_e820map[0].baseaddr_high, g_e820map[0].baseaddr_low);
-	last_e820_entry_base = UINT32sToSPADDR(g_e820map[e820_last_idx].baseaddr_high, g_e820map[e820_last_idx].baseaddr_low);
-	last_e820_entry_len = UINT32sToSIZE(g_e820map[e820_last_idx].baseaddr_high, g_e820map[e820_last_idx].baseaddr_low);
-	*machine_high_spa = (spa_t)(last_e820_entry_base + last_e820_entry_len);
-				
-	return true;
-}

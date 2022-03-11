@@ -53,11 +53,12 @@
 
 #include <xmhf.h> 
 
-//VMX VT-d page table buffers; we support a 3 level page-table walk, 
-//4kb pdpt, 4kb pdt and 4kb pt and each entry in pdpt, pdt and pt is 64-bits
+//VMX VT-d page table buffers; we support a 3-level and 4-level page-table walk , 
+//4kb pml4 4kb pdpt, 4kb pdt and 4kb pt and each entry in pdpt, pdt and pt is 64-bits
+u8 g_vmx_vtd_pml4_table[PAGE_SIZE_4K] __attribute__(( section(".palign_data") )); 
 u8 g_vmx_vtd_pdp_table[PAGE_SIZE_4K] __attribute__(( section(".palign_data") )); 
-u8 g_vmx_vtd_pd_tables[PAGE_SIZE_4K * PAE_PTRS_PER_PDPT] __attribute__(( section(".palign_data") ));
-u8 g_vmx_vtd_p_tables[PAGE_SIZE_4K * PAE_PTRS_PER_PDPT * PAE_PTRS_PER_PDT] __attribute__(( section(".palign_data") ));
+u8 g_vmx_vtd_pd_tables[PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT] __attribute__(( section(".palign_data") ));
+u8 g_vmx_vtd_p_tables[PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT * PAE_PTRS_PER_PDT] __attribute__(( section(".palign_data") ));
 
 //VMX VT-d Root Entry Table (RET)
 //the RET is 4kb, each root entry (RE) is 128-bits

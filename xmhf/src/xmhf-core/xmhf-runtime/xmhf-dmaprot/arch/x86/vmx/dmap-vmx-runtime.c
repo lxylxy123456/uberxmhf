@@ -125,7 +125,7 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
     // setup pdpt, pdt and pt
     // initially set the entire spaddr space [m_low_spa, m_high_spa) as DMA read/write capable
     pdpt = (pdpt_t)vtd_pdpt_vaddr;
-    for (i = 0; i < num_1G_entries; i++) // PAE_PTRS_PER_PDPT
+    for (i = 0; i < num_1G_entries; i++) // DMAPROT_VMX_P4L_NPDT
     {
         pdpt[i] = (u64)(pdtphysaddr + (i * PAGE_SIZE_4K));
         pdpt[i] |= ((u64)VTD_READ | (u64)VTD_WRITE);
@@ -263,6 +263,8 @@ static u32 vmx_eap_initialize(
     status = xmhf_baseplatform_arch_x86_acpi_getRSDP(&rsdp);
 #elif defined(__X86_64__)
     status = xmhf_baseplatform_arch_x86_64_acpi_getRSDP(&rsdp);
+#else
+    #error "Unsupported Arch"
 #endif
     HALT_ON_ERRORCOND(status != 0); // we need a valid RSDP to proceed
     printf("\n%s: RSDP at %08x", __FUNCTION__, status);
@@ -290,6 +292,8 @@ static u32 vmx_eap_initialize(
     rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr;
 #elif defined(__X86_64__)
     rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr;
+#else
+    #error "Unsupported Arch"
 #endif
 
     xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdt_xsdt_vaddr, sizeof(ACPI_RSDT));
@@ -376,12 +380,21 @@ static u32 vmx_eap_initialize(
     {
         spa_t machine_low_spa = INVALID_SPADDR;
         u64 machine_high_spa = INVALID_SPADDR;
+        u64 phy_space_size = 0;
 
-        // Get the lower and upper used system physical address from the E820 map
+        // Get the base and limit used system physical address from the E820 map
         status2 = xmhf_baseplatform_x86_e820_paddr_range(&machine_low_spa, &machine_high_spa);
         if (!status2)
         {
             printf("\n%s: Get system physical address range error! Halting!", __FUNCTION__);
+            HALT();
+        }
+
+        // Check: The base and limit of the physical address space must <= DMAPROT_PHY_ADDR_SPACE_SIZE
+        phy_space_size = machine_high_spa - machine_low_spa;
+        if(phy_space_size > DMAPROT_PHY_ADDR_SPACE_SIZE)
+        {
+            printf("\n%s: Too large system physical address! Found space size:%llX. Halting!", __FUNCTION__, phy_space_size);
             HALT();
         }
 
@@ -546,6 +559,8 @@ void vmx_eap_zap(void)
     status = xmhf_baseplatform_arch_x86_acpi_getRSDP(&rsdp);
 #elif defined(__X86_64__)
     status = xmhf_baseplatform_arch_x86_64_acpi_getRSDP(&rsdp);
+#else
+    #error "Unsupported Arch"
 #endif
     HALT_ON_ERRORCOND(status != 0); // we need a valid RSDP to proceed
     printf("\n%s: RSDP at %08x", __FUNCTION__, status);
@@ -573,6 +588,8 @@ void vmx_eap_zap(void)
     rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr;
 #elif defined(__X86_64__)
     rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr;
+#else
+    #error "Unsupported Arch"
 #endif
 
     xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdt_xsdt_vaddr, sizeof(ACPI_RSDT));
@@ -635,8 +652,7 @@ u32 xmhf_dmaprot_arch_x86_vmx_initialize(spa_t protectedbuffer_paddr,
     uintptr_t vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr;
     uintptr_t vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr;
 
-    HALT_ON_ERRORCOND(protectedbuffer_size >= (PAGE_SIZE_4K + PAGE_SIZE_4K + (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT) + (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT * PAE_PTRS_PER_PDT) + PAGE_SIZE_4K +
-                                               (PAGE_SIZE_4K * PCI_BUS_MAX)));
+    HALT_ON_ERRORCOND(protectedbuffer_size >= SIZE_G_RNTM_DMAPROT_BUFFER);
 
     // The VT-d page table created here is a partial one. If 4-level PT is used, then there is only one PML4 entry instead
     // of 512 entries. This is sufficient because the lower 3-level PT covers 0 - 512GB physical memory space
@@ -646,10 +662,10 @@ u32 xmhf_dmaprot_arch_x86_vmx_initialize(spa_t protectedbuffer_paddr,
     vmx_eap_vtd_pdpt_vaddr = protectedbuffer_vaddr + PAGE_SIZE_4K;
     vmx_eap_vtd_pdts_paddr = vmx_eap_vtd_pdpt_paddr + PAGE_SIZE_4K;
     vmx_eap_vtd_pdts_vaddr = vmx_eap_vtd_pdpt_vaddr + PAGE_SIZE_4K;
-    vmx_eap_vtd_pts_paddr = vmx_eap_vtd_pdts_paddr + (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT);
-    vmx_eap_vtd_pts_vaddr = vmx_eap_vtd_pdts_vaddr + (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT);
-    vmx_eap_vtd_ret_paddr = vmx_eap_vtd_pts_paddr + (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT * PAE_PTRS_PER_PDT);
-    vmx_eap_vtd_ret_vaddr = vmx_eap_vtd_pts_vaddr + (PAGE_SIZE_4K * PAE_PTRS_PER_PDPT * PAE_PTRS_PER_PDT);
+    vmx_eap_vtd_pts_paddr = vmx_eap_vtd_pdts_paddr + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT);
+    vmx_eap_vtd_pts_vaddr = vmx_eap_vtd_pdts_vaddr + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT);
+    vmx_eap_vtd_ret_paddr = vmx_eap_vtd_pts_paddr + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT * PAE_PTRS_PER_PDT);
+    vmx_eap_vtd_ret_vaddr = vmx_eap_vtd_pts_vaddr + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT * PAE_PTRS_PER_PDT);
     vmx_eap_vtd_cet_paddr = vmx_eap_vtd_ret_paddr + PAGE_SIZE_4K;
     vmx_eap_vtd_cet_vaddr = vmx_eap_vtd_ret_vaddr + PAGE_SIZE_4K;
 

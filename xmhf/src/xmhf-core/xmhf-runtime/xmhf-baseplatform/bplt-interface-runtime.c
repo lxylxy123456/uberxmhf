@@ -44,28 +44,42 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-/**
- * dmap-x86vmx-data.c
- * EMHF DMA protection component implementation for x86 VMX
- * data definitions
+/*
+ * EMHF base platform component interface
  * author: amit vasudevan (amitvasudevan@acm.org)
  */
 
-#include <xmhf.h> 
+#include <xmhf.h>
 
-//VMX VT-d page table buffers; we support a 3 level page-table walk, 
-//4kb pdpt, 4kb pdt and 4kb pt and each entry in pdpt, pdt and pt is 64-bits
-u8 g_vmx_vtd_pdp_table[PAGE_SIZE_4K] __attribute__(( section(".palign_data") )); 
-u8 g_vmx_vtd_pd_tables[PAGE_SIZE_4K * PAE_PTRS_PER_PDPT] __attribute__(( section(".palign_data") ));
-u8 g_vmx_vtd_p_tables[PAGE_SIZE_4K * PAE_PTRS_PER_PDPT * PAE_PTRS_PER_PDT] __attribute__(( section(".palign_data") ));
+extern RPB *rpb;
+// extern GRUBE820 g_e820map[];
 
-//VMX VT-d Root Entry Table (RET)
-//the RET is 4kb, each root entry (RE) is 128-bits
-//this gives us 256 entries in the RET, each corresponding to a PCI bus num. (0-255)
-u8 g_vmx_vtd_ret[PAGE_SIZE_4K] __attribute__(( section(".palign_data") )); 
+// Traverse the E820 map and return the lower and upper used system physical address (i.e., used by main memory and MMIO).
+// [NOTE] <machine_high_spa> must be u64 even on 32-bit machines, because it could be 4G, and hence overflow u32.
+// [TODO][Issue 85] Move this function to a better place
+bool xmhf_baseplatform_x86_e820_paddr_range(spa_t* machine_low_spa, u64* machine_high_spa)
+{
+	u32 e820_last_idx = 0;
+	spa_t last_e820_entry_base = INVALID_SPADDR;
+	size_t last_e820_entry_len = 0;
 
-//VMX VT-d Context Entry Table (CET)
-//each RE points to a context entry table (CET) of 4kb, each context entry (CE)
-//is 128-bits which gives us 256 entries in the CET, accounting for 32 devices
-//with 8 functions each as per the PCI spec.
-u8 g_vmx_vtd_cet[PAGE_SIZE_4K * PCI_BUS_MAX] __attribute__(( section(".palign_data") ));
+	// Sanity checks
+	if(!machine_low_spa || !machine_high_spa)
+		return false;
+
+	if(!rpb)
+		return false;
+
+	if(!rpb->XtVmmE820NumEntries)
+		return false;
+
+	// Calc <machine_low_spa> and <machine_high_spa>
+	e820_last_idx = rpb->XtVmmE820NumEntries - 1;
+
+	*machine_low_spa = UINT32sToSPADDR(g_e820map[0].baseaddr_high, g_e820map[0].baseaddr_low);
+	last_e820_entry_base = UINT32sToSPADDR(g_e820map[e820_last_idx].baseaddr_high, g_e820map[e820_last_idx].baseaddr_low);
+	last_e820_entry_len = UINT32sToSIZE(g_e820map[e820_last_idx].baseaddr_high, g_e820map[e820_last_idx].baseaddr_low);
+	*machine_high_spa = (spa_t)(last_e820_entry_base + last_e820_entry_len);
+				
+	return true;
+}

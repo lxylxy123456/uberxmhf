@@ -78,6 +78,8 @@ static u32 vmx_eap_initialize_early(
     status = xmhf_baseplatform_arch_x86_acpi_getRSDP(&rsdp);
 #elif defined(__X86_64__)
     status = xmhf_baseplatform_arch_x86_64_acpi_getRSDP(&rsdp);
+#else
+    #error "Unsupported Arch"
 #endif
     HALT_ON_ERRORCOND(status != 0); // we need a valid RSDP to proceed
     printf("\n%s: RSDP at %08x", __FUNCTION__, status);
@@ -105,6 +107,8 @@ static u32 vmx_eap_initialize_early(
     rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr;
 #elif defined(__X86_64__)
     rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr;
+#else
+    #error "Unsupported Arch"
 #endif
 
     xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdt_xsdt_vaddr, sizeof(ACPI_RSDT));

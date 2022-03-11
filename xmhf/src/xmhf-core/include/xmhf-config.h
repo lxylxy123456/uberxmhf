@@ -44,44 +44,27 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-// EMHF DMA protection component implementation
+// EMHF x86 arch. specific configurable definitions
 // author: amit vasudevan (amitvasudevan@acm.org)
+// author: Eric Li
+// author: Miao Yu
 
-#include <xmhf.h> 
+// This file must be modified first to support hardware configuration
 
-//return size (in bytes) of the memory buffer required for
-//DMA protection for a given physical memory limit
-u32 xmhf_dmaprot_getbuffersize(u64 physical_memory_limit){
-	return xmhf_dmaprot_arch_getbuffersize(physical_memory_limit);
-}
+#ifndef __XMHF_CONFIG_H__
+#define __XMHF_CONFIG_H__
 
-//"early" DMA protection initialization to setup minimal
-//structures to protect a range of physical memory
-//return 1 on success 0 on failure
-u32 xmhf_dmaprot_earlyinitialize(u64 protectedbuffer_paddr,	u32 protectedbuffer_vaddr, u32 protectedbuffer_size, u64 memregionbase_paddr, u32 memregion_size){
-	return xmhf_dmaprot_arch_earlyinitialize(protectedbuffer_paddr,	protectedbuffer_vaddr, protectedbuffer_size, memregionbase_paddr, memregion_size);
-}
+// maximum supported physical address, currently 16GB
+// Note: This value must be larger than 4GB
+// Note: 32-bit XMHF (non-PAE) ignores this value and always assumes the maximum physical memory size == 4GB.
+#define MAX_PHYS_ADDR                   GB(16)
 
-//"normal" DMA protection initialization to setup required
-//structures for DMA protection
-//return 1 on success 0 on failure
-u32 xmhf_dmaprot_initialize(u64 protectedbuffer_paddr, u32 protectedbuffer_vaddr, u32 protectedbuffer_size){
-	return xmhf_dmaprot_arch_initialize(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size);
-}
+// max. cores/vcpus we support currently
+#define MAX_MIDTAB_ENTRIES  			(8)
+#define MAX_PCPU_ENTRIES  				(MAX_MIDTAB_ENTRIES)
+#define MAX_VCPU_ENTRIES    			(MAX_PCPU_ENTRIES)
 
-//DMA protect a given region of memory, start_paddr is
-//assumed to be page aligned physical memory address
-void xmhf_dmaprot_protect(spa_t start_paddr, size_t size){
-	return xmhf_dmaprot_arch_protect(start_paddr, size);
-}
+#ifndef __ASSEMBLY__
 
-//DMA unprotect a given region of memory, start_paddr is
-//assumed to be page aligned physical memory address
-void xmhf_dmaprot_unprotect(spa_t start_paddr, size_t size){
-	return xmhf_dmaprot_arch_unprotect(start_paddr, size);
-}
-
-void xmhf_dmaprot_invalidate_cache(void)
-{
-	xmhf_dmaprot_arch_invalidate_cache();
-}
+#endif // __ASSEMBLY__
+#endif // __XMHF_CONFIG_H__

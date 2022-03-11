@@ -44,65 +44,14 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-OUTPUT_ARCH(i386)
+// EMHF DMA protection component implementation
+// author: amit vasudevan (amitvasudevan@acm.org)
 
-ENTRY(xmhf_runtime_entry)
+#include <xmhf.h>
 
-MEMORY
-{
-  all (rwxai) : ORIGIN = 0x10200000, LENGTH = 768M /* length is arbitrary */
-  unaccounted (rwxai) : ORIGIN = 0, LENGTH = 0 /* see section .unaccounted at end */
-}
-
-SECTIONS
-{
-  . = 0x10200000;
-
-  .text : {
-    *(.s_rpb)
-    *(.text)
-    . = ALIGN(4096);
-  } =0x9090
-
-  .data : {
-    *(.data)
-    *(.rodata)
-    *(.comment)
-    *(.eh_frame) /* exception-metadata. might be able to discard */
-    *(.bss)
-    . = ALIGN(4);
-    _begin_xcph_table = .;
-    *(.xcph_table)
-    _end_xcph_table = .;
-    . = ALIGN(4096);
-  } =0x9090
-
-  .palign_data : {
-    *(.palign_data)
-    . = ALIGN(4096);
-  } =0x9090
-
-  .stack : {
-    *(.stack)
-    . = ALIGN(4096);
-  } =0x9090
-
-  /* debug sections */
-  .debug_abbrev : { *(.debug_abbrev) } >debug
-  .debug_aranges : { *(.debug_aranges) } >debug
-  .debug_info : { *(.debug_info) } >debug
-  .debug_line : { *(.debug_line) } >debug
-  .debug_ranges : { *(.debug_ranges) } >debug
-  .debug_str : { *(.debug_str) } >debug
-
-  /* this is to cause the link to fail if there is
-   * anything we didn't explicitly place.
-   * when this does cause link to fail, temporarily comment
-   * this part out to see what sections end up in the output
-   * which are not handled above, and handle them.
-   */
-  .unaccounted : {
-    *(*)
-  } >unaccounted
-
+//"early" DMA protection initialization to setup minimal
+//structures to protect a range of physical memory
+//return 1 on success 0 on failure
+u32 xmhf_dmaprot_earlyinitialize(u64 protectedbuffer_paddr,	u32 protectedbuffer_vaddr, u32 protectedbuffer_size, u64 memregionbase_paddr, u32 memregion_size){
+	return xmhf_dmaprot_arch_earlyinitialize(protectedbuffer_paddr,	protectedbuffer_vaddr, protectedbuffer_size, memregionbase_paddr, memregion_size);
 }

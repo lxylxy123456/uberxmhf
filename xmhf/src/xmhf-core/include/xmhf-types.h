@@ -51,6 +51,10 @@
 
 #ifndef __ASSEMBLY__
 
+#define GB(x)           (((size_t)(x)) << 30)
+#define MB(x)           (((size_t)(x)) << 20)
+#define KB(x)           (((size_t)(x)) << 10)
+
 // TODO: bootloader for 64 bit XMHF will have incorrect size
 // Ideally, should change __X86_64__ to __XMHF_X86_64__
 #ifdef __X86_64__

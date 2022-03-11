@@ -35,17 +35,19 @@ OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/$(TARGET_HWPLATFORM)/svm/smpg-$(TARG
 OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/$(TARGET_HWPLATFORM)/vmx/smpg-$(TARGET_HWPLATFORM)vmx.o
 OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/$(TARGET_HWPLATFORM)/vmx/smpg-$(TARGET_HWPLATFORM)vmx-data.o
 
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/dmap-interface.o
+OBJECTS_PRECOMPILED += ./xmhf-dmaprot/dmap-interface-runtime.o
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/iommu-pt.o
 # OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/dmap-$(TARGET_HWPLATFORM).o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/svm/dmap-$(TARGET_HWPLATFORM)svm.o
+# OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/svm/dmap-$(TARGET_HWPLATFORM)svm.o
 # OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/vmx/dmap-$(TARGET_HWPLATFORM)vmx.o
-# OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86_2/vmx/dmap-vmx-earlyinit.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86_2/dmap-x86-runtime.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86_2/vmx/dmap-vmx-internal.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86_2/vmx/dmap-vmx-runtime.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86_2/vmx/dmap-vmx-utils.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/vmx/dmap-$(TARGET_HWPLATFORM)vmx-data.o
+# OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-earlyinit.o
+OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/dmap-x86-runtime.o
+OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/svm/dmap-svm.o
+OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal.o
+OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-runtime.o
+OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-utils.o
+OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-data.o
+# OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/vmx/dmap-$(TARGET_HWPLATFORM)vmx-data.o
 # OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/$(TARGET_HWPLATFORM)/vmx/dmap-$(TARGET_HWPLATFORM)vmx-runtime.o
 
 OBJECTS_PRECOMPILED += ./xmhf-xcphandler/xcph-interface.o
@@ -53,6 +55,7 @@ OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/$(TARGET_HWPLATFORM)/xcph-$(TARGET
 OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/$(TARGET_HWPLATFORM)/xcph-stubs.o
 
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface.o
+OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface-runtime.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface-smp.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-data.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/$(TARGET_HWPLATFORM)/bplt-$(TARGET_HWPLATFORM).o

@@ -105,7 +105,7 @@ void xmhf_runtime_entry(void){
 				
 				protectedbuffer_paddr = hva2spa(&g_rntm_dmaprot_buffer);
 				protectedbuffer_vaddr = (hva_t)&g_rntm_dmaprot_buffer;
-				protectedbuffer_size = xmhf_dmaprot_getbuffersize(ADDR_512GB);
+				protectedbuffer_size = xmhf_dmaprot_getbuffersize(DMAPROT_PHY_ADDR_SPACE_SIZE); // ADDR_512GB
 				HALT_ON_ERRORCOND(protectedbuffer_size <= SIZE_G_RNTM_DMAPROT_BUFFER);
 				
 				printf("\nRuntime: Re-initializing DMA protection...");
