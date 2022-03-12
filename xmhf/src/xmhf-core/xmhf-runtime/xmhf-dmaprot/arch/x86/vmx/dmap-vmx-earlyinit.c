@@ -148,15 +148,17 @@ static u32 vmx_eap_initialize_early(
     while (i < (dmar.length - sizeof(VTD_DMAR)))
     {
         u16 type, length;
-        xmhf_baseplatform_arch_flat_copy((u8 *)&type, (u8 *)(remappingstructuresaddrphys + i), sizeof(u16));
-        xmhf_baseplatform_arch_flat_copy((u8 *)&length, (u8 *)(remappingstructuresaddrphys + i + sizeof(u16)), sizeof(u16));
+        hva_t remappingstructures_vaddr = (hva_t)remappingstructuresaddrphys;
+        
+        xmhf_baseplatform_arch_flat_copy((u8 *)&type, (u8 *)(remappingstructures_vaddr + i), sizeof(u16));
+        xmhf_baseplatform_arch_flat_copy((u8 *)&length, (u8 *)(remappingstructures_vaddr + i + sizeof(u16)), sizeof(u16));
 
         switch (type)
         {
         case 0: // DRHD
-            printf("\nDRHD at %08x, len=%u bytes", (u32)(remappingstructuresaddrphys + i), length);
+            printf("\nDRHD at %08x, len=%u bytes", (u32)(remappingstructures_vaddr + i), length);
             HALT_ON_ERRORCOND(vtd_num_drhd < VTD_MAX_DRHD);
-            xmhf_baseplatform_arch_flat_copy((u8 *)&vtd_drhd[vtd_num_drhd], (u8 *)(remappingstructuresaddrphys + i), length);
+            xmhf_baseplatform_arch_flat_copy((u8 *)&vtd_drhd[vtd_num_drhd], (u8 *)(remappingstructures_vaddr + i), length);
             vtd_num_drhd++;
             i += (u32)length;
             break;

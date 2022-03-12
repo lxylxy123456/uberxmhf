@@ -88,14 +88,22 @@
 #define PAGE_ALIGN_UP4K(size)	(((size) + PAGE_SIZE_4K - 1) & ~(PAGE_SIZE_4K - 1))
 #define PAGE_ALIGN_UP2M(size)	(((size) + PAGE_SIZE_2M - 1) & ~(PAGE_SIZE_2M - 1))
 #define PAGE_ALIGN_UP4M(size)	(((size) + PAGE_SIZE_4M - 1) & ~(PAGE_SIZE_4M - 1))
+#define PAGE_ALIGN_UP1G(size)   (((size) + PAGE_SIZE_1G - 1) & ~(PAGE_SIZE_1G - 1))
+#define PAGE_ALIGN_UP512G(size) (((size) + PAGE_SIZE_512G - 1) & ~(PAGE_SIZE_512G - 1))
+#define PAGE_ALIGN_UP256T(size) (((size) + PAGE_SIZE_256T - 1) & ~(PAGE_SIZE_256T - 1))
 
 #define PAGE_ALIGN_4K(size)	((size) & ~(PAGE_SIZE_4K - 1))
 #define PAGE_ALIGN_2M(size)	((size) & ~(PAGE_SIZE_2M - 1))
 #define PAGE_ALIGN_4M(size)	((size) & ~(PAGE_SIZE_4M - 1))
+#define PAGE_ALIGN_1G(size)     ((size) & ~(PAGE_SIZE_1G - 1))
+#define PAGE_ALIGN_512G(size)   ((size) & ~(PAGE_SIZE_512G - 1))
+#define PAGE_ALIGN_256T(size)   ((size) & ~(PAGE_SIZE_256T - 1))
 
 #define PAGE_ALIGNED_4K(size) (PAGE_ALIGN_4K(size) == size)
 #define PAGE_ALIGNED_2M(size) (PAGE_ALIGN_2M(size) == size)
 #define PAGE_ALIGNED_4M(size) (PAGE_ALIGN_4M(size) == size)
+
+#define BYTES_TO_PAGE4K(size)	(PAGE_ALIGN_UP4K(size) >> PAGE_SHIFT_4K)
 
 // non-PAE mode specific definitions 
 #define NPAE_PTRS_PER_PDT       1024

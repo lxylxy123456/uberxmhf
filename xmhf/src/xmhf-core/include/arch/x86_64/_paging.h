@@ -105,6 +105,8 @@
 #define PAGE_ALIGNED_512G(size) (PAGE_ALIGN_512G(size) == size)
 #define PAGE_ALIGNED_256T(size) (PAGE_ALIGN_256T(size) == size)
 
+#define BYTES_TO_PAGE4K(size)	(PAGE_ALIGN_UP4K(size) >> PAGE_SHIFT_4K)
+
 // non-PAE mode specific definitions 
 #define NPAE_PTRS_PER_PDT       1024
 #define NPAE_PTRS_PER_PT        1024

@@ -39,4 +39,4 @@ endif
 .PHONY: clean 
 clean: 
 	$(RM) -rf *.o
-
+	$(RM) -rf ./stl/*.o
