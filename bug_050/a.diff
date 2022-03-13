@@ -1,0 +1,116 @@
+diff --git a/xmhf/src/xmhf-core/include/arch/x86/_processor.h b/xmhf/src/xmhf-core/include/arch/x86/_processor.h
+index aa3b2e5f8..7b8a484d8 100644
+--- a/xmhf/src/xmhf-core/include/arch/x86/_processor.h
++++ b/xmhf/src/xmhf-core/include/arch/x86/_processor.h
+@@ -157,8 +157,6 @@
+ //SDM Vol 2B. 4-427)
+ struct regs
+ {
+-  u32 flags;
+-
+   u32 edi;
+   u32 esi;
+   u32 ebp;
+diff --git a/xmhf/src/xmhf-core/include/arch/x86_64/_processor.h b/xmhf/src/xmhf-core/include/arch/x86_64/_processor.h
+index 71d82bf0f..643578906 100644
+--- a/xmhf/src/xmhf-core/include/arch/x86_64/_processor.h
++++ b/xmhf/src/xmhf-core/include/arch/x86_64/_processor.h
+@@ -156,8 +156,6 @@
+ //x86_64 GPR set definition
+ struct regs
+ {
+-    u64 flags;
+-
+     // TODO: better to remove 32-bit registers, but need to change a lot of code
+     union { u64 rdi; u32 edi; } __attribute__ ((packed));
+     union { u64 rsi; u32 esi; } __attribute__ ((packed));
+diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-entry.S b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-entry.S
+index 39c727212..01d195af2 100644
+--- a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-entry.S
++++ b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-entry.S
+@@ -63,10 +63,8 @@ xmhf_parteventhub_arch_x86vmx_entry:
+ 	//step-1: save all CPU GPRs
+ 	pushal
+ 
+-	pushl %edi  // dummy value for eflags
+-	
+ 	//step-2: grab VCPU *
+-	movl 36(%esp), %esi
++	movl 32(%esp), %esi
+ 	      
+    	//step-4: get hold of pointer to saved GPR on stack
+    	movl %esp, %eax
+@@ -79,8 +77,6 @@ xmhf_parteventhub_arch_x86vmx_entry:
+     addl $0x08, %esp
+ 
+     //step-6; restore all CPU GPRs
+-	popl    %edi // throw away the dummy value for eflags
+-
+     popal
+ 
+     //resume partition
+diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.c b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.c
+index ee9ac9d93..a66b2c486 100644
+--- a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.c
++++ b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.c
+@@ -656,7 +656,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r)
+ {
+ 	// [Superymk] Collect the guest's general registers
+ 	r->esp = (u32)VCPU_grsp(vcpu);
+-	r->flags = (u32)VCPU_grflags(vcpu);
+ 
+ 	//read VMCS from physical CPU/core
+ #ifndef __XMHF_VERIFICATION__
+@@ -922,7 +921,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r)
+ #endif
+ 
+ 	// [Superymk] Update guest registers
+-	VCPU_grflags_set(vcpu, r->flags);
+ 	VCPU_grsp_set(vcpu, r->esp);
+ 
+ 	return 1;
+diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86_64/vmx/peh-x86_64vmx-entry.S b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86_64/vmx/peh-x86_64vmx-entry.S
+index 46e447a49..955ea2279 100644
+--- a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86_64/vmx/peh-x86_64vmx-entry.S
++++ b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86_64/vmx/peh-x86_64vmx-entry.S
+@@ -80,10 +80,8 @@ xmhf_parteventhub_arch_x86_64vmx_entry:
+     pushq   %rsi
+     pushq   %rdi
+ 
+-    pushq   %rdi  // dummy value for rflags
+-
+     //step-2: grab VCPU *, put to 1st argument
+-    movq 136(%rsp), %rdi
++    movq 128(%rsp), %rdi
+ 
+     //step-4: get hold of pointer to saved GPR on stack, put to 2nd argument
+     movq %rsp, %rsi
+@@ -92,8 +90,6 @@ xmhf_parteventhub_arch_x86_64vmx_entry:
+     call xmhf_parteventhub_arch_x86_64vmx_intercept_handler
+ 
+     //step-6; restore all CPU GPRs
+-    popq    %rdi // throw away the dummy value for rflags
+-
+     popq    %rdi
+     popq    %rsi
+     popq    %rbp
+diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86_64/vmx/peh-x86_64vmx-main.c b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86_64/vmx/peh-x86_64vmx-main.c
+index a7434a12e..bf8253695 100644
+--- a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86_64/vmx/peh-x86_64vmx-main.c
++++ b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86_64/vmx/peh-x86_64vmx-main.c
+@@ -723,7 +723,6 @@ u32 xmhf_parteventhub_arch_x86_64vmx_intercept_handler(VCPU *vcpu, struct regs *
+ {
+ 	// [Superymk] Collect the guest's general registers
+ 	r->rsp = VCPU_grsp(vcpu);
+-	r->flags = VCPU_grflags(vcpu);
+ 
+ 	//read VMCS from physical CPU/core
+ #ifndef __XMHF_VERIFICATION__
+@@ -1022,7 +1021,6 @@ u32 xmhf_parteventhub_arch_x86_64vmx_intercept_handler(VCPU *vcpu, struct regs *
+ #endif
+ 
+ 	// [Superymk] Update guest registers
+-	VCPU_grflags_set(vcpu, r->flags);
+ 	VCPU_grsp_set(vcpu, r->rsp);
+ 
+ 	return 1;
