@@ -56,7 +56,6 @@
 #include "_cmdline.h"		//GRUB command line handling functions
 #include "_error.h"      	//error handling and assertions
 #include "_processor.h"  	//CPU
-#include "_processor_ops.h" //Additional CPU ops
 #include "_msr.h"        	//model specific registers
 #include "_paging.h"     	//MMU
 #include "_io.h"         	//legacy I/O
@@ -539,6 +538,106 @@ static inline void VCPU_gpdpte_set(VCPU *vcpu, u64 pdptes[4]) {
     }
 }
 
+/*
+ * Selector for VCPU_reg_get and VCPU_reg_set
+ */
+enum CPU_Reg_Sel 
+{ 
+    CPU_REG_AX,
+    CPU_REG_BX,
+    CPU_REG_CX,
+    CPU_REG_DX,
+    CPU_REG_SI,
+    CPU_REG_DI,
+    CPU_REG_SP,
+    CPU_REG_BP,
+
+    CPU_REG_FLAGS,
+    CPU_REG_IP
+};
+
+/*
+ * Get a guest register
+ */
+static inline uintptr_t VCPU_reg_get(VCPU *vcpu, struct regs* r,
+                                     enum CPU_Reg_Sel sel)
+{
+    switch (sel)
+    {
+        case CPU_REG_AX:
+            return r->eax;
+        case CPU_REG_BX:
+            return r->ebx;
+        case CPU_REG_CX:
+            return r->ecx;
+        case CPU_REG_DX:
+            return r->edx;
+        case CPU_REG_SI:
+            return r->esi;
+        case CPU_REG_DI:
+            return r->edi;
+        case CPU_REG_SP:
+            return r->esp;
+        case CPU_REG_BP:
+            return r->ebp;
+
+        case CPU_REG_FLAGS:
+            return VCPU_grflags(vcpu);
+        case CPU_REG_IP:
+            return VCPU_grip(vcpu);
+
+        default:
+            printf("CPU_Reg_Read: Invalid CPU register is given (sel:%u)!\n", sel);
+            HALT();
+            return 0; // should never hit
+    }
+}
+
+/*
+ * Set a guest register
+ */
+static inline void VCPU_reg_set(VCPU *vcpu, struct regs* r,
+                                enum CPU_Reg_Sel sel, uintptr_t val)
+{
+    switch (sel)
+    {
+        case CPU_REG_AX:
+            r->eax = val;
+            break;
+        case CPU_REG_BX:
+            r->ebx = val;
+            break;
+        case CPU_REG_CX:
+            r->ecx = val;
+            break;
+        case CPU_REG_DX:
+            r->edx = val;
+            break;
+        case CPU_REG_SI:
+            r->esi = val;
+            break;
+        case CPU_REG_DI:
+            r->edi = val;
+            break;
+        case CPU_REG_SP:
+            r->esp = val;
+            break;
+        case CPU_REG_BP:
+            r->ebp = val;
+            break;
+
+        case CPU_REG_FLAGS:
+            VCPU_grflags_set(vcpu, val);
+            break;
+        case CPU_REG_IP:
+            VCPU_grip_set(vcpu, val);
+            break;
+
+        default:
+            printf("CPU_Reg_Read: Invalid CPU register is given (sel:%u)!\n", sel);
+            HALT();
+    }
+}
 
 //----------------------------------------------------------------------
 //x86vmx SUBARCH. INTERFACES

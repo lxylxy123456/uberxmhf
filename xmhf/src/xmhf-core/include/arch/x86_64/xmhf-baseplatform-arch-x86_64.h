@@ -56,7 +56,6 @@
 #include "_cmdline.h"		//GRUB command line handling functions
 #include "_error.h"      	//error handling and assertions
 #include "_processor.h"  	//CPU
-#include "_processor_ops.h" //Additional CPU ops
 #include "_msr.h"        	//model specific registers
 #include "_paging.h"     	//MMU
 #include "_io.h"         	//legacy I/O
@@ -557,6 +556,157 @@ static inline void VCPU_gpdpte_set(VCPU *vcpu, u64 pdptes[4]) {
     }
 }
 
+/*
+ * Selector for VCPU_reg_get and VCPU_reg_set
+ */
+enum CPU_Reg_Sel 
+{ 
+    CPU_REG_AX,
+    CPU_REG_BX,
+    CPU_REG_CX,
+    CPU_REG_DX,
+    CPU_REG_SI,
+    CPU_REG_DI,
+    CPU_REG_SP,
+    CPU_REG_BP,
+
+    CPU_REG_R8,
+    CPU_REG_R9,
+    CPU_REG_R10,
+    CPU_REG_R11,
+    CPU_REG_R12,
+    CPU_REG_R13,
+    CPU_REG_R14,
+    CPU_REG_R15,
+
+    CPU_REG_FLAGS,
+    CPU_REG_IP
+};
+
+/*
+ * Get a guest register
+ */
+static inline uintptr_t VCPU_reg_get(VCPU *vcpu, struct regs* r,
+                                     enum CPU_Reg_Sel sel)
+{
+    switch (sel)
+    {
+        case CPU_REG_AX:
+            return r->rax;
+        case CPU_REG_BX:
+            return r->rbx;
+        case CPU_REG_CX:
+            return r->rcx;
+        case CPU_REG_DX:
+            return r->rdx;
+        case CPU_REG_SI:
+            return r->rsi;
+        case CPU_REG_DI:
+            return r->rdi;
+        case CPU_REG_SP:
+            return r->rsp;
+        case CPU_REG_BP:
+            return r->rbp;
+
+        case CPU_REG_R8:
+            return r->r8;
+        case CPU_REG_R9:
+            return r->r9;
+        case CPU_REG_R10:
+            return r->r10;
+        case CPU_REG_R11:
+            return r->r11;
+        case CPU_REG_R12:
+            return r->r12;
+        case CPU_REG_R13:
+            return r->r13;
+        case CPU_REG_R14:
+            return r->r14;
+        case CPU_REG_R15:
+            return r->r15;
+
+        case CPU_REG_FLAGS:
+            return VCPU_grflags(vcpu);
+        case CPU_REG_IP:
+            return VCPU_grip(vcpu);
+
+        default:
+            printf("CPU_Reg_Read: Invalid CPU register is given (sel:%u)!\n", sel);
+            HALT();
+            return 0; // should never hit
+    }
+}
+
+/*
+ * Set a guest register
+ */
+static inline void VCPU_reg_set(VCPU *vcpu, struct regs* r,
+                                enum CPU_Reg_Sel sel, uintptr_t val)
+{
+    switch (sel)
+    {
+        case CPU_REG_AX:
+            r->rax = val;
+            break;
+        case CPU_REG_BX:
+            r->rbx = val;
+            break;
+        case CPU_REG_CX:
+            r->rcx = val;
+            break;
+        case CPU_REG_DX:
+            r->rdx = val;
+            break;
+        case CPU_REG_SI:
+            r->rsi = val;
+            break;
+        case CPU_REG_DI:
+            r->rdi = val;
+            break;
+        case CPU_REG_SP:
+            r->rsp = val;
+            break;
+        case CPU_REG_BP:
+            r->rbp = val;
+            break;
+
+        case CPU_REG_R8:
+            r->r8 = val;
+            break;
+        case CPU_REG_R9:
+            r->r9 = val;
+            break;
+        case CPU_REG_R10:
+            r->r10 = val;
+            break;
+        case CPU_REG_R11:
+            r->r11 = val;
+            break;
+        case CPU_REG_R12:
+            r->r12 = val;
+            break;
+        case CPU_REG_R13:
+            r->r13 = val;
+            break;
+        case CPU_REG_R14:
+            r->r14 = val;
+            break;
+        case CPU_REG_R15:
+            r->r15 = val;
+            break;
+
+        case CPU_REG_FLAGS:
+            VCPU_grflags_set(vcpu, val);
+            break;
+        case CPU_REG_IP:
+            VCPU_grip_set(vcpu, val);
+            break;
+
+        default:
+            printf("CPU_Reg_Read: Invalid CPU register is given (sel:%u)!\n", sel);
+            HALT();
+    }
+}
 
 //----------------------------------------------------------------------
 //x86vmx SUBARCH. INTERFACES
