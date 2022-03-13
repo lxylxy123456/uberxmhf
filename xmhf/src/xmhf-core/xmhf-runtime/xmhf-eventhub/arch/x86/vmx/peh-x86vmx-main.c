@@ -656,6 +656,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r)
 {
 	// [Superymk] Collect the guest's general registers
 	r->esp = (u32)VCPU_grsp(vcpu);
+	r->flags = (u32)VCPU_grflags(vcpu);
 
 	//read VMCS from physical CPU/core
 #ifndef __XMHF_VERIFICATION__
@@ -921,6 +922,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r)
 #endif
 
 	// [Superymk] Update guest registers
+	VCPU_grflags_set(vcpu, r->flags);
 	VCPU_grsp_set(vcpu, r->esp);
 
 	return 1;

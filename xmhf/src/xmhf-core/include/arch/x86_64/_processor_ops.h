@@ -17,14 +17,14 @@ enum CPU_Reg_Sel
     CPU_REG_SP,
     CPU_REG_BP,
 
-    CPU_REG_r8,
-    CPU_REG_r9,
-    CPU_REG_r10,
-    CPU_REG_r11,
-    CPU_REG_r12,
-    CPU_REG_r13,
-    CPU_REG_r14,
-    CPU_REG_r15
+    CPU_REG_R8,
+    CPU_REG_R9,
+    CPU_REG_R10,
+    CPU_REG_R11,
+    CPU_REG_R12,
+    CPU_REG_R13,
+    CPU_REG_R14,
+    CPU_REG_R15
 };
 
 static inline ulong_t CPU_Reg_Read(struct regs* r, enum CPU_Reg_Sel sel)
@@ -48,21 +48,21 @@ static inline ulong_t CPU_Reg_Read(struct regs* r, enum CPU_Reg_Sel sel)
         case CPU_REG_BP:
             return r->rbp;
 
-        case CPU_REG_r8:
+        case CPU_REG_R8:
             return r->r8;
-        case CPU_REG_r9:
+        case CPU_REG_R9:
             return r->r9;
-        case CPU_REG_r10:
+        case CPU_REG_R10:
             return r->r10;
-        case CPU_REG_r11:
+        case CPU_REG_R11:
             return r->r11;
-        case CPU_REG_r12:
+        case CPU_REG_R12:
             return r->r12;
-        case CPU_REG_r13:
+        case CPU_REG_R13:
             return r->r13;
-        case CPU_REG_r14:
+        case CPU_REG_R14:
             return r->r14;
-        case CPU_REG_r15:
+        case CPU_REG_R15:
             return r->r15;
 
         default:

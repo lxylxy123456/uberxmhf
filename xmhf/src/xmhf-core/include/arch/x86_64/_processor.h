@@ -165,7 +165,6 @@ struct regs
     union { u64 rdx; u32 edx; } __attribute__ ((packed));
     union { u64 rcx; u32 ecx; } __attribute__ ((packed));
     union { u64 rax; u32 eax; } __attribute__ ((packed));
-    union { u64 rflags; u32 eflags; } __attribute__ ((packed));
     u64 r8;
     u64 r9;
     u64 r10;
@@ -174,6 +173,8 @@ struct regs
     u64 r13;
     u64 r14;
     u64 r15;
+
+    u64 flags;
 } __attribute__ ((packed));
 
 

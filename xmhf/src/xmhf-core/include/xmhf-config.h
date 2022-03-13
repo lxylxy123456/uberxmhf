@@ -56,8 +56,15 @@
 
 // maximum supported physical address, currently 16GB
 // Note: This value must be larger than 4GB
-// Note: 32-bit XMHF (non-PAE) ignores this value and always assumes the maximum physical memory size == 4GB.
-#define MAX_PHYS_ADDR                   GB(16)
+#ifdef __X86__
+    // Note: 32-bit XMHF (non-PAE) always assumes the maximum physical memory size == 4GB.
+	#define MAX_PHYS_ADDR					ADDR_4GB
+#elif defined(__X86_64__)
+	#define MAX_PHYS_ADDR                   GB(16)
+#else
+    #error "Unsupported Arch"
+#endif // __X86__
+
 
 // max. cores/vcpus we support currently
 #define MAX_MIDTAB_ENTRIES  			(8)

@@ -391,6 +391,8 @@ static u32 vmx_eap_initialize(
             printf("\n%s: Get system physical address range error! Halting!", __FUNCTION__);
             HALT();
         }
+        machine_low_spa = PAGE_ALIGN_4K(machine_low_spa);
+        machine_high_spa = PAGE_ALIGN_UP4K(machine_high_spa);
 
         // Check: The base and limit of the physical address space must <= DMAPROT_PHY_ADDR_SPACE_SIZE
         phy_space_size = machine_high_spa - machine_low_spa;

@@ -54,17 +54,18 @@
 extern RPB *rpb;
 // extern GRUBE820 g_e820map[];
 
-// Traverse the E820 map and return the lower and upper used system physical address (i.e., used by main memory and MMIO).
+// Traverse the E820 map and return the base and limit of used system physical address (i.e., used by main memory and MMIO).
 // [NOTE] <machine_high_spa> must be u64 even on 32-bit machines, because it could be 4G, and hence overflow u32.
+// Return: <machine_base_spa> and <machine_limit_spa> may not be 4K-aligned.
 // [TODO][Issue 85] Move this function to a better place
-bool xmhf_baseplatform_x86_e820_paddr_range(spa_t* machine_low_spa, u64* machine_high_spa)
+bool xmhf_baseplatform_x86_e820_paddr_range(spa_t* machine_base_spa, u64* machine_limit_spa)
 {
-	u32 e820_last_idx = 0;
-	spa_t last_e820_entry_base = INVALID_SPADDR;
-	size_t last_e820_entry_len = 0;
+	u32 i = 0;
+	spa_t base_spa = INVALID_SPADDR;
+	u64 limit_spa = INVALID_SPADDR;
 
 	// Sanity checks
-	if(!machine_low_spa || !machine_high_spa)
+	if(!machine_base_spa || !machine_limit_spa)
 		return false;
 
 	if(!rpb)
@@ -73,13 +74,32 @@ bool xmhf_baseplatform_x86_e820_paddr_range(spa_t* machine_low_spa, u64* machine
 	if(!rpb->XtVmmE820NumEntries)
 		return false;
 
-	// Calc <machine_low_spa> and <machine_high_spa>
-	e820_last_idx = rpb->XtVmmE820NumEntries - 1;
+	// Traverse E820 entries to find the base and limit of the system phsical address.
+	// Note: E820 entries are unsorted, and sometimes overlapping with each other.
+	// Note: We ignore the type of E820 entries.
+	// see https://wiki.osdev.org/Detecting_Memory_(x86)#BIOS_Function:_INT_0x15.2C_EAX_.3D_0xE820
+	base_spa = UINT32sToSPADDR(g_e820map[0].baseaddr_high, g_e820map[0].baseaddr_low);
+	FOREACH_S(i, rpb->XtVmmE820NumEntries, MAX_E820_ENTRIES, 0, 1)
+	{
+		spa_t cur_base_spa = UINT32sToSPADDR(g_e820map[i].baseaddr_high, g_e820map[i].baseaddr_low);
+		size_t cur_size = UINT32sToSIZE(g_e820map[i].length_high, g_e820map[i].length_low);
+		u64 cur_limit_spa = (spa_t)(cur_base_spa + cur_size);
 
-	*machine_low_spa = UINT32sToSPADDR(g_e820map[0].baseaddr_high, g_e820map[0].baseaddr_low);
-	last_e820_entry_base = UINT32sToSPADDR(g_e820map[e820_last_idx].baseaddr_high, g_e820map[e820_last_idx].baseaddr_low);
-	last_e820_entry_len = UINT32sToSIZE(g_e820map[e820_last_idx].baseaddr_high, g_e820map[e820_last_idx].baseaddr_low);
-	*machine_high_spa = (spa_t)(last_e820_entry_base + last_e820_entry_len);
+		if(cur_base_spa <= base_spa)
+		{
+			// Found a lower base
+			base_spa = cur_base_spa;
+		}
+
+		if(cur_limit_spa >= limit_spa)
+		{
+			// Found an upper limit
+			limit_spa = cur_limit_spa;
+		}
+	}
+
+	*machine_base_spa = base_spa;
+	*machine_limit_spa = limit_spa;
 				
 	return true;
 }

@@ -85,6 +85,7 @@
 
 #include <xmhf-debug.h>			//XMHF debug component 
 #include <xmhf-types.h>			//XMHF specific base types
+#include <xmhf-var.h>
 
 #ifdef __XMHF_VERIFICATION__
 	//include verification related primitives

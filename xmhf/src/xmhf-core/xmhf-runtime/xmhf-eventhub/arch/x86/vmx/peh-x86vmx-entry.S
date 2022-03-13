@@ -60,14 +60,11 @@
 .section .text
 .global xmhf_parteventhub_arch_x86vmx_entry
 xmhf_parteventhub_arch_x86vmx_entry:
-	cli // [Superymk] Need to disable interrupt in hypercall handlers
-
 	//step-1: save all CPU GPRs
-	pushf
 	pushal
 	
 	//step-2: grab VCPU *
-	movl 36(%esp), %esi
+	movl 32(%esp), %esi
 	      
    	//step-4: get hold of pointer to saved GPR on stack
    	movl %esp, %eax
@@ -81,7 +78,6 @@ xmhf_parteventhub_arch_x86vmx_entry:
 
     //step-6; restore all CPU GPRs
     popal
-    popf
 
     //resume partition
     vmresume

@@ -60,8 +60,6 @@
 .section .text
 .global xmhf_parteventhub_arch_x86_64vmx_entry
 xmhf_parteventhub_arch_x86_64vmx_entry:
-    cli // [Superymk] Need to disable interrupt in hypercall handlers
-
     // Currently rsp points to VCPU
 
     //step-1: save all CPU GPRs
@@ -73,7 +71,6 @@ xmhf_parteventhub_arch_x86_64vmx_entry:
     pushq   %r10
     pushq   %r9
     pushq   %r8
-    pushfq
     pushq   %rax
     pushq   %rcx
     pushq   %rdx
@@ -84,7 +81,7 @@ xmhf_parteventhub_arch_x86_64vmx_entry:
     pushq   %rdi
 
     //step-2: grab VCPU *, put to 1st argument
-    movq 136(%rsp), %rdi
+    movq 128(%rsp), %rdi
 
     //step-4: get hold of pointer to saved GPR on stack, put to 2nd argument
     movq %rsp, %rsi
@@ -101,7 +98,6 @@ xmhf_parteventhub_arch_x86_64vmx_entry:
     popq    %rdx
     popq    %rcx
     popq    %rax
-    popfq
     popq    %r8
     popq    %r9
     popq    %r10

@@ -544,6 +544,8 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
    * Issue 5: Will the "__control_VMX_cpu_based" code in <xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception> and 
    * virtual NMI VMExit mismatch when there are multiple guests/domains? In other words, they are reading/writing different VMCS. 
    */
+
+  
 	if(g_vmx_quiesce && !vcpu->quiesced){
 		vcpu->quiesced=1;
 

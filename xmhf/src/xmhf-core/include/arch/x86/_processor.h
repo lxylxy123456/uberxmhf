@@ -166,7 +166,7 @@ struct regs
   u32 ecx;
   u32 eax;
 
-  u32 eflags;
+  u32 flags;
 }__attribute__ ((packed));
 
 
