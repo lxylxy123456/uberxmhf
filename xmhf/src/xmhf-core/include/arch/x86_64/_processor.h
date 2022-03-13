@@ -156,6 +156,8 @@
 //x86_64 GPR set definition
 struct regs
 {
+    u64 flags;
+
     // TODO: better to remove 32-bit registers, but need to change a lot of code
     union { u64 rdi; u32 edi; } __attribute__ ((packed));
     union { u64 rsi; u32 esi; } __attribute__ ((packed));
@@ -173,8 +175,6 @@ struct regs
     u64 r13;
     u64 r14;
     u64 r15;
-
-    u64 flags;
 } __attribute__ ((packed));
 
 

@@ -157,6 +157,8 @@
 //SDM Vol 2B. 4-427)
 struct regs
 {
+  u32 flags;
+
   u32 edi;
   u32 esi;
   u32 ebp;
@@ -165,8 +167,6 @@ struct regs
   u32 edx;
   u32 ecx;
   u32 eax;
-
-  u32 flags;
 }__attribute__ ((packed));
 
 

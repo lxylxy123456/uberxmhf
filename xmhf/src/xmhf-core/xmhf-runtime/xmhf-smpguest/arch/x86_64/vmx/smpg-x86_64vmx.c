@@ -548,6 +548,12 @@ void xmhf_smpguest_arch_x86_64vmx_eventhandler_nmiexception(VCPU *vcpu, struct r
    * Issue 5: Will the "__control_VMX_cpu_based" code in <xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception> and 
    * virtual NMI VMExit mismatch when there are multiple guests/domains? In other words, they are reading/writing different VMCS. 
    */
+  // The function handles NMI as follows:
+  // (1) If XMHF on core i requests quiesce and the current core is not quiesced yet, XMHF must quiesce the current core
+  // (2) If XMHF on core i requests quiesce and the current core is quiesced, then some device must issue NMI after core i
+  // requesting quiesce. This NMI should be injected to a guest. XMHF currently injects NMI to the trapped guest.
+  //      - [TODO] XMHF should query hypapp to find out which guest should receive this NMI
+  // (3) If no one requests quiesce and the current core receives NMI, then it should be injected to the trapped guest.
 	if(g_vmx_quiesce && !vcpu->quiesced){
 		vcpu->quiesced=1;
 

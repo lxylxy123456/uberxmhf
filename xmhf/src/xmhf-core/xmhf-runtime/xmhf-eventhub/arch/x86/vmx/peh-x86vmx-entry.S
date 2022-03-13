@@ -62,9 +62,11 @@
 xmhf_parteventhub_arch_x86vmx_entry:
 	//step-1: save all CPU GPRs
 	pushal
+
+	pushl %edi  // dummy value for eflags
 	
 	//step-2: grab VCPU *
-	movl 32(%esp), %esi
+	movl 36(%esp), %esi
 	      
    	//step-4: get hold of pointer to saved GPR on stack
    	movl %esp, %eax
@@ -77,6 +79,8 @@ xmhf_parteventhub_arch_x86vmx_entry:
     addl $0x08, %esp
 
     //step-6; restore all CPU GPRs
+	popl    %edi // throw away the dummy value for eflags
+
     popal
 
     //resume partition
