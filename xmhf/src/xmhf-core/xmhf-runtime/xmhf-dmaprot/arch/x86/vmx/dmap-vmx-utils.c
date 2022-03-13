@@ -46,7 +46,7 @@ static void _iommu_map_1GB_page(IOMMU_PT_INFO* pt_info, void* upper_level_pts, g
     }
 
     // Now we can safely assign the new PTE.
-    ((uint64_t*)upper_level_pts)[pt_1GB_index] = (spa & PAGE_MASK_1GB) | (uint64_t)flags 
+    ((uint64_t*)upper_level_pts)[pt_1GB_index] = (spa & PAGE_MASK_1G) | (uint64_t)flags 
                 | (uint64_t)VTD_SUPERPAGE | (uint64_t) VTD_PRESENT;
 
     return true;

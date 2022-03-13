@@ -59,7 +59,7 @@
 
 
 #define PAGE_MASK_4K				0xfffff000
-#define PAGE_MASK_1GB       0xC0000000
+#define PAGE_MASK_1G       0xC0000000
 
 #define PAGE_SHIFT_4K   12
 #define PAGE_SHIFT_2M   21
