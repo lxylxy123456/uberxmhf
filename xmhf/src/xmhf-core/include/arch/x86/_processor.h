@@ -157,8 +157,6 @@
 //SDM Vol 2B. 4-427)
 struct regs
 {
-  u32 flags;
-
   u32 edi;
   u32 esi;
   u32 ebp;

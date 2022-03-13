@@ -80,10 +80,8 @@ xmhf_parteventhub_arch_x86_64vmx_entry:
     pushq   %rsi
     pushq   %rdi
 
-    pushq   %rdi  // dummy value for rflags
-
     //step-2: grab VCPU *, put to 1st argument
-    movq 136(%rsp), %rdi
+    movq 128(%rsp), %rdi
 
     //step-4: get hold of pointer to saved GPR on stack, put to 2nd argument
     movq %rsp, %rsi
@@ -92,8 +90,6 @@ xmhf_parteventhub_arch_x86_64vmx_entry:
     call xmhf_parteventhub_arch_x86_64vmx_intercept_handler
 
     //step-6; restore all CPU GPRs
-    popq    %rdi // throw away the dummy value for rflags
-
     popq    %rdi
     popq    %rsi
     popq    %rbp

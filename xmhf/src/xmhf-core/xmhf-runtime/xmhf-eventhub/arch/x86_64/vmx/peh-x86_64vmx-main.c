@@ -722,8 +722,7 @@ static void _vmx_handle_intercept_xsetbv(VCPU *vcpu, struct regs *r){
 u32 xmhf_parteventhub_arch_x86_64vmx_intercept_handler(VCPU *vcpu, struct regs *r)
 {
 	// [Superymk] Collect the guest's general registers
-	r->rsp = VCPU_grsp(vcpu);
-	r->flags = VCPU_grflags(vcpu);
+//	r->rsp = VCPU_grsp(vcpu);
 
 	//read VMCS from physical CPU/core
 #ifndef __XMHF_VERIFICATION__
@@ -1022,8 +1021,7 @@ u32 xmhf_parteventhub_arch_x86_64vmx_intercept_handler(VCPU *vcpu, struct regs *
 #endif
 
 	// [Superymk] Update guest registers
-	VCPU_grflags_set(vcpu, r->flags);
-	VCPU_grsp_set(vcpu, r->rsp);
+//	VCPU_grsp_set(vcpu, r->rsp);
 
 	return 1;
 }
