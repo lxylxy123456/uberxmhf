@@ -996,20 +996,8 @@ u32 xmhf_parteventhub_arch_x86_64vmx_intercept_handler(VCPU *vcpu, struct regs *
 
 	//write updated VMCS back to CPU
 #ifndef __XMHF_VERIFICATION__
-	// [Superymk] Optimization to reduce trap overhead
-	if(vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EPT_VIOLATION)
-		xmhf_baseplatform_arch_x86_64vmx_putVMCS(vcpu);
-	else
-	{
-		// Write back fewer fields in case of VMX_VMEXIT_EPT_VIOLATION
-		// [TODO][Issue 84] Remove the ugly VMCS indices
-		__vmx_vmwrite(0x681C, vcpu->vmcs.guest_RSP);
-		__vmx_vmwrite(0x681E, vcpu->vmcs.guest_RIP);
-		__vmx_vmwrite(0x4004, vcpu->vmcs.control_exception_bitmap);
-		__vmx_vmwrite(0x6820, vcpu->vmcs.guest_RFLAGS);
-	}
+	xmhf_baseplatform_arch_x86_64vmx_putVMCS(vcpu);
 
-	//xmhf_baseplatform_arch_x86_64vmx_putVMCS(vcpu);
 #endif // __XMHF_VERIFICATION__
 
 
