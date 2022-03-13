@@ -655,7 +655,7 @@ static void _vmx_handle_intercept_xsetbv(VCPU *vcpu, struct regs *r){
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r)
 {
 	// [Superymk] Collect the guest's general registers
-	r->esp = (u32)VCPU_grsp(vcpu);
+//	r->esp = (u32)VCPU_grsp(vcpu);
 
 	//read VMCS from physical CPU/core
 #ifndef __XMHF_VERIFICATION__
@@ -896,20 +896,8 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r)
 
 	//write updated VMCS back to CPU
 #ifndef __XMHF_VERIFICATION__
-	// [Superymk] Optimization to reduce trap overhead
-	if(vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EPT_VIOLATION)
-		xmhf_baseplatform_arch_x86vmx_putVMCS(vcpu);
-	else
-	{
-		// Write back fewer fields in case of VMX_VMEXIT_EPT_VIOLATION
-		// [TODO][Issue 84] Remove the ugly VMCS indices
-		__vmx_vmwrite(0x681C, vcpu->vmcs.guest_RSP);
-		__vmx_vmwrite(0x681E, vcpu->vmcs.guest_RIP);
-		__vmx_vmwrite(0x4004, vcpu->vmcs.control_exception_bitmap);
-		__vmx_vmwrite(0x6820, vcpu->vmcs.guest_RFLAGS);
-	}
 
-	//xmhf_baseplatform_arch_x86vmx_putVMCS(vcpu);
+	xmhf_baseplatform_arch_x86vmx_putVMCS(vcpu);
 #endif // __XMHF_VERIFICATION__
 
 
@@ -921,7 +909,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r)
 #endif
 
 	// [Superymk] Update guest registers
-	VCPU_grsp_set(vcpu, r->esp);
+//	VCPU_grsp_set(vcpu, r->esp);
 
 	return 1;
 }
