@@ -214,7 +214,7 @@
 * Support munmap memory in caller.c (`bug_038`)
 * (Now can run PAL in x64 Windows 10 and x64 Fedora)
 
-`6733ca433..` (a08f148a1)
+`6733ca433..a08f148a1`
 * Support booting a grub located other than `(hd0)` (`bug_043`)
 * Remove some unnecessary `__attribute__((packed))` (`bug_043`)
 * Fix unexpected content on screen when debugging with VGA (`bug_044`)
@@ -225,6 +225,13 @@
 * Fix type size in `xmhf_baseplatform_arch_x86_64vmx_wakeupAPs()` (`bug_046`)
 * Fix `x86_64` alignment problem for `_txt_heap.h` (`bug_046`)
 * Use sparse file to save build disk space (`bug_047`)
+
+`a08f148a1..215bff899`
+* Miscelaneous changes
+* PR from Miao: try to add DMAP support to XMHF (`bug_050`)
+
+`215bff899..` ???
+* Merge `x86` and `x86_64` code (`bug_051`)
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output

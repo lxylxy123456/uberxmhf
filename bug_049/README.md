@@ -28,3 +28,23 @@ Use `merge_x86.py`
 
 Need to update `xmhf_sl_arch_x86_setup_runtime_paging` in `xmhf-sl.h`
 
+### Phase 2
+
+Still use `merge_x86.py`
+
+Found regression in commit `28e42cef9`. For x86 XMHF see:
+"Unhandled intercept: 49"
+
+```sh
+git bisect start
+git bisect bad 28e42cef9
+git bisect good dd266a926
+git bisect bad bf7bd770a
+git bisect good 217859474
+git bisect bad 699eed0d0
+git bisect good 643b4fee4
+```
+
+Can see that the problem is that `P4L_NPDT` and `P4L_NPT` are wrong. Their
+values are 0. This is because `PAGE_SIZE_4K` is 32-bits. Fixed in `c51de4165`.
+

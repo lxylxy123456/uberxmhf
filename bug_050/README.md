@@ -57,9 +57,11 @@ CPU, but looks like it is changed back for some reason.
 GitHub comment:
 <https://github.com/lxylxy123456/uberxmhf/pull/1/files#r825393271>
 
+Git: branch `miao-xmhf64-bugfix`, commit `301ba2827`
+
 ### CR0 bug
 
-TODO: maybe bug in `vmx_handle_intercept_cr0access_ug()`:
+Found bug in `vmx_handle_intercept_cr0access_ug()` (not related to this PR):
 ```
 diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86_64/vmx/peh-x86_64vmx-main.c b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86_64/vmx/peh-x86_64vmx-main.c
 index d0eec7191..6be116825 100644
@@ -79,5 +81,14 @@ index d0eec7191..6be116825 100644
  			 * Sanity check: for bits not masked other than CR0.PG and CR0.PE,
 ```
 
-# tmp notes
+There is something wrong in sanity check. Not a big problem.
+
+### Afterwards
+
+Decided to not change regs structure. Merged PR
+
+## Fix
+
+`215bff899..0240f2b7a`
+* PR from Miao: try to add DMAP support to XMHF
 
