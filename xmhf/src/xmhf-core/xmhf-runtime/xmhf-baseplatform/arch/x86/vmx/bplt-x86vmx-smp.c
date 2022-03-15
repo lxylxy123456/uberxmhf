@@ -198,7 +198,7 @@ void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
 	#ifndef __XMHF_VERIFICATION__
         write_priv_config_reg(TXTCR_MLE_JOIN, (uint64_t)(unsigned long)mle_join);
 
-        if (os_sinit_data->capabilities.rlp_wake_monitor) {
+        if (0 && os_sinit_data->capabilities.rlp_wake_monitor) {	// TODO
             printf("\nBSP: joining RLPs to MLE with MONITOR wakeup");
             printf("\nBSP: rlp_wakeup_addr = 0x%08x", sinit_mle_data->rlp_wakeup_addr);
             for (int i = 0; i < 1000; i++) xmhf_baseplatform_arch_x86_udelay(1000);
@@ -209,8 +209,12 @@ void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
             printf("\nBSP: write end 1s");
         }else {
             printf("\nBSP: joining RLPs to MLE with GETSEC[WAKEUP]");
+            for (int i = 0; i < 1000; i++) xmhf_baseplatform_arch_x86_udelay(1000);
+            printf("\nBSP: write start");
             __getsec_wakeup();
             printf("\nBSP: GETSEC[WAKEUP] completed");
+            for (int i = 0; i < 1000; i++) xmhf_baseplatform_arch_x86_udelay(1000);
+            printf("\nBSP: write end");
         }
 	#endif
 
