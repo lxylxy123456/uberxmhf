@@ -3,6 +3,11 @@
 void begin_pal_c() {}
 
 uintptr_t my_pal(uintptr_t arg1, uintptr_t *arg2) {
+	while (*arg2) {
+		(*arg2)--;
+		arg1++;
+		arg1++;
+	}
 	return arg1 + ((*arg2)++);
 }
 

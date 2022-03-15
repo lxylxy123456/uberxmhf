@@ -31,11 +31,12 @@ void call_pal(uintptr_t a, uintptr_t b) {
 }
 
 int main(int argc, char *argv[]) {
-	uintptr_t a, b, b2;
-	uintptr_t ret;
+	uintptr_t a, b/*, b2;
+	uintptr_t ret*/;
 	assert(argc > 2);
 	assert(sscanf(argv[1], "%p", (void **)&a) == 1);
 	assert(sscanf(argv[2], "%p", (void **)&b) == 1);
+	/*
 	b2 = b;
 	printf("Without PAL:\n");
 	printf(" %p = *%p\n", (void *)b2, &b2);
@@ -43,6 +44,7 @@ int main(int argc, char *argv[]) {
 	ret = my_pal(a, &b2);
 	printf(" %p = my_pal(%p, %p)\n", (void *)ret, (void *)a, &b2);
 	printf(" %p = *%p\n\n", (void *)b2, &b2);
+	*/
 	fflush(stdout);
 	call_pal(a, b);
 	return 0;
