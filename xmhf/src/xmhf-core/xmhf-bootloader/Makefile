@@ -24,7 +24,7 @@ OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-tpm/arch/x86/vmx/tpm-x86vmx.o
 
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pci.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-acpi.o
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-smplock.o
+OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-i386-smplock.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
 
@@ -41,7 +41,7 @@ I_SOURCES =  $(wildcard $(INCLUDEDIR)/*.h)
 
 
 # Workaround of using x86 object files
-ifeq ($(TARGET_HWPLATFORM), x86_64)
+ifeq ($(TARGET_WORDSIZE), amd64)
 OBJECTS_PRECOMPILED := $(patsubst %.o, %.x86.o, $(OBJECTS_PRECOMPILED))
 OBJECTS_PRECOMPILED := $(patsubst %.a, %.x86.a, $(OBJECTS_PRECOMPILED))
 OBJECTS_PRECOMPILED_LIBBACKENDS := $(patsubst %.o, %.x86.o, $(OBJECTS_PRECOMPILED_LIBBACKENDS))
@@ -68,14 +68,14 @@ endif
 
 # targets
 .PHONY: all
-all: init-$(TARGET_HWPLATFORM).bin
+all: init-$(TARGET_HWPLATFORM)-$(TARGET_WORDSIZE).bin
 
 # FIXME: ADDL_LIBS is overly general; init/ doesn't need all of them
-init-$(TARGET_HWPLATFORM).bin: $(OBJECTS) $(OBJECTS_PRECOMPILED) init.lds.S
+init-$(TARGET_HWPLATFORM)-$(TARGET_WORDSIZE).bin: $(OBJECTS) $(OBJECTS_PRECOMPILED) init.lds.S
 	$(LD) -T init.lds.S -o init.exe $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS32) $(OBJECTS_PRECOMPILED_LIBBACKENDS) -L$(CCLIB) -lgcc
 	$(CP) init.exe init_syms.exe
 	$(STRIP) -s init.exe
-	$(OBJCOPY) --output-format=binary init.exe init-$(TARGET_HWPLATFORM).bin
+	$(OBJCOPY) --output-format=binary init.exe init-$(TARGET_HWPLATFORM)-$(TARGET_WORDSIZE).bin
 
 %.o: %.S $(I_SOURCES) Makefile ../Makefile  ../../../Makefile
 	$(CC) -c $(ASFLAGS) -o $@ $<

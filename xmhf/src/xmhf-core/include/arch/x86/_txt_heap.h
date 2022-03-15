@@ -116,7 +116,7 @@ typedef struct {
 /* This struct is manually aligned */
 typedef struct {
     uint32_t          version;           /* currently 2 */
-    uint32_t          _;                 /* alignment padding for x86-64 */
+    uint32_t          _;                 /* alignment padding for amd64 */
     mtrr_state_t      saved_mtrr_state;  /* saved prior to changes for SINIT */
     uint32_t          mbi;               /* needs to be restored to ebx */
                                          /* type was multiboot_info_t* */
@@ -251,7 +251,7 @@ static inline uint64_t get_os_sinit_data_size(txt_heap_t *heap)
                          get_os_mle_data_size(heap));
     //return xmhf_arch_baseplatform_flat_readu64((u32)(heap + get_bios_data_size(heap) +
     //                     get_os_mle_data_size(heap)));
-    
+
 }
 
 static inline os_sinit_data_t *get_os_sinit_data_start(txt_heap_t *heap)

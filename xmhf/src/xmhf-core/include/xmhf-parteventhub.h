@@ -64,38 +64,18 @@ extern void _vmx_dumpVMCS(VCPU *vcpu);
 extern u32 rdmsr_safe(struct regs *r);
 
 //----------------------------------------------------------------------
-//exported DATA 
+//exported DATA
 //----------------------------------------------------------------------
 
 
 //----------------------------------------------------------------------
-//exported FUNCTIONS 
+//exported FUNCTIONS
 //----------------------------------------------------------------------
 
 
 //----------------------------------------------------------------------
 //ARCH. BACKENDS
 //----------------------------------------------------------------------
-
-#ifdef __X86_64__
-
-//----------------------------------------------------------------------
-//x86_64 ARCH. INTERFACES
-//----------------------------------------------------------------------
-
-//----------------------------------------------------------------------
-//x86_64vmx SUBARCH. INTERFACES
-//----------------------------------------------------------------------
-void xmhf_parteventhub_arch_x86_64vmx_entry(void);
-u32 xmhf_parteventhub_arch_x86_64vmx_intercept_handler(VCPU *vcpu, struct regs *r);
-
-//----------------------------------------------------------------------
-//x86_64svm SUBARCH. INTERFACES
-//----------------------------------------------------------------------
-void xmhf_parteventhub_arch_x86_64svm_entry(void);
-u32 xmhf_parteventhub_arch_x86_64svm_intercept_handler(VCPU *vcpu, struct regs *r);
-
-#else /* !__X86_64__ */
 
 //----------------------------------------------------------------------
 //x86 ARCH. INTERFACES
@@ -112,8 +92,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r);
 //----------------------------------------------------------------------
 void xmhf_parteventhub_arch_x86svm_entry(void);
 u32 xmhf_parteventhub_arch_x86svm_intercept_handler(VCPU *vcpu, struct regs *r);
-
-#endif /* __X86_64__ */
 
 
 #endif	//__ASSEMBLY__

@@ -48,7 +48,7 @@
 // implementation
 // author: amit vasudevan (amitvasudevan@acm.org)
 
-#include <xmhf.h> 
+#include <xmhf.h>
 
 // initialize memory protection structures for a given core (vcpu)
 void xmhf_memprot_initialize(VCPU *vcpu){
@@ -78,12 +78,18 @@ u64 * xmhf_memprot_get_lvl4_pagemap_address(VCPU *vcpu){
 //get default root page map address
 u64 * xmhf_memprot_get_default_root_pagemap_address(VCPU *vcpu){
 	return xmhf_memprot_arch_get_default_root_pagemap_address(vcpu);
-} 
+}
 
 
-//flush hardware page table mappings (TLB) 
+//flush hardware page table mappings (TLB)
 void xmhf_memprot_flushmappings(VCPU *vcpu){
 	xmhf_memprot_arch_flushmappings(vcpu);
+}
+
+//flush the TLB of all nested page tables in the current core
+void xmhf_memprot_flushmappings_localtlb(VCPU *vcpu){
+	//printf("\nCPU(0x%02x): <xmhf_memprot_flushmappings_localtlb>\n", vcpu->id);
+	xmhf_memprot_arch_flushmappings_localtlb(vcpu);
 }
 
 
@@ -91,18 +97,18 @@ void xmhf_memprot_flushmappings(VCPU *vcpu){
 void xmhf_memprot_setprot(VCPU *vcpu, u64 gpa, u32 prottype){
 #ifdef __XMHF_VERIFICATION_DRIVEASSERTS__
 	assert ( (vcpu != NULL) );
-	assert ( ( (gpa < rpb->XtVmmRuntimePhysBase) || 
-							 (gpa >= (rpb->XtVmmRuntimePhysBase + rpb->XtVmmRuntimeSize)) 
+	assert ( ( (gpa < rpb->XtVmmRuntimePhysBase) ||
+							 (gpa >= (rpb->XtVmmRuntimePhysBase + rpb->XtVmmRuntimeSize))
 						   ) );
-	assert ( ( (prottype > 0)	&& 
-	                         (prottype <= MEMP_PROT_MAXVALUE) 
-	                       ) );						
+	assert ( ( (prottype > 0)	&&
+	                         (prottype <= MEMP_PROT_MAXVALUE)
+	                       ) );
 	assert (
 	 (prottype == MEMP_PROT_NOTPRESENT) ||
 	 ((prottype & MEMP_PROT_PRESENT) && (prottype & MEMP_PROT_READONLY) && (prottype & MEMP_PROT_EXECUTE)) ||
 	 ((prottype & MEMP_PROT_PRESENT) && (prottype & MEMP_PROT_READWRITE) && (prottype & MEMP_PROT_EXECUTE)) ||
 	 ((prottype & MEMP_PROT_PRESENT) && (prottype & MEMP_PROT_READONLY) && (prottype & MEMP_PROT_NOEXECUTE)) ||
-	 ((prottype & MEMP_PROT_PRESENT) && (prottype & MEMP_PROT_READWRITE) && (prottype & MEMP_PROT_NOEXECUTE)) 
+	 ((prottype & MEMP_PROT_PRESENT) && (prottype & MEMP_PROT_READWRITE) && (prottype & MEMP_PROT_NOEXECUTE))
 	);
 #endif
 
@@ -113,4 +119,16 @@ void xmhf_memprot_setprot(VCPU *vcpu, u64 gpa, u32 prottype){
 //get protection for a given physical memory address
 u32 xmhf_memprot_getprot(VCPU *vcpu, u64 gpa){
 	return xmhf_memprot_arch_getprot(vcpu, gpa);
+}
+
+// Is the given system paddr belong to mHV (XMHF + hypapp)?
+bool xmhf_is_mhv_memory(spa_t spa)
+{
+	u64 base = rpb->XtVmmRuntimePhysBase;
+	size_t size = rpb->XtVmmRuntimeSize;
+
+	if((spa >= base) && (spa < base + size))
+		return true;
+
+	return false;
 }

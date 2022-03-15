@@ -53,7 +53,36 @@
 //---VMX decode assist----------------------------------------------------------
 //map a CPU register index into appropriate VCPU *vcpu or struct regs *r field
 //and return the address of the field
-static u32 * _vmx_decode_reg(u32 gpr, VCPU *vcpu, struct regs *r){
+#ifdef __AMD64__
+static uintptr_t * _vmx_decode_reg(u32 gpr, VCPU *vcpu, struct regs *r){
+    switch(gpr){
+        case  0: return &r->rax;
+        case  1: return &r->rcx;
+        case  2: return &r->rdx;
+        case  3: return &r->rbx;
+        case  4: return (u64*)&vcpu->vmcs.guest_RSP;
+        case  5: return &r->rbp;
+        case  6: return &r->rsi;
+        case  7: return &r->rdi;
+        case  8: return &r->r8 ;
+        case  9: return &r->r9 ;
+        case 10: return &r->r10;
+        case 11: return &r->r11;
+        case 12: return &r->r12;
+        case 13: return &r->r13;
+        case 14: return &r->r14;
+        case 15: return &r->r15;
+        default: {
+            printf("\n[%02x]%s: invalid gpr value (%u). halting!", vcpu->id,
+                   __FUNCTION__, gpr);
+            HALT();
+            //we will never get here, appease the compiler
+            return (u64 *)&r->rax;
+        }
+    }
+}
+#else /* !__AMD64__ */
+static uintptr_t * _vmx_decode_reg(u32 gpr, VCPU *vcpu, struct regs *r){
   if ( ((int)gpr >=0) && ((int)gpr <= 7) ){
 
 	  switch(gpr){
@@ -75,6 +104,7 @@ static u32 * _vmx_decode_reg(u32 gpr, VCPU *vcpu, struct regs *r){
 	//we will never get here, appease the compiler
 	return (u32 *)&r->eax;
 }
+#endif /* __AMD64__ */
 
 
 //---intercept handler (CPUID)--------------------------------------------------
@@ -113,7 +143,7 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 		if((sla_t)bdamemoryphysical < rpb->XtVmmRuntimePhysBase){
 			printf("\nINT15 (E820): V86 mode, bdamemory translated from %08lx to %08lx",
 				(hva_t)bdamemory, (sla_t)bdamemoryphysical);
-			bdamemory = bdamemoryphysical; 
+			bdamemory = bdamemoryphysical;
 		}else{
 			printf("\nCPU(0x%02x): INT15 (E820) V86 mode, translated bdamemory points beyond \
 				guest physical memory space. Halting!", vcpu->id);
@@ -140,26 +170,35 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 			{
 
 				if( ((sla_t)(vcpu->vmcs.guest_ES_base+(u16)r->edi)) < rpb->XtVmmRuntimePhysBase){
+					GRUBE820 *pe820entry;
 					#ifdef __XMHF_VERIFICATION__
-						GRUBE820 pe820entry;
-						pe820entry.baseaddr_low = g_e820map[r->ebx].baseaddr_low;
-						pe820entry.baseaddr_high = g_e820map[r->ebx].baseaddr_high;
-						pe820entry.length_low = g_e820map[r->ebx].length_low;
-						pe820entry.length_high = g_e820map[r->ebx].length_high;
-						pe820entry.type = g_e820map[r->ebx].type;
+						GRUBE820 e820entry;
+						pe820entry = &e820entry;
 					#else
-						GRUBE820 *pe820entry;
 						pe820entry = (GRUBE820 *)((sla_t)(vcpu->vmcs.guest_ES_base+(u16)r->edi));
-						pe820entry->baseaddr_low = g_e820map[r->ebx].baseaddr_low;
-						pe820entry->baseaddr_high = g_e820map[r->ebx].baseaddr_high;
-						pe820entry->length_low = g_e820map[r->ebx].length_low;
-						pe820entry->length_high = g_e820map[r->ebx].length_high;
-						pe820entry->type = g_e820map[r->ebx].type;
 					#endif //__XMHF_VERIFICATION__
+					pe820entry->baseaddr_low = g_e820map[r->ebx].baseaddr_low;
+					pe820entry->baseaddr_high = g_e820map[r->ebx].baseaddr_high;
+					pe820entry->length_low = g_e820map[r->ebx].length_low;
+					pe820entry->length_high = g_e820map[r->ebx].length_high;
+					pe820entry->type = g_e820map[r->ebx].type;
+					/*
+					 * 64-bit: Check whether exceed supported memory.
+					 * 32-bit: Continue even if machine has physical memory > 4G
+					 */
+#ifdef __AMD64__
+					{
+						u64 baseaddr = (((u64)pe820entry->baseaddr_high) << 32) |
+										pe820entry->baseaddr_low;
+						u64 length = (((u64)pe820entry->length_high) << 32) |
+									pe820entry->length_low;
+						HALT_ON_ERRORCOND(baseaddr + length <= MAX_PHYS_ADDR);
+					}
+#endif /* __AMD64__ */
 				}else{
-						printf("\nCPU(0x%02x): INT15 E820. Guest buffer is beyond guest \
-							physical memory bounds. Halting!", vcpu->id);
-						HALT();
+					printf("\nCPU(0x%02x): INT15 E820. Guest buffer is beyond guest "
+							"physical memory bounds. Halting!", vcpu->id);
+					HALT();
 				}
 
 			}
@@ -197,7 +236,7 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 					if((sla_t)gueststackregionphysical < rpb->XtVmmRuntimePhysBase){
 						printf("\nINT15 (E820): V86 mode, gueststackregion translated from %08x to %08x",
 							(hva_t)gueststackregion, (sla_t)gueststackregionphysical);
-						gueststackregion = (u16 *)gueststackregionphysical; 
+						gueststackregion = (u16 *)gueststackregionphysical;
 					}else{
 						printf("\nCPU(0x%02x): INT15 (E820) V86 mode, translated gueststackregion points beyond \
 							guest physical memory space. Halting!", vcpu->id);
@@ -291,7 +330,7 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 	u64 write_data = ((u64)r->edx << 32) | (u64)r->eax;
 
-	//printf("\nCPU(0x%02x): WRMSR 0x%08x", vcpu->id, r->ecx);
+	//printf("\nCPU(0x%02x): WRMSR 0x%08x 0x%08x%08x @ %p", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
 
 	/* Disallow x2APIC MSRs */
 	HALT_ON_ERRORCOND((r->ecx & 0xffffff00U) != 0x800);
@@ -402,7 +441,7 @@ static void _vmx_handle_intercept_rdmsr(VCPU *vcpu, struct regs *r){
 	/* After switch statement, will assign this value to r->eax and r->edx */
 	u64 read_result = 0;
 
-	//printf("\nCPU(0x%02x): RDMSR 0x%08x", vcpu->id, r->ecx);
+	//printf("\nCPU(0x%02x): RDMSR 0x%08x @ %p", vcpu->id, r->ecx, vcpu->vmcs.guest_RIP);
 
 	/* Disallow x2APIC MSRs */
 	HALT_ON_ERRORCOND((r->ecx & 0xffffff00U) != 0x800);
@@ -462,6 +501,10 @@ static void _vmx_handle_intercept_rdmsr(VCPU *vcpu, struct regs *r){
 
 	/* Assign read_result to r->eax and r->edx */
 	{
+#ifdef __AMD64__
+		r->rax = 0;	/* Clear upper 32-bits of RAX */
+		r->rdx = 0;	/* Clear upper 32-bits of RDX */
+#endif /* __AMD64__ */
 		r->eax = (u32)(read_result);
 		r->edx = (u32)(read_result >> 32);
 	}
@@ -475,11 +518,12 @@ no_assign_read_result:
 
 //---intercept handler (EPT voilation)----------------------------------
 static void _vmx_handle_intercept_eptviolation(VCPU *vcpu, struct regs *r){
-	u32 errorcode, gva;
+	u32 errorcode;
+	uintptr_t gva;
 	u64 gpa;
-	errorcode = (u32)vcpu->vmcs.info_exit_qualification;
+	errorcode = (uintptr_t)vcpu->vmcs.info_exit_qualification;
 	gpa = vcpu->vmcs.guest_paddr;
-	gva = (u32)vcpu->vmcs.info_guest_linear_address;
+	gva = (uintptr_t)vcpu->vmcs.info_guest_linear_address;
 
 	//check if EPT violation is due to LAPIC interception
 	if(vcpu->isbsp && (gpa >= g_vmx_lapic_base) && (gpa < (g_vmx_lapic_base + PAGE_SIZE_4K)) ){
@@ -549,7 +593,7 @@ static void vmx_handle_intercept_cr0access_ug(VCPU *vcpu, struct regs *r, u32 gp
 
 	HALT_ON_ERRORCOND(tofrom == VMX_CRX_ACCESS_TO);
 
-	cr0_value = *((u32 *)_vmx_decode_reg(gpr, vcpu, r));
+	cr0_value = *((uintptr_t *)_vmx_decode_reg(gpr, vcpu, r));
 	old_cr0 = vcpu->vmcs.guest_CR0;
 
 	//printf("\n[cr0-%02x] MOV TO, old=0x%08llx, new=0x%08llx, shadow=0x%08llx",
@@ -572,24 +616,86 @@ static void vmx_handle_intercept_cr0access_ug(VCPU *vcpu, struct regs *r, u32 gp
 	vcpu->vmcs.guest_CR0 = (cr0_value | fixed_1_fields) & ~(CR0_CD | CR0_NW);
 
 	/*
+	 * If CR0.PG, need to update a lot of things for PAE and long mode support.
+	 * As a workaround, we let the guest retry setting CR0.PG and CR0.PE. This
+	 * way we do not need to calculate the VMCS fields in hypervisor.
+	 */
+	if ((old_cr0 ^ cr0_value) & CR0_PG) {
+		u64 pg_pe_mask = (CR0_PG | CR0_PE);
+		/* Make sure that CR0.PG and CR0.PE are not masked */
+		if (!(pg_pe_mask & vcpu->vmcs.control_CR0_mask)) {
+			/*
+			 * The original MOV CR0 must also change some bits not related to
+			 * CR0.PG or CR0.PE.
+			 */
+			HALT_ON_ERRORCOND((old_cr0 ^ cr0_value) & ~pg_pe_mask);
+			/*
+			 * Change VMCS's guest CR0 to requested value, except CR0.PG and
+			 * CR0.PE.
+			 */
+			vcpu->vmcs.guest_CR0 &= ~pg_pe_mask;
+			vcpu->vmcs.guest_CR0 |= old_cr0 & pg_pe_mask;
+			//printf("\n[cr0-%02x] RETRY:  old=0x%08llx", vcpu->id,
+			//	vcpu->vmcs.guest_CR0);
+			/* Sanity check: for bits masked, requested value = CR0 shadow */
+			HALT_ON_ERRORCOND(
+				((cr0_value ^ vcpu->vmcs.control_CR0_shadow) &
+				vcpu->vmcs.control_CR0_mask) == 0);
+			/*
+			 * Sanity check: for bits not masked other than CR0.PG and CR0.PE,
+			 * guest CR0 = requested new value.
+			 */
+			HALT_ON_ERRORCOND(
+				((vcpu->vmcs.guest_CR0 ^ cr0_value) &
+				~vcpu->vmcs.control_CR0_mask & ~pg_pe_mask) == 0);
+			/* Skip incrementing PC (RIP / EIP), retry this instruction */
+			return;
+		}
+	}
+
+	/*
 	 * If CR0.PG bit changes, need to update guest_PDPTE0 - guest_PDPTE3 if
 	 * PAE is enabled.
 	 *
-	 * There is a workaround to retry the MOV CR0 instruction, implemented in
-	 * vmx_handle_intercept_cr0access_ug() in peh-x86_64vmx-main.c.
+	 * x86 XMHF cannot support PAE guests easily because the hypervisor cannot
+	 * access memory above 4GB.
 	 *
-	 * x86 XMHF cannot support PAE guests well because the hypervisor cannot
-	 * access memory above 4GB. So the workaround is not implemented here.
-	 * x86_64 XMHF should be used instead.
+	 * To support amd64 guests, also need to update bit 9 of VM-Entry Controls
+	 * (IA-32e mode guest). This bit should always equal to EFER.LME && CR0.PG
 	 */
 	if ((old_cr0 ^ cr0_value) & CR0_PG) {
+#ifdef __AMD64__
+		u32 value = vcpu->vmcs.control_VM_entry_controls;
+		u32 lme, pae;
+		msr_entry_t *efer = &((msr_entry_t *)vcpu->vmx_vaddr_msr_area_guest)[0];
+		HALT_ON_ERRORCOND(efer->index == MSR_EFER);
+		lme = (cr0_value & CR0_PG) && (efer->data & (0x1U << EFER_LME));
+		value &= ~(1U << 9);
+		value |= lme << 9;
+		vcpu->vmcs.control_VM_entry_controls = value;
+
+		pae = (cr0_value & CR0_PG) && (!lme) && (vcpu->vmcs.guest_CR4 & CR4_PAE);
+		/*
+		 * TODO: If PAE, need to walk EPT and retrieve values for guest_PDPTE*
+		 *
+		 * The idea is something like the following, but need to make sure
+		 * the guest OS is allowed to access relevant memory (by walking EPT):
+		 * u64 *pdptes = (u64 *)(uintptr_t)(vcpu->vmcs.guest_CR3 & ~0x1FUL);
+		 * vcpu->vmcs.guest_PDPTE0 = pdptes[0];
+		 * vcpu->vmcs.guest_PDPTE1 = pdptes[1];
+		 * vcpu->vmcs.guest_PDPTE2 = pdptes[2];
+		 * vcpu->vmcs.guest_PDPTE3 = pdptes[3];
+		 */
+#else /* !__AMD64__ */
 		u32 pae = (cr0_value & CR0_PG) && (vcpu->vmcs.guest_CR4 & CR4_PAE);
-		/* TODO: Need to walk EPT and retrieve values for guest_PDPTE* */
+#endif /* __AMD64__ */
 		HALT_ON_ERRORCOND(!pae);
 	}
 
 	//flush mappings
 	xmhf_memprot_arch_x86vmx_flushmappings(vcpu);
+
+	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 }
 
 //---CR4 access handler---------------------------------------------------------
@@ -597,7 +703,7 @@ static void vmx_handle_intercept_cr4access_ug(VCPU *vcpu, struct regs *r, u32 gp
   if(tofrom == VMX_CRX_ACCESS_TO){
 	u64 cr4_proposed_value;
 
-	cr4_proposed_value = *((u32 *)_vmx_decode_reg(gpr, vcpu, r));
+	cr4_proposed_value = *((uintptr_t *)_vmx_decode_reg(gpr, vcpu, r));
 
 	printf("\nCPU(0x%02x): CS:EIP=0x%04x:0x%08x MOV CR4, xx", vcpu->id,
 		(u16)vcpu->vmcs.guest_CS_selector, (u32)vcpu->vmcs.guest_RIP);
@@ -618,6 +724,7 @@ static void vmx_handle_intercept_cr4access_ug(VCPU *vcpu, struct regs *r, u32 gp
 	#endif
   }
 
+  vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 }
 
 //---XSETBV intercept handler-------------------------------------------
@@ -659,8 +766,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 #endif //__XMHF_VERIFICATION__
 	//sanity check for VM-entry errors
 	if( (u32)vcpu->vmcs.info_vmexit_reason & 0x80000000UL ){
-		printf("\nVM-ENTRY error: reason=0x%08x, qualification=0x%016llx",
-			(u32)vcpu->vmcs.info_vmexit_reason, (u64)vcpu->vmcs.info_exit_qualification);
+		printf("\nCPU(0x%02x): VM-ENTRY error: reason=0x%08x, qualification=0x%016llx",
+			vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason,
+			(u64)vcpu->vmcs.info_exit_qualification);
 		xmhf_baseplatform_arch_x86vmx_dumpVMCS(vcpu);
 		HALT();
 	}
@@ -788,7 +896,11 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			(u32) (((u64)vcpu->vmcs.info_exit_qualification & 0x0000000000000030ULL) >> (u64)4);
 			//printf("\ncrx=%u, gpr=%u, tofrom=%u", crx, gpr, tofrom);
 
+#ifdef __AMD64__
+			if ( ((int)gpr >=0) && ((int)gpr <= 15) ){
+#else /* !__AMD64__ */
 			if ( ((int)gpr >=0) && ((int)gpr <= 7) ){
+#endif /* __AMD64__ */
 				switch(crx){
 					case 0x0: //CR0 access
 						vmx_handle_intercept_cr0access_ug(vcpu, r, gpr, tofrom);
@@ -807,7 +919,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 						printf("\nunhandled crx, halting!");
 						HALT();
 				}
-				vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 			}else{
 				printf("\n[%02x]%s: invalid gpr value (%u). halting!", vcpu->id,
 					__FUNCTION__, gpr);
@@ -856,15 +967,50 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 
 
 		default:{
-			printf("\nCPU(0x%02x): Unhandled intercept: %d (0x%08x)", vcpu->id,
-					(u32)vcpu->vmcs.info_vmexit_reason,
+#ifdef __AMD64__
+			if (vcpu->vmcs.control_VM_entry_controls & (1U << 9)) {
+				/* amd64 mode */
+				printf("\nCPU(0x%02x): Unhandled intercept in long mode: %d (0x%08x)",
+						vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason,
+						(u32)vcpu->vmcs.info_vmexit_reason);
+				printf("\n	CPU(0x%02x): RFLAGS=0x%016llx",
+						vcpu->id, vcpu->vmcs.guest_RFLAGS);
+				printf("\n	SS:RSP =0x%04x:0x%016llx",
+						(u16)vcpu->vmcs.guest_SS_selector,
+						vcpu->vmcs.guest_RSP);
+				printf("\n	CS:RIP =0x%04x:0x%016llx",
+						(u16)vcpu->vmcs.guest_CS_selector,
+						vcpu->vmcs.guest_RIP);
+				printf("\n	IDTR base:limit=0x%016llx:0x%04x",
+						vcpu->vmcs.guest_IDTR_base,
+						(u16)vcpu->vmcs.guest_IDTR_limit);
+				printf("\n	GDTR base:limit=0x%016llx:0x%04x",
+						vcpu->vmcs.guest_GDTR_base,
+						(u16)vcpu->vmcs.guest_GDTR_limit);
+				if(vcpu->vmcs.info_IDT_vectoring_information & 0x80000000){
+					printf("\nCPU(0x%02x): HALT; Nested events unhandled 0x%08x",
+						vcpu->id, vcpu->vmcs.info_IDT_vectoring_information);
+				}
+				HALT();
+			}
+#endif /* __AMD64__ */
+			/* x86 mode */
+			printf("\nCPU(0x%02x): Unhandled intercept: %d (0x%08x)",
+					vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason,
 					(u32)vcpu->vmcs.info_vmexit_reason);
-			printf("\n	CPU(0x%02x): EFLAGS=0x%08x", vcpu->id, (u32)vcpu->vmcs.guest_RFLAGS);
-			printf("\n	SS:ESP =0x%04x:0x%08x", (u16)vcpu->vmcs.guest_SS_selector, (u32)vcpu->vmcs.guest_RSP);
-			printf("\n	CS:EIP =0x%04x:0x%08x", (u16)vcpu->vmcs.guest_CS_selector, (u32)vcpu->vmcs.guest_RIP);
-			printf("\n	IDTR base:limit=0x%08x:0x%04x", (u32)vcpu->vmcs.guest_IDTR_base,
+			printf("\n	CPU(0x%02x): EFLAGS=0x%08x",
+					vcpu->id, (u32)vcpu->vmcs.guest_RFLAGS);
+			printf("\n	SS:ESP =0x%04x:0x%08x",
+					(u16)vcpu->vmcs.guest_SS_selector,
+					(u32)vcpu->vmcs.guest_RSP);
+			printf("\n	CS:EIP =0x%04x:0x%08x",
+					(u16)vcpu->vmcs.guest_CS_selector,
+					(u32)vcpu->vmcs.guest_RIP);
+			printf("\n	IDTR base:limit=0x%08x:0x%04x",
+					(u32)vcpu->vmcs.guest_IDTR_base,
 					(u16)vcpu->vmcs.guest_IDTR_limit);
-			printf("\n	GDTR base:limit=0x%08x:0x%04x", (u32)vcpu->vmcs.guest_GDTR_base,
+			printf("\n	GDTR base:limit=0x%08x:0x%04x",
+					(u32)vcpu->vmcs.guest_GDTR_base,
 					(u16)vcpu->vmcs.guest_GDTR_limit);
 			if(vcpu->vmcs.info_IDT_vectoring_information & 0x80000000){
 				printf("\nCPU(0x%02x): HALT; Nested events unhandled 0x%08x",
@@ -900,7 +1046,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	//ensure that whenever a partition is resumed on a vcpu, we have extended paging
 	//enabled and that the base points to the extended page tables we have initialized
 	assert( (vcpu->vmcs.control_VMX_seccpu_based & 0x2) );
-	assert( vcpu->vmcs.control_EPT_pointer == (hva2spa((void*)vcpu->vmx_vaddr_ept_pml4_table) | 0x1E) );
+	assert( (vcpu->vmcs.control_EPT_pointer == (hva2spa((void*)vcpu->vmx_vaddr_ept_pml4_table) | 0x1E)) );
 #endif
 
 	return 1;

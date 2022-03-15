@@ -47,16 +47,16 @@
 #include <tomcrypt.h>
 #include <euchk.h>
 
-#include <sha1.h> 
+#include <sha1.h>
 
 void hashandprint(const char* prefix, const u8 *bytes, size_t len) {
     u8 digest[SHA_DIGEST_LENGTH];
 
-#ifdef __X86_64__
+#ifdef __AMD64__
     printf("hashandprint: processing 0x%016x bytes at addr %016x\n", len, (u64)bytes);
-#else /* !__X86_64__ */
+#else /* !__AMD64__ */
     printf("hashandprint: processing 0x%08x bytes at addr 0x%08x\n", len, (u32)bytes);
-#endif /* __X86_64__ */
+#endif /* __AMD64__ */
 
     EU_VERIFYN( sha1_buffer(bytes, len, digest));
 
@@ -68,7 +68,7 @@ void hashandprint(const char* prefix, const u8 *bytes, size_t len) {
         /* u8 zeros[SHA_DIGEST_LENGTH]; */
         /* u8 pcr17[SHA_DIGEST_LENGTH]; */
         /* memset(zeros, 0, SHA_DIGEST_LENGTH); */
-        
+
         /* SHA1_Init(&ctx); */
         /* SHA1_Update(&ctx, zeros, SHA_DIGEST_LENGTH); */
         /* SHA1_Update(&ctx, digest, SHA_DIGEST_LENGTH); */

@@ -44,7 +44,7 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-//xmhf.h - main XMHF core header file 
+//xmhf.h - main XMHF core header file
 // this orchestrates the inclusion of other core component specific
 // headers
 //author: amit vasudevan (amitvasudevan@acm.org)
@@ -56,7 +56,7 @@
 //pull in required C99 compatible C-library interfaces
 //libXMHFc
 #ifndef __ASSEMBLY__
-	
+
 	#include <stdint.h>
 	#include <stdbool.h>
 	#include <stddef.h>
@@ -83,8 +83,9 @@
 	#include <tpm.h>
 #endif /* __ASSEMBLY__ */
 
-#include <xmhf-debug.h>			//XMHF debug component 
+#include <xmhf-debug.h>			//XMHF debug component
 #include <xmhf-types.h>			//XMHF specific base types
+#include <xmhf-var.h>
 
 #ifdef __XMHF_VERIFICATION__
 	//include verification related primitives
@@ -93,13 +94,18 @@
 
 //forward declaration of runtime parameter block
 #ifndef __ASSEMBLY__
-extern RPB *rpb;	
+extern RPB *rpb;
 #endif	//__ASSEMBLY__
 
+// STL for XMHF
+#include <stl/xmhfc-bitmap.h>
+#include <stl/xmhfc-dlist.h>
 
 //----------------------------------------------------------------------
 // component headers
+#include <xmhf-config.h>		// Global configurations of XMHF
 #include <xmhf-baseplatform.h>	//XMHF base platform component
+#include <xmhf-mm.h>            //XMHF memory management component
 #include <xmhf-memprot.h>		//XMHF memory protection component
 #include <xmhf-dmaprot.h>		//XMHF DMA protection component
 #include <xmhf-partition.h>		//XMHF partition component
@@ -108,7 +114,7 @@ extern RPB *rpb;
 #include <xmhf-xcphandler.h>	//XMHF exception handler component
 #include <xmhf-tpm.h>			//XMHF Trusted Platform Module component
 #include <xmhf-sl.h>			//XMHF secure loader component
-#include <xmhf-runtime.h>		//XMHF secure loader component
+#include <xmhf-runtime.h>		//XMHF runtime component
 #include <xmhf-app.h>			//XMHF Application callback declarations
 
 

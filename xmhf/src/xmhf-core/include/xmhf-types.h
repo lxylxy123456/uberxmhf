@@ -51,21 +51,48 @@
 
 #ifndef __ASSEMBLY__
 
+#define GB(x)           (((size_t)(x)) << 30)
+#define MB(x)           (((size_t)(x)) << 20)
+#define KB(x)           (((size_t)(x)) << 10)
+
 // TODO: bootloader for 64 bit XMHF will have incorrect size
-// Ideally, should change __X86_64__ to __XMHF_X86_64__
-#ifdef __X86_64__
-typedef u64 hva_t;  // hypervisor virtual address 
-typedef u64 spa_t;  // system physical address 
-typedef u64 gva_t;  // guest virtual address
-typedef u64 gpa_t;  // guest physical address
-typedef u64 sla_t;  // secure loader address
-#else /* !__X86_64__ */
-typedef u32 hva_t;  // hypervisor virtual address 
-typedef u64 spa_t;  // system physical address 
-typedef u32 gva_t;  // guest virtual address
-typedef u64 gpa_t;  // guest physical address. can be 64-bit with PAE
-typedef u32 sla_t;  // secure loader address
-#endif /* __X86_64__ */
+// Ideally, should change __AMD64__ to __XMHF_AMD64__
+#ifdef __I386__
+    typedef u32 hva_t;  // hypervisor virtual address
+    typedef u64 spa_t;  // system physical address
+    typedef u64	spfn_t; // pfn of system physical address
+    typedef u32 gva_t;  // guest virtual address
+    typedef u64 gpa_t;  // guest physical address. can be 64-bit with PAE
+    typedef u32 sla_t;  // secure loader address
+#elif defined(__AMD64__)
+    typedef u64 hva_t;  // hypervisor virtual address
+    typedef u64 spa_t;  // system physical address
+    typedef u64	spfn_t; // pfn of system physical address
+    typedef u64 gva_t;  // guest virtual address
+    typedef u64 gpa_t;  // guest physical address
+    typedef u64 sla_t;  // secure loader address
+#else
+    #error "Unsupported Arch"
+#endif /* __I386__ */
+
+
+#define INVALID_ADDR		        0
+#define INVALID_VADDR		        (INVALID_ADDR)
+#define INVALID_SPADDR		        (INVALID_ADDR)
+#define INVALID_GPADDR		        (INVALID_ADDR)
+#define INVALID_GVADDR		        (INVALID_ADDR)
+
+#ifdef __I386__
+    #define UINT32sToSPADDR(high, low) (spa_t)(low)
+    #define UINT32sToSIZE(high, low) (size_t)(low)
+#elif defined(__AMD64__)
+    #define UINT32sToSPADDR(high, low) (spa_t)((((spa_t)high) << 32) | (low))
+    #define UINT32sToSIZE(high, low) (size_t)((((size_t)high) << 32) | (low))
+#else
+    #error "Unsupported Arch"
+#endif /* __I386__ */
+
+#define ADDR_TO_PFN(addr)		(addr >> PAGE_SHIFT_4K)
 
 //"golden" digest values injected using CFLAGS during build process
 //NOTE: NO WAY TO SELF-CHECK slbelow64K; JUST A SANITY-CHECK
@@ -76,14 +103,14 @@ typedef struct _integrity_measurement_values {
 } INTEGRITY_MEASUREMENT_VALUES;
 
 
-//"runtime" parameter block structure; arch_rpb (in startup component) 
+//"runtime" parameter block structure; arch_rpb (in startup component)
 //is the default definition
 typedef struct {
     u32     magic;
     hva_t   XtVmmEntryPoint;
-#ifdef __XMHF_X86_64__
+#ifdef __XMHF_AMD64__
     hva_t   XtVmmPml4Base;
-#endif /* __XMHF_X86_64__ */
+#endif /* __XMHF_AMD64__ */
     hva_t   XtVmmPdptBase;
     hva_t   XtVmmPdtsBase;
     hva_t   XtGuestOSBootModuleBase;
@@ -111,7 +138,7 @@ typedef struct {
 } RPB, *PRPB;
 
 
-//"sl" parameter block structure 
+//"sl" parameter block structure
 typedef struct _sl_parameter_block {
     u32     magic;                      // magic identifier
     u32     errorHandler;               // error handler (currently unused)

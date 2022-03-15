@@ -1,5 +1,5 @@
 /*
- * Translate between Windows calling convention and Linux for x86_64
+ * Translate between Windows calling convention and Linux for amd64
  *
  * Registers:
  *
@@ -129,4 +129,3 @@ linux2windows_call_end:
 	addq	$80, %rsp
 	ret
 linux2windows_end:
-

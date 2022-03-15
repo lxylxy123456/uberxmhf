@@ -44,7 +44,7 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-// EMHF memory protection component 
+// EMHF memory protection component
 // declarations
 // author: amit vasudevan (amitvasudevan@acm.org)
 
@@ -64,12 +64,12 @@
 #define MEMP_PROT_MAXVALUE		(MEMP_PROT_NOTPRESENT+MEMP_PROT_PRESENT+MEMP_PROT_READONLY+MEMP_PROT_READWRITE+MEMP_PROT_NOEXECUTE+MEMP_PROT_EXECUTE)
 
 //----------------------------------------------------------------------
-//exported DATA 
+//exported DATA
 //----------------------------------------------------------------------
 
 
 //----------------------------------------------------------------------
-//exported FUNCTIONS 
+//exported FUNCTIONS
 //----------------------------------------------------------------------
 
 //initialize memory protection for a core
@@ -90,14 +90,20 @@ u64 * xmhf_memprot_get_lvl4_pagemap_address(VCPU *vcpu);
 //get default root page map address
 u64 * xmhf_memprot_get_default_root_pagemap_address(VCPU *vcpu);
 
-//flush hardware page table mappings (TLB) 
+//flush hardware page table mappings (TLB)
 void xmhf_memprot_flushmappings(VCPU *vcpu);
+
+//flush the TLB of all nested page tables in the current core
+void xmhf_memprot_flushmappings_localtlb(VCPU *vcpu);
 
 //set protection for a given physical memory address
 void xmhf_memprot_setprot(VCPU *vcpu, u64 gpa, u32 prottype);
 
 //get protection for a given physical memory address
 u32 xmhf_memprot_getprot(VCPU *vcpu, u64 gpa);
+
+// Is the given system paddr belong to mHV (XMHF + hypapp)?
+bool xmhf_is_mhv_memory(spa_t spa);
 
 
 //----------------------------------------------------------------------
@@ -122,8 +128,11 @@ u64 * xmhf_memprot_arch_get_lvl4_pagemap_address(VCPU *vcpu);
 //get default root page map address
 u64 * xmhf_memprot_arch_get_default_root_pagemap_address(VCPU *vcpu);
 
-//flush hardware page table mappings (TLB) 
+//flush hardware page table mappings (TLB)
 void xmhf_memprot_arch_flushmappings(VCPU *vcpu);
+
+//flush the TLB of all nested page tables in the current core
+void xmhf_memprot_arch_flushmappings_localtlb(VCPU *vcpu);
 
 //set protection for a given physical memory address
 void xmhf_memprot_arch_setprot(VCPU *vcpu, u64 gpa, u32 prottype);
@@ -141,32 +150,20 @@ u32 xmhf_memprot_arch_getprot(VCPU *vcpu, u64 gpa);
 //x86vmx SUBARCH. INTERFACES
 //----------------------------------------------------------------------
 
-#ifdef __X86_64__
-
-void xmhf_memprot_arch_x86_64vmx_initialize(VCPU *vcpu);	//initialize memory protection for a core
-void xmhf_memprot_arch_x86_64vmx_flushmappings(VCPU *vcpu); //flush hardware page table mappings (TLB) 
-void xmhf_memprot_arch_x86_64vmx_setprot(VCPU *vcpu, u64 gpa, u32 prottype); //set protection for a given physical memory address
-u32 xmhf_memprot_arch_x86_64vmx_getprot(VCPU *vcpu, u64 gpa); //get protection for a given physical memory address
-u64 xmhf_memprot_arch_x86_64vmx_get_EPTP(VCPU *vcpu); // get or set EPTP (only valid on Intel)
-void xmhf_memprot_arch_x86_64vmx_set_EPTP(VCPU *vcpu, u64 eptp);
-
-#else /* !__X86_64__ */
-
 void xmhf_memprot_arch_x86vmx_initialize(VCPU *vcpu);	//initialize memory protection for a core
-void xmhf_memprot_arch_x86vmx_flushmappings(VCPU *vcpu); //flush hardware page table mappings (TLB) 
+void xmhf_memprot_arch_x86vmx_flushmappings(VCPU *vcpu); //flush hardware page table mappings (TLB)
+void xmhf_memprot_arch_x86vmx_flushmappings_localtlb(VCPU *vcpu);
 void xmhf_memprot_arch_x86vmx_setprot(VCPU *vcpu, u64 gpa, u32 prottype); //set protection for a given physical memory address
 u32 xmhf_memprot_arch_x86vmx_getprot(VCPU *vcpu, u64 gpa); //get protection for a given physical memory address
 u64 xmhf_memprot_arch_x86vmx_get_EPTP(VCPU *vcpu); // get or set EPTP (only valid on Intel)
 void xmhf_memprot_arch_x86vmx_set_EPTP(VCPU *vcpu, u64 eptp);
 
-#endif /* __X86_64__ */
-
 //VMX EPT PML4 table buffers
-extern u8 g_vmx_ept_pml4_table_buffers[] __attribute__(( section(".palign_data") ));		
+extern u8 g_vmx_ept_pml4_table_buffers[] __attribute__(( section(".palign_data") ));
 
 //VMX EPT PDP table buffers
 extern u8 g_vmx_ept_pdp_table_buffers[] __attribute__(( section(".palign_data") ));
-		
+
 //VMX EPT PD table buffers
 extern u8 g_vmx_ept_pd_table_buffers[] __attribute__(( section(".palign_data") ));
 
@@ -178,45 +175,21 @@ extern u8 g_vmx_ept_p_table_buffers[] __attribute__(( section(".palign_data") ))
 //x86svm SUBARCH. INTERFACES
 //----------------------------------------------------------------------
 
-#ifdef __X86_64__
-
-void xmhf_memprot_arch_x86_64svm_initialize(VCPU *vcpu);	//initialize memory protection for a core
-void xmhf_memprot_arch_x86_64svm_flushmappings(VCPU *vcpu); //flush hardware page table mappings (TLB) 
-void xmhf_memprot_arch_x86_64svm_setprot(VCPU *vcpu, u64 gpa, u32 prottype); //set protection for a given physical memory address
-u32 xmhf_memprot_arch_x86_64svm_getprot(VCPU *vcpu, u64 gpa); //get protection for a given physical memory address
-u64 xmhf_memprot_arch_x86_64svm_get_h_cr3(VCPU *vcpu); // get or set host cr3 (only valid on AMD)
-void xmhf_memprot_arch_x86_64svm_set_h_cr3(VCPU *vcpu, u64 hcr3);
-
-#else /* !__X86_64__ */
-
 void xmhf_memprot_arch_x86svm_initialize(VCPU *vcpu);	//initialize memory protection for a core
-void xmhf_memprot_arch_x86svm_flushmappings(VCPU *vcpu); //flush hardware page table mappings (TLB) 
+void xmhf_memprot_arch_x86svm_flushmappings(VCPU *vcpu); //flush hardware page table mappings (TLB)
 void xmhf_memprot_arch_x86svm_setprot(VCPU *vcpu, u64 gpa, u32 prottype); //set protection for a given physical memory address
 u32 xmhf_memprot_arch_x86svm_getprot(VCPU *vcpu, u64 gpa); //get protection for a given physical memory address
 u64 xmhf_memprot_arch_x86svm_get_h_cr3(VCPU *vcpu); // get or set host cr3 (only valid on AMD)
 void xmhf_memprot_arch_x86svm_set_h_cr3(VCPU *vcpu, u64 hcr3);
 
-#endif /* __X86_64__ */
-
 //SVM NPT PDPT buffers
 extern u8 g_svm_npt_pdpt_buffers[] __attribute__(( section(".palign_data") ));
-  
+
 //SVM NPT PDT buffers
 extern u8 g_svm_npt_pdts_buffers[]__attribute__(( section(".palign_data") ));
 
 //SVM NPT PT buffers
-extern u8 g_svm_npt_pts_buffers[]__attribute__(( section(".palign_data") )); 
-
-
-
-
-
-
-
-
-
-
-
+extern u8 g_svm_npt_pts_buffers[]__attribute__(( section(".palign_data") ));
 
 
 #endif	//__ASSEMBLY__
