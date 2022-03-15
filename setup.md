@@ -138,7 +138,7 @@ menuentry "XMHF-i386" {
 
 There are a few variables in this script
 * `(hd0,msdos1)` should be the place where XMHF files are installed
-* In x86-64 XMHF,
+* In amd64 XMHF,
 	* `/boot/init-x86-i386.bin` becomes `/boot/init-x86-amd64.bin`
 	* `/boot/hypervisor-x86-i386.bin.gz` becomes
 	  `/boot/hypervisor-x86-amd64.bin.gz`

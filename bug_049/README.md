@@ -68,3 +68,8 @@ files.
 * Manually replace unused `__AMD64__` and `__XMHF_AMD64__`
 * Manually change `x86_64` and `x86-64` in comments
 
+## Fix
+
+`0240f2b7a..65a3f5ea4`
+* Merge `x86` and `x86_64` code (`bug_051`)
+

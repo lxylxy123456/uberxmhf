@@ -226,12 +226,16 @@
 * Fix `x86_64` alignment problem for `_txt_heap.h` (`bug_046`)
 * Use sparse file to save build disk space (`bug_047`)
 
-`a08f148a1..215bff899`
+`a08f148a1..0240f2b7a`
 * Miscelaneous changes
 * PR from Miao: try to add DMAP support to XMHF (`bug_050`)
 
-`215bff899..` ???
+`0240f2b7a..65a3f5ea4`
 * Merge `x86` and `x86_64` code (`bug_051`)
+* Ideally, merging should not change semantics, so try to skip these commits
+  when bisecting etc.
+
+`65a3f5ea4..`
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output
