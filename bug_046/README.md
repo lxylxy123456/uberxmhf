@@ -102,19 +102,174 @@ the structure is defined by Intel, so we still add alignment
 So we add alginment on these fields. Git `a08f148a1`, alginment problems fixed.
 However, still see `BSP: rlp_wakeup_addr = 0xbb701d20` and system reboots.
 
+### Merging x86 and x64
+At this point, `bug_049` was done, so a lot of syntactic change to the code
+base is done.
+
+After the change, did some tests.
+
+Git `966a26747`, x86 DRT serial `20220315124017`, x64 serial `20220315131234`.
+
+### Error code
+Can see that `TXT.ERRORCODE` printed is related to status of previous boot
+
+### Try `GETSEC[WAKEUP]`
+Git `cfeb01982`, x64 serial `20220315132349`. In this commit, use
+`__getsec_wakeup()` instead of `sinit_mle_data->rlp_wakeup_addr`. However,
+looks like APs are not woken up.
+
+### Literature review
+In tboot code, see (`tboot-1.10.4/docs/tboot_flow.md`)
+> There a few requirements for platform state before GETSEC[SENTER] can be
+> called:
+> CPU has to be in protected mode
+
+In Intel TXT guide "2.2 MLE Launch":
+> The new MP startup algorithm would not
+> require the RLPs to leave protected mode with paging on.
+
+The above is the only mention of "protected mode" in Intel guide.
+
+An answer in <https://stackoverflow.com/questions/32223339/how-does-uefi-work>
+says:
+> GETSEC can only be executed in protected mode
+
+However, I think the answer means `GETSEC[EXITAC]` can only be executed in
+protected mode.
+
+In Intel v2 "CHAPTER 6 SAFER MODE EXTENSIONS REFERENCE", can see that some
+instructions are only supported in protected mode, some support long mode.
+
+In tboot and XMHF code, can see `/* must be in protected mode */`. However,
+this check only checks CR0.PE. So long mode will also pass this check.
+
+tboot's configure file seems to support x64. Need to look into tboot's build
+process.
+
+Not sure whether Intel TXT supports long mode, because the documentation is
+vague.
+
+### Building tboot from source
+
+Running `make` in `tboot-1.10.4` will build automatically. Some files are
+compiled with `-m32` and some with `-m64`.
+
+The deciding comment is in `tboot-1.10.4/tboot/Config.mk`:
+> `# if target arch is 64b, then convert -m64 to -m32 (tboot is always 32b)`
+
+Can also verify by seeing whether the `.o` files are ELF 32-bit or ELF 64-bit.
+Can see that the object files are 32-bit iff the file is located in `tboot/`.
+
+So now should consider porting sl back to x86
+
+Not tested ideas
+* compare x86 and x64 logs (why is there `TXT.ERRORCODE=80000000`?)
+* does join data structure need to be 64 bits for x64?
+* try to use x86 version of `_ap_bootstrap_start()`
+* try `__getsec_wakeup()` (do not use `rlp_wake_monitor`), or use ACPI
+* how is BSP loaded? According to TXT docs AP should be similar
+* read TXT docs
+* try Bochs
+* how is `g_sinit_module_ptr` used?
+* study tboot
+* maybe write a TXT program from scratch
+* in an extreme case, set up tboot for x64 and rewrite it to xmhf
+
+### XMHF structure change plan
+
+The structure of tboot is something like:
+* BSP is secure booted
+* BSP uses GETSEC to boot APs
+* BSP wait until all APs to enter wait-for-sipi, then simulate an SIPI
+  (related: `ap_wake_addr`, `cpu_wakeup()` calls `_prot_to_real()`)
+
+Everything above happens in protected mode.
+
+Current structure of XMHF64 (for XMHF, just no jump to long mode):
+```
+                                       +----+      +----+    +------------+
+long                                   | sl | jump | rt |    |     rt     |
+mode                                   |    | ---> |    | -> | bsp and ap |
+                                       +----+      +----+    +------------+
+                                         A            |              A
+                                     ASM |       (AP) |              | ASM
+      (BSP)                              |            |              |
+     +------+           +----+        +---+           | GETSEC   +-----+
+prot | bios | multiboot | bl | GETSEC |sl |           +--------> | rt  |
+mode |      | --------> |    | -----> |pre|           |          | smp |
+     +------+           +----+  JMP   +---+      INIT |          +-----+
+                                                 SIPI |           A
+                                                 SIPI |           | ASM
+                                                      V           |
+                                                     +-------------+
+real                                                 |     rt      |
+mode                                                 |     smp     |
+                                                     +-------------+
+```
+
+* BIOS jumps to bootloader (bl), already in protected mode
+* bl goes to secureloader (sl)
+	* When DRT, use Intel TXT / GETSEC
+	* When no DRT, simply jump
+* sl first runs `sl-x86-i386-entry.S`, switch to long mode if x64 XMHF
+* sl jumps to runtime (rt)
+* rt wakes up AP
+	* When DRT, use Intel TXT / GETSEC, result in protected mode
+	* When no DRT, use APIC INIT-SIPI-SIPI sequence, result in real mode
+* AP switch to long mode, start running with BSP
+
+However, when rt wakes AP up, the tboot code we have only supports x86.
+
+Other constraints are that sl can only be compiled in x86 or x64. Runtime have
+to be compiled in x64. boot loader is already in x86 and will likely stay the
+same.
+
+So the plan is to change sl to x86, and move AP wake up code into sl.
+
+Proposed structure of new XMHF64
+```
+                                                                         +----+
+long                                                                     | rt |
+mode                                                                     |    |
+                                                                         +----+
+                                                                          A
+                                                                          | ASM
+      (BSP)                                                               |
+     +------+           +----+        +----+        +------------+    +----+
+prot | bios | multiboot | bl | GETSEC | sl |  BSP   |     sl     | -> | rt |
+mode |      | --------> |    | -----> |    | -----> | bsp and ap | -> | pre|
+     +------+           +----+  JMP   +----+ GETSEC +------------+    +----+
+                                         |    (AP)   A
+                          INIT-SIPI-SIPI |           | ASM
+                                    (AP) V           |
+                                        +-------------+
+real                                    |     sl      |
+mode                                    |     smp     |
+                                        +-------------+
+```
+
+* BIOS jumps to bootloader (bl), already in protected mode
+* bl goes to secureloader (sl)
+	* When DRT, use Intel TXT / GETSEC
+	* When no DRT, simply jump
+* sl runs in protected mode now. It wakes up APs
+	* When DRT, use Intel TXT / GETSEC, result in protected mode
+	* When no DRT, use APIC INIT-SIPI-SIPI sequence, result in real mode
+* If using INIT-SIPI-SIPI, AP switches to protected mode and enters sl
+* All CPUs jump from sl to run time
+* In the start of run time, all CPUs enter long mode
+* Run time C code runs in long mode
+
+Major changes to be made
+* Wake up AP code: move from rt to sl
+* AP set up code: move from rt to sl
+* BSP jump to long mode code: move from sl to rt
+* RT entry: add an argument to distinguish BSP and AP
+* Compile sl in x86
+
 # tmp notes
 
-TODO: compare x86 and x64 logs (why is there `TXT.ERRORCODE=80000000`?)
-TODO: does join data structure need to be 64 bits for x64?
-TODO: try to use x86 version of `_ap_bootstrap_start()`
-TODO: try `__getsec_wakeup()` (do not use `rlp_wake_monitor`), or use ACPI
-TODO: how is BSP loaded? According to TXT docs AP should be similar
-TODO: read TXT docs
-TODO: try Bochs
-TODO: how is `g_sinit_module_ptr` used?
-TODO: study tboot
-TODO: maybe write a TXT program from scratch
-TODO: in an extreme case, set up tboot for x64 and rewrite it to xmhf
+Port sl to x86
 
 ## Fix
 

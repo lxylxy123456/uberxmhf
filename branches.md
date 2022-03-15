@@ -231,11 +231,14 @@
 * PR from Miao: try to add DMAP support to XMHF (`bug_050`)
 
 `0240f2b7a..65a3f5ea4`
-* Merge `x86` and `x86_64` code (`bug_051`)
+* Merge `x86` and `x86_64` code (`bug_049`)
 * Ideally, merging should not change semantics, so try to skip these commits
   when bisecting etc.
 
-`65a3f5ea4..`
+`65a3f5ea4..` (f0baec0bb)
+* Check assumptions about EFLAGS.IF in TrustVisor (`bug_051`)
+* Block NMI when running PALs (`bug_051`)
+* Halt if dropping NMI (`bug_051`)
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output
