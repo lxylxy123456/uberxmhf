@@ -2,7 +2,7 @@
 
 source gdb/x64_sl_beg.gdb
 
-# Local label skip_jump in xmhf_sl_arch_x86_64_invoke_runtime_entrypoint
+# Local label skip_jump in xmhf_sl_arch_x86_invoke_runtime_entrypoint
 # Assume `jmpq    *%rax` is 2 bytes
 b *(skip_jump - 2)
 c

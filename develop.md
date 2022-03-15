@@ -25,7 +25,7 @@ in `docker/Dockerfile`. In Fedora, a Docker container can be created to build
 XMHF.
 
 For example, I use `$XMHF/xmhf64` as source directory. `$XMHF/build32` is build
-directory for x86, and `$XMHF/build32` is build directory for x86_64.
+directory for i386, and `$XMHF/build32` is build directory for amd64.
 
 In a build directory, there are symbolic links to all files in the source
 directory (not including `.git`). Also `gdb` links to the directory containing
@@ -80,4 +80,6 @@ Docker.
 directory. It will change if the file path contains `x86_64`, it warn if the
 file path does not contain `x86` (in this case, likely need to manually add
 ifdefs in source code).
+
+This change is reverted by `bug_050`, see scripts there.
 

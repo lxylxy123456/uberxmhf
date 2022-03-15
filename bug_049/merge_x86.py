@@ -137,6 +137,10 @@ def phase_2(noarch_files, arch32_files, arch64_files, content_map):
 	# Instead of using Python's library, let's try to use diffutils' diff
 	MACRO = '__X86_64__'
 	ALT_MACRO = '__XMHF_X86_64__'
+	if not 'remove white space':
+		for i in noarch_files + arch32_files + arch64_files:
+			content_map[i] = strip_content(content_map[i])
+			commit_flag = True
 	for i32, i64 in zip(arch32_files, arch64_files):
 		c32 = strip_content(content_map[i32])
 		c64 = strip_content(content_map[i64])
@@ -146,13 +150,20 @@ def phase_2(noarch_files, arch32_files, arch64_files, content_map):
 #			print(i32, i64)
 #		if '__XMHF_X86_64__' in c32 or '__XMHF_X86_64__' in c64:
 #			print(i32, i64)
+#		if content_map[i32] != content_map[i64]:
+#			print(i32)
 		diff = call_diff(c32, c64, '--color=always')
 		if diff:
-			if not 'list all files':
+			if 'list all files':
 				print('diff', i32, i64)
 			todo = [
+			]
+			show = [
+			]
+			commit = [
+			]
+			done = [
 				'./xmhf/src/xmhf-core/include/arch/x86/_cmdline.h'
-				'./xmhf/src/xmhf-core/include/arch/x86/_configx86.h'
 				'./xmhf/src/xmhf-core/include/arch/x86/_div64.h'
 				'./xmhf/src/xmhf-core/include/arch/x86/_msr.h'
 				'./xmhf/src/xmhf-core/include/arch/x86/_paging.h'
@@ -160,19 +171,12 @@ def phase_2(noarch_files, arch32_files, arch64_files, content_map):
 				'./xmhf/src/xmhf-core/include/arch/x86/_txt_config_regs.h'
 				'./xmhf/src/xmhf-core/include/arch/x86/_vmx.h'
 				'./xmhf/src/xmhf-core/include/arch/x86/xmhf-baseplatform-arch-x86.h'
+				'./xmhf/src/xmhf-core/include/arch/x86/_configx86.h'
 				'./xmhf/src/xmhf-core/include/arch/x86/xmhf-tpm-arch-x86.h'
 				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-addressing.c'
 				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-smp.c'
-				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-smplock.S'
-				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-smptrampoline.S'
 				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/svm/bplt-x86svm-smp.c'
 				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-smp.c'
-			]
-			show = [
-			]
-			commit = [
-			]
-			done = [
 				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-vmcs.c'
 				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-data.c'
 				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.c'
@@ -188,6 +192,8 @@ def phase_2(noarch_files, arch32_files, arch64_files, content_map):
 				'./xmhf/src/xmhf-core/xmhf-secureloader/arch/x86/sl-x86.c',
 			]
 			keep = [
+				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-smplock.S'
+				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-smptrampoline.S'
 				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-entry.S'
 				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-partition/arch/x86/vmx/part-x86vmx-sup.S'
 				'./xmhf/src/xmhf-core/xmhf-runtime/xmhf-xcphandler/arch/x86/xcph-stubs.S'

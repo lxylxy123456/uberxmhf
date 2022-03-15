@@ -80,7 +80,7 @@ on x64 Debian (because the bootloader is 32-bits).
 
 Compile x64 XMHF on x64 Debian:
 ```sh
-./configure --with-approot=hypapps/trustvisor --with-target-hwplatform=x86_64
+./configure --with-approot=hypapps/trustvisor --with-target-wordsize=amd64
 ```
 
 Cross compile x86 XMHF on x64 Debian:
@@ -124,13 +124,13 @@ exec tail -n +3 $0
 # menu entries you want to add after this comment.  Be careful not to change
 # the 'exec tail' line above.
 
-menuentry "XMHF" {
+menuentry "XMHF-i386" {
 	set root='(hd0,msdos1)'		# point to file system for /
-	set kernel='/boot/init-x86.bin'
+	set kernel='/boot/init-x86-i386.bin'
 	set boot_drive='0x80'	# should point to where grub is installed
 	echo "Loading ${kernel}..."
 	multiboot ${kernel} serial=115200,8n1,0x5080 boot_drive=${boot_drive}
-	module /boot/hypervisor-x86.bin.gz
+	module /boot/hypervisor-x86-i386.bin.gz
 	module --nounzip (hd0)+1	# should point to where grub is installed
 	module /boot/i5_i7_DUAL_SINIT_51.BIN
 }
@@ -139,8 +139,9 @@ menuentry "XMHF" {
 There are a few variables in this script
 * `(hd0,msdos1)` should be the place where XMHF files are installed
 * In x86-64 XMHF,
-	* `/boot/init-x86.bin` becomes `/boot/init-x86_64.bin`
-	* `/boot/hypervisor-x86.bin.gz` becomes `/boot/hypervisor-x86_64.bin.gz`
+	* `/boot/init-x86-i386.bin` becomes `/boot/init-x86-amd64.bin`
+	* `/boot/hypervisor-x86-i386.bin.gz` becomes
+	  `/boot/hypervisor-x86-amd64.bin.gz`
 * `0x5080` is serial port's I/O port address. in QEMU this is `0x3f8`
 * `(hd0)+1` and `0x80` points to where GRUB is installed (default is like sda)
 	* If GRUB is installed on second HDD (sdb), should be `(hd1)+1` and `0x81`

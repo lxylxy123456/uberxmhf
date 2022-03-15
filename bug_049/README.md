@@ -48,3 +48,23 @@ git bisect good 643b4fee4
 Can see that the problem is that `P4L_NPDT` and `P4L_NPT` are wrong. Their
 values are 0. This is because `PAGE_SIZE_4K` is 32-bits. Fixed in `c51de4165`.
 
+Work done with help of Python script. Also remove trailing spaces for all
+files.
+
+### Phase 3
+* Update Makefiles to use `x86` files
+* Remove `x86_64` files
+* Move .S files from `x86_64` to `x86-amd64` and from `x86` to `x86-i386`
+* Move `hypervisor-x86.bin.gz` to `hypervisor-x86-amd64.bin.gz`
+* Header files: change from ia64 to amd64
+* Replace all `__X86_64__` to `__AMD64__`, and `__X86__` to `__I386__`
+	* Before this, `__AMD64__` and `__I386__` do not exist in Git controlled
+	  files
+	* `find * -type f -exec sed -i 's/__X86_64__/__AMD64__/g' {} \;`
+	* `find * -type f -exec sed -i 's/__X86__/__I386__/g' {} \;`
+* Also `__XMHF_X86_64__` and `__XMHF_X86__`
+	* `find * -type f -exec sed -i 's/__XMHF_X86_64__/__XMHF_AMD64__/g' {} \;`
+	* `find * -type f -exec sed -i 's/__XMHF_X86__/__XMHF_I386__/g' {} \;`
+* Manually replace unused `__AMD64__` and `__XMHF_AMD64__`
+* Manually change `x86_64` and `x86-64` in comments
+

@@ -4,13 +4,13 @@ exec tail -n +3 $0
 # menu entries you want to add after this comment.  Be careful not to change
 # the 'exec tail' line above.
 
-menuentry "XMHF64" {
+menuentry "XMHF-amd64" {
 	set root='(hd0,msdos1)'		# point to file system for /
-	set kernel='/boot/init-x86_64.bin'
+	set kernel='/boot/init-x86-amd64.bin'
 	set boot_drive='0x80'	# should point to where grub is installed
 	echo "Loading ${kernel}..."
 	multiboot ${kernel} serial=115200,8n1,0x5080 boot_drive=${boot_drive}
-	module /boot/hypervisor-x86_64.bin.gz
+	module /boot/hypervisor-x86-amd64.bin.gz
 	module --nounzip (hd0)+1	# should point to where grub is installed
 	module /boot/i5_i7_DUAL_SINIT_51.BIN
 }
