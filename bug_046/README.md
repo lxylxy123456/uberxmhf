@@ -267,6 +267,17 @@ Major changes to be made
 * RT entry: add an argument to distinguish BSP and AP
 * Compile sl in x86
 
+Challenges
+* sl trusted area currently has a 64KB size limit. Around 10355 bytes left.
+
+### Implementing AP wakeup in sl
+
+The code is rooted in `xmhf_smpguest_initialize()`.
+
+Asm code for SL entry (not very related): `sl-x86-i386-entry.S`.
+Asm code for AP born: `bplt-x86-i386-smptrampoline.S`.
+
+
 # tmp notes
 
 Port sl to x86
