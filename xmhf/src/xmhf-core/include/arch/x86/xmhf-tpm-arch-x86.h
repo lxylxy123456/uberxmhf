@@ -200,6 +200,22 @@ typedef union {
 #endif /* __AMD64__ */
 	}
 
+	static inline void writel(u32 addr, u32 val) {
+		__asm__ __volatile__("movl %%eax, %%fs:(%%ebx)\r\n"
+							 :
+							 : "b"(addr), "a"((u32)val)
+							 );
+	}
+
+	static inline u32 readl(u32 addr) {
+		u32 ret;
+		__asm__ __volatile__("movl %%fs:(%%ebx), %%eax\r\n"
+						     : "=a"(ret)
+						     : "b"(addr)
+						     );
+		return ret;
+	}
+
 #else //__XMHF_VERIFICATION__
 
 	static inline void writeb(u32 addr, u8 val) {

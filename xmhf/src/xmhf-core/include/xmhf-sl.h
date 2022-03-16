@@ -71,9 +71,9 @@ void* xmhf_sl_arch_hva2sla(uintptr_t x);
 u64 xmhf_sl_arch_sla2spa(void* x);
 bool xmhf_sl_arch_integrity_check(u8* runtime_base_addr, size_t runtime_len);
 void xmhf_sl_arch_sanitize_post_launch(void);
+void xmhf_sl_wakeupAPs(struct _sl_parameter_block *slpb);
 void xmhf_sl_arch_early_dmaprot_init(u32 runtime_size);
 void xmhf_sl_arch_xfer_control_to_runtime(RPB * rpb);
-
 
 //----------------------------------------------------------------------
 //x86 ARCH. INTERFACES
