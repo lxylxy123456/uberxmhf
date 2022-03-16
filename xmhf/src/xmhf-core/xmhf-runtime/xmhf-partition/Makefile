@@ -3,15 +3,15 @@
 # author: amit vasudevan (amitvasudevan@acm.org)
 
 # source files
-AS_SOURCES =  ./arch/$(TARGET_HWPLATFORM)/vmx/part-$(TARGET_HWPLATFORM)vmx-sup.S
-AS_SOURCES +=  ./arch/$(TARGET_HWPLATFORM)/svm/part-$(TARGET_HWPLATFORM)svm-sup.S
+AS_SOURCES =  ./arch/x86/vmx/part-x86-$(TARGET_WORDSIZE)vmx-sup.S
+AS_SOURCES +=  ./arch/x86/svm/part-x86-$(TARGET_WORDSIZE)svm-sup.S
 
 
 C_SOURCES = part-interface.c
 
-C_SOURCES += ./arch/$(TARGET_HWPLATFORM)/part-$(TARGET_HWPLATFORM).c
-C_SOURCES += ./arch/$(TARGET_HWPLATFORM)/vmx/part-$(TARGET_HWPLATFORM)vmx.c
-C_SOURCES += ./arch/$(TARGET_HWPLATFORM)/svm/part-$(TARGET_HWPLATFORM)svm.c
+C_SOURCES += ./arch/x86/part-x86.c
+C_SOURCES += ./arch/x86/vmx/part-x86vmx.c
+C_SOURCES += ./arch/x86/svm/part-x86svm.c
 
 
 OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))

@@ -5,19 +5,19 @@
 AS_SOURCES = 
 
 C_SOURCES = dbg-interface.c 
-C_SOURCES += ./arch/$(TARGET_HWPLATFORM)/emhf_debug_arch.c
+C_SOURCES += ./arch/x86/emhf_debug_arch.c
 
 ifeq ($(DEBUG_SERIAL), y)
-C_SOURCES += ./arch/$(TARGET_HWPLATFORM)/dbg-$(TARGET_HWPLATFORM)-uart.c
+C_SOURCES += ./arch/x86/dbg-x86-uart.c
 endif
 
 ifeq ($(DEBUG_VGA), y)
-C_SOURCES += ./arch/$(TARGET_HWPLATFORM)/dbg-$(TARGET_HWPLATFORM)-vgamem.c
+C_SOURCES += ./arch/x86/dbg-x86-vgamem.c
 endif
 
 # TODO: Workaround to compile x86 for bootloader
-ifeq ($(TARGET_HWPLATFORM), x86_64)
-C_OBJECTS32 = $(subst x86_64,x86,$(patsubst %.c, %.x86.o, $(C_SOURCES)))
+ifeq ($(TARGET_WORDSIZE), amd64)
+C_OBJECTS32 = $(patsubst %.c, %.x86.o, $(C_SOURCES))
 OBJECTS32 = $(C_OBJECTS32)
 endif
 
@@ -39,7 +39,7 @@ lib.a: $(OBJECTS)
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 # TODO: Workaround to compile x86 for bootloader
-ifeq ($(TARGET_HWPLATFORM), x86_64)
+ifeq ($(TARGET_WORDSIZE), amd64)
 all: lib.x86.a
 
 lib.x86.a: $(OBJECTS32)

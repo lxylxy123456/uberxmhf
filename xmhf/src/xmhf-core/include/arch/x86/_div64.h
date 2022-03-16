@@ -48,10 +48,17 @@
 #ifndef __ASSEMBLY__
 
 
-// do_div() 
+// do_div()
 // modifies the 64-bit dividend _in_place_
 // returns the 32-bit remainder
 
+// TODO: not implemented for amd64
+
+#ifdef __AMD64__
+#define do_div(n,base) ({ \
+        switch(0) { case 0: case 0: not_implemented_for_amd64 }; \
+})
+#else /* !__AMD64__ */
 #define do_div(n,base) ({ \
         unsigned long __upper, __low, __high, __mod, __base; \
         __base = (base); \
@@ -65,7 +72,7 @@
         __asm("":"=A" (n):"a" (__low),"d" (__high)); \
         __mod; \
 })
-
+#endif /* __AMD64__ */
 
 #endif /* __ASSEMBLY__ */
 #endif /* __DIV64_H__ */

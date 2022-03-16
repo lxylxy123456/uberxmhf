@@ -33,28 +33,28 @@
 #ifndef _SYS_ENDIAN_H_
 #define _SYS_ENDIAN_H_
 
-#ifdef __X86_64__
-#include <sys/ia64_types.h>
-#else /* !__X86_64__ */
+#ifdef __AMD64__
+#include <sys/amd64_types.h>
+#else /* !__AMD64__ */
 #include <sys/i386_types.h>
-#endif /* __X86_64__ */
+#endif /* __AMD64__ */
 #include <sys/endian.h>
 
 #ifndef _UINT16_T_DECLARED
 typedef __uint16_t      uint16_t;
 #define _UINT16_T_DECLARED
 #endif
- 
+
 #ifndef _UINT32_T_DECLARED
 typedef __uint32_t      uint32_t;
 #define _UINT32_T_DECLARED
 #endif
- 
+
 #ifndef _UINT64_T_DECLARED
 typedef __uint64_t      uint64_t;
 #define _UINT64_T_DECLARED
 #endif
- 
+
 /*
  * General byte order swapping functions.
  */

@@ -44,7 +44,7 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-//stdarg.h - variable length arguments 
+//stdarg.h - variable length arguments
 //author: amit vasudevan (amitvasudevan@acm.org)
 //based on guidelines in
 //http://pubs.opengroup.org/onlinepubs/007904875/basedefs/stdarg.h.html
@@ -54,11 +54,11 @@
 
 #ifndef __ASSEMBLY__
 
-#ifdef __X86_64__
+#ifdef __AMD64__
 
 #include <stdarg64.h>
 
-#else /* !__X86_64__ */
+#else /* !__AMD64__ */
 
 typedef void *va_list;
 
@@ -68,7 +68,7 @@ typedef void *va_list;
 
 #define	va_end(list) (void)0
 
-#endif /* __X86_64__ */
+#endif /* __AMD64__ */
 
 #endif //#ifndef __ASSEMBLY__
 
