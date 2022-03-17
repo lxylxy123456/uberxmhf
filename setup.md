@@ -80,7 +80,7 @@ on x64 Debian (because the bootloader is 32-bits).
 
 Compile x64 XMHF on x64 Debian:
 ```sh
-./configure --with-approot=hypapps/trustvisor --with-target-wordsize=amd64
+./configure --with-approot=hypapps/trustvisor --with-target-subarch=amd64
 ```
 
 Cross compile x86 XMHF on x64 Debian:

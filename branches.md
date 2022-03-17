@@ -239,6 +239,8 @@
 * Check assumptions about EFLAGS.IF in TrustVisor (`bug_051`)
 * Block NMI when running PALs (`bug_051`)
 * Halt if dropping NMI (`bug_051`)
+* Rename `TARGET_WORDSIZE` to `TARGET_SUBARCH`
+* Support configuring `AMD64_MAX_PHYS_ADDR`
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output
