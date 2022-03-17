@@ -26,16 +26,24 @@ AC_CHECK_PROG([CAT], [cat], [cat])
 # user-defined options
 
 # 64-bit?
-AC_SUBST([TARGET_WORDSIZE])
-AC_ARG_WITH([target_wordsize],
-        AS_HELP_STRING([--with-target-wordsize=@<:@WORDSIZE@:>@],
+AC_SUBST([TARGET_SUBARCH])
+AC_ARG_WITH([target_subarch],
+        AS_HELP_STRING([--with-target-subarch=@<:@SUBARCH@:>@],
                 [select target hardware platform (i386, amd64)]),
-                , [with_target_wordsize=i386])
-TARGET_WORDSIZE=$[]with_target_wordsize
+                , [with_target_subarch=i386])
+TARGET_SUBARCH=$[]with_target_subarch
+
+# When 64-bit, set maximum physical address (default 0x400000000 is 16 GiB)
+AC_SUBST([AMD64_MAX_PHYS_ADDR])
+AC_ARG_WITH([amd64_max_phys_addr],
+        AS_HELP_STRING([--with-amd64-max-phys-addr=@<:@MAX_PHYS_ADDR@:>@],
+                [select max physical address when using subarch amd64]),
+                , [with_amd64_max_phys_addr=0x400000000])
+AMD64_MAX_PHYS_ADDR=$[]with_amd64_max_phys_addr
 
 # find path to -lgcc
 AC_SUBST([CCLIB])
-AS_IF([test "x${with_target_wordsize}" != "xamd64"],
+AS_IF([test "x${with_target_subarch}" != "xamd64"],
       [CCLIB=`$CC -m32 --print-file-name=`],
       [CCLIB=`$CC -m64 --print-file-name=`])
 
