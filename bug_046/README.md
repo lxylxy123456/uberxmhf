@@ -277,6 +277,7 @@ The code is rooted in `xmhf_smpguest_initialize()`.
 Asm code for SL entry (not very related): `sl-x86-i386-entry.S`.
 Asm code for AP born: `bplt-x86-i386-smptrampoline.S`.
 
+TODO: still try jumping back to protected mode in RT
 
 # tmp notes
 
