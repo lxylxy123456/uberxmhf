@@ -115,7 +115,7 @@ int hash_memory_multi_(int hash, unsigned char *out, unsigned long *outlen,
     printf("%s: %d %llu\n", __func__, __LINE__, (unsigned long long) inlen);
     for (;;) {
        /* process buf */
-       printf("%s: %d %llu\n", __func__, __LINE__, (unsigned long long) curlen);
+       printf("%s: %d 0x%llx\n", __func__, __LINE__, (unsigned long long) curlen);
        /* step to next */
        curptr = va_arg(args, const unsigned char*);
        if (curptr == NULL) {
