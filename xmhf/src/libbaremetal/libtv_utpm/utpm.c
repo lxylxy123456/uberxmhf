@@ -224,15 +224,20 @@ TPM_RESULT utpm_extend(TPM_DIGEST *measurement, utpm_master_state_t *utpm, uint3
 								mvalue, TPM_HASH_SIZE,
 								NULL, NULL);
 		dprintf(LOG_TRACE, "%s: %d DONE\n", __func__, __LINE__);
-		while (1) {}
     }
     dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
     outlen = sizeof(utpm->pcr_bank[pcr_num].value);
     dprintf(LOG_TRACE, "%s: %d !!! %d\n", __func__, __LINE__, sizeof(unsigned long));
+    /*
+     * TPM_HASH_SIZE must be casted as unsigned long, otherwise in amd64 it
+     * will be treated as int, causing problems in va_arg.
+     */
     rv = hash_memory_multi( find_hash("sha1"),
                             utpm->pcr_bank[pcr_num].value, &outlen,
-                            utpm->pcr_bank[pcr_num].value, TPM_HASH_SIZE,
-                            measurement->value, TPM_HASH_SIZE,
+                            utpm->pcr_bank[pcr_num].value,
+                            (unsigned long) TPM_HASH_SIZE,
+                            measurement->value,
+                            (unsigned long) TPM_HASH_SIZE,
                             NULL, NULL);
     dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
     if (rv) {
