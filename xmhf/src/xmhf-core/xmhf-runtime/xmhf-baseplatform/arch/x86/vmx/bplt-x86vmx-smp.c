@@ -129,6 +129,8 @@ void xmhf_baseplatform_arch_x86vmx_allocandsetupvcpus(u32 cpu_vendor){
   }
 }
 
+void prot_call(int *a);
+
 //wake up application processors (cores) in the system
 void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
 	//step-1: setup AP boot-strap code at in the desired physical memory location
@@ -141,6 +143,13 @@ void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
         memcpy((void *)0x10000, (void *)_ap_bootstrap_start, (uintptr_t)_ap_bootstrap_end - (uintptr_t)_ap_bootstrap_start + 1);
         #endif
     }
+
+	{
+		int a = 0;
+		HALT_ON_ERRORCOND(a == 0);
+		prot_call(&a);
+		HALT_ON_ERRORCOND(a == 1);
+	}
 
 #if defined (__DRT__)
     //step-2: wake up the APs sending the INIT-SIPI-SIPI sequence as per the
