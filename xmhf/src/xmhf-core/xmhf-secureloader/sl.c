@@ -199,9 +199,6 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 	xmhf_sl_arch_early_dmaprot_init(slpb.runtime_size);
 #endif
 
-	//wakeup APs
-	xmhf_sl_wakeupAPs(&slpb);
-
 	//transfer control to runtime
 	xmhf_sl_arch_xfer_control_to_runtime(rpb);
 

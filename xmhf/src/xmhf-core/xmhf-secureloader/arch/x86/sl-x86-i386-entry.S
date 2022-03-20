@@ -322,9 +322,6 @@ sl_startnew:
 
 .section .data
 
-    /* Also used in AP bootstrap code */
-    .global sl_gdt
-
     //the secure loader GDT
     sl_gdt:
     .word    sl_gdt_end - sl_gdt_start - 1

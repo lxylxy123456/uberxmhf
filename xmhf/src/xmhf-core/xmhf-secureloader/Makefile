@@ -3,7 +3,6 @@
 
 # source files
 AS_SOURCES = ./arch/x86/sl-x86-$(TARGET_SUBARCH)-entry.S
-AS_SOURCES += ./arch/x86/sl-x86-i386-ap.S
 AS_SOURCES += ./arch/x86/sl-x86-$(TARGET_SUBARCH)-sup.S
 
 C_SOURCES = sl.c
@@ -36,7 +35,6 @@ OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-acpi.
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-$(TARGET_SUBARCH)-smplock.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pit.o
 
 
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.o
