@@ -216,7 +216,11 @@ void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
             printf("\nBSP: rlp_wakeup_addr = 0x%08x", sinit_mle_data->rlp_wakeup_addr);
             for (int i = 0; i < 1000; i++) xmhf_baseplatform_arch_x86_udelay(1000);
             printf("\nBSP: write start");
+#ifdef __AMD64__
+            prot_call((int *)(unsigned long)(sinit_mle_data->rlp_wakeup_addr));
+#else /* !__AMD64__ */
             *((uint32_t *)(unsigned long)(sinit_mle_data->rlp_wakeup_addr)) = 0x01;
+#endif /* __AMD64__ */
             printf("\nBSP: write end");
             for (int i = 0; i < 1000; i++) xmhf_baseplatform_arch_x86_udelay(1000);
             printf("\nBSP: write end 1s");
