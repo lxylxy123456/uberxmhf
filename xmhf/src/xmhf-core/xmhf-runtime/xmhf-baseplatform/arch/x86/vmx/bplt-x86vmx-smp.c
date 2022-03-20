@@ -190,10 +190,10 @@ void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
         #ifndef __XMHF_VERIFICATION__
         mle_join = (mle_join_t*)((uintptr_t)_mle_join_start - (uintptr_t)_ap_bootstrap_start + 0x10000); // XXX magic number
         #endif
-        printf("\nBSP: mle_join.gdt_limit = 0x%08x", mle_join->gdt_limit);
-        printf("\nBSP: mle_join.gdt_base = 0x%08x", mle_join->gdt_base);
-        printf("\nBSP: mle_join.seg_sel = 0x%08x", mle_join->seg_sel);
-        printf("\nBSP: mle_join.entry_point = 0x%08x", mle_join->entry_point);
+        //printf("\nBSP: mle_join.gdt_limit = 0x%08x", mle_join->gdt_limit);
+        //printf("\nBSP: mle_join.gdt_base = 0x%08x", mle_join->gdt_base);
+        //printf("\nBSP: mle_join.seg_sel = 0x%08x", mle_join->seg_sel);
+        //printf("\nBSP: mle_join.entry_point = 0x%08x", mle_join->entry_point);
 
 	#ifndef __XMHF_VERIFICATION__
         write_priv_config_reg(TXTCR_MLE_JOIN, (uint64_t)(unsigned long)mle_join);
@@ -201,20 +201,11 @@ void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
         if (os_sinit_data->capabilities.rlp_wake_monitor) {
             printf("\nBSP: joining RLPs to MLE with MONITOR wakeup");
             printf("\nBSP: rlp_wakeup_addr = 0x%08x", sinit_mle_data->rlp_wakeup_addr);
-            for (int i = 0; i < 1000; i++) xmhf_baseplatform_arch_x86_udelay(1000);
-            printf("\nBSP: write start");
             *((uint32_t *)(unsigned long)(sinit_mle_data->rlp_wakeup_addr)) = 0x01;
-            printf("\nBSP: write end");
-            for (int i = 0; i < 1000; i++) xmhf_baseplatform_arch_x86_udelay(1000);
-            printf("\nBSP: write end 1s");
         }else {
             printf("\nBSP: joining RLPs to MLE with GETSEC[WAKEUP]");
-            for (int i = 0; i < 1000; i++) xmhf_baseplatform_arch_x86_udelay(1000);
-            printf("\nBSP: write start");
             __getsec_wakeup();
             printf("\nBSP: GETSEC[WAKEUP] completed");
-            for (int i = 0; i < 1000; i++) xmhf_baseplatform_arch_x86_udelay(1000);
-            printf("\nBSP: write end");
         }
 	#endif
 

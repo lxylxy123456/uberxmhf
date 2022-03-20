@@ -97,7 +97,6 @@ CODE
     _mle_join_end:
     .align 16
   ap_bootstrap_bypassdata:
-//123:  jmp 123b
       movw $0x1000, %ax
       movw %ax, %ds
       movw %ax, %es
@@ -116,15 +115,12 @@ CODE
       jmpl $__CS32, $(_ap_clear_pipe - _ap_bootstrap_start + (AP_BOOTSTRAP_CODE_SEG << 4))
     .code32
     _ap_clear_pipe:
-//123:  jmp 123b
       movw $__DS, %ax
       movw %ax, %ds
       movw %ax, %es
       movw %ax, %ss
       movw %ax, %fs
       movw %ax, %gs
-
-//123:  jmp 123b
 
       /* Set CR3 and CR4 (copy from BSP's value) */
       movl $(_ap_cr3_value - _ap_bootstrap_start + (AP_BOOTSTRAP_CODE_SEG << 4)), %esi
