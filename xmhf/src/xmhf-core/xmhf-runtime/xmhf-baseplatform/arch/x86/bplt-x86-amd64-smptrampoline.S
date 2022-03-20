@@ -80,9 +80,9 @@ CODE
     .align 16
     _ap_gdt_start:
       .quad 0x0000000000000000  // 0x00: NULL selector
-      .quad 0x00cf9a000000ffff  // 0x08: 32-bit CODE selector
-      .quad 0x00cf92000000ffff  // 0x10: 32-bit DATA selector   // TODO: different from usual run time
-      .quad 0x00af9a000000ffff  // 0x18: 64-bit CODE selector   // TODO: different from usual run time
+      .quad 0x00af9a000000ffff  // 0x08: 64-bit CODE selector
+      .quad 0x00cf9a000000ffff  // 0x10: 32-bit CODE selector
+      .quad 0x00cf92000000ffff  // 0x18: 32-bit DATA selector
       .quad 0x0000000000000000  // 0x20: TSS low (unused)
       .quad 0x0000000000000000  // 0x28: TSS high (unused)
     _ap_gdt_end:
@@ -92,12 +92,12 @@ CODE
     _mle_join_start:
     .long _ap_gdt_end - _ap_gdt_start - 1 // gdt_limit
     .long _ap_gdt_start - _ap_bootstrap_start + 0x10000// gdt_base
-    .long 0x00000008 // CS
+    .long __CS32 // CS, also DS - 8
     .long _ap_clear_pipe - _ap_bootstrap_start + 0x10000 // entry point
     _mle_join_end:
     .align 16
   ap_bootstrap_bypassdata:
-123:  jmp 123b
+//123:  jmp 123b
       movw $0x1000, %ax
       movw %ax, %ds
       movw %ax, %es
@@ -113,18 +113,18 @@ CODE
       orl $(CR0_PE), %eax
       movl %eax, %cr0
 
-      jmpl $0x08, $(_ap_clear_pipe - _ap_bootstrap_start + (AP_BOOTSTRAP_CODE_SEG << 4))
+      jmpl $__CS32, $(_ap_clear_pipe - _ap_bootstrap_start + (AP_BOOTSTRAP_CODE_SEG << 4))
     .code32
     _ap_clear_pipe:
-123:  jmp 123b
-      movw $0x10, %ax
+//123:  jmp 123b
+      movw $__DS, %ax
       movw %ax, %ds
       movw %ax, %es
       movw %ax, %ss
       movw %ax, %fs
       movw %ax, %gs
 
-123:  jmp 123b
+//123:  jmp 123b
 
       /* Set CR3 and CR4 (copy from BSP's value) */
       movl $(_ap_cr3_value - _ap_bootstrap_start + (AP_BOOTSTRAP_CODE_SEG << 4)), %esi
@@ -237,93 +237,3 @@ gotvcpu:
    call xmhf_baseplatform_arch_x86_smpinitialize_commonstart
    /*we should never get here, if so just halt*/
    hlt
-
-/* Call some code protected mode. Goal is simple: *(int *)EDI = 1 */
-.global prot_call
-prot_call:
-	/* Ref: 9.8.5 Initializing IA-32e Mode */
-
-	/* Save all CPU GPRs */
-	pushq	%r15
-	pushq	%r14
-	pushq	%r13
-	pushq	%r12
-	pushq	%r11
-	pushq	%r10
-	pushq	%r9
-	pushq	%r8
-	pushq	%rax
-	pushq	%rcx
-	pushq	%rdx
-	pushq	%rbx
-	pushq	%rsp
-	pushq	%rbp
-	pushq	%rsi
-	pushq	%rdi
-
-	/* lret to compatibility mode */
-	pushq	$0x8
-	pushq	$1f
-	lretq
-
-1:
-	.code32
-
-	/* Disable paging */
-	movl	%cr0, %eax
-	andl	$~CR0_PG, %eax
-	movl	%eax, %cr0
-
-	/* To be safe, reload DS - GS and SS (TODO: remove) */
-	movl	$0x18, %eax
-	movw	%ax, %ds
-	movw	%ax, %es
-	movw	%ax, %fs
-	movw	%ax, %gs
-	movw	%ax, %ss
-
-	/* Do work */
-	movl	$1, (%edi)
-
-	/* Enable paging */
-	movl	%cr0, %eax
-	orl		$CR0_PG, %eax
-	movl	%eax, %cr0
-
-	/* lret to long mode */
-	pushl	$0x10
-	pushl	$1f
-	lretl
-
-1:
-	.code64
-
-	/* To be safe, reload DS - GS and SS (TODO: remove) */
-	movl	$0x18, %eax
-	movw	%ax, %ds
-	movw	%ax, %es
-	movw	%ax, %fs
-	movw	%ax, %gs
-	movw	%ax, %ss
-
-	/* Restore all CPU GPRs */
-	popq	%rdi
-	popq	%rsi
-	popq	%rbp
-	popq	%rsp
-	popq	%rbx
-	popq	%rdx
-	popq	%rcx
-	popq	%rax
-	popq	%r8
-	popq	%r9
-	popq	%r10
-	popq	%r11
-	popq	%r12
-	popq	%r13
-	popq	%r14
-	popq	%r15
-
-	/* Return */
-	ret
-

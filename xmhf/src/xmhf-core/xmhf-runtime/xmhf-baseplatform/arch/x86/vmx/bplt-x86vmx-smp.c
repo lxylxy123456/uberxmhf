@@ -129,8 +129,6 @@ void xmhf_baseplatform_arch_x86vmx_allocandsetupvcpus(u32 cpu_vendor){
   }
 }
 
-void prot_call(int *a);
-
 //wake up application processors (cores) in the system
 void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
 	//step-1: setup AP boot-strap code at in the desired physical memory location
@@ -143,17 +141,6 @@ void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
         memcpy((void *)0x10000, (void *)_ap_bootstrap_start, (uintptr_t)_ap_bootstrap_end - (uintptr_t)_ap_bootstrap_start + 1);
         #endif
     }
-
-	{
-		int a = 0;
-		HALT_ON_ERRORCOND(a == 0);
-#ifdef __AMD64__
-		prot_call(&a);
-#else /* !__AMD64__ */
-		a = 1;
-#endif /* __AMD64__ */
-		HALT_ON_ERRORCOND(a == 1);
-	}
 
 #if defined (__DRT__)
     //step-2: wake up the APs sending the INIT-SIPI-SIPI sequence as per the
@@ -216,11 +203,7 @@ void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
             printf("\nBSP: rlp_wakeup_addr = 0x%08x", sinit_mle_data->rlp_wakeup_addr);
             for (int i = 0; i < 1000; i++) xmhf_baseplatform_arch_x86_udelay(1000);
             printf("\nBSP: write start");
-#ifdef __AMD64__
-            prot_call((int *)(unsigned long)(sinit_mle_data->rlp_wakeup_addr));
-#else /* !__AMD64__ */
             *((uint32_t *)(unsigned long)(sinit_mle_data->rlp_wakeup_addr)) = 0x01;
-#endif /* __AMD64__ */
             printf("\nBSP: write end");
             for (int i = 0; i < 1000; i++) xmhf_baseplatform_arch_x86_udelay(1000);
             printf("\nBSP: write end 1s");
