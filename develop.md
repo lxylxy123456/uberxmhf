@@ -74,6 +74,20 @@ OpenGrok can be used to browse the source code.
 <https://hub.docker.com/r/opengrok/docker/> can be used to run OpenGrok in
 Docker.
 
+Sample Docker command:
+```sh
+SCRIPT_DIR="$(dirname "$(realpath $BASH_SOURCE)")"
+docker run --name 'opengrok-xmhf' -d \
+	-v "$SCRIPT_DIR/src:/opengrok/src" \
+	-v "$SCRIPT_DIR/data:/opengrok/data" \
+	-p "127.0.0.1:8080:8080" \
+	-e "INDEXER_OPT=--threads 1" \
+	-e "WORKERS=1" \
+	--cpus 0.75 \
+	opengrok/docker:1.7.30
+echo "http://127.0.0.1:8080/"
+```
+
 ## Editing source
 
 `replace_x86.py` can be used to change `x86` to `x86_64` in the source

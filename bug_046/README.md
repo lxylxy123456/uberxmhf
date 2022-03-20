@@ -270,6 +270,21 @@ Major changes to be made
 Challenges
 * sl trusted area currently has a 64KB size limit. Around 10355 bytes left.
 
+### Still try jumping back to protected mode in RT
+
+I still want to try jumping back to protected mode and set the word to 1 /
+execute `GETSEC[WAKEUP]`.
+
+Intel v3 "9.8.5 Initializing IA-32e Mode" shows how to exit IA-32e mode. Can
+use GDB script to debug in QEMU:
+```sh
+waitamt /tmp/amt; gdb --ex 'target remote :::2198' -x gdb/x64_rt_pre.gdb
+```
+
+In `b49295f59`, tried to write to `rlp_wakeup_addr` in protected mode (used
+unpaged protected mode for convenience). However, not successful. Will likely
+give up.
+
 ### Implementing AP wakeup in sl
 
 The code is rooted in `xmhf_smpguest_initialize()`.
@@ -277,7 +292,9 @@ The code is rooted in `xmhf_smpguest_initialize()`.
 Asm code for SL entry (not very related): `sl-x86-i386-entry.S`.
 Asm code for AP born: `bplt-x86-i386-smptrampoline.S`.
 
-TODO: still try jumping back to protected mode in RT
+Development branch in `xmhf64-sl32`.
+
+Hint: QEMU's `info registers` gives more info than GDB's `info reg`.
 
 # tmp notes
 
