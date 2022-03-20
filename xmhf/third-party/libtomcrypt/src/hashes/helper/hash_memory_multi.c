@@ -102,38 +102,11 @@ LBL_ERR:
 int hash_memory_multi_(int hash, unsigned char *out, unsigned long *outlen,
                       const unsigned char *in, unsigned long inlen, ...)
 {
-    hash_state          *md;
-    int                  err;
     va_list              args;
     const unsigned char *curptr;
     unsigned long        curlen;
 
     printf("%s: %d\n", __func__, __LINE__);
-    LTC_ARGCHK(in     != NULL);
-    LTC_ARGCHK(out    != NULL);
-    LTC_ARGCHK(outlen != NULL);
-
-    printf("%s: %d\n", __func__, __LINE__);
-    if ((err = hash_is_valid(hash)) != CRYPT_OK) {
-        return err;
-    }
-
-    printf("%s: %d\n", __func__, __LINE__);
-    if (*outlen < hash_descriptor[hash].hashsize) {
-       *outlen = hash_descriptor[hash].hashsize;
-       return CRYPT_BUFFER_OVERFLOW;
-    }
-
-    printf("%s: %d\n", __func__, __LINE__);
-    md = XMALLOC(sizeof(hash_state));
-    if (md == NULL) {
-       return CRYPT_MEM;
-    }
-
-    printf("%s: %d\n", __func__, __LINE__);
-    if ((err = hash_descriptor[hash].init(md)) != CRYPT_OK) {
-       goto LBL_ERR;
-    }
 
     printf("%s: %d !!! %d\n", __func__, __LINE__, sizeof(unsigned long));
     va_start(args, inlen);
@@ -142,31 +115,17 @@ int hash_memory_multi_(int hash, unsigned char *out, unsigned long *outlen,
     printf("%s: %d %llu\n", __func__, __LINE__, (unsigned long long) inlen);
     for (;;) {
        /* process buf */
-       printf("%s: %d %llu\n", __func__, __LINE__, (unsigned long long) inlen);
-       printf("%s: %d %p %p %p\n", __func__, __LINE__, md, curptr,
-              (unsigned long long) curlen);
-       printf("%s: %d\n", __func__, __LINE__);
+       printf("%s: %d %llu\n", __func__, __LINE__, (unsigned long long) curlen);
        /* step to next */
        curptr = va_arg(args, const unsigned char*);
        if (curptr == NULL) {
           break;
        }
-       printf("%s: %d\n", __func__, __LINE__);
        curlen = va_arg(args, unsigned long);
     }
     printf("%s: %d\n", __func__, __LINE__);
-    err = hash_descriptor[hash].done(md, out);
-    *outlen = hash_descriptor[hash].hashsize;
-    printf("%s: %d\n", __func__, __LINE__);
-LBL_ERR:
-#ifdef LTC_CLEAN_STACK
-    zeromem(md, sizeof(hash_state));
-#endif
-    printf("%s: %d\n", __func__, __LINE__);
-    XFREE(md);
     va_end(args);
-    printf("%s: %d\n", __func__, __LINE__);
-    return err;
+    return 0;
 }
 
 /* $Source: /cvs/libtom/libtomcrypt/src/hashes/helper/hash_memory_multi.c,v $ */
