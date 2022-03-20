@@ -212,11 +212,6 @@ int scode_measure_section(utpm_master_state_t *utpm,
 
   EU_CHKN( sha1_done( &ctx, sha1sum.value));
 
-  {
-    void utpm_extend_(void);
-    utpm_extend_();
-  }
-
 #ifdef __DRT__
   /* extend pcr 0 */
   utpm_extend(&sha1sum, utpm, 0);

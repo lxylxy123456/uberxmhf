@@ -172,27 +172,6 @@ TPM_RESULT utpm_pcrread(TPM_DIGEST* pcr_value /* output */,
 	return UTPM_SUCCESS;
 }
 
-void utpm_extend_(void) {
-    int rv;
-	int hash_memory_multi_(int hash, unsigned char *out, unsigned long *outlen,
-			               const unsigned char *in, unsigned long inlen, ...);
-
-	unsigned long outlen = TPM_HASH_SIZE;
-	uint8_t value[TPM_HASH_SIZE] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-									13, 14, 15, 16, 17, 18, 19, 20};
-	uint8_t mvalue[TPM_HASH_SIZE] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-									 13, 14, 15, 16, 17, 18, 19, 20};
-    (void) rv;
-    dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
-	rv = hash_memory_multi_(find_hash("sha1"),
-							value, &outlen,
-							value, TPM_HASH_SIZE,
-							mvalue, TPM_HASH_SIZE,
-							NULL, NULL);
-	dprintf(LOG_TRACE, "%s: %d DONE\n", __func__, __LINE__);
-//	while (1) {}
-}
-
 /* software tpm pcr extend */
 TPM_RESULT utpm_extend(TPM_DIGEST *measurement, utpm_master_state_t *utpm, uint32_t pcr_num)
 {
@@ -208,29 +187,11 @@ TPM_RESULT utpm_extend(TPM_DIGEST *measurement, utpm_master_state_t *utpm, uint3
     //print_hex("utpm_extend: measurement: ", measurement->value, TPM_HASH_SIZE);
 
     /* pcr = H( pcr || measurement) */
-    dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
-    {
-		int hash_memory_multi_(int hash, unsigned char *out, unsigned long *outlen,
-				               const unsigned char *in, unsigned long inlen, ...);
-
-		unsigned long outlen = TPM_HASH_SIZE;
-		uint8_t value[TPM_HASH_SIZE] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-										13, 14, 15, 16, 17, 18, 19, 20};
-		uint8_t mvalue[TPM_HASH_SIZE] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-										 13, 14, 15, 16, 17, 18, 19, 20};
-		rv = hash_memory_multi_(find_hash("sha1"),
-								value, &outlen,
-								value, TPM_HASH_SIZE,
-								mvalue, TPM_HASH_SIZE,
-								NULL, NULL);
-		dprintf(LOG_TRACE, "%s: %d DONE\n", __func__, __LINE__);
-    }
-    dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
     outlen = sizeof(utpm->pcr_bank[pcr_num].value);
-    dprintf(LOG_TRACE, "%s: %d !!! %d\n", __func__, __LINE__, sizeof(unsigned long));
     /*
      * TPM_HASH_SIZE must be casted as unsigned long, otherwise in amd64 it
-     * will be treated as int, causing problems in va_arg.
+     * will be treated as int in the caller and unsigned long in the callee,
+     * causing problems in va_arg (e.g. the upper 32-bits become undefined).
      */
     rv = hash_memory_multi( find_hash("sha1"),
                             utpm->pcr_bank[pcr_num].value, &outlen,
@@ -239,11 +200,9 @@ TPM_RESULT utpm_extend(TPM_DIGEST *measurement, utpm_master_state_t *utpm, uint3
                             measurement->value,
                             (unsigned long) TPM_HASH_SIZE,
                             NULL, NULL);
-    dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
     if (rv) {
       abort();
     }
-    dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
 
     //print_hex("utpm_extend: PCR after: ", utpm->pcr_bank[pcr_num].value, TPM_HASH_SIZE);
 
