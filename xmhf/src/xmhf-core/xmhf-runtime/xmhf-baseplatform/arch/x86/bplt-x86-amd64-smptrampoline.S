@@ -81,8 +81,8 @@ CODE
     _ap_gdt_start:
       .quad 0x0000000000000000  // 0x00: NULL selector
       .quad 0x00cf9a000000ffff  // 0x08: 32-bit CODE selector
-      .quad 0x00af9a000000ffff  // 0x10: 64-bit CODE selector
-      .quad 0x00cf92000000ffff  // 0x18: 32-bit DATA selector
+      .quad 0x00cf92000000ffff  // 0x10: 32-bit DATA selector   // TODO: different from usual run time
+      .quad 0x00af9a000000ffff  // 0x18: 64-bit CODE selector   // TODO: different from usual run time
       .quad 0x0000000000000000  // 0x20: TSS low (unused)
       .quad 0x0000000000000000  // 0x28: TSS high (unused)
     _ap_gdt_end:
@@ -117,7 +117,7 @@ CODE
     .code32
     _ap_clear_pipe:
 123:  jmp 123b
-      movw $0x18, %ax
+      movw $0x10, %ax
       movw %ax, %ds
       movw %ax, %es
       movw %ax, %ss
