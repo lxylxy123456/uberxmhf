@@ -279,7 +279,7 @@ void xmhf_sl_wakeupAPs(struct _sl_parameter_block *slpb)
 //	printf("\n%x %x", _ap_cr3_value, _ap_cr4_value);
 
 	/* Copy _ap_bootstrap_start - _ap_bootstrap_end to 0x10000 */
-	for (uint32_t i = 0; i + _ap_bootstrap_start < _ap_bootstrap_end; i++) {
+	for (uint32_t i = 0; i + (uint32_t)_ap_bootstrap_start < (uint32_t)_ap_bootstrap_end; i++) {
 		writeb(0x10000 + i, ((u8 *)_ap_bootstrap_start)[i]);
 	}
 
