@@ -216,25 +216,6 @@ int scode_measure_section(utpm_master_state_t *utpm,
   /* extend pcr 0 */
   utpm_extend(&sha1sum, utpm, 0);
 #else /* !__DRT__ */
-
-	{
-		int hash_memory_multi_(int hash, unsigned char *out, unsigned long *outlen,
-				               const unsigned char *in, unsigned long inlen, ...);
-
-		unsigned long outlen = TPM_HASH_SIZE;
-		uint8_t value[TPM_HASH_SIZE] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-										13, 14, 15, 16, 17, 18, 19, 20};
-		uint8_t mvalue[TPM_HASH_SIZE] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-										 13, 14, 15, 16, 17, 18, 19, 20};
-		rv = hash_memory_multi_(find_hash("sha1"),
-								value, &outlen,
-								value, TPM_HASH_SIZE,
-								mvalue, TPM_HASH_SIZE,
-								NULL, NULL);
-		EU_CHK(0);
-		EU_CHK(1);
-	}
-
   (void) utpm;  // unused
 #endif /* __DRT__ */
 
