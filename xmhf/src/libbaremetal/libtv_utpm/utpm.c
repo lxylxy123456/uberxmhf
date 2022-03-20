@@ -188,6 +188,24 @@ TPM_RESULT utpm_extend(TPM_DIGEST *measurement, utpm_master_state_t *utpm, uint3
 
     /* pcr = H( pcr || measurement) */
     dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
+    {
+		int hash_memory_multi_(int hash, unsigned char *out, unsigned long *outlen,
+				               const unsigned char *in, unsigned long inlen, ...);
+
+		unsigned long outlen = TPM_HASH_SIZE;
+		uint8_t value[TPM_HASH_SIZE] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+										13, 14, 15, 16, 17, 18, 19, 20};
+		uint8_t mvalue[TPM_HASH_SIZE] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+										 13, 14, 15, 16, 17, 18, 19, 20};
+		rv = hash_memory_multi_(find_hash("sha1"),
+								value, &outlen,
+								value, TPM_HASH_SIZE,
+								mvalue, TPM_HASH_SIZE,
+								NULL, NULL);
+		dprintf(LOG_TRACE, "%s: %d DONE\n", __func__, __LINE__);
+		while (1) {}
+    }
+    dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
     outlen = sizeof(utpm->pcr_bank[pcr_num].value);
     dprintf(LOG_TRACE, "%s: %d !!! %d\n", __func__, __LINE__, sizeof(unsigned long));
     rv = hash_memory_multi( find_hash("sha1"),
