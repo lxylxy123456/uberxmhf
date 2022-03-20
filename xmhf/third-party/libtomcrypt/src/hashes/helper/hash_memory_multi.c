@@ -61,14 +61,16 @@ int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen,
        goto LBL_ERR;
     }
 
-    printf("%s: %d\n", __func__, __LINE__);
+    printf("%s: %d !!! %d\n", __func__, __LINE__, sizeof(unsigned long));
     va_start(args, inlen);
     curptr = in;
     curlen = inlen;
-    printf("%s: %d\n", __func__, __LINE__);
+    printf("%s: %d %llu\n", __func__, __LINE__, (unsigned long long) inlen);
     for (;;) {
        /* process buf */
-       printf("%s: %d %p\n", __func__, __LINE__, hash_descriptor[hash].process);
+       printf("%s: %d %llu\n", __func__, __LINE__, (unsigned long long) inlen);
+       printf("%s: %d %p %p %p\n", __func__, __LINE__, md, curptr,
+              (unsigned long long) curlen);
        if ((err = hash_descriptor[hash].process(md, curptr, curlen)) != CRYPT_OK) {
           printf("%s: %d\n", __func__, __LINE__);
           goto LBL_ERR;

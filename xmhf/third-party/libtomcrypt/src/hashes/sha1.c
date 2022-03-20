@@ -186,20 +186,29 @@ int sha1_process (hash_state * md, const unsigned char *in, unsigned long inlen)
 {
     unsigned long n;
     int           err;
+    printf("%s: %d %p %p %p\n", __func__, __LINE__, md, in,
+           (unsigned long long) inlen);
+    printf("%s: %d %llu\n", __func__, __LINE__, (unsigned long long)inlen);
     LTC_ARGCHK(md != NULL);
     LTC_ARGCHK(in != NULL);
+//    printf("%s: %d\n", __func__, __LINE__);
     if (md-> sha1 .curlen > sizeof(md-> sha1 .buf)) {
        return CRYPT_INVALID_ARG;
     }
+//    printf("%s: %d\n", __func__, __LINE__);
     while (inlen > 0) {
+//        printf("%s: %d\n", __func__, __LINE__);
         if (md-> sha1 .curlen == 0 && inlen >= 64) {
+//           printf("%s: %d\n", __func__, __LINE__);
            if ((err = sha1_compress (md, (unsigned char *)in)) != CRYPT_OK) {
+//              printf("%s: %d\n", __func__, __LINE__);
               return err;
            }
            md-> sha1 .length += 64 * 8;
            in             += 64;
            inlen          -= 64;
         } else {
+//           printf("%s: %d\n", __func__, __LINE__);
            n = MIN(inlen, (64 - md-> sha1 .curlen));
            memcpy(md-> sha1 .buf + md-> sha1.curlen, in, (size_t)n);
            md-> sha1 .curlen += n;
@@ -207,6 +216,7 @@ int sha1_process (hash_state * md, const unsigned char *in, unsigned long inlen)
            inlen          -= n;
            if (md-> sha1 .curlen == 64) {
               if ((err = sha1_compress (md, md-> sha1 .buf)) != CRYPT_OK) {
+//                 printf("%s: %d\n", __func__, __LINE__);
                  return err;
               }
               md-> sha1 .length += 8*64;
@@ -214,6 +224,7 @@ int sha1_process (hash_state * md, const unsigned char *in, unsigned long inlen)
            }
        }
     }
+//    printf("%s: %d\n", __func__, __LINE__);
     return CRYPT_OK;
 }
 
