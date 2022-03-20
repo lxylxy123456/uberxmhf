@@ -187,15 +187,19 @@ TPM_RESULT utpm_extend(TPM_DIGEST *measurement, utpm_master_state_t *utpm, uint3
     //print_hex("utpm_extend: measurement: ", measurement->value, TPM_HASH_SIZE);
 
     /* pcr = H( pcr || measurement) */
+    dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
     outlen = sizeof(utpm->pcr_bank[pcr_num].value);
+    dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
     rv = hash_memory_multi( find_hash("sha1"),
                             utpm->pcr_bank[pcr_num].value, &outlen,
                             utpm->pcr_bank[pcr_num].value, TPM_HASH_SIZE,
                             measurement->value, TPM_HASH_SIZE,
                             NULL, NULL);
+    dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
     if (rv) {
       abort();
     }
+    dprintf(LOG_TRACE, "%s: %d\n", __func__, __LINE__);
 
     //print_hex("utpm_extend: PCR after: ", utpm->pcr_bank[pcr_num].value, TPM_HASH_SIZE);
 
