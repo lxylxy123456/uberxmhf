@@ -147,7 +147,11 @@ void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
 	{
 		int a = 0;
 		HALT_ON_ERRORCOND(a == 0);
+#ifdef __AMD64__
 		prot_call(&a);
+#else /* !__AMD64__ */
+		a = 1;
+#endif /* __AMD64__ */
 		HALT_ON_ERRORCOND(a == 1);
 	}
 
