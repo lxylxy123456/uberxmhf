@@ -51,8 +51,8 @@
 
 #include <xmhf.h>
 
-	.extern g_midtable
-	.extern g_midtable_numentries
+    .extern g_midtable
+    .extern g_midtable_numentries
 
 /*------------------------------------------------------------------------------
 CODE
@@ -60,20 +60,14 @@ CODE
 
 .section .text
 
-	/*--AP boot-strap code-------------------------------------------------------*/
-	.code16
+    /*--AP boot-strap code-------------------------------------------------------*/
+    .code16
   .global _ap_bootstrap_start
   _ap_bootstrap_start:
     jmp ap_bootstrap_bypassdata
     _ap_gdtdesc:
       .word _ap_gdt_end - _ap_gdt_start - 1
       .long _ap_gdt_start - _ap_bootstrap_start + 0x10000
-    .global _ap_cr3_value
-    _ap_cr3_value:
-      .long 0
-    .global _ap_cr4_value
-    _ap_cr4_value:
-      .long 0
     .align 16
     _ap_gdt_start:
       .quad 0x0000000000000000
@@ -92,13 +86,13 @@ CODE
     .align 16
   ap_bootstrap_bypassdata:
       movw $0x1000, %ax
-    	movw %ax, %ds
-    	movw %ax, %es
-    	movw $0xFFFF, %sp
-    	movw $0x4000, %ax
-    	movw %ax, %ss
+      movw %ax, %ds
+      movw %ax, %es
+      movw $0xFFFF, %sp
+      movw $0x4000, %ax
+      movw %ax, %ss
 
-    	movw $0x0002, %si
+      movw $0x0002, %si
 
       lgdt (%si)
 
@@ -116,19 +110,10 @@ CODE
       movw %ax, %fs
       movw %ax, %gs
 
+      /* CR3 = CR4 = 0, because sl does not need paging */
 
-      movl $(_ap_cr3_value - _ap_bootstrap_start + (AP_BOOTSTRAP_CODE_SEG << 4)), %esi
-      movl (%esi), %ebx
-      movl %ebx, %cr3
-      movl $(_ap_cr4_value - _ap_bootstrap_start + (AP_BOOTSTRAP_CODE_SEG << 4)), %esi
-      movl (%esi), %ebx
-      movl %ebx, %cr4
-
-      movl %cr0, %eax
-      orl $0x80000000, %eax
-      movl %eax, %cr0
-
-      movl $_ap_pmode_entry_with_paging, %eax
+      /* Jump from 0x10000 to actual address in sl (but not linking address) */
+      movl $(_ap_pmode_entry_with_paging + __TARGET_BASE_SL), %eax
       jmpl *%eax
       hlt
 
@@ -139,22 +124,38 @@ CODE
     nop
     nop
 
-	/*---AP common low-level entry point with paging enabled----------------------*/
+  /*---AP common low-level entry point with paging enabled----------------------*/
   .global _ap_pmode_entry_with_paging
   _ap_pmode_entry_with_paging:
-    /*load our gdt and idt*/
-//TODO TODO    lgdt x_gdt
-//TODO TODO    lidt xmhf_xcphandler_idt
+    /* load sl GDT (PA = VA + __TARGET_BASE_SL), no IDT */
+    /* TODO: no need to lgdt twice in this code; remove `_ap_gdt*` */
+    lgdt (sl_gdt + __TARGET_BASE_SL)
 
+    /* Update CS to to sl GDT */
+    jmpl $0x08, $(1f)
+  1:
 
+    /* Update DS etc. to to sl GDT */
+    movw $0x10, %ax
+    movw %ax, %ds
+    movw %ax, %es
+    movw %ax, %ss
+    movw $0x18, %ax
+    movw %ax, %fs
+    movw %ax, %gs
 
-    /*get hold of local APIC id*/
+    /* Get hold of local APIC ID */
     mov $(MSR_APIC_BASE), %ecx
     rdmsr
     andl $0xFFFFF000, %eax
     addl $0x20, %eax
-    movl (%eax), %eax
+    movl %fs:(%eax), %eax
     shr $24, %eax
+
+    // TODO: set up stack
+1:
+    hlt
+    jmp 1b
 
 //TODO TODO    movl g_midtable_numentries, %edx
     /*movl g_runtime, %edx*/
