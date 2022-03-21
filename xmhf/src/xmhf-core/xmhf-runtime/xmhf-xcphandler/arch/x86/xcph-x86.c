@@ -117,6 +117,7 @@ extern uint8_t _end_xcph_table[];
 //EMHF exception handler hub
 void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
     VCPU *vcpu;
+    
     vcpu = _svm_and_vmx_getvcpu();
 
     /*

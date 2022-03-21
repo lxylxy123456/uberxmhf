@@ -50,16 +50,6 @@
 #ifndef __EMHF_RUNTIME_H__
 #define __EMHF_RUNTIME_H__
 
-// #ifdef __I386__
-//     #define DMAPROT_PHY_ADDR_SPACE_SIZE	    MAX_PHYS_ADDR
-//     #define DMAPROT_VMX_P4L_NPDT            4
-// #elif defined(__AMD64__)
-//     #define DMAPROT_PHY_ADDR_SPACE_SIZE		(PAGE_ALIGN_UP1G(MAX_PHYS_ADDR))
-//     #define DMAPROT_VMX_P4L_NPDT			(DMAPROT_PHY_ADDR_SPACE_SIZE >> PAGE_SHIFT_1G)
-// #else
-//     #error "Unsupported Arch"
-// #endif // __I386__
-
 #define DMAPROT_PHY_ADDR_SPACE_SIZE		(SPADDR_ALIGN_UP1G(MAX_PHYS_ADDR))
 #define DMAPROT_VMX_P4L_NPDT			(DMAPROT_PHY_ADDR_SPACE_SIZE >> (u64)PAGE_SHIFT_1G)
 
