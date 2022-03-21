@@ -19,3 +19,5 @@ extern bool _vtd_verify_cap(VTD_DRHD* vtd_drhd, u32 vtd_num_drhd, struct dmap_vm
 //steps that need to be followed to initialize a DRHD unit!. we use our
 //common sense instead...:p
 extern void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr);
+
+extern bool vmx_get_machine_paddr_range(spa_t* machine_base_spa, spa_t* machine_limit_spa);

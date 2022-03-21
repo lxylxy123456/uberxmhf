@@ -50,9 +50,18 @@
 #ifndef __EMHF_RUNTIME_H__
 #define __EMHF_RUNTIME_H__
 
-#define DMAPROT_PHY_ADDR_SPACE_SIZE		(PAGE_ALIGN_UP1G(MAX_PHYS_ADDR))
+// #ifdef __I386__
+//     #define DMAPROT_PHY_ADDR_SPACE_SIZE	    MAX_PHYS_ADDR
+//     #define DMAPROT_VMX_P4L_NPDT            4
+// #elif defined(__AMD64__)
+//     #define DMAPROT_PHY_ADDR_SPACE_SIZE		(PAGE_ALIGN_UP1G(MAX_PHYS_ADDR))
+//     #define DMAPROT_VMX_P4L_NPDT			(DMAPROT_PHY_ADDR_SPACE_SIZE >> PAGE_SHIFT_1G)
+// #else
+//     #error "Unsupported Arch"
+// #endif // __I386__
 
-#define DMAPROT_VMX_P4L_NPDT			(DMAPROT_PHY_ADDR_SPACE_SIZE >> PAGE_SHIFT_1G)
+#define DMAPROT_PHY_ADDR_SPACE_SIZE		(SPADDR_ALIGN_UP1G(MAX_PHYS_ADDR))
+#define DMAPROT_VMX_P4L_NPDT			(DMAPROT_PHY_ADDR_SPACE_SIZE >> (u64)PAGE_SHIFT_1G)
 
 // 4-level PML4 page tables + 4KB root entry table + 4K context entry table per PCI bus
 #define SIZE_G_RNTM_DMAPROT_BUFFER	(PAGE_SIZE_4K + PAGE_SIZE_4K + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT) \

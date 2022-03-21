@@ -96,6 +96,18 @@
 
 #endif
 
+// <spa_t> related page aligned address operations. They are different from PAGE_ALIGN_* ops, because <spa_t> is 64-bit
+// long even on 32-bit systems.
+#define SPADDR_ALIGN_UP4K(spaddr)   (((spa_t)(spaddr) + PAGE_SIZE_4K - 1) & (spa_t)(~(PAGE_SIZE_4K - 1)))
+#define SPADDR_ALIGN_UP2M(spaddr)   (((spa_t)(spaddr) + PAGE_SIZE_2M - 1) & (spa_t)(~(PAGE_SIZE_2M - 1)))
+#define SPADDR_ALIGN_UP4M(spaddr)   (((spa_t)(spaddr) + PAGE_SIZE_4M - 1) & (spa_t)(~(PAGE_SIZE_4M - 1)))
+#define SPADDR_ALIGN_UP1G(spaddr)   (((spa_t)(spaddr) + PAGE_SIZE_1G - 1) & (spa_t)(~(PAGE_SIZE_1G - 1)))
+
+#define SPADDR_ALIGN_4K(spaddr)     ((spa_t)(spaddr) & (spa_t)(~(PAGE_SIZE_4K - 1)))
+#define SPADDR_ALIGN_2M(spaddr)     ((spa_t)(spaddr) & (spa_t)(~(PAGE_SIZE_2M - 1)))
+#define SPADDR_ALIGN_4M(spaddr)     ((spa_t)(spaddr) & (spa_t)(~(PAGE_SIZE_4M - 1)))
+#define SPADDR_ALIGN_1G(spaddr)     ((spa_t)(spaddr) & (spa_t)(~(PAGE_SIZE_1G - 1)))
+
 #define PAGE_ALIGN_UP4K(size)   (((size) + PAGE_SIZE_4K - 1) & ~(PAGE_SIZE_4K - 1))
 #define PAGE_ALIGN_UP2M(size)   (((size) + PAGE_SIZE_2M - 1) & ~(PAGE_SIZE_2M - 1))
 #define PAGE_ALIGN_UP4M(size)   (((size) + PAGE_SIZE_4M - 1) & ~(PAGE_SIZE_4M - 1))

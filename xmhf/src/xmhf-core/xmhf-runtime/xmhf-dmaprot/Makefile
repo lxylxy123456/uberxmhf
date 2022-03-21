@@ -12,6 +12,8 @@ C_SOURCES += ./arch/x86/vmx/dmap-vmx-internal.c
 C_SOURCES += ./arch/x86/vmx/dmap-vmx-runtime.c
 C_SOURCES += ./arch/x86/vmx/dmap-vmx-utils.c
 C_SOURCES += ./arch/x86/vmx/dmap-vmx-data.c
+C_SOURCES += ./arch/x86/$(TARGET_SUBARCH)/vmx-runtime-$(TARGET_SUBARCH).c
+
 
 OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))
 OBJECTS += $(patsubst %.c, %.o, $(C_SOURCES))
@@ -33,6 +35,7 @@ all: $(OBJECTS)
 clean:
 	$(RM) -rf *.o
 	$(RM) -rf ./arch/*/*.o
+	$(RM) -rf ./arch/*/*/*.o
 	$(RM) -rf ./arch/*/svm/*.o
 	$(RM) -rf ./arch/*/vmx/*.o
 

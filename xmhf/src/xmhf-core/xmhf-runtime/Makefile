@@ -43,6 +43,7 @@ OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal.o
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-runtime.o
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-utils.o
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-data.o
+OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/$(TARGET_SUBARCH)/vmx-runtime-$(TARGET_SUBARCH).o
 
 OBJECTS_PRECOMPILED += ./xmhf-xcphandler/xcph-interface.o
 OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/x86/xcph-x86.o
