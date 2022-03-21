@@ -165,6 +165,8 @@ So now should consider porting sl back to x86
 Not tested ideas
 * compare x86 and x64 logs (why is there `TXT.ERRORCODE=80000000`?)
 * does join data structure need to be 64 bits for x64?
+	* It is documented in Intel v2 "GETSEC[WAKEUP] ...", and
+	  "Table 6-12. RLP MVMM JOIN Data Structure"
 * try to use x86 version of `_ap_bootstrap_start()`
 * try `__getsec_wakeup()` (do not use `rlp_wake_monitor`), or use ACPI
 * how is BSP loaded? According to TXT docs AP should be similar
@@ -296,13 +298,70 @@ Development branch in `xmhf64-sl32`.
 
 Hint: QEMU's `info registers` gives more info than GDB's `info reg`.
 
-# tmp notes
+In Intel's TXT documentation, looks like ILP does not need paging and does not
+need segment base address = 0. This means the wierd segment in sl will likely
+still work.
 
-Port sl to x86
+The join data structure is the physical address:
+"TXT.MLE.JOIN = physical address of JOIN structure;". See Intel v2
+"Table 6-12. RLP MVMM JOIN Data Structure".
+
+### Try DS = CS + 8
+
+In Intel v2 "GETSEC[WAKEUP] ...", it says:
+> DS,
+> SS, and ES selectors are initialized to CS+8. The segment descriptor fields
+> are initialized implicitly with BASE = 0,
+> LIMIT = FFFFFH, G = 1, D = 1, P = 1, S = 1; read/write/access for DS, SS, and
+> ES; and execute/read/access for
+> CS. It is the responsibility of external software to establish a GDT pointed
+> to by the MLE JOIN data structure that
+> contains descriptor entries consistent with the implicit settings initialized
+> by the processor (see Table 6-6).
+
+Current x32 GDT is:
+* NULL
+* 32-bit CODE selector (CS)
+* 32-bit DATA selector (DS)
+
+Current x64 GDT is:
+* NULL
+* 32-bit CODE selector (CS for 32-bit)
+* 64-bit CODE selector
+* 32-bit DATA selector (DS)
+
+Looks like the inconsistency between CS and DS causes the triple fault. In git
+`b665c5162`, no longer see triple fault.
+
+So the fix is just to make 32-bit CODE selector next to 32-bit DATA selector.
+
+At git `7dd39f6ab`, x64 DRT can boot guest OS.
+
+### Regression caused by DMAP
+
+See the following error when running TrustVisor PALs (also reproducible in QEMU)
+```
+Fatal: Halting! Condition '(l_vtd_pdpt_paddr != 0) && (l_vtd_pdpt_vaddr != 0)' failed, line 670, file arch/x86/vmx/dmap-vmx-runtime.c
+```
+
+This is observed in both x86 and x64.
+
+Solved this problem in git `a1fdf7b2c`.
+
+### Wrap up
+
+Git `516e618f6` in `xmhf64` branch contains the changes made in `xmhf64-dev`.
+
+`xmhf64-dev` is currently at `516e618f6` (changes already manually ported to
+`xmhf64`, will be discarded).
+
+`xmhf64-sl32` is currently at `8f1b4f15a` (changes will be discarded). This
+branch will be merged to `xmhf64-dev`.
 
 ## Fix
 
-`78f0eef8e..3ae6989ba`, `4d6217bd5..` (a08f148a1)
+`78f0eef8e..3ae6989ba`, `4d6217bd5..a08f148a1`, `a1fdf7b2c..516e618f6`
 * Fix type size in `xmhf_baseplatform_arch_x86_64vmx_wakeupAPs()`
 * Fix `x86_64` alignment problem for `_txt_heap.h`
+* Rearrange x64 GDT: make code32 + 8 = data32
 

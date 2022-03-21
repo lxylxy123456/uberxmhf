@@ -235,12 +235,17 @@
 * Ideally, merging should not change semantics, so try to skip these commits
   when bisecting etc.
 
-`65a3f5ea4..` (f0baec0bb)
+`65a3f5ea4..516e618f6`
 * Check assumptions about EFLAGS.IF in TrustVisor (`bug_051`)
 * Block NMI when running PALs (`bug_051`)
 * Halt if dropping NMI (`bug_051`)
 * Rename `TARGET_WORDSIZE` to `TARGET_SUBARCH`
 * Support configuring `AMD64_MAX_PHYS_ADDR`
+* Rearrange x64 GDT: make code32 + 8 = data32 (`bug_046`)
+* (Now can boot x64 XMHF with DRT, but cannot run PALs)
+
+`516e618f6..` (763ac4121)
+* Fix problem in types when calling `hash_memory_multi()` (`bug_053`)
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output
@@ -276,9 +281,9 @@ Linux
 |    |   |                  |pal_demo x64|                                     |
 +----+---+------------------+------------+------------------+------------------+
 | x86| Y | Debian 11 x86    |pal_demo x86| good             | Not Applicable   |
-+----+   +------------------+------------+------------------+                  |
-| x64|   | Debian 11 x86    |pal_demo x86| Cannot boot xmhf |                  |
-|    |   +------------------+------------+ (bug_046)        |                  |
++----+   +------------------+------------+                  |                  |
+| x64|   | Debian 11 x86    |pal_demo x86|                  |                  |
+|    |   +------------------+------------+                  |                  |
 |    |   | Debian 11 x64    |pal_demo x86|                  |                  |
 |    |   |                  +------------+                  |                  |
 |    |   |                  |pal_demo x64|                  |                  |
@@ -301,8 +306,10 @@ Windows
 |    |   | WinXP x64        |pal_demo x86|                  |                  |
 |    |   |                  +------------+                  |                  |
 |    |   |                  |pal_demo x64|                  |                  |
-|    |   +------------------+------------+------------------+                  |
-|    |   | Win10 x86        |pal_demo x86| good             |                  |
+|    |   +------------------+------------+------------------+------------------+
+|    |   | Win8.1 x64       |pal_demo *  | good             | Boot not tested  |
+|    |   +------------------+------------+                  +------------------+
+|    |   | Win10 x86        |pal_demo x86|                  | good             |
 |    |   +------------------+------------+                  +------------------+
 |    |   | Win10 x64        |pal_demo x86|                  | PAL not tested   |
 |    |   |                  +------------+                  |                  |
