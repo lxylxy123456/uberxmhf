@@ -249,6 +249,7 @@ static void _vmx_gathermemorytypes(VCPU *vcpu){
 static u32 _vmx_getmemorytypeforphysicalpage(VCPU *vcpu, u64 pagebaseaddr){
 	u32 prev_type = MTRR_TYPE_RESV;
 	// TODO: check vmx_ept_mtrr_enable
+	HALT_ON_ERRORCOND(vcpu->vmx_ept_mtrr_enable);
 	/* If fixed MTRRs are enabled, and addr < 1M, use them */
 	if (pagebaseaddr < 0x100000ULL && vcpu->vmx_ept_fixmtrr_enable) {
 		for (u32 i = 0; i < NUM_FIXED_MTRRS; i++) {
@@ -406,12 +407,24 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_read(VCPU *vcpu, u32 msr, u64 *val) {
 /* Write a guest MTRR value to shadow and update EPT, return 0 if successful */
 u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 	// TODO: notify hypapp
+	{
+		u64 oldval;
+		HALT_ON_ERRORCOND(xmhf_memprot_arch_x86vmx_mtrr_read(vcpu, msr, &oldval) == 0);
+		printf("\nCPU(0x%02x): wrmsr 0x%08x 0x%016llx <- 0x%016llx",
+				vcpu->id, msr, val, oldval);
+	}
 	if (msr == IA32_MTRR_DEF_TYPE) {
 		/* Default type register */
-		u32 valid = _vmx_mtrr_checkdeftype(val, &vcpu->vmx_ept_mtrr_enable,
-											&vcpu->vmx_ept_fixmtrr_enable,
-											&vcpu->vmx_ept_defaulttype);
-		return (!valid);
+		if (val == vcpu->vmx_guestmtrrmsrs.def_type) {
+			/* No change to MSR value */
+			return 0;
+		}
+		if (!_vmx_mtrr_checkdeftype(val, &vcpu->vmx_ept_mtrr_enable,
+									&vcpu->vmx_ept_fixmtrr_enable,
+									&vcpu->vmx_ept_defaulttype)) {
+			return 1;
+		}
+		vcpu->vmx_guestmtrrmsrs.def_type = val;
 	} else if (IA32_MTRR_PHYSBASE0 <= msr &&
 		msr <= IA32_MTRR_PHYSMASK0 + 2 * vcpu->vmx_guestmtrrmsrs.var_count) {
 		/* Variable MTRR */
@@ -421,10 +434,18 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 			/* Want to set baseval, retrieve maskval from shadow */
 			index = (msr - IA32_MTRR_PHYSBASE0) / 2;
 			maskval = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].mask;
+			if (baseval == vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].base) {
+				/* No change to MSR value */
+				return 0;
+			}
 		} else {
 			/* Want to set maskval, retrieve baseval from shadow */
 			index = (msr - IA32_MTRR_PHYSMASK0) / 2;
 			baseval = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].base;
+			if (maskval == vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].mask) {
+				/* No change to MSR value */
+				return 0;
+			}
 		}
 		/* Sanity check */
 		if (!_vmx_mtrr_checkvariable(vcpu, baseval, maskval)) {
@@ -441,6 +462,10 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 		}
 		for (u32 i = 0; i < NUM_FIXED_MTRRS; i++) {
 			if (fixed_mtrr_prop[i].msr == msr) {
+				if (val == vcpu->vmx_guestmtrrmsrs.fix_mtrrs[i]) {
+					/* No change to MSR value */
+					return 0;
+				}
 				vcpu->vmx_guestmtrrmsrs.fix_mtrrs[i] = val;
 				found = 1;
 				break;
