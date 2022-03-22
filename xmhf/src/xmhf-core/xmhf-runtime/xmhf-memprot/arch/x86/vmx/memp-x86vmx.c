@@ -279,6 +279,87 @@ static void _vmx_setupEPT(VCPU *vcpu){
 	}
 }
 
+/*
+ * Update EPT in respond to change in memory type (usually MTRRs)
+ * start: start of address range to be updated
+ * end: end of address range to be updated
+ */
+static void _vmx_updateEPT_memtype(VCPU *vcpu, u64 start, u64 end){
+	u64 *p_entry = (u64 *)vcpu->vmx_vaddr_ept_p_tables;
+	HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_4K(start));
+	HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_4K(end));
+	for (u64 paddr = start; paddr < end; paddr += PA_PAGE_SIZE_4K) {
+		u64 memorytype = _vmx_getmemorytypeforphysicalpage(vcpu, paddr);
+			HALT_ON_ERRORCOND(memorytype == 0 || memorytype == 1 ||
+								memorytype == 4 || memorytype == 5 ||
+								memorytype == 6);
+		p_entry[i] = (p_entry[i] & ~0x38ULL) | (memorytype << 3);
+	}
+}
+
+/* Read a guest MTRR value from shadow, return 0 if successful read */
+u32 xmhf_memprot_arch_x86vmx_mtrr_read(VCPU *vcpu, u32 msr, u64 *val) {
+	if (msr == IA32_MTRR_DEF_TYPE) {
+		/* Default type register */
+		*val = vcpu->vmx_guestmtrrmsrs.def_type;
+		return 0;
+	} else if (IA32_MTRR_PHYSBASE0 <= msr &&
+		msr <= IA32_MTRR_PHYSMASK0 + 2 * vcpu->vmx_guestmtrrmsrs.var_count) {
+		/* Variable MTRR */
+		if ((msr - IA32_MTRR_PHYSBASE0) % 2 == 0) {
+			u32 index = (msr - IA32_MTRR_PHYSBASE0) / 2;
+			*val = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].base
+		} else {
+			u32 index = (msr - IA32_MTRR_PHYSMASK0) / 2;
+			*val = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].mask
+		}
+		return 0;
+	} else {
+		/* Fixed MTRR */
+		for (u32 i = 0; i < NUM_FIXED_MTRRS; i++) {
+			if (fixed_mtrr_prop[i].msr == msr) {
+				*val = vcpu->vmx_guestmtrrmsrs.fix_mtrrs[i];
+				return 0;
+			}
+		}
+		return 1;
+	}
+}
+
+/* Write a guest MTRR value to shadow and update EPT */
+void xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
+#if 0
+	if (msr == IA32_MTRR_DEF_TYPE) {
+		/* Default type register */
+		*val = vcpu->vmx_guestmtrrmsrs.def_type;
+		return 0;
+	} else if (IA32_MTRR_PHYSBASE0 <= msr &&
+		msr <= IA32_MTRR_PHYSMASK0 + 2 * vcpu->vmx_guestmtrrmsrs.var_count) {
+		/* Variable MTRR */
+		if ((msr - IA32_MTRR_PHYSBASE0) % 2 == 0) {
+			u32 index = (msr - IA32_MTRR_PHYSBASE0) / 2;
+			*val = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].base
+		} else {
+			u32 index = (msr - IA32_MTRR_PHYSMASK0) / 2;
+			*val = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].mask
+		}
+		return 0;
+	} else {
+		/* Fixed MTRR */
+		for (u32 i = 0; i < NUM_FIXED_MTRRS; i++) {
+			if (fixed_mtrr_prop[i].msr == msr) {
+				*val = vcpu->vmx_guestmtrrmsrs.fix_mtrrs[i];
+				return 0;
+			}
+		}
+		return 1;
+	}
+#endif
+
+	// TODO: do not update everything all the time
+	_vmx_updateEPT_memtype(0, MAX_PHYS_ADDR);
+	xmhf_memprot_arch_x86vmx_flushmappings_localtlb(vcpu);
+}
 
 //flush hardware page table mappings (TLB)
 void xmhf_memprot_arch_x86vmx_flushmappings(VCPU *vcpu){
