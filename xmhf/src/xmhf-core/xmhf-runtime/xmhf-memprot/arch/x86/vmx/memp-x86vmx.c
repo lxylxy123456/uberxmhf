@@ -101,32 +101,10 @@ void xmhf_memprot_arch_x86vmx_initialize(VCPU *vcpu){
 //----------------------------------------------------------------------
 // local (static) support functions follow
 
-/*
- * Read fixed MTRRs and put them to vcpu->vmx_ept_memorytypes.
- * msraddr: ECX argument to RDMSR; e.g. IA32_MTRR_FIX64K_00000
- * pindex: start index into vcpu->vmx_ept_memorytypes
- * start: start address of the first range
- * step: size of each range (8 ranges total)
- */
-static void _vmx_read_fixed_mtrr_old(VCPU *vcpu, u32 msraddr, u32 *pindex, u64 start, u64 step){
-	// TODO: remove this function
-	u32 eax, edx, index = *pindex;
-	u64 msr;
-	rdmsr(msraddr, &eax, &edx);
-	msr = ((u64)edx << 32) | (u64)eax;
-	for (u32 i = 0; i < 8; i++) {
-		struct _memorytype *memorytype = &(vcpu->vmx_ept_memorytypes[index++]);
-		memorytype->startaddr = start + step * i;
-		memorytype->endaddr = start + step * (i + 1) - 1;
-		memorytype->type = (u32)((msr >> (i * 8)) & 0xFF);
-	}
-	*pindex = index;
-}
 
 //---gather memory types for system physical memory------------------------------
 static void _vmx_gathermemorytypes(VCPU *vcpu){
  	u32 eax, ebx, ecx, edx;
-	u32 index=0;
 	u32 num_vmtrrs=0;	//number of variable length MTRRs supported by the CPU
 
 	//0. sanity check
@@ -155,7 +133,7 @@ static void _vmx_gathermemorytypes(VCPU *vcpu){
   	vcpu->vmx_ept_fixmtrr_enable = ((eax & (1 << 8)) >> 8);
   	HALT_ON_ERRORCOND( vcpu->vmx_ept_fixmtrr_enable );
   	//ensure number of variable MTRRs are within the maximum supported
-  	HALT_ON_ERRORCOND( (num_vmtrrs <= MAX_VARIABLE_MEMORYTYPE_ENTRIES) );
+  	HALT_ON_ERRORCOND( (num_vmtrrs <= MAX_VARIABLE_MTRR_PAIRS) );
 
 	// Read MTRR default type register
 	rdmsr(IA32_MTRR_DEF_TYPE, &eax, &edx);
@@ -177,96 +155,6 @@ static void _vmx_gathermemorytypes(VCPU *vcpu){
 		vcpu->vmx_guestmtrrmsrs.var_mtrrs[i].mask =
 			rdmsr64(IA32_MTRR_PHYSMASK0 + 2 * i);
 	}
-
-	// TODO: remove the rest
-
-	#ifndef __XMHF_VERIFICATION__
-	//1. clear memorytypes array
-	memset((void *)&vcpu->vmx_ept_memorytypes, 0, sizeof(struct _memorytype) * MAX_MEMORYTYPE_ENTRIES);
-	#endif
-
-
-	//2. grab memory types using FIXED MTRRs
-	//0x00000000-0x0007FFFF
-	_vmx_read_fixed_mtrr_old(vcpu, IA32_MTRR_FIX64K_00000, &index, 0x00000000ULL, 0x00010000ULL);
-	//0x00080000-0x0009FFFF
-	_vmx_read_fixed_mtrr_old(vcpu, IA32_MTRR_FIX16K_80000, &index, 0x00080000ULL, 0x00004000ULL);
-	//0x000A0000-0x000BFFFF
-	_vmx_read_fixed_mtrr_old(vcpu, IA32_MTRR_FIX16K_A0000, &index, 0x000A0000ULL, 0x00004000ULL);
-	//0x000C0000-0x000C7FFF
-	_vmx_read_fixed_mtrr_old(vcpu, IA32_MTRR_FIX4K_C0000,  &index, 0x000C0000ULL, 0x00001000ULL);
-	//0x000C8000-0x000C8FFF
-	_vmx_read_fixed_mtrr_old(vcpu, IA32_MTRR_FIX4K_C8000,  &index, 0x000C8000ULL, 0x00001000ULL);
-	//0x000D0000-0x000D7FFF
-	_vmx_read_fixed_mtrr_old(vcpu, IA32_MTRR_FIX4K_D0000,  &index, 0x000D0000ULL, 0x00001000ULL);
-	//0x000D8000-0x000DFFFF
-	_vmx_read_fixed_mtrr_old(vcpu, IA32_MTRR_FIX4K_D8000,  &index, 0x000D8000ULL, 0x00001000ULL);
-	//0x000E0000-0x000E7FFF
-	_vmx_read_fixed_mtrr_old(vcpu, IA32_MTRR_FIX4K_E0000,  &index, 0x000E0000ULL, 0x00001000ULL);
-	//0x000E8000-0x000EFFFF
-	_vmx_read_fixed_mtrr_old(vcpu, IA32_MTRR_FIX4K_E8000,  &index, 0x000E8000ULL, 0x00001000ULL);
-	//0x000F0000-0x000F7FFF
-	_vmx_read_fixed_mtrr_old(vcpu, IA32_MTRR_FIX4K_F0000,  &index, 0x000F0000ULL, 0x00001000ULL);
-	//0x000F8000-0x000FFFFF
-	_vmx_read_fixed_mtrr_old(vcpu, IA32_MTRR_FIX4K_F8000,  &index, 0x000F8000ULL, 0x00001000ULL);
-
-	HALT_ON_ERRORCOND(index == MAX_FIXED_MEMORYTYPE_ENTRIES);
-
-
-	//3. grab memory types using variable length MTRRs
-	{
-		u32 eax, ebx, ecx, edx;
-		u64 paddrmask; //mask physical address, usually 36-bits
-		u64 vMTRR_base, vMTRR_mask;
-		u32 msrval=IA32_MTRR_PHYSBASE0;
-		u32 i;
-
-		/* Check whether CPUID 0x80000008 is supported */
-		cpuid(0x80000000U, &eax, &ebx, &ecx, &edx);
-		HALT_ON_ERRORCOND(eax >= 0x80000008U)
-		/* Compute paddrmask from CPUID.80000008H:EAX[7:0] (max physical addr) */
-		cpuid(0x80000008U, &eax, &ebx, &ecx, &edx);
-		eax &= 0xFFU;
-		HALT_ON_ERRORCOND(eax >= 32 && eax <= 64);
-		paddrmask = (1ULL << eax) - 1ULL;
-
-		for(i=0; i < num_vmtrrs; i++){
-			rdmsr(msrval, &eax, &edx);
-			vMTRR_base = ((u64)edx << 32) | (u64)eax;
-			msrval++;
-			rdmsr(msrval, &eax, &edx);
-			vMTRR_mask = ((u64)edx << 32) | (u64)eax;
-			msrval++;
-			if( (vMTRR_mask & ((u64)1 << 11)) ){
-				u64 baseaddr = (vMTRR_base & ~((u64)PAGE_SIZE_4K - 1));
-				u64 maskaddr = (vMTRR_mask & ~((u64)PAGE_SIZE_4K - 1));
-				/* Make sure base and mask do not exceed physical address */
-				HALT_ON_ERRORCOND(!(~paddrmask & baseaddr));
-				HALT_ON_ERRORCOND(!(~paddrmask & maskaddr));
-				/* Make sure mask is of the form 0b111...111000...000 */
-				HALT_ON_ERRORCOND(!(((paddrmask & ~maskaddr) + 1) &
-									(paddrmask & ~maskaddr)));
-				vcpu->vmx_ept_memorytypes[index].startaddr = baseaddr;
-				vcpu->vmx_ept_memorytypes[index].endaddr = baseaddr + (~maskaddr & paddrmask);
-				vcpu->vmx_ept_memorytypes[index++].type = ((u32)vMTRR_base & 0xFFU);
-			}else{
-				vcpu->vmx_ept_memorytypes[index++].invalid = 1;
-			}
-		}
-	}
-
-	printf("\n%s: gathered MTRR details, number of entries=%u", __FUNCTION__, index);
-	HALT_ON_ERRORCOND( index <= (MAX_MEMORYTYPE_ENTRIES+1) );
-
-  //[debug: dump the contents of vcpu->vmx_ept_memorytypes]
-  //{
-  //  int i;
-  //  for(i=0; i < MAX_MEMORYTYPE_ENTRIES; i++){
-  //    printf("\nrange  0x%016llx-0x%016llx (type=%u)",
-  //      vcpu->vmx_ept_memorytypes[i].startaddr, vcpu->vmx_ept_memorytypes[i].endaddr, vcpu->vmx_ept_memorytypes[i].type);
-  //  }
-  //}
-
 }
 
 //---get memory type for a given physical page address--------------------------
@@ -335,48 +223,6 @@ static u32 _vmx_getmemorytypeforphysicalpage(VCPU *vcpu, u64 pagebaseaddr){
 	}
 	return prev_type;
 }
-static u32 _vmx_getmemorytypeforphysicalpage_old(VCPU *vcpu, u64 pagebaseaddr){
-  // TODO: remove this function
-  int i;
-  u32 prev_type= MTRR_TYPE_RESV;
-
-  //check if page base address under 1M, if so used FIXED MTRRs
-  if(pagebaseaddr < (1024*1024)){
-    for(i=0; i < MAX_FIXED_MEMORYTYPE_ENTRIES; i++){
-      if( pagebaseaddr >= vcpu->vmx_ept_memorytypes[i].startaddr && (pagebaseaddr+PAGE_SIZE_4K-1) <= vcpu->vmx_ept_memorytypes[i].endaddr )
-        return vcpu->vmx_ept_memorytypes[i].type;
-    }
-
-    printf("\n%s: endaddr < 1M and unmatched fixed MTRR. Halt!", __FUNCTION__);
-    HALT();
-  }
-
-  //page base address is above 1M, use VARIABLE MTRRs
-  for(i= MAX_FIXED_MEMORYTYPE_ENTRIES; i < MAX_MEMORYTYPE_ENTRIES; i++){
-    if( pagebaseaddr >= vcpu->vmx_ept_memorytypes[i].startaddr && (pagebaseaddr+PAGE_SIZE_4K-1) <= vcpu->vmx_ept_memorytypes[i].endaddr &&
-          (!vcpu->vmx_ept_memorytypes[i].invalid) ){
-       if(vcpu->vmx_ept_memorytypes[i].type == MTRR_TYPE_UC){
-        prev_type = MTRR_TYPE_UC;
-       }else if(vcpu->vmx_ept_memorytypes[i].type == MTRR_TYPE_WT && prev_type != MTRR_TYPE_UC){
-        prev_type = MTRR_TYPE_WT;
-       }else{
-        if(prev_type != MTRR_TYPE_UC && prev_type != MTRR_TYPE_WT){
-          if(prev_type == MTRR_TYPE_RESV){
-            prev_type = vcpu->vmx_ept_memorytypes[i].type;
-          }else{
-            printf("\nprev_type=%u, vcpu->vmx_ept_memorytypes=%u", prev_type, vcpu->vmx_ept_memorytypes[i].type);
-            HALT_ON_ERRORCOND ( prev_type == vcpu->vmx_ept_memorytypes[i].type);
-          }
-        }
-       }
-    }
-  }
-
-  if(prev_type == MTRR_TYPE_RESV)
-    prev_type = vcpu->vmx_ept_defaulttype;
-
-  return prev_type;
-}
 
 
 //---setup EPT for VMX----------------------------------------------------------
@@ -414,7 +260,6 @@ static void _vmx_setupEPT(VCPU *vcpu){
 			u64 i = paddr / PA_PAGE_SIZE_4K;
 			u64 memorytype = _vmx_getmemorytypeforphysicalpage(vcpu, paddr);
 			u64 lower;
-			HALT_ON_ERRORCOND(memorytype == _vmx_getmemorytypeforphysicalpage_old(vcpu, paddr));
 			/*
 			 * For memorytype equal to 0 (UC), 1 (WC), 4 (WT), 5 (WP), 6 (WB),
 			 * MTRR memory type and EPT memory type are the same encoding.

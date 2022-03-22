@@ -126,10 +126,8 @@ struct _memorytype {
 #endif //__ASSEMBLY__
 
 //---platform
-#define MAX_MEMORYTYPE_ENTRIES    98    //8*11 fixed MTRRs and 10 variable MTRRs // TODO: remove
-#define MAX_FIXED_MEMORYTYPE_ENTRIES  88 // TODO: remove
 #define NUM_FIXED_MTRRS 11
-#define MAX_VARIABLE_MEMORYTYPE_ENTRIES 10 // TODO: rename to MAX_VARIABLE_MTRR_PAIRS
+#define MAX_VARIABLE_MTRR_PAIRS 10
 
 
 //---platform
@@ -146,7 +144,7 @@ struct _guestmtrrmsrs {
     u64 def_type;                   /* IA32_MTRR_DEF_TYPE */
     u64 fix_mtrrs[NUM_FIXED_MTRRS]; /* IA32_MTRR_FIX*, see fixed_mtrr_prop */
     u32 var_count;                  /* Number of valid var_mtrrs's */
-    struct _guestvarmtrrmsrpair var_mtrrs[MAX_VARIABLE_MEMORYTYPE_ENTRIES];
+    struct _guestvarmtrrmsrpair var_mtrrs[MAX_VARIABLE_MTRR_PAIRS];
 };
 #endif //__ASSEMBLY__
 
@@ -218,8 +216,6 @@ typedef struct _vcpu {
 
   u32 vmx_ept_defaulttype;        //default EPT memory type
   u32 vmx_ept_fixmtrr_enable;
-  // TODO: remove this
-  struct _memorytype vmx_ept_memorytypes[MAX_MEMORYTYPE_ENTRIES]; //EPT memory types array
   //guest MTRR shadow MSRs
   struct _guestmtrrmsrs vmx_guestmtrrmsrs;
 
