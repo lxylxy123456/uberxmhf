@@ -215,7 +215,9 @@ typedef struct _vcpu {
 
 
   u32 vmx_ept_defaulttype;        //default EPT memory type
+  u32 vmx_ept_mtrr_enable;
   u32 vmx_ept_fixmtrr_enable;
+  u64 vmx_ept_paddrmask;          //mask from bit 12 to MAXPHYADDR
   //guest MTRR shadow MSRs
   struct _guestmtrrmsrs vmx_guestmtrrmsrs;
 

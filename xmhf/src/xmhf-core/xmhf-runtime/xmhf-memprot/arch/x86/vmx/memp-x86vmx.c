@@ -101,6 +101,65 @@ void xmhf_memprot_arch_x86vmx_initialize(VCPU *vcpu){
 //----------------------------------------------------------------------
 // local (static) support functions follow
 
+/* Check whether an MTRR type is valid, return 1 on valid, or 0 on invalid */
+static u32 _vmx_mtrr_checktype(u32 type) {
+	return (type == 0 || type == 1 || type == 4 || type == 5 || type == 6);
+}
+
+/*
+ * Check whether IA32_MTRR_DEF_TYPE value is valid
+ * When valid, the following pointers are filled; when invalid, pointers not
+ * modified.
+ * pe: whether MTRRs are enabled
+ * pfe: whether fixed MTRRs are enabled
+ * ptype: default mtrr type
+ */
+static u32 _vmx_mtrr_checkdeftype(u64 msrval, u32 *pe, u32 *pfe, u32 *ptype) {
+	u32 e, fe, type;
+	/* Check reserved bits */
+	if (msrval & ~0xCFFULL) {
+		return 0;
+	}
+	e = (msrval & 0x800U) ? 1 : 0;
+	fe = (msrval & 0x400U) ? 1 : 0;
+	type = msrval & 0xFFU;
+	/* If MTRRs are enabled, make sure type is valid */
+	if (e && _vmx_mtrr_checktype(type) == 0) {
+		return 0;
+	}
+	*pe = e;
+	*pfe = fe;
+	*ptype = type;
+	return 1;
+}
+
+/* Check whether a fixed MTRR is valid (e.g. IA32_MTRR_FIX64K_00000) */
+static u32 _vmx_mtrr_checkfixed(u64 msrval) {
+	for (u32 i = 0; i < 8; i++) {
+		if (!_vmx_mtrr_checktype((u8) (msrval >> (i * 8)))) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+/* Check whether a variable MTRR is valid (e.g. IA32_MTRR_PHYSBASE0) */
+static u32 _vmx_mtrr_checkvariable(VCPU *vcpu, u64 baseval, u64 maskval) {
+	u32 v, type;
+	/* Check reserved bits */
+	if (baseval & ~(vcpu->vmx_ept_paddrmask | 0xFFULL)) {
+		return 0;
+	}
+	if (maskval & ~(vcpu->vmx_ept_paddrmask | 0x800ULL)) {
+		return 0;
+	}
+	v = maskval & 0x800U;
+	type = baseval & 0xFFU;
+	if (v && _vmx_mtrr_checktype(type) == 0) {
+		return 0;
+	}
+	return 1;
+}
 
 //---gather memory types for system physical memory------------------------------
 static void _vmx_gathermemorytypes(VCPU *vcpu){
@@ -126,34 +185,50 @@ static void _vmx_gathermemorytypes(VCPU *vcpu){
   	rdmsr(IA32_MTRRCAP, &eax, &edx);
 	num_vmtrrs = (u8)eax;
 	vcpu->vmx_guestmtrrmsrs.var_count = num_vmtrrs;
-  	printf("\nIA32_MTRRCAP: VCNT=%u, FIX=%u, WC=%u, SMRR=%u",
-  		num_vmtrrs, ((eax & (1 << 8)) >> 8),  ((eax & (1 << 10)) >> 10),
-  			((eax & (1 << 11)) >> 11));
+	printf("\nIA32_MTRRCAP: VCNT=%u, FIX=%u, WC=%u, SMRR=%u",
+			num_vmtrrs, ((eax & (1 << 8)) >> 8),  ((eax & (1 << 10)) >> 10),
+			((eax & (1 << 11)) >> 11));
 	//sanity check that fixed MTRRs are supported
-  	vcpu->vmx_ept_fixmtrr_enable = ((eax & (1 << 8)) >> 8);
-  	HALT_ON_ERRORCOND( vcpu->vmx_ept_fixmtrr_enable );
-  	//ensure number of variable MTRRs are within the maximum supported
-  	HALT_ON_ERRORCOND( (num_vmtrrs <= MAX_VARIABLE_MTRR_PAIRS) );
+	HALT_ON_ERRORCOND( ((eax & (1 << 8)) >> 8) );
+	//ensure number of variable MTRRs are within the maximum supported
+	HALT_ON_ERRORCOND( (num_vmtrrs <= MAX_VARIABLE_MTRR_PAIRS) );
+
+	// Obtain MAXPHYADDR and compute paddrmask
+	{
+		u32 eax, ebx, ecx, edx;
+		/* Check whether CPUID 0x80000008 is supported */
+		cpuid(0x80000000U, &eax, &ebx, &ecx, &edx);
+		HALT_ON_ERRORCOND(eax >= 0x80000008U)
+		/* Compute paddrmask from CPUID.80000008H:EAX[7:0] (max phy addr) */
+		cpuid(0x80000008U, &eax, &ebx, &ecx, &edx);
+		eax &= 0xFFU;
+		HALT_ON_ERRORCOND(eax >= 32 && eax < 64);
+		vcpu->vmx_ept_paddrmask = (1ULL << eax) - 0x1000ULL;
+	}
 
 	// Read MTRR default type register
-	rdmsr(IA32_MTRR_DEF_TYPE, &eax, &edx);
-	HALT_ON_ERRORCOND(edx == 0);	/* All bits are reserved */
-	vcpu->vmx_guestmtrrmsrs.def_type = eax;
-	vcpu->vmx_ept_defaulttype = (eax & 0xFFU);
-	// Sanity check that Fixed-range MTRRs are enabled
-	HALT_ON_ERRORCOND(eax & (1 << 10));
-	// Sanity check that MTRRs are enabled
-	HALT_ON_ERRORCOND(eax & (1 << 11));
+	{
+		u32 valid;
+		u64 msrval = rdmsr64(IA32_MTRR_DEF_TYPE);
+		vcpu->vmx_guestmtrrmsrs.def_type = msrval;
+		valid = _vmx_mtrr_checkdeftype(msrval, &vcpu->vmx_ept_mtrr_enable,
+										&vcpu->vmx_ept_fixmtrr_enable,
+										&vcpu->vmx_ept_defaulttype);
+		HALT_ON_ERRORCOND(valid);
+	}
 
 	// Fill guest MTRR shadow MSRs
 	for (u32 i = 0; i < NUM_FIXED_MTRRS; i++) {
-		vcpu->vmx_guestmtrrmsrs.fix_mtrrs[i] = rdmsr64(fixed_mtrr_prop[i].msr);
+		u64 val = rdmsr64(fixed_mtrr_prop[i].msr);
+		HALT_ON_ERRORCOND(_vmx_mtrr_checkfixed(val));
+		vcpu->vmx_guestmtrrmsrs.fix_mtrrs[i] = val;
 	}
 	for (u32 i = 0; i < num_vmtrrs; i++) {
-		vcpu->vmx_guestmtrrmsrs.var_mtrrs[i].base =
-			rdmsr64(IA32_MTRR_PHYSBASE0 + 2 * i);
-		vcpu->vmx_guestmtrrmsrs.var_mtrrs[i].mask =
-			rdmsr64(IA32_MTRR_PHYSMASK0 + 2 * i);
+		u64 baseval = rdmsr64(IA32_MTRR_PHYSBASE0 + 2 * i);
+		u64 maskval = rdmsr64(IA32_MTRR_PHYSMASK0 + 2 * i);
+		HALT_ON_ERRORCOND(_vmx_mtrr_checkvariable(vcpu, baseval, maskval));
+		vcpu->vmx_guestmtrrmsrs.var_mtrrs[i].base = baseval;
+		vcpu->vmx_guestmtrrmsrs.var_mtrrs[i].mask = maskval;
 	}
 }
 
@@ -173,6 +248,7 @@ static void _vmx_gathermemorytypes(VCPU *vcpu){
 //
 static u32 _vmx_getmemorytypeforphysicalpage(VCPU *vcpu, u64 pagebaseaddr){
 	u32 prev_type = MTRR_TYPE_RESV;
+	// TODO: check vmx_ept_mtrr_enable
 	/* If fixed MTRRs are enabled, and addr < 1M, use them */
 	if (pagebaseaddr < 0x100000ULL && vcpu->vmx_ept_fixmtrr_enable) {
 		for (u32 i = 0; i < NUM_FIXED_MTRRS; i++) {
@@ -289,10 +365,11 @@ static void _vmx_updateEPT_memtype(VCPU *vcpu, u64 start, u64 end){
 	HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_4K(start));
 	HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_4K(end));
 	for (u64 paddr = start; paddr < end; paddr += PA_PAGE_SIZE_4K) {
+		u64 i = paddr / PA_PAGE_SIZE_4K;
 		u64 memorytype = _vmx_getmemorytypeforphysicalpage(vcpu, paddr);
-			HALT_ON_ERRORCOND(memorytype == 0 || memorytype == 1 ||
-								memorytype == 4 || memorytype == 5 ||
-								memorytype == 6);
+		HALT_ON_ERRORCOND(memorytype == 0 || memorytype == 1 ||
+							memorytype == 4 || memorytype == 5 ||
+							memorytype == 6);
 		p_entry[i] = (p_entry[i] & ~0x38ULL) | (memorytype << 3);
 	}
 }
@@ -308,10 +385,10 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_read(VCPU *vcpu, u32 msr, u64 *val) {
 		/* Variable MTRR */
 		if ((msr - IA32_MTRR_PHYSBASE0) % 2 == 0) {
 			u32 index = (msr - IA32_MTRR_PHYSBASE0) / 2;
-			*val = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].base
+			*val = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].base;
 		} else {
 			u32 index = (msr - IA32_MTRR_PHYSMASK0) / 2;
-			*val = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].mask
+			*val = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].mask;
 		}
 		return 0;
 	} else {
@@ -326,39 +403,61 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_read(VCPU *vcpu, u32 msr, u64 *val) {
 	}
 }
 
-/* Write a guest MTRR value to shadow and update EPT */
-void xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
-#if 0
+/* Write a guest MTRR value to shadow and update EPT, return 0 if successful */
+u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
+	// TODO: notify hypapp
 	if (msr == IA32_MTRR_DEF_TYPE) {
 		/* Default type register */
-		*val = vcpu->vmx_guestmtrrmsrs.def_type;
-		return 0;
+		u32 valid = _vmx_mtrr_checkdeftype(val, &vcpu->vmx_ept_mtrr_enable,
+											&vcpu->vmx_ept_fixmtrr_enable,
+											&vcpu->vmx_ept_defaulttype);
+		return (!valid);
 	} else if (IA32_MTRR_PHYSBASE0 <= msr &&
 		msr <= IA32_MTRR_PHYSMASK0 + 2 * vcpu->vmx_guestmtrrmsrs.var_count) {
 		/* Variable MTRR */
+		u32 index;
+		u64 baseval = val, maskval = val;
 		if ((msr - IA32_MTRR_PHYSBASE0) % 2 == 0) {
-			u32 index = (msr - IA32_MTRR_PHYSBASE0) / 2;
-			*val = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].base
+			/* Want to set baseval, retrieve maskval from shadow */
+			index = (msr - IA32_MTRR_PHYSBASE0) / 2;
+			maskval = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].mask;
 		} else {
-			u32 index = (msr - IA32_MTRR_PHYSMASK0) / 2;
-			*val = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].mask
+			/* Want to set maskval, retrieve baseval from shadow */
+			index = (msr - IA32_MTRR_PHYSMASK0) / 2;
+			baseval = vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].base;
 		}
-		return 0;
+		/* Sanity check */
+		if (!_vmx_mtrr_checkvariable(vcpu, baseval, maskval)) {
+			return 1;
+		}
+		/* Only one write will be effective, but this saves if-else blocks */
+		vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].base = baseval;
+		vcpu->vmx_guestmtrrmsrs.var_mtrrs[index].mask = maskval;
 	} else {
 		/* Fixed MTRR */
+		u32 found = 0;
+		if (!_vmx_mtrr_checkfixed(val)) {
+			return 1;
+		}
 		for (u32 i = 0; i < NUM_FIXED_MTRRS; i++) {
 			if (fixed_mtrr_prop[i].msr == msr) {
-				*val = vcpu->vmx_guestmtrrmsrs.fix_mtrrs[i];
-				return 0;
+				vcpu->vmx_guestmtrrmsrs.fix_mtrrs[i] = val;
+				found = 1;
+				break;
 			}
 		}
-		return 1;
+		if (!found) {
+			return 1;
+		}
 	}
-#endif
 
+	/* Update EPT */
 	// TODO: do not update everything all the time
-	_vmx_updateEPT_memtype(0, MAX_PHYS_ADDR);
+	_vmx_updateEPT_memtype(vcpu, 0, MAX_PHYS_ADDR);
+
+	/* Flush EPT's TLB */
 	xmhf_memprot_arch_x86vmx_flushmappings_localtlb(vcpu);
+	return 0;
 }
 
 //flush hardware page table mappings (TLB)
