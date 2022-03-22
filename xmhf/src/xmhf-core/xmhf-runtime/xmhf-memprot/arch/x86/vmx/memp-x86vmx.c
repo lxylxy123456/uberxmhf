@@ -51,6 +51,27 @@
 #include <xmhf.h>
 
 //----------------------------------------------------------------------
+// Structure that captures fixed MTRR properties
+struct _fixed_mtrr_prop_t {
+	u32 msr;	/* MSR register address (ECX in RDMSR / WRMSR) */
+	u32 start;	/* Start address */
+	u32 step;	/* Size of each range */
+	u32 end;	/* End address (start + 8 * step == end) */
+} fixed_mtrr_prop[NUM_FIXED_MTRRS] = {
+	{IA32_MTRR_FIX64K_00000, 0x00000000, 0x00010000, 0x00080000},
+	{IA32_MTRR_FIX16K_80000, 0x00080000, 0x00004000, 0x000A0000},
+	{IA32_MTRR_FIX16K_A0000, 0x000A0000, 0x00004000, 0x000C0000},
+	{IA32_MTRR_FIX4K_C0000, 0x000C0000, 0x00001000, 0x000C8000},
+	{IA32_MTRR_FIX4K_C8000, 0x000C8000, 0x00001000, 0x000D0000},
+	{IA32_MTRR_FIX4K_D0000, 0x000D0000, 0x00001000, 0x000D8000},
+	{IA32_MTRR_FIX4K_D8000, 0x000D8000, 0x00001000, 0x000E0000},
+	{IA32_MTRR_FIX4K_E0000, 0x000E0000, 0x00001000, 0x000E8000},
+	{IA32_MTRR_FIX4K_E8000, 0x000E8000, 0x00001000, 0x000F0000},
+	{IA32_MTRR_FIX4K_F0000, 0x000F0000, 0x00001000, 0x000F8000},
+	{IA32_MTRR_FIX4K_F8000, 0x000F8000, 0x00001000, 0x00100000},
+};
+
+//----------------------------------------------------------------------
 // local (static) support function forward declarations
 static void _vmx_gathermemorytypes(VCPU *vcpu);
 static u32 _vmx_getmemorytypeforphysicalpage(VCPU *vcpu, u64 pagebaseaddr);
@@ -88,6 +109,7 @@ void xmhf_memprot_arch_x86vmx_initialize(VCPU *vcpu){
  * step: size of each range (8 ranges total)
  */
 static void _vmx_read_fixed_mtrr_old(VCPU *vcpu, u32 msraddr, u32 *pindex, u64 start, u64 step){
+	// TODO: remove this function
 	u32 eax, edx, index = *pindex;
 	u64 msr;
 	rdmsr(msraddr, &eax, &edx);
@@ -146,20 +168,14 @@ static void _vmx_gathermemorytypes(VCPU *vcpu){
 	HALT_ON_ERRORCOND(eax & (1 << 11));
 
 	// Fill guest MTRR shadow MSRs
-	vcpu->vmx_guestmtrrmsrs.fix64k_00000 = rdmsr64(IA32_MTRR_FIX64K_00000);
-	vcpu->vmx_guestmtrrmsrs.fix16k_80000 = rdmsr64(IA32_MTRR_FIX16K_80000);
-	vcpu->vmx_guestmtrrmsrs.fix16k_a0000 = rdmsr64(IA32_MTRR_FIX16K_A0000);
-	vcpu->vmx_guestmtrrmsrs.fix4k_c0000 = rdmsr64(IA32_MTRR_FIX4K_C0000);
-	vcpu->vmx_guestmtrrmsrs.fix4k_c8000 = rdmsr64(IA32_MTRR_FIX4K_C8000);
-	vcpu->vmx_guestmtrrmsrs.fix4k_d0000 = rdmsr64(IA32_MTRR_FIX4K_D0000);
-	vcpu->vmx_guestmtrrmsrs.fix4k_d8000 = rdmsr64(IA32_MTRR_FIX4K_D8000);
-	vcpu->vmx_guestmtrrmsrs.fix4k_e0000 = rdmsr64(IA32_MTRR_FIX4K_E0000);
-	vcpu->vmx_guestmtrrmsrs.fix4k_e8000 = rdmsr64(IA32_MTRR_FIX4K_E8000);
-	vcpu->vmx_guestmtrrmsrs.fix4k_f0000 = rdmsr64(IA32_MTRR_FIX4K_F0000);
-	vcpu->vmx_guestmtrrmsrs.fix4k_f8000 = rdmsr64(IA32_MTRR_FIX4K_F8000);
+	for (u32 i = 0; i < NUM_FIXED_MTRRS; i++) {
+		vcpu->vmx_guestmtrrmsrs.fix_mtrrs[i] = rdmsr64(fixed_mtrr_prop[i].msr);
+	}
 	for (u32 i = 0; i < num_vmtrrs; i++) {
-		vcpu->vmx_guestmtrrmsrs.var_mtrrs[i].base = rdmsr64(IA32_MTRR_PHYSBASE0 + 2 * i);
-		vcpu->vmx_guestmtrrmsrs.var_mtrrs[i].mask = rdmsr64(IA32_MTRR_PHYSMASK0 + 2 * i);
+		vcpu->vmx_guestmtrrmsrs.var_mtrrs[i].base =
+			rdmsr64(IA32_MTRR_PHYSBASE0 + 2 * i);
+		vcpu->vmx_guestmtrrmsrs.var_mtrrs[i].mask =
+			rdmsr64(IA32_MTRR_PHYSMASK0 + 2 * i);
 	}
 
 	// TODO: remove the rest
@@ -253,19 +269,6 @@ static void _vmx_gathermemorytypes(VCPU *vcpu){
 
 }
 
-/*
- * Read a 8-bit field in a fixed MTRR
- * Note: all addresses are physical but below 1MB, so using u32 here
- * msrval: value of MSR
- * start: start address of the first range
- * step: size of each range (8 ranges total)
- * addr: address to be read
- */
-static u8 _vmx_read_fixed_mtrr(u64 msrval, u32 start, u32 step, u32 addr){
-	u32 i = (addr - start) / step;
-	return (u8) (msrval >> (i * 8));
-}
-
 //---get memory type for a given physical page address--------------------------
 //
 //11.11.4.1 MTRR Precedences
@@ -282,55 +285,20 @@ static u8 _vmx_read_fixed_mtrr(u64 msrval, u32 start, u32 step, u32 addr){
 //
 static u32 _vmx_getmemorytypeforphysicalpage(VCPU *vcpu, u64 pagebaseaddr){
 	u32 prev_type = MTRR_TYPE_RESV;
-	/* If fixed MTRRs are enabled, use them */
+	/* If fixed MTRRs are enabled, and addr < 1M, use them */
 	if (pagebaseaddr < 0x100000ULL && vcpu->vmx_ept_fixmtrr_enable) {
-		if (pagebaseaddr < 0x00080000) {
-			return _vmx_read_fixed_mtrr(
-				vcpu->vmx_guestmtrrmsrs.fix64k_00000,
-				0x00000000, 0x00010000, pagebaseaddr);
-		} else if (pagebaseaddr < 0x000A0000) {
-			return _vmx_read_fixed_mtrr(
-				vcpu->vmx_guestmtrrmsrs.fix16k_80000,
-				0x00080000, 0x00004000, pagebaseaddr);
-		} else if (pagebaseaddr < 0x000C0000) {
-			return _vmx_read_fixed_mtrr(
-				vcpu->vmx_guestmtrrmsrs.fix16k_a0000,
-				0x000A0000, 0x00004000, pagebaseaddr);
-		} else if (pagebaseaddr < 0x000C8000) {
-			return _vmx_read_fixed_mtrr(
-				vcpu->vmx_guestmtrrmsrs.fix4k_c0000,
-				0x000C0000, 0x00001000, pagebaseaddr);
-		} else if (pagebaseaddr < 0x000D0000) {
-			return _vmx_read_fixed_mtrr(
-				vcpu->vmx_guestmtrrmsrs.fix4k_c8000,
-				0x000C8000, 0x00001000, pagebaseaddr);
-		} else if (pagebaseaddr < 0x000D8000) {
-			return _vmx_read_fixed_mtrr(
-				vcpu->vmx_guestmtrrmsrs.fix4k_d0000,
-				0x000D0000, 0x00001000, pagebaseaddr);
-		} else if (pagebaseaddr < 0x000E0000) {
-			return _vmx_read_fixed_mtrr(
-				vcpu->vmx_guestmtrrmsrs.fix4k_d8000,
-				0x000D8000, 0x00001000, pagebaseaddr);
-		} else if (pagebaseaddr < 0x000E8000) {
-			return _vmx_read_fixed_mtrr(
-				vcpu->vmx_guestmtrrmsrs.fix4k_e0000,
-				0x000E0000, 0x00001000, pagebaseaddr);
-		} else if (pagebaseaddr < 0x000F0000) {
-			return _vmx_read_fixed_mtrr(
-				vcpu->vmx_guestmtrrmsrs.fix4k_e8000,
-				0x000E8000, 0x00001000, pagebaseaddr);
-		} else if (pagebaseaddr < 0x000F8000) {
-			return _vmx_read_fixed_mtrr(
-				vcpu->vmx_guestmtrrmsrs.fix4k_f0000,
-				0x000F0000, 0x00001000, pagebaseaddr);
-		} else if (pagebaseaddr < 0x00100000) {
-			return _vmx_read_fixed_mtrr(
-				vcpu->vmx_guestmtrrmsrs.fix4k_f8000,
-				0x000F8000, 0x00001000, pagebaseaddr);
-		} else {
-			HALT_ON_ERRORCOND(0 && "Unknown fixed MTRR");
+		for (u32 i = 0; i < NUM_FIXED_MTRRS; i++) {
+			struct _fixed_mtrr_prop_t *prop = &fixed_mtrr_prop[i];
+			if (pagebaseaddr < prop->end) {
+				u32 index = (prop->start - pagebaseaddr) / prop->step;
+				u64 msrval = vcpu->vmx_guestmtrrmsrs.fix_mtrrs[i];
+				return (u8) (msrval >> (index * 8));
+			}
 		}
+		/*
+		 * Should be impossible because the last entry in fixed_mtrr_prop is 1M.
+		 */
+		HALT_ON_ERRORCOND(0 && "Unknown fixed MTRR");
 	}
 	/* Compute variable MTRRs */
 	for (u32 i = 0; i < vcpu->vmx_guestmtrrmsrs.var_count; i++) {

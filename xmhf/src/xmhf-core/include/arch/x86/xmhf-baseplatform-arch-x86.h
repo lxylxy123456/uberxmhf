@@ -128,7 +128,8 @@ struct _memorytype {
 //---platform
 #define MAX_MEMORYTYPE_ENTRIES    98    //8*11 fixed MTRRs and 10 variable MTRRs // TODO: remove
 #define MAX_FIXED_MEMORYTYPE_ENTRIES  88 // TODO: remove
-#define MAX_VARIABLE_MEMORYTYPE_ENTRIES 10
+#define NUM_FIXED_MTRRS 11
+#define MAX_VARIABLE_MEMORYTYPE_ENTRIES 10 // TODO: rename to MAX_VARIABLE_MTRR_PAIRS
 
 
 //---platform
@@ -142,19 +143,9 @@ struct _guestvarmtrrmsrpair {
 };
 
 struct _guestmtrrmsrs {
-    u64 def_type;       /* IA32_MTRR_DEF_TYPE */
-    u64 fix64k_00000;   /* IA32_MTRR_FIX64K_00000 */
-    u64 fix16k_80000;   /* IA32_MTRR_FIX16K_80000 */
-    u64 fix16k_a0000;   /* IA32_MTRR_FIX16K_A0000 */
-    u64 fix4k_c0000;    /* IA32_MTRR_FIX4K_C0000 */
-    u64 fix4k_c8000;    /* IA32_MTRR_FIX4K_C8000 */
-    u64 fix4k_d0000;    /* IA32_MTRR_FIX4K_D0000 */
-    u64 fix4k_d8000;    /* IA32_MTRR_FIX4K_D8000 */
-    u64 fix4k_e0000;    /* IA32_MTRR_FIX4K_E0000 */
-    u64 fix4k_e8000;    /* IA32_MTRR_FIX4K_E8000 */
-    u64 fix4k_f0000;    /* IA32_MTRR_FIX4K_F0000 */
-    u64 fix4k_f8000;    /* IA32_MTRR_FIX4K_F8000 */
-    u32 var_count;      /* Number of valid var_mtrrs's */
+    u64 def_type;                   /* IA32_MTRR_DEF_TYPE */
+    u64 fix_mtrrs[NUM_FIXED_MTRRS]; /* IA32_MTRR_FIX*, see fixed_mtrr_prop */
+    u32 var_count;                  /* Number of valid var_mtrrs's */
     struct _guestvarmtrrmsrpair var_mtrrs[MAX_VARIABLE_MEMORYTYPE_ENTRIES];
 };
 #endif //__ASSEMBLY__
