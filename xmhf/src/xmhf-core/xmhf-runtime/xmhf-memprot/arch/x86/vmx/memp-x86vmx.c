@@ -248,8 +248,10 @@ static void _vmx_gathermemorytypes(VCPU *vcpu){
 //
 static u32 _vmx_getmemorytypeforphysicalpage(VCPU *vcpu, u64 pagebaseaddr){
 	u32 prev_type = MTRR_TYPE_RESV;
-	// TODO: check vmx_ept_mtrr_enable
-	HALT_ON_ERRORCOND(vcpu->vmx_ept_mtrr_enable);
+	/* If MTRRs not enabled, return UC */
+	if (!vcpu->vmx_ept_mtrr_enable) {
+		return MTRR_TYPE_UC;
+	}
 	/* If fixed MTRRs are enabled, and addr < 1M, use them */
 	if (pagebaseaddr < 0x100000ULL && vcpu->vmx_ept_fixmtrr_enable) {
 		for (u32 i = 0; i < NUM_FIXED_MTRRS; i++) {
