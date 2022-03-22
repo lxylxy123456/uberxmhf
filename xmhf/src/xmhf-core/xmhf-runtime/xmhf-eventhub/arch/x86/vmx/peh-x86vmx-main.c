@@ -404,6 +404,7 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 			 * are not used when EPT is used.
 			 */
 			if (xmhf_memprot_arch_x86vmx_mtrr_write(vcpu, r->ecx, write_data)) {
+				// TODO: error handling (sometimes need to return error to user)
 				printf("\nCPU(0x%02x): Modifying MTRR failed. Error handling "
 						"not implemented. Halt!",
 						vcpu->id);
