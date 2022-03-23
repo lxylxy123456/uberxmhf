@@ -244,8 +244,11 @@
 * Rearrange x64 GDT: make code32 + 8 = data32 (`bug_046`)
 * (Now can boot x64 XMHF with DRT, but cannot run PALs)
 
-`516e618f6..` (763ac4121)
+`516e618f6..` (02343124d)
 * Fix problem in types when calling `hash_memory_multi()` (`bug_053`)
+* Allow guest to change MTRR (`bug_054`)
+* Notify hypapp when MTRR changes (`bug_054`)
+* Do not update EPT when MTRRs are disabled, to be efficient (`bug_054`)
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output
@@ -291,21 +294,23 @@ Windows
 |    |   |Operating         |            +------------------+------------------+
 |XMHF|DRT|System            |Application | HP               | QEMU             |
 +====+===+==================+============+==================+==================+
-| x86| N | WinXP x86 SP3    |pal_demo x86| Boot not tested  | good             |
-|    |   +------------------+------------+------------------+                  |
-|    |   | Win10 x86        |pal_demo x86| good             |                  |
-+----+   +------------------+------------+------------------+                  |
-| x64|   | WinXP x86 SP3    |pal_demo x86| Boot not tested  |                  |
+| x86| N | WinXP x86 SP3    |pal_demo x86| good             | good             |
 |    |   +------------------+------------+                  |                  |
-|    |   | WinXP x64        |pal_demo *  |                  |                  |
+|    |   | Win7 x86         |pal_demo x86|                  |                  | 
+|    |   +------------------+------------+                  |                  |
+|    |   | Win10 x86        |pal_demo x86|                  |                  |
++----+   +------------------+------------+                  |                  |
+| x64|   | WinXP x86 SP3    |pal_demo x86|                  |                  |
 |    |   +------------------+------------+------------------+                  |
-|    |   | Win7 x86         |pal_demo x86| Not tested (TODO)|                  | 
+|    |   | WinXP x64        |pal_demo *  | Boot not tested  |                  |
 |    |   +------------------+------------+------------------+                  |
-|    |   | Win7 x64         |pal_demo *  | MTRR (TODO)      |                  | 
-|    |   +------------------+------------+------------------+------------------+
-|    |   | Win8.1 x64       |pal_demo *  | good             | Boot not tested  |
-|    |   +------------------+------------+                  +------------------+
-|    |   | Win10 x86        |pal_demo x86|                  | good             |
+|    |   | Win7 x86         |pal_demo x86| good             |                  | 
+|    |   +------------------+------------+                  |                  |
+|    |   | Win7 x64         |pal_demo *  |                  |                  | 
+|    |   +------------------+------------+                  |                  |
+|    |   | Win8.1 x64       |pal_demo *  |                  |                  |
+|    |   +------------------+------------+                  |                  |
+|    |   | Win10 x86        |pal_demo x86|                  |                  |
 |    |   +------------------+------------+                  +------------------+
 |    |   | Win10 x64        |pal_demo *  |                  | PAL not tested   |
 +----+---+------------------+------------+------------------+------------------+
@@ -313,7 +318,7 @@ Windows
 
 ## Limits
 * QEMU cannot reboot (`bug_007` fixes part of this problem)
-* Grub graphical mode does not work in HP (`bug_016`, need dynamic guest MTRR)
+* Grub graphical mode in HP is slow (MTRR not optimized; see `bug_054`)
 * Terminating a PAL (e.g. through Ctrl+C) crashes XMHF
 * Forwarding very frequent NMIs to Linux may have a bug (`bug_025`)
 * x86 XMHF does not support x86 PAE and x64 guests (see `bug_028`)

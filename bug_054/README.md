@@ -69,5 +69,25 @@ Findings when modifying the code
   catch WRMSR to `IA32_MTRR_DEF_TYPE`. This becomes another reason to support
   MTRRs.
 
-# tmp notes
+In `xmhf64-dev` branch, the code changes are in `a8f885b68..6696dfd6b`. These
+changes are squashed in `8336bbd89..c9bb82a98` (1 commit)
+
+Then did other changes. Things look good
+
+### GRUB graphical mode
+
+After fixing this bug, also fixed `bug_016`. GRUB can now run in graphics mode,
+but very slow. This is because very frequently (for each keyboard key press?),
+GRUB is modifying a variable range MTRR. Currently MTRR's
+`_vmx_updateEPT_memtype()` is not optimized.
+
+Also realized that GRUB graphical mode with DRT does not work. Created
+`bug_055`.
+
+## Fix
+
+`8336bbd89..02343124d`
+* Allow guest to change MTRR
+* Notify hypapp when MTRR changes
+* Do not update EPT when MTRRs are disabled, to be efficient
 

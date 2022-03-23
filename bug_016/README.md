@@ -130,3 +130,5 @@ results (including #MC, see `bug_036`)
 
 Less important feature to fix, skipped for now
 
+Fixed in `bug_054`
+
