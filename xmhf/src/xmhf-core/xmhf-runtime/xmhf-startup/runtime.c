@@ -237,7 +237,6 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
         while (counter < g_midtable_numentries);
         printf("\nCPU(0x%02x): exit sync %d", vcpu->id, __LINE__);
     }
-    HALT();
 
     //call app main
     if(xmhf_app_main(vcpu, &appParamBlock)){
