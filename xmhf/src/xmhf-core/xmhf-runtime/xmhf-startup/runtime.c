@@ -172,6 +172,14 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
     strncpy(appParamBlock.cmdline, rpb->cmdline, sizeof(appParamBlock.cmdline));
     #endif
 
+    // test quiesce
+    printf("\nCPU(0x%02x): start test quiesce", vcpu->id);
+    xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+    printf("\nCPU(0x%02x): in quiesce", vcpu->id);
+    xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+    printf("\nCPU(0x%02x): end test quiesce", vcpu->id);
+    HALT();
+
     //call app main
     if(xmhf_app_main(vcpu, &appParamBlock)){
         printf("\nCPU(0x%02x): EMHF app. failed to initialize. HALT!", vcpu->id);
