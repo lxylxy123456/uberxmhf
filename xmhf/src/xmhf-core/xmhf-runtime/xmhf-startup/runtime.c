@@ -50,40 +50,6 @@
 //---includes-------------------------------------------------------------------
 #include <xmhf.h>
 
-/* Unblock NMI by executing iret, but do not jump to somewhere else */
-static void xmhf_smpguest_arch_x86vmx_unblock_nmi(void) {
-#ifdef __AMD64__
-    asm volatile (
-        "movq    %%rsp, %%rsi   \r\n"
-        "xorq    %%rax, %%rax   \r\n"
-        "movw    %%ss, %%ax     \r\n"
-        "pushq   %%rax          \r\n"
-        "pushq   %%rsi          \r\n"
-        "pushfq                 \r\n"
-        "xorq    %%rax, %%rax   \r\n"
-        "movw    %%cs, %%ax     \r\n"
-        "pushq   %%rax          \r\n"
-        "pushq   $1f            \r\n"
-        "iretq                  \r\n"
-        "1: nop                 \r\n"
-        : // no output
-        : // no input
-        : "%rax", "%rsi", "cc", "memory");
-#else /* !__AMD64__ */
-    asm volatile (
-        "pushfl                 \r\n"
-        "xorl    %%eax, %%eax   \r\n"
-        "movw    %%cs, %%ax     \r\n"
-        "pushl   %%eax          \r\n"
-        "pushl   $1f            \r\n"
-        "iretl                  \r\n"
-        "1: nop                 \r\n"
-        : // no output
-        : // no input
-        : "%eax", "cc", "memory");
-#endif /* __AMD64__ */
-}
-
 
 //---runtime main---------------------------------------------------------------
 void xmhf_runtime_entry(void){
@@ -205,38 +171,6 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
     #ifndef __XMHF_VERIFICATION__
     strncpy(appParamBlock.cmdline, rpb->cmdline, sizeof(appParamBlock.cmdline));
     #endif
-
-    // sync
-    {
-        static u32 counter = 0, lock = 1;
-        printf("\nCPU(0x%02x): enter sync %d", vcpu->id, __LINE__);
-        xmhf_smpguest_arch_x86vmx_unblock_nmi();
-        spin_lock(&lock);
-        counter++;
-        spin_unlock(&lock);
-        while (counter < g_midtable_numentries);
-        printf("\nCPU(0x%02x): exit sync %d", vcpu->id, __LINE__);
-    }
-
-    // test quiesce
-    if (vcpu->id == 0) {
-        printf("\nCPU(0x%02x): start test quiesce", vcpu->id);
-        xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
-        printf("\nCPU(0x%02x): in quiesce", vcpu->id);
-        xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
-        printf("\nCPU(0x%02x): end test quiesce", vcpu->id);
-    }
-
-    // sync
-    {
-        static u32 counter = 0, lock = 1;
-        printf("\nCPU(0x%02x): enter sync %d", vcpu->id, __LINE__);
-        spin_lock(&lock);
-        counter++;
-        spin_unlock(&lock);
-        while (counter < g_midtable_numentries);
-        printf("\nCPU(0x%02x): exit sync %d", vcpu->id, __LINE__);
-    }
 
     //call app main
     if(xmhf_app_main(vcpu, &appParamBlock)){

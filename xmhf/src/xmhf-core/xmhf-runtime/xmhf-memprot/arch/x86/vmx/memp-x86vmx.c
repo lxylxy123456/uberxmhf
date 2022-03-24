@@ -427,9 +427,9 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 				vcpu->id, msr, val, oldval);
 	}
 	/* Check whether hypapp allows modifying MTRR */
-//	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 	hypapp_status = xmhf_app_handlemtrr(vcpu, msr, val);
-//	xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+	xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 	if (hypapp_status != APP_SUCCESS) {
 		printf("\nCPU(0x%02x): Hypapp does not allow changing MTRRs. Halt!",
 				vcpu->id);
