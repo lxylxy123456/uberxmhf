@@ -426,20 +426,16 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 		printf("\nCPU(0x%02x): WRMSR (MTRR) 0x%08x 0x%016llx (old = 0x%016llx)",
 				vcpu->id, msr, val, oldval);
 	}
-	printf("\nCPU(0x%02x): WRMSR (MTRR) %d", vcpu->id, __LINE__);
 	/* Check whether hypapp allows modifying MTRR */
 //	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 	hypapp_status = xmhf_app_handlemtrr(vcpu, msr, val);
 //	xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
-	printf("\nCPU(0x%02x): WRMSR (MTRR) %d", vcpu->id, __LINE__);
 	if (hypapp_status != APP_SUCCESS) {
 		printf("\nCPU(0x%02x): Hypapp does not allow changing MTRRs. Halt!",
 				vcpu->id);
 		HALT();
 	}
-	printf("\nCPU(0x%02x): WRMSR (MTRR) %d", vcpu->id, __LINE__);
 	if (msr == IA32_MTRR_DEF_TYPE) {
-		printf("\nCPU(0x%02x): WRMSR (MTRR) %d", vcpu->id, __LINE__);
 		/* Default type register */
 		if (val == vcpu->vmx_guestmtrrmsrs.def_type) {
 			/* No change to MSR value */
@@ -456,7 +452,6 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 		/* Variable MTRR */
 		u32 index;
 		u64 baseval = val, maskval = val;
-		printf("\nCPU(0x%02x): WRMSR (MTRR) %d", vcpu->id, __LINE__);
 		if ((msr - IA32_MTRR_PHYSBASE0) % 2 == 0) {
 			/* Want to set baseval, retrieve maskval from shadow */
 			index = (msr - IA32_MTRR_PHYSBASE0) / 2;
@@ -488,7 +483,6 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 	} else {
 		/* Fixed MTRR */
 		u32 found = 0;
-		printf("\nCPU(0x%02x): WRMSR (MTRR) %d", vcpu->id, __LINE__);
 		if (!_vmx_mtrr_checkfixed(val)) {
 			return 1;
 		}
@@ -512,7 +506,6 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 			skip_ept_update = 1;
 		}
 	}
-	printf("\nCPU(0x%02x): WRMSR (MTRR) %d", vcpu->id, __LINE__);
 
 	/* Update EPT and flush EPT's TLB */
 	if (!skip_ept_update) {
@@ -526,7 +519,6 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 		_vmx_updateEPT_memtype(vcpu, 0, MAX_PHYS_ADDR);
 		xmhf_memprot_arch_x86vmx_flushmappings_localtlb(vcpu);
 	}
-	printf("\nCPU(0x%02x): WRMSR (MTRR) %d", vcpu->id, __LINE__);
 	return 0;
 }
 
