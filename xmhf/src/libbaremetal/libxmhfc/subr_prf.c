@@ -320,6 +320,27 @@ printf(const char *fmt, ...)
 }
 
 int
+vprintf_nolock(const char *fmt, va_list ap)
+{
+	int retval;
+	retval = kvprintf(fmt, emhfc_putchar, emhfc_putchar_arg, 10, ap);
+	return (retval);
+}
+
+int
+printf_nolock(const char *fmt, ...)
+{
+	va_list ap;
+	int retval;
+
+	va_start(ap, fmt);
+	retval = vprintf_nolock(fmt, ap);
+	va_end(ap);
+
+	return (retval);
+}
+
+int
 vprintf(const char *fmt, va_list ap)
 {
 	/* struct putchar_arg pca; */

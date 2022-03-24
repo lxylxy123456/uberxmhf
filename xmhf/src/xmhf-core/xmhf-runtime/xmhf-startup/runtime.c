@@ -184,11 +184,13 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
     }
 
     // test quiesce
-    printf("\nCPU(0x%02x): start test quiesce", vcpu->id);
-    xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
-    printf("\nCPU(0x%02x): in quiesce", vcpu->id);
-    xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
-    printf("\nCPU(0x%02x): end test quiesce", vcpu->id);
+    if (vcpu->id == 0) {
+        printf("\nCPU(0x%02x): start test quiesce", vcpu->id);
+        xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+        printf("\nCPU(0x%02x): in quiesce", vcpu->id);
+        xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+        printf("\nCPU(0x%02x): end test quiesce", vcpu->id);
+    }
 
     // sync
     {
