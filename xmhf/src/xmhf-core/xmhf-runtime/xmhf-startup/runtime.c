@@ -172,12 +172,34 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
     strncpy(appParamBlock.cmdline, rpb->cmdline, sizeof(appParamBlock.cmdline));
     #endif
 
+    // sync
+    {
+        static u32 counter = 0, lock = 1;
+        printf("\nCPU(0x%02x): enter sync %d", vcpu->id, __LINE__);
+        spin_lock(&lock);
+        counter++;
+        spin_unlock(&lock);
+        while (counter < g_midtable_numentries);
+        printf("\nCPU(0x%02x): exit sync %d", vcpu->id, __LINE__);
+    }
+
     // test quiesce
     printf("\nCPU(0x%02x): start test quiesce", vcpu->id);
     xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
     printf("\nCPU(0x%02x): in quiesce", vcpu->id);
     xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
     printf("\nCPU(0x%02x): end test quiesce", vcpu->id);
+
+    // sync
+    {
+        static u32 counter = 0, lock = 1;
+        printf("\nCPU(0x%02x): enter sync %d", vcpu->id, __LINE__);
+        spin_lock(&lock);
+        counter++;
+        spin_unlock(&lock);
+        while (counter < g_midtable_numentries);
+        printf("\nCPU(0x%02x): exit sync %d", vcpu->id, __LINE__);
+    }
     HALT();
 
     //call app main
