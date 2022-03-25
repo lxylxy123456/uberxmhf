@@ -1723,6 +1723,7 @@ During this bug, I found a good way to debug the guest OS using monitor traps
 Commit `91b493b2f` (`3bbcf39a8..91b493b2f`) is based on `xmhf64` branch. It is
 a demo of using the above techniques to debug. For example QEMU serial is
 `20220208213320`. See `grep -E '^(BP|MT)' results/20220208213320`.
+* Note from `bug_055`: `91b493b2f` is deprecated; use `fded7ace5`
 
 ## Fix
 

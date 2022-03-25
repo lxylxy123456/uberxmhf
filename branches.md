@@ -244,16 +244,17 @@
 * Rearrange x64 GDT: make code32 + 8 = data32 (`bug_046`)
 * (Now can boot x64 XMHF with DRT, but cannot run PALs)
 
-`516e618f6..` (02343124d)
+`516e618f6..ec78a946a`
 * Fix problem in types when calling `hash_memory_multi()` (`bug_053`)
 * Allow guest to change MTRR (`bug_054`)
 * Notify hypapp when MTRR changes (`bug_054`)
 * Do not update EPT when MTRRs are disabled, to be efficient (`bug_054`)
+* For Intel, unblock NMI when runtime starts (`bug_055`)
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output
-* `0d7e0599d`: Handle VMCALL `KVM_HC_VAPIC_POLL_IRQ` (run WinXP SP3)
-* `91b493b2f`: Add monitor trap and breakpoint support
+* `0d7e0599d`: Handle VMCALL `KVM_HC_VAPIC_POLL_IRQ` (run WinXP SP3 on QEMU)
+* `fded7ace5`: Add monitor trap and breakpoint support
 
 ### TODO
 * Review unaligned structs caused by `__attribute__((packed))`
@@ -267,23 +268,13 @@ Linux
 |    |   |Operating         |            +------------------+------------------+
 |XMHF|DRT|System            |Application | HP               | QEMU             |
 +====+===+==================+============+==================+==================+
-| x86| N | Ubuntu 12.04 x86 |pal_demo x86| good                                |
-|    |   +------------------+------------+                                     |
-|    |   | Debian 11 x86    |pal_demo x86|                                     |
-+----+   +------------------+------------+                                     |
-| x64|   | Ubuntu 12.04 x86 |pal_demo x86|                                     |
-|    |   +------------------+------------+                                     |
-|    |   | Debian 11 x86    |pal_demo x86|                                     |
-|    |   +------------------+------------+                                     |
-|    |   | Debian 11 x64    |pal_demo *  |                                     |
-|    |   +------------------+------------+                                     |
-|    |   | Fedora 35 x64    |pal_demo *  |                                     |
-+----+---+------------------+------------+------------------+------------------+
-| x86| Y | Debian 11 x86    |pal_demo x86| good             | Not Applicable   |
+|  * | * | Ubuntu 12.04 x86 |pal_demo x86| good             | good (no DRT)    |
 +----+   +------------------+------------+                  |                  |
-| x64|   | Debian 11 x86    |pal_demo x86|                  |                  |
-|    |   +------------------+------------+                  |                  |
-|    |   | Debian 11 x64    |pal_demo *  |                  |                  |
+|  * |   | Debian 11 x86    |pal_demo x86|                  |                  |
++----+   +------------------+------------+                  |                  |
+| x64|   | Debian 11 x64    |pal_demo *  |                  |                  |
++----+   +------------------+------------+                  |                  |
+| x64|   | Fedora 35 x64    |pal_demo *  |                  |                  |
 +----+---+------------------+------------+------------------+------------------+
 ```
 
@@ -294,25 +285,19 @@ Windows
 |    |   |Operating         |            +------------------+------------------+
 |XMHF|DRT|System            |Application | HP               | QEMU             |
 +====+===+==================+============+==================+==================+
-| x86| N | WinXP x86 SP3    |pal_demo x86| good             | good             |
-|    |   +------------------+------------+                  |                  |
-|    |   | Win7 x86         |pal_demo x86|                  |                  | 
-|    |   +------------------+------------+                  |                  |
-|    |   | Win10 x86        |pal_demo x86|                  |                  |
+|  * | * | WinXP x86 SP3    |pal_demo x86| good             | good (no DRT)    |
 +----+   +------------------+------------+                  |                  |
-| x64|   | WinXP x86 SP3    |pal_demo x86|                  |                  |
-|    |   +------------------+------------+------------------+                  |
-|    |   | WinXP x64        |pal_demo *  | Boot not tested  |                  |
-|    |   +------------------+------------+------------------+                  |
-|    |   | Win7 x86         |pal_demo x86| good             |                  | 
-|    |   +------------------+------------+                  |                  |
-|    |   | Win7 x64         |pal_demo *  |                  |                  | 
-|    |   +------------------+------------+                  |                  |
-|    |   | Win8.1 x64       |pal_demo *  |                  |                  |
-|    |   +------------------+------------+                  |                  |
-|    |   | Win10 x86        |pal_demo x86|                  |                  |
-|    |   +------------------+------------+                  +------------------+
-|    |   | Win10 x64        |pal_demo *  |                  | PAL not tested   |
+| x64|   | WinXP x64        |pal_demo *  |                  |                  |
++----+   +------------------+------------+                  |                  |
+|  * |   | Win7 x86         |pal_demo x86|                  |                  | 
++----+   +------------------+------------+                  |                  |
+| x64|   | Win7 x64         |pal_demo *  |                  |                  | 
++----+   +------------------+------------+                  |                  |
+| x64|   | Win8.1 x64       |pal_demo *  |                  |                  |
++----+   +------------------+------------+                  |                  |
+|  * |   | Win10 x86        |pal_demo x86|                  |                  |
++----+   +------------------+------------+                  +------------------+
+| x64|   | Win10 x64        |pal_demo *  |                  | PAL not tested   |
 +----+---+------------------+------------+------------------+------------------+
 ```
 
