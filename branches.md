@@ -251,6 +251,14 @@
 * Do not update EPT when MTRRs are disabled, to be efficient (`bug_054`)
 * For Intel, unblock NMI when runtime starts (`bug_055`)
 
+`ec78a946a..cd81de2b9`
+* Avoid compiling DMAP when DMAP is disabled (`bug_056`)
+* Avoid compiling some DRT object files when DRT is disabled (`bug_056`)
+* Avoid saving zeros in .o files and .exe files (`bug_056`)
+* Remove libtommath.a from bootloader (not used) (`bug_056`)
+* Split large build targets for parallelism (`bug_056`)
+* Update .github/build.sh (`bug_056`)
+
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output
 * `0d7e0599d`: Handle VMCALL `KVM_HC_VAPIC_POLL_IRQ` (run WinXP SP3 on QEMU)
