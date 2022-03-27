@@ -18,16 +18,9 @@ I_SOURCES =  $(wildcard $(INCLUDEDIR)/*.h)
 # targets
 .PHONY: all
 all: $(OBJECTS)
-	# Optional: use sparse file to reduce fs space usage
-	fallocate -d rntm-data.o
-
-%.o: %.S $(I_SOURCES) Makefile ../Makefile ../../../Makefile
-	$(CC) -c $(ASFLAGS) -o $@ $<
-%.o: %.c $(I_SOURCES) Makefile ../Makefile ../../../Makefile
-	$(CC) -c $(CFLAGS) -o $@ $<
 
 .PHONY: clean
 clean:
 	$(RM) -rf *.o
-	$(RM) -rf ./arch/*/*.o
+	$(RM) -rf ./arch/x86/*.o
 

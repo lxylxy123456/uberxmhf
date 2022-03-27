@@ -35,6 +35,7 @@ OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/svm/smpg-x86svm-data.o
 OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/vmx/smpg-x86vmx.o
 OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/vmx/smpg-x86vmx-data.o
 
+ifeq ($(DMAP), y)
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/dmap-interface-runtime.o
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/iommu-pt.o
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/dmap-x86-runtime.o
@@ -43,6 +44,7 @@ OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal.o
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-runtime.o
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-utils.o
 OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-data.o
+endif
 
 OBJECTS_PRECOMPILED += ./xmhf-xcphandler/xcph-interface.o
 OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/x86/xcph-x86.o
@@ -69,7 +71,9 @@ OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-data.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-smp.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-vmcs.o
+ifeq ($(DRT), y)
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs.o
+endif
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-reboot.o
 
 
@@ -97,33 +101,39 @@ OBJECTS_PRECOMPILED_LIBBACKENDS = ./xmhf-xmhfcbackend/xmhfc-putchar.o
 OBJECTS_PRECOMPILED_LIBBACKENDS += ./xmhf-xmhfcbackend/stl/xmhfc-bitmap.o
 OBJECTS_PRECOMPILED_LIBBACKENDS += ./xmhf-xmhfcbackend/stl/xmhfc-dlist.o
 
+#XMHF memory protection component
+RUNTIME_COMPONENTS = xmhf-memprot
+#XMHF Memory management component
+RUNTIME_COMPONENTS += xmhf-mm
+#XMHF partition event-hub component
+RUNTIME_COMPONENTS += xmhf-eventhub
+#XMHF SMP guest component
+RUNTIME_COMPONENTS += xmhf-smpguest
+ifeq ($(DMAP), y)
+#XMHF DMA protection component
+RUNTIME_COMPONENTS += xmhf-dmaprot
+endif
+#XMHF exception handler component
+RUNTIME_COMPONENTS += xmhf-xcphandler
+#XMHF base platform component
+RUNTIME_COMPONENTS += xmhf-baseplatform
+#XMHF partition component
+RUNTIME_COMPONENTS += xmhf-partition
+#XMHF TPM component
+RUNTIME_COMPONENTS += xmhf-tpm
+#XMHF debug component
+RUNTIME_COMPONENTS += xmhf-debug
+#XMHF libxmhfc environment callbacks
+RUNTIME_COMPONENTS += xmhf-xmhfcbackend
+#XMHF startup component
+RUNTIME_COMPONENTS += xmhf-startup
+
 # targets
-.PHONY: runtimecomponents
-runtimecomponents:
-	#XMHF memory protection component
-	cd xmhf-memprot && $(MAKE) -w all
-	#XMHF Memory management component
-	cd xmhf-mm && $(MAKE) -w all
-	#XMHF partition event-hub component
-	cd xmhf-eventhub && $(MAKE) -w all
-	#XMHF SMP guest component
-	cd xmhf-smpguest && $(MAKE) -w all
-	#XMHF DMA protection component
-	cd xmhf-dmaprot && $(MAKE) -w all
-	#XMHF exception handler component
-	cd xmhf-xcphandler && $(MAKE) -w all
-	#XMHF base platform component
-	cd xmhf-baseplatform && $(MAKE) -w all
-	#XMHF partition component
-	cd xmhf-partition && $(MAKE) -w all
-	#XMHF TPM component
-	cd xmhf-tpm && $(MAKE) -w all
-	#XMHF debug component
-	cd xmhf-debug && $(MAKE) -w all
-	#XMHF libxmhfc environment callbacks
-	cd xmhf-xmhfcbackend && $(MAKE) -w all
-	#XMHF startup component
-	cd xmhf-startup && $(MAKE) -w all
+.PHONY: runtimecomponents $(RUNTIME_COMPONENTS)
+runtimecomponents: $(RUNTIME_COMPONENTS)
+
+$(RUNTIME_COMPONENTS): %:
+	cd $@ && $(MAKE) -w all
 
 
 .PHONY: all
@@ -135,16 +145,15 @@ $(OBJECTS_PRECOMPILED_LIBBACKENDS): %: runtimecomponents
 
 runtime.bin: runtimecomponents $(APP_ARCHIVE) runtime-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).lds.S
 	$(LD) -T runtime-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).lds.S -o runtime.exe $(OBJECTS_PRECOMPILED) $(APP_ARCHIVE) $(ADDL_LIBS) $(OBJECTS_PRECOMPILED_LIBBACKENDS) -L$(CCLIB) -lgcc
-	# Optional: use sparse file for runtime.exe to reduce fs space usage
-	fallocate -d runtime.exe
-	$(OBJCOPY) --output-format=binary runtime.exe runtime.bin
+	# .palign_data and .stack are NOBITS in the ELF file (similar to .bss), but
+	# we need them in runtime.bin. So use the --set-section-flags option to
+	# force objcopy to zero them and add to runtime.bin.
+	$(OBJCOPY) \
+		--set-section-flags .palign_data=alloc,load,contents \
+		--set-section-flags .stack=alloc,load,contents \
+		--output-format=binary runtime.exe runtime.bin
 	# Optional: use sparse file for runtime.bin to reduce fs space usage
 	fallocate -d runtime.bin
-
-%.o: %.S $(I_SOURCES) Makefile ../../Makefile
-	$(CC) -c $(ASFLAGS) -o $@ $<
-%.o: %.c $(I_SOURCES) Makefile ../../Makefile 
-	$(CC) -c $(CFLAGS) -o $@ $<
 
 .PHONY: clean 
 clean: 

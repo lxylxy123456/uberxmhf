@@ -82,21 +82,21 @@ arch_x86_gdtdesc_t x_gdt __attribute__(( section(".data"), aligned(16) )) = {
 #define NPDPT   (PAGE_ALIGN_UP512G(MAX_PHYS_ADDR) >> PAGE_SHIFT_512G)
 #define NPDT    (PAGE_ALIGN_UP1G(MAX_PHYS_ADDR) >> PAGE_SHIFT_1G)
 
-u8 x_4level_pml4[NPLM4T * PAGE_SIZE_4K] __attribute__((section(".palign_data")));
-u8 x_4level_pdpt[NPDPT * PAGE_SIZE_4K] __attribute__((section(".palign_data")));
-u8 x_4level_pdt[NPDT * PAGE_SIZE_4K] __attribute__((section(".palign_data")));
+u8 x_4level_pml4[NPLM4T * PAGE_SIZE_4K] __attribute__((section(".bss.palign_data")));
+u8 x_4level_pdpt[NPDPT * PAGE_SIZE_4K] __attribute__((section(".bss.palign_data")));
+u8 x_4level_pdt[NPDT * PAGE_SIZE_4K] __attribute__((section(".bss.palign_data")));
 
 #undef NPLM4T
 #undef NPDPT
 #undef NPDT
 #else /* !__AMD64__ */
 //runtime PAE page tables
-u8 x_3level_pdpt[PAGE_SIZE_4K] __attribute__(( section(".palign_data") ));
-u8 x_3level_pdt[PAE_PTRS_PER_PDPT * PAGE_SIZE_4K] __attribute__(( section(".palign_data") ));
+u8 x_3level_pdpt[PAGE_SIZE_4K] __attribute__(( section(".bss.palign_data") ));
+u8 x_3level_pdt[PAE_PTRS_PER_PDPT * PAGE_SIZE_4K] __attribute__(( section(".bss.palign_data") ));
 #endif /* __AMD64__ */
 
 //runtime stack
-u8 x_init_stack[RUNTIME_STACK_SIZE] __attribute__(( section(".stack") ));
+u8 x_init_stack[RUNTIME_STACK_SIZE] __attribute__(( section(".bss.stack") ));
 
 
 RPB arch_rpb __attribute__(( section(".s_rpb") )) = {

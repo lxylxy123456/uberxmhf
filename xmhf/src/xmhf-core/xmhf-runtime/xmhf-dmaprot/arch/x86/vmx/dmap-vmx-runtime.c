@@ -52,9 +52,6 @@
 
 void *vtd_cet = NULL; // cet holds all its structures in the memory linearly
 
-// maximum number of RSDT entries we support
-#define ACPI_MAX_RSDT_ENTRIES (256)
-
 //==============================================================================
 // local (static) variables and function definitions
 //==============================================================================
@@ -80,7 +77,7 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
                                  spa_t vtd_pdpt_paddr, hva_t vtd_pdpt_vaddr,
                                  spa_t vtd_pdts_paddr, hva_t vtd_pdts_vaddr,
                                  spa_t vtd_pts_paddr, hva_t vtd_pts_vaddr,
-                                 spa_t machine_low_spa, u64 machine_high_spa)
+                                 spa_t machine_low_spa, spa_t machine_high_spa)
 {
     spa_t pml4tphysaddr, pdptphysaddr, pdtphysaddr, ptphysaddr;
     u32 i, j, k;
@@ -89,8 +86,8 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
     pdt_t pdt;
     pt_t pt;
     uintptr_t physaddr = 0;
-    spa_t m_low_spa = PAGE_ALIGN_1G(machine_low_spa);
-    u64 m_high_spa = PAGE_ALIGN_UP1G(machine_high_spa);
+    spa_t m_low_spa = PA_PAGE_ALIGN_1G(machine_low_spa);
+    spa_t m_high_spa = PA_PAGE_ALIGN_UP1G(machine_high_spa);
     u32 num_1G_entries = (m_high_spa - (u64)m_low_spa) >> PAGE_SHIFT_1G;
 
     // Sanity checks
@@ -125,6 +122,7 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
     // setup pdpt, pdt and pt
     // initially set the entire spaddr space [m_low_spa, m_high_spa) as DMA read/write capable
     pdpt = (pdpt_t)vtd_pdpt_vaddr;
+
     for (i = 0; i < num_1G_entries; i++) // DMAPROT_VMX_P4L_NPDT
     {
         pdpt[i] = (u64)(pdtphysaddr + (i * PAGE_SIZE_4K));
@@ -133,10 +131,10 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
         pdt = (pdt_t)(vtd_pdts_vaddr + (i * PAGE_SIZE_4K));
         for (j = 0; j < PAE_PTRS_PER_PDT; j++)
         {
-            pdt[j] = (u64)(ptphysaddr + (i * PAGE_SIZE_4K * 512) + (j * PAGE_SIZE_4K));
+            pdt[j] = (u64)(ptphysaddr + (i * PAGE_SIZE_4K * PAE_PTRS_PER_PDT) + (j * PAGE_SIZE_4K));
             pdt[j] |= ((u64)VTD_READ | (u64)VTD_WRITE);
 
-            pt = (pt_t)(vtd_pts_vaddr + (i * PAGE_SIZE_4K * 512) + (j * PAGE_SIZE_4K));
+            pt = (pt_t)(vtd_pts_vaddr + (i * PAGE_SIZE_4K * PAE_PTRS_PER_PDT) + (j * PAGE_SIZE_4K));
             for (k = 0; k < PAE_PTRS_PER_PT; k++)
             {
                 pt[k] = (u64)physaddr;
@@ -222,6 +220,33 @@ static bool _vtd_setupRETCET(struct dmap_vmx_cap *vtd_cap,
             *value |= 0x1ULL; // present, enable fault recording/processing, multilevel pt translation
         }
     }
+
+    return true;
+}
+
+// On 32bit machine, we always return 0 - 4G as the machine physical address range, no matter how many memory is installed
+// On 64-bit machine, the function queries the E820 map for the used memory region.
+bool vmx_get_machine_paddr_range(spa_t* machine_base_spa, spa_t* machine_limit_spa)
+{
+    // Sanity checks
+	if(!machine_base_spa || !machine_limit_spa)
+		return false;
+
+#ifdef __AMD64__
+    // Get the base and limit used system physical address from the E820 map
+    if (!xmhf_baseplatform_x86_e820_paddr_range(machine_base_spa, machine_limit_spa))
+    {
+        printf("\n%s: Get system physical address range error! Halting!", __FUNCTION__);
+        return false;
+    }
+
+    // 4K-align the return the address
+    *machine_base_spa = PAGE_ALIGN_4K(*machine_base_spa);
+    *machine_limit_spa = PAGE_ALIGN_UP4K(*machine_limit_spa);
+#else /* !__AMD64__ */
+    *machine_base_spa = 0;
+    *machine_limit_spa = ADDR_4GB;
+#endif /* __AMD64__ */
 
     return true;
 }
@@ -369,18 +394,16 @@ static u32 vmx_eap_initialize(
     // initialize VT-d page tables (not done if we are bootstrapping)
     {
         spa_t machine_low_spa = INVALID_SPADDR;
-        u64 machine_high_spa = INVALID_SPADDR;
+        spa_t machine_high_spa = INVALID_SPADDR;
         u64 phy_space_size = 0;
 
         // Get the base and limit used system physical address from the E820 map
-        status2 = xmhf_baseplatform_x86_e820_paddr_range(&machine_low_spa, &machine_high_spa);
+        status2 = vmx_get_machine_paddr_range(&machine_low_spa, &machine_high_spa);
         if (!status2)
         {
             printf("\n%s: Get system physical address range error! Halting!", __FUNCTION__);
             HALT();
         }
-        machine_low_spa = PAGE_ALIGN_4K(machine_low_spa);
-        machine_high_spa = PAGE_ALIGN_UP4K(machine_high_spa);
 
         // Check: The base and limit of the physical address space must <= DMAPROT_PHY_ADDR_SPACE_SIZE
         phy_space_size = machine_high_spa - machine_low_spa;
@@ -527,95 +550,6 @@ static void _vtd_invalidatecaches(void)
 #define PAE_get_pdtaddress(x) ((u32)((u64)(x) & (u64)0x3FFFFFFFFFFFF000ULL))
 #define PAE_get_ptaddress(x) ((u32)((u64)(x) & (u64)0x3FFFFFFFFFFFF000ULL))
 
-#if !defined(__DMAP__)
-void vmx_eap_zap(void)
-{
-    ACPI_RSDP rsdp;
-    ACPI_RSDT rsdt;
-    u32 num_rsdtentries;
-    uintptr_t rsdtentries[ACPI_MAX_RSDT_ENTRIES];
-    uintptr_t status;
-    VTD_DMAR dmar;
-    u32 i, dmarfound;
-    spa_t dmaraddrphys, remappingstructuresaddrphys;
-    spa_t rsdt_xsdt_spaddr = INVALID_SPADDR;
-    hva_t rsdt_xsdt_vaddr = INVALID_VADDR;
-
-    // zero out rsdp and rsdt structures
-    memset(&rsdp, 0, sizeof(ACPI_RSDP));
-    memset(&rsdt, 0, sizeof(ACPI_RSDT));
-
-    // get ACPI RSDP
-    // [TODO] Unify the name of <xmhf_baseplatform_arch_x86_acpi_getRSDP> and <xmhf_baseplatform_arch_x86_acpi_getRSDP>, and then remove the following #ifdef
-    status = xmhf_baseplatform_arch_x86_acpi_getRSDP(&rsdp);
-    HALT_ON_ERRORCOND(status != 0); // we need a valid RSDP to proceed
-    printf("\n%s: RSDP at %08x", __FUNCTION__, status);
-
-    // [Superymk] Use RSDT if it is ACPI v1, or use XSDT addr if it is ACPI v2
-    if (rsdp.revision == 0) // ACPI v1
-    {
-        printf("\n%s: ACPI v1", __FUNCTION__);
-        rsdt_xsdt_spaddr = rsdp.rsdtaddress;
-    }
-    else if (rsdp.revision == 0x2) // ACPI v2
-    {
-        printf("\n%s: ACPI v2", __FUNCTION__);
-        rsdt_xsdt_spaddr = (spa_t)rsdp.xsdtaddress;
-    }
-    else // Unrecognized ACPI version
-    {
-        printf("\n%s: ACPI unsupported version!", __FUNCTION__);
-        return;
-    }
-
-    // grab ACPI RSDT
-    // Note: in i386, <rsdt_xsdt_spaddr> should be in lower 4GB. So the conversion to vaddr is fine.
-    rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr;
-
-    xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdt_xsdt_vaddr, sizeof(ACPI_RSDT));
-    printf("\n%s: RSDT at %08x, len=%u bytes, hdrlen=%u bytes",
-           __FUNCTION__, rsdt_xsdt_vaddr, rsdt.length, sizeof(ACPI_RSDT));
-
-    // get the RSDT entry list
-    num_rsdtentries = (rsdt.length - sizeof(ACPI_RSDT)) / sizeof(u32);
-    HALT_ON_ERRORCOND(num_rsdtentries < ACPI_MAX_RSDT_ENTRIES);
-    xmhf_baseplatform_arch_flat_copy((u8 *)&rsdtentries, (u8 *)(rsdt_xsdt_vaddr + sizeof(ACPI_RSDT)),
-                                     sizeof(u32) * num_rsdtentries);
-    printf("\n%s: RSDT entry list at %08x, len=%u", __FUNCTION__,
-           (rsdt_xsdt_vaddr + sizeof(ACPI_RSDT)), num_rsdtentries);
-
-    // find the VT-d DMAR table in the list (if any)
-    for (i = 0; i < num_rsdtentries; i++)
-    {
-        xmhf_baseplatform_arch_flat_copy((u8 *)&dmar, (u8 *)rsdtentries[i], sizeof(VTD_DMAR));
-        if (dmar.signature == VTD_DMAR_SIGNATURE)
-        {
-            dmarfound = 1;
-            break;
-        }
-    }
-
-    // if no DMAR table, bail out
-    if (!dmarfound)
-        return;
-
-    dmaraddrphys = rsdtentries[i]; // DMAR table physical memory address;
-    printf("\n%s: DMAR at %08x", __FUNCTION__, dmaraddrphys);
-
-    i = 0;
-    remappingstructuresaddrphys = dmaraddrphys + sizeof(VTD_DMAR);
-    printf("\n%s: remapping structures at %08x", __FUNCTION__, remappingstructuresaddrphys);
-
-    // zap VT-d presence in ACPI table...
-    // TODO: we need to be a little elegant here. eventually need to setup
-    // EPT/NPTs such that the DMAR pages are unmapped for the guest
-    xmhf_baseplatform_arch_flat_writeu32(dmaraddrphys, 0UL);
-
-    // success
-    printf("\n%s: success, leaving...", __FUNCTION__);
-}
-#endif //__DMAP__
-
 //"normal" DMA protection initialization to setup required
 // structures for DMA protection
 // return 1 on success 0 on failure
@@ -663,8 +597,8 @@ void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size)
     u32 pdptindex, pdtindex, ptindex;
 
     // compute page aligned end
-    end_paddr = PAGE_ALIGN_4K(start_paddr + size);
-    start_paddr = PAGE_ALIGN_4K(start_paddr);
+    end_paddr = PA_PAGE_ALIGN_UP4K(start_paddr + size);
+    start_paddr = PA_PAGE_ALIGN_4K(start_paddr);
 
     // sanity check
     HALT_ON_ERRORCOND((l_vtd_pdpt_paddr != 0) && (l_vtd_pdpt_vaddr != 0));
@@ -674,7 +608,6 @@ void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size)
 #ifndef __XMHF_VERIFICATION__
     for (cur_spaddr = start_paddr; cur_spaddr <= end_paddr; cur_spaddr += PAGE_SIZE_4K)
     {
-
         // compute pdpt, pdt and pt indices
         pdptindex = PAE_get_pdptindex(cur_spaddr);
         pdtindex = PAE_get_pdtindex(cur_spaddr);
@@ -701,8 +634,8 @@ void xmhf_dmaprot_arch_x86_vmx_unprotect(spa_t start_paddr, size_t size)
     u32 pdptindex, pdtindex, ptindex;
 
     // compute page aligned end
-    end_paddr = PAGE_ALIGN_4K(start_paddr + size);
-    start_paddr = PAGE_ALIGN_4K(start_paddr);
+    end_paddr = PA_PAGE_ALIGN_UP4K(start_paddr + size);
+    start_paddr = PA_PAGE_ALIGN_4K(start_paddr);
 
     // sanity check
     HALT_ON_ERRORCOND((l_vtd_pdpt_paddr != 0) && (l_vtd_pdpt_vaddr != 0));

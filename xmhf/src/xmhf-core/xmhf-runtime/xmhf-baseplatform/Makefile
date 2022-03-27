@@ -24,7 +24,9 @@ C_SOURCES += ./arch/x86/vmx/bplt-x86vmx.c
 C_SOURCES += ./arch/x86/vmx/bplt-x86vmx-data.c
 C_SOURCES += ./arch/x86/vmx/bplt-x86vmx-vmcs.c
 C_SOURCES += ./arch/x86/vmx/bplt-x86vmx-smp.c
+ifeq ($(DRT), y)
 C_SOURCES += ./arch/x86/vmx/bplt-x86vmx-mtrrs.c
+endif
 C_SOURCES += ./arch/x86/vmx/bplt-x86vmx-reboot.c
 
 
@@ -43,7 +45,9 @@ C_SOURCES32 =  ./arch/x86/bplt-x86-pci.c
 C_SOURCES32 += ./arch/x86/bplt-x86-acpi.c
 C_SOURCES32 += ./arch/x86/bplt-x86-addressing.c
 C_SOURCES32 += ./arch/x86/bplt-x86-cpu.c
+ifeq ($(DRT), y)
 C_SOURCES32 += ./arch/x86/vmx/bplt-x86vmx-mtrrs.c
+endif
 
 AS_OBJECTS32 = $(patsubst %.S, %.x86.o, $(AS_SOURCES32))
 C_OBJECTS32 = $(patsubst %.c, %.x86.o, $(C_SOURCES32))
@@ -56,14 +60,6 @@ I_SOURCES =  $(wildcard $(INCLUDEDIR)/*.h)
 # targets
 .PHONY: all
 all: $(OBJECTS)
-	# Optional: use sparse file to reduce fs space usage
-	fallocate -d ./arch/x86/vmx/bplt-x86vmx-data.o
-	fallocate -d ./arch/x86/svm/bplt-x86svm-data.o
-
-%.o: %.S $(I_SOURCES) Makefile ../Makefile ../../../Makefile
-	$(CC) -c $(ASFLAGS) -o $@ $<
-%.o: %.c $(I_SOURCES) Makefile ../Makefile ../../../Makefile
-	$(CC) -c $(CFLAGS) -o $@ $<
 
 # TODO: Workaround to compile x86 for bootloader
 ifeq ($(TARGET_SUBARCH), amd64)
@@ -76,7 +72,7 @@ endif
 .PHONY: clean
 clean:
 	$(RM) -rf *.o
-	$(RM) -rf ./arch/*/*.o
-	$(RM) -rf ./arch/*/svm/*.o
-	$(RM) -rf ./arch/*/vmx/*.o
+	$(RM) -rf ./arch/x86/*.o
+	$(RM) -rf ./arch/x86/svm/*.o
+	$(RM) -rf ./arch/x86/vmx/*.o
 

@@ -50,9 +50,8 @@
 #ifndef __EMHF_RUNTIME_H__
 #define __EMHF_RUNTIME_H__
 
-#define DMAPROT_PHY_ADDR_SPACE_SIZE		(PAGE_ALIGN_UP1G(MAX_PHYS_ADDR))
-
-#define DMAPROT_VMX_P4L_NPDT			(DMAPROT_PHY_ADDR_SPACE_SIZE >> PAGE_SHIFT_1G)
+#define DMAPROT_PHY_ADDR_SPACE_SIZE		(PA_PAGE_ALIGN_UP1G(MAX_PHYS_ADDR))
+#define DMAPROT_VMX_P4L_NPDT			(DMAPROT_PHY_ADDR_SPACE_SIZE >> (u64)PAGE_SHIFT_1G)
 
 // 4-level PML4 page tables + 4KB root entry table + 4K context entry table per PCI bus
 #define SIZE_G_RNTM_DMAPROT_BUFFER	(PAGE_SIZE_4K + PAGE_SIZE_4K + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT) \
@@ -73,7 +72,7 @@ extern RPB arch_rpb;
 extern RPB *rpb __attribute__(( section(".data") ));
 
 //runtime DMA protection buffer
-extern u8 g_rntm_dmaprot_buffer[] __attribute__(( section(".palign_data") ));
+extern u8 g_rntm_dmaprot_buffer[] __attribute__(( section(".bss.palign_data") ));
 
 //variable that is incremented by 1 by all cores that cycle through appmain
 //successfully, this should be finally equal to g_midtable_numentries at

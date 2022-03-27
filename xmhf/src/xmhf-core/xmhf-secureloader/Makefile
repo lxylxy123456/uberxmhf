@@ -21,12 +21,13 @@ OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-tpm/arch/x86/tpm-x86.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-tpm/arch/x86/svm/tpm-x86svm.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-tpm/arch/x86/vmx/tpm-x86vmx.o
 
-
+ifeq ($(DMAP), y)
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/dmap-interface-earlyinit.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/dmap-x86-earlyinit.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/svm/dmap-svm.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/vmx/dmap-vmx-earlyinit.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal.o
+endif
 
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/bplt-interface.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86.o
@@ -38,7 +39,9 @@ OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
 
 
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.o
+ifeq ($(DRT), y)
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs.o
+endif
 
 # separate from OBJECTS_PRECOMPILED becasue needs to come after libs on link line
 OBJECTS_PRECOMPILED_LIBBACKENDS = ../xmhf-runtime/xmhf-xmhfcbackend/xmhfc-putchar.o
@@ -71,15 +74,10 @@ sl.bin: $(OBJECTS) $(OBJECTS_PRECOMPILED) sl-$(TARGET_HWPLATFORM)-$(TARGET_SUBAR
 	fallocate -d sl.bin
 	fallocate -d sl_syms.exe
 
-%.o: %.S $(I_SOURCES) Makefile ../Makefile
-	$(CC) -c $(ASFLAGS) -o $@ $<
-%.o: %.c $(I_SOURCES) Makefile ../Makefile
-	$(CC) -c $(CFLAGS) -o $@ $<
-
 .PHONY: clean
 clean:
 	$(RM) -rf *.o
-	$(RM) -rf ./arch/*/*.o
+	$(RM) -rf ./arch/x86/*.o
 	$(RM) -rf *.exe
 	$(RM) -rf *.bin
 	$(RM) -rf *.gz
