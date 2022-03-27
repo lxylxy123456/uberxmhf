@@ -48,8 +48,5 @@ include ../runtime.mk
 
 .PHONY: clean
 clean:
-	$(RM) -rf *.o
-	$(RM) -rf ./arch/x86/*.o
-	$(RM) -rf ./arch/x86/svm/*.o
-	$(RM) -rf ./arch/x86/vmx/*.o
+	$(RM) -rf $(OBJECTS) $(OBJECTS_BL)
 

@@ -16,7 +16,8 @@
 #   *.o: built for secure loader / runtime
 #   *.x86.o: built for boot loader when runtime is amd64
 #       TODO: rename *.x86.o to *.i386.o
-#   TODO: clean
+#
+# Files defined by OBJECTS and OBJECTS_BL should be cleaned
 
 _AS_OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))
 _C_OBJECTS = $(patsubst %.c, %.o, $(C_SOURCES))
