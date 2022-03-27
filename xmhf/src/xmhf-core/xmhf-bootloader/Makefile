@@ -7,9 +7,9 @@ CCLIB := $(BCCLIB)
 
 # source files
 AS_SOURCES = header.S initsup.S
-C_SOURCES = init.c smp.c txt_acmod.c cmdline.c
+C_SOURCES = init.c smp.c cmdline.c
 ifeq ($(DRT), y)
-C_SOURCES += txt.c txt_heap.c txt_hash.c
+C_SOURCES += txt.c txt_acmod.c txt_heap.c txt_hash.c
 endif
 
 OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))
@@ -28,11 +28,12 @@ OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-i386-
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
 
-
+ifeq ($(DRT), y)
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs.o
+endif
 
 # FIXME: This is overly general; init/ doesn't need all of these
-CFLAGS += $(ADDL_INCLUDES)
+CFLAGS += $(ADDL_INCLUDES_BOOTLOADER)
 
 # separate from OBJECTS_PRECOMPILED becasue needs to come after libs on link line
 OBJECTS_PRECOMPILED_LIBBACKENDS = ../xmhf-runtime/xmhf-xmhfcbackend/xmhfc-putchar.o
@@ -72,7 +73,7 @@ all: init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
 
 # FIXME: ADDL_LIBS is overly general; init/ doesn't need all of them
 init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin: $(OBJECTS) $(OBJECTS_PRECOMPILED) init.lds.S
-	$(LD) -T init.lds.S -o init.exe $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS32) $(OBJECTS_PRECOMPILED_LIBBACKENDS) -L$(CCLIB) -lgcc
+	$(LD) -T init.lds.S -o init.exe $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS_BOOTLOADER) $(OBJECTS_PRECOMPILED_LIBBACKENDS) -L$(CCLIB) -lgcc
 	$(CP) init.exe init_syms.exe
 	$(STRIP) -s init.exe
 	$(OBJCOPY) --output-format=binary init.exe init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin

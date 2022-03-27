@@ -128,6 +128,12 @@ u64 * xmhf_memprot_arch_get_lvl4_pagemap_address(VCPU *vcpu);
 //get default root page map address
 u64 * xmhf_memprot_arch_get_default_root_pagemap_address(VCPU *vcpu);
 
+//handle RDMSR on MTRRs
+u32 xmhf_memprot_arch_x86vmx_mtrr_read(VCPU *vcpu, u32 msr, u64 *val);
+
+//handle WRMSR on MTRRs
+u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val);
+
 //flush hardware page table mappings (TLB)
 void xmhf_memprot_arch_flushmappings(VCPU *vcpu);
 
@@ -159,16 +165,16 @@ u64 xmhf_memprot_arch_x86vmx_get_EPTP(VCPU *vcpu); // get or set EPTP (only vali
 void xmhf_memprot_arch_x86vmx_set_EPTP(VCPU *vcpu, u64 eptp);
 
 //VMX EPT PML4 table buffers
-extern u8 g_vmx_ept_pml4_table_buffers[] __attribute__(( section(".palign_data") ));
+extern u8 g_vmx_ept_pml4_table_buffers[] __attribute__(( section(".bss.palign_data") ));
 
 //VMX EPT PDP table buffers
-extern u8 g_vmx_ept_pdp_table_buffers[] __attribute__(( section(".palign_data") ));
+extern u8 g_vmx_ept_pdp_table_buffers[] __attribute__(( section(".bss.palign_data") ));
 
 //VMX EPT PD table buffers
-extern u8 g_vmx_ept_pd_table_buffers[] __attribute__(( section(".palign_data") ));
+extern u8 g_vmx_ept_pd_table_buffers[] __attribute__(( section(".bss.palign_data") ));
 
 //VMX EPT P table buffers
-extern u8 g_vmx_ept_p_table_buffers[] __attribute__(( section(".palign_data") ));
+extern u8 g_vmx_ept_p_table_buffers[] __attribute__(( section(".bss.palign_data") ));
 
 
 //----------------------------------------------------------------------
@@ -183,13 +189,13 @@ u64 xmhf_memprot_arch_x86svm_get_h_cr3(VCPU *vcpu); // get or set host cr3 (only
 void xmhf_memprot_arch_x86svm_set_h_cr3(VCPU *vcpu, u64 hcr3);
 
 //SVM NPT PDPT buffers
-extern u8 g_svm_npt_pdpt_buffers[] __attribute__(( section(".palign_data") ));
+extern u8 g_svm_npt_pdpt_buffers[] __attribute__(( section(".bss.palign_data") ));
 
 //SVM NPT PDT buffers
-extern u8 g_svm_npt_pdts_buffers[]__attribute__(( section(".palign_data") ));
+extern u8 g_svm_npt_pdts_buffers[]__attribute__(( section(".bss.palign_data") ));
 
 //SVM NPT PT buffers
-extern u8 g_svm_npt_pts_buffers[]__attribute__(( section(".palign_data") ));
+extern u8 g_svm_npt_pts_buffers[]__attribute__(( section(".bss.palign_data") ));
 
 
 #endif	//__ASSEMBLY__

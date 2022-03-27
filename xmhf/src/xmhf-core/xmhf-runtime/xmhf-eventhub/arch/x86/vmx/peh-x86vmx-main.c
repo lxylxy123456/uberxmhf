@@ -366,6 +366,8 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 			HALT_ON_ERRORCOND(found != 0);
 			break;
 		}
+		case IA32_MTRRCAP: /* fallthrough */
+		case IA32_MTRR_DEF_TYPE: /* fallthrough */
 		case IA32_MTRR_FIX64K_00000: /* fallthrough */
 		case IA32_MTRR_FIX16K_80000: /* fallthrough */
 		case IA32_MTRR_FIX16K_A0000: /* fallthrough */
@@ -401,24 +403,16 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 			 * Need to change EPT to reflect MTRR changes, because host MTRRs
 			 * are not used when EPT is used.
 			 */
-			{
+			if (xmhf_memprot_arch_x86vmx_mtrr_write(vcpu, r->ecx, write_data)) {
 				/*
-				 * As a workaround, if writing the MSR will not cause change,
-				 * do not halt. For example Windows 10 will do this.
+				 * When designed, xmhf_memprot_arch_x86vmx_mtrr_write() has not
+				 * been observed to fail. This may happen if the guest OS
+				 * performs an invalid WRMSR. Please make sure that in this
+				 * case injecting #GP is the correct action.
 				 */
-				u32 eax, edx;
-				rdmsr(r->ecx, &eax, &edx);
-				if (eax == r->eax && edx == r->edx) {
-					break;
-				}
-				printf("\nCPU(0x%02x): Old       MTRR 0x%08x is 0x %08x %08x",
-						vcpu->id, r->ecx, edx, eax);
+				HALT_ON_ERRORCOND(0 && "Unexperienced fail in MTRR write");
+				goto wrmsr_inject_gp;
 			}
-			printf("\nCPU(0x%02x): Modifying MTRR 0x%08x to 0x %08x %08x",
-					vcpu->id, r->ecx, r->edx, r->eax);
-			printf("\nCPU(0x%02x): Modifying MTRR not yet supported. Halt!",
-					vcpu->id);
-			HALT();
 			break;
 		case IA32_BIOS_UPDT_TRIG:
 			printf("\nCPU(0x%02x): OS tries to write microcode, ignore",
@@ -434,6 +428,25 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 
 	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 	//printf("\nCPU(0x%02x): WRMSR end", vcpu->id);
+	return;
+
+wrmsr_inject_gp:
+	{
+		/* Inject a Hardware exception #GP */
+		union {
+			struct _vmx_event_injection st;
+			uint32_t ui;
+		} injection_info;
+		injection_info.ui = 0;
+		injection_info.st.vector = 0xd;     /* #GP */
+		injection_info.st.type = 0x3;       /* Hardware Exception */
+		injection_info.st.errorcode = 1;    /* Deliver error code */
+		injection_info.st.valid = 1;
+		vcpu->vmcs.control_VM_entry_interruption_information = injection_info.ui;
+		vcpu->vmcs.control_VM_entry_exception_errorcode = 0;
+		/* Do not increase guest RIP */
+		return;
+	}
 }
 
 //---intercept handler (RDMSR)--------------------------------------------------
@@ -477,23 +490,54 @@ static void _vmx_handle_intercept_rdmsr(VCPU *vcpu, struct regs *r){
 			HALT_ON_ERRORCOND(found != 0);
 			break;
 		}
+		case IA32_MTRR_DEF_TYPE: /* fallthrough */
+		case IA32_MTRR_FIX64K_00000: /* fallthrough */
+		case IA32_MTRR_FIX16K_80000: /* fallthrough */
+		case IA32_MTRR_FIX16K_A0000: /* fallthrough */
+		case IA32_MTRR_FIX4K_C0000: /* fallthrough */
+		case IA32_MTRR_FIX4K_C8000: /* fallthrough */
+		case IA32_MTRR_FIX4K_D0000: /* fallthrough */
+		case IA32_MTRR_FIX4K_D8000: /* fallthrough */
+		case IA32_MTRR_FIX4K_E0000: /* fallthrough */
+		case IA32_MTRR_FIX4K_E8000: /* fallthrough */
+		case IA32_MTRR_FIX4K_F0000: /* fallthrough */
+		case IA32_MTRR_FIX4K_F8000: /* fallthrough */
+		case IA32_MTRR_PHYSBASE0: /* fallthrough */
+		case IA32_MTRR_PHYSMASK0: /* fallthrough */
+		case IA32_MTRR_PHYSBASE1: /* fallthrough */
+		case IA32_MTRR_PHYSMASK1: /* fallthrough */
+		case IA32_MTRR_PHYSBASE2: /* fallthrough */
+		case IA32_MTRR_PHYSMASK2: /* fallthrough */
+		case IA32_MTRR_PHYSBASE3: /* fallthrough */
+		case IA32_MTRR_PHYSMASK3: /* fallthrough */
+		case IA32_MTRR_PHYSBASE4: /* fallthrough */
+		case IA32_MTRR_PHYSMASK4: /* fallthrough */
+		case IA32_MTRR_PHYSBASE5: /* fallthrough */
+		case IA32_MTRR_PHYSMASK5: /* fallthrough */
+		case IA32_MTRR_PHYSBASE6: /* fallthrough */
+		case IA32_MTRR_PHYSMASK6: /* fallthrough */
+		case IA32_MTRR_PHYSBASE7: /* fallthrough */
+		case IA32_MTRR_PHYSMASK7: /* fallthrough */
+		case IA32_MTRR_PHYSBASE8: /* fallthrough */
+		case IA32_MTRR_PHYSMASK8: /* fallthrough */
+		case IA32_MTRR_PHYSBASE9: /* fallthrough */
+		case IA32_MTRR_PHYSMASK9:
+			/*
+			 * When reading MTRR MSRs, IA32_MTRRCAP is the same as host's MSR.
+			 * Other MTRR MSRs come from the shadow in vcpu.
+			 */
+			if (xmhf_memprot_arch_x86vmx_mtrr_read(vcpu, r->ecx, &read_result)) {
+				/*
+				 * When designed, xmhf_memprot_arch_x86vmx_mtrr_read() cannot
+				 * fail. Please make sure injecting #GP is the correct action.
+				 */
+				HALT_ON_ERRORCOND(0 && "Unexpected fail in MTRR read");
+				goto rdmsr_inject_gp;
+			}
+			break;
 		default:{
 			if (rdmsr_safe(r) != 0) {
-				/* Inject a Hardware exception #GP */
-				union {
-					struct _vmx_event_injection st;
-					uint32_t ui;
-				} injection_info;
-				injection_info.ui = 0;
-				injection_info.st.vector = 0xd;     /* #GP */
-				injection_info.st.type = 0x3;       /* Hardware Exception */
-				injection_info.st.errorcode = 1;    /* Deliver error code */
-				injection_info.st.valid = 1;
-				vcpu->vmcs.control_VM_entry_interruption_information = injection_info.ui;
-				vcpu->vmcs.control_VM_entry_exception_errorcode = 0;
-
-				/* Do not increase guest RIP */
-				return;
+				goto rdmsr_inject_gp;
 			}
 			goto no_assign_read_result;
 		}
@@ -509,10 +553,29 @@ static void _vmx_handle_intercept_rdmsr(VCPU *vcpu, struct regs *r){
 		r->edx = (u32)(read_result >> 32);
 	}
 
+	//printf("\nCPU(0x%02x): RDMSR (0x%08x)=0x%08x%08x", vcpu->id, r->ecx, r->edx, r->eax);
+
 no_assign_read_result:
 	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
+	return;
 
-	//printf("\nCPU(0x%02x): RDMSR (0x%08x)=0x%08x%08x", vcpu->id, r->ecx, r->edx, r->eax);
+rdmsr_inject_gp:
+	{
+		/* Inject a Hardware exception #GP */
+		union {
+			struct _vmx_event_injection st;
+			uint32_t ui;
+		} injection_info;
+		injection_info.ui = 0;
+		injection_info.st.vector = 0xd;     /* #GP */
+		injection_info.st.type = 0x3;       /* Hardware Exception */
+		injection_info.st.errorcode = 1;    /* Deliver error code */
+		injection_info.st.valid = 1;
+		vcpu->vmcs.control_VM_entry_interruption_information = injection_info.ui;
+		vcpu->vmcs.control_VM_entry_exception_errorcode = 0;
+		/* Do not increase guest RIP */
+		return;
+	}
 }
 
 

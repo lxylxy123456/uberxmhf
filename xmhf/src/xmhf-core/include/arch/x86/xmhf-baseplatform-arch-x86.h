@@ -126,22 +126,26 @@ struct _memorytype {
 #endif //__ASSEMBLY__
 
 //---platform
-#define MAX_MEMORYTYPE_ENTRIES    98    //8*11 fixed MTRRs and 10 variable MTRRs
-#define MAX_FIXED_MEMORYTYPE_ENTRIES  88
-#define MAX_VARIABLE_MEMORYTYPE_ENTRIES 10
+#define NUM_FIXED_MTRRS 11
+#define MAX_VARIABLE_MTRR_PAIRS 10
 
 
 //---platform
-//total number of FIXED and VARIABLE MTRRs on current x86 platforms
-#define NUM_MTRR_MSRS   31
 
 #ifndef __ASSEMBLY__
 //---platform
 //structure which holds values of guest MTRRs (64-bit)
+struct _guestvarmtrrmsrpair {
+    u64 base;   /* IA32_MTRR_PHYSBASEi */
+    u64 mask;   /* IA32_MTRR_PHYSMASKi */
+};
+
 struct _guestmtrrmsrs {
-  u32 lodword;
-  u32 hidword;
-} __attribute__((packed));
+    u64 def_type;                   /* IA32_MTRR_DEF_TYPE */
+    u64 fix_mtrrs[NUM_FIXED_MTRRS]; /* IA32_MTRR_FIX*, see fixed_mtrr_prop */
+    u32 var_count;                  /* Number of valid var_mtrrs's */
+    struct _guestvarmtrrmsrpair var_mtrrs[MAX_VARIABLE_MTRR_PAIRS];
+};
 #endif //__ASSEMBLY__
 
 //---platform
@@ -208,10 +212,14 @@ typedef struct _vcpu {
   hva_t vmx_vaddr_ept_pdp_table;  //virtual address of EPT PDP table
   hva_t vmx_vaddr_ept_pd_tables;  //virtual address of base of EPT PD tables
   hva_t vmx_vaddr_ept_p_tables;   //virtual address of base of EPT P tables
+
+
   u32 vmx_ept_defaulttype;        //default EPT memory type
-  struct _memorytype vmx_ept_memorytypes[MAX_MEMORYTYPE_ENTRIES]; //EPT memory types array
+  u32 vmx_ept_mtrr_enable;
+  u32 vmx_ept_fixmtrr_enable;
+  u64 vmx_ept_paddrmask;          //mask from bit 12 to MAXPHYADDR
   //guest MTRR shadow MSRs
-  struct _guestmtrrmsrs vmx_guestmtrrmsrs[NUM_MTRR_MSRS];
+  struct _guestmtrrmsrs vmx_guestmtrrmsrs;
 
   //guest state fields
   u32 vmx_guest_currentstate;   //current operating mode of guest
@@ -219,7 +227,7 @@ typedef struct _vcpu {
   u32 vmx_guest_unrestricted;   //this is 1 if the CPU VMX implementation supports unrestricted guest execution
   struct _vmx_vmcsfields vmcs;   //the VMCS fields
 
-} __attribute__((packed)) VCPU;
+} VCPU;
 
 #define SIZE_STRUCT_VCPU    (sizeof(struct _vcpu))
 #define CPU_VENDOR (g_vcpubuffers[0].cpu_vendor)
@@ -732,20 +740,20 @@ extern struct _vmx_vmcsrwfields_encodings g_vmx_vmcsrwfields_encodings[] __attri
 extern unsigned int g_vmx_vmcsrwfields_encodings_count __attribute__(( section(".data") ));
 
 //VMX VMXON buffers
-extern u8 g_vmx_vmxon_buffers[] __attribute__(( section(".palign_data") ));
+extern u8 g_vmx_vmxon_buffers[] __attribute__(( section(".bss.palign_data") ));
 
 //VMX VMCS buffers
-extern u8 g_vmx_vmcs_buffers[] __attribute__(( section(".palign_data") ));
+extern u8 g_vmx_vmcs_buffers[] __attribute__(( section(".bss.palign_data") ));
 
 //VMX IO bitmap buffers
-extern u8 g_vmx_iobitmap_buffer[] __attribute__(( section(".palign_data") ));
+extern u8 g_vmx_iobitmap_buffer[] __attribute__(( section(".bss.palign_data") ));
 
 //VMX guest and host MSR save area buffers
-extern u8 g_vmx_msr_area_host_buffers[] __attribute__(( section(".palign_data") ));
-extern u8 g_vmx_msr_area_guest_buffers[] __attribute__(( section(".palign_data") ));
+extern u8 g_vmx_msr_area_host_buffers[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_msr_area_guest_buffers[] __attribute__(( section(".bss.palign_data") ));
 
 //VMX MSR bitmap buffers
-extern u8 g_vmx_msrbitmap_buffers[] __attribute__(( section(".palign_data") ));
+extern u8 g_vmx_msrbitmap_buffers[] __attribute__(( section(".bss.palign_data") ));
 
 
 //initialize CPU state
@@ -781,16 +789,16 @@ void xmhf_baseplatform_arch_x86vmx_reboot(VCPU *vcpu);
 #endif
 
 //SVM VM_HSAVE buffers
-extern u8 g_svm_hsave_buffers[]__attribute__(( section(".palign_data") ));
+extern u8 g_svm_hsave_buffers[]__attribute__(( section(".bss.palign_data") ));
 
 //SVM VMCB buffers
-extern u8 g_svm_vmcb_buffers[]__attribute__(( section(".palign_data") ));
+extern u8 g_svm_vmcb_buffers[]__attribute__(( section(".bss.palign_data") ));
 
 //SVM IO bitmap buffer
-extern u8 g_svm_iobitmap_buffer[]__attribute__(( section(".palign_data") ));
+extern u8 g_svm_iobitmap_buffer[]__attribute__(( section(".bss.palign_data") ));
 
 //SVM MSR bitmap buffer
-extern u8 g_svm_msrpm[]__attribute__(( section(".palign_data") ));
+extern u8 g_svm_msrpm[]__attribute__(( section(".bss.palign_data") ));
 
 
 //wake up application processors (cores) in the system
