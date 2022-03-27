@@ -6,7 +6,7 @@ AS_SOURCES =  ./arch/x86/bplt-x86-$(TARGET_SUBARCH)-smptrampoline.S
 AS_SOURCES += ./arch/x86/bplt-x86-$(TARGET_SUBARCH)-smplock.S
 
 C_SOURCES =  bplt-interface.c
-C_SOURCES += bplt-interface-runtime.c 
+C_SOURCES += bplt-interface-runtime.c
 C_SOURCES += bplt-interface-smp.c
 C_SOURCES += bplt-data.c
 
