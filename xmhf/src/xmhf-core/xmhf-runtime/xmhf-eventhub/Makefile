@@ -12,7 +12,3 @@ C_SOURCES += ./arch/x86/vmx/peh-x86-safemsr.c
 # targets
 include ../runtime.mk
 
-.PHONY: clean
-clean:
-	$(RM) -rf $(OBJECTS) $(OBJECTS_BL)
-

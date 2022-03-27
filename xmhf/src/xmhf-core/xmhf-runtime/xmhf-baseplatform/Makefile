@@ -46,7 +46,3 @@ endif
 # targets
 include ../runtime.mk
 
-.PHONY: clean
-clean:
-	$(RM) -rf $(OBJECTS) $(OBJECTS_BL)
-

@@ -9,7 +9,3 @@ C_SOURCES += ./arch/x86/xcph-x86.c
 # targets
 include ../runtime.mk
 
-.PHONY: clean
-clean:
-	$(RM) -rf $(OBJECTS) $(OBJECTS_BL)
-

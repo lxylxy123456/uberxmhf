@@ -12,7 +12,3 @@ C_SOURCES_BL =  xmhfc-putchar.c
 # targets
 include ../runtime.mk
 
-.PHONY: clean
-clean:
-	$(RM) -rf $(OBJECTS) $(OBJECTS_BL)
-

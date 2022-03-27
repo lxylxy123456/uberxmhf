@@ -15,7 +15,3 @@ C_SOURCES += ./arch/x86/vmx/smpg-x86vmx-data.c
 # targets
 include ../runtime.mk
 
-.PHONY: clean
-clean:
-	$(RM) -rf $(OBJECTS) $(OBJECTS_BL)
-

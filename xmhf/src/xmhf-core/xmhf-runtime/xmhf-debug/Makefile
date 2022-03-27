@@ -18,6 +18,8 @@ endif
 
 C_SOURCES_BL = $(C_SOURCES)
 
+EXTRA_CLEAN = lib.a lib.x86.a
+
 # targets
 include ../runtime.mk
 
@@ -34,6 +36,3 @@ lib.x86.a: $(OBJECTS_BL)
 	$(AR) rvs $@ $^
 endif
 
-.PHONY: clean 
-clean: 
-	$(RM) -rf lib.a lib.x86.a $(OBJECTS) $(OBJECTS_BL)

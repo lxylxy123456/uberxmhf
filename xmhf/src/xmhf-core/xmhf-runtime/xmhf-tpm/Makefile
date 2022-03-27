@@ -16,7 +16,3 @@ C_SOURCES_BL += ./arch/x86/vmx/tpm-x86vmx.c
 # targets
 include ../runtime.mk
 
-.PHONY: clean
-clean:
-	$(RM) -rf $(OBJECTS) $(OBJECTS_BL)
-

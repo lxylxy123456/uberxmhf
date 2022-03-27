@@ -6,6 +6,7 @@
 #   AS_SOURCES: .S files needed by secure loader / runtime
 #   C_SOURCES_BL: .c files needed by boot loader when runtime is amd64
 #   AS_SOURCES_BL: .S files needed by boot loader when runtime is amd64
+#   EXTRA_CLEAN: files to be cleaned other than OBJECTS and OBJECTS_BL
 #
 # This file will define these variables
 #   OBJECTS: .o files needed by secure loader / runtime
@@ -16,8 +17,7 @@
 #   *.o: built for secure loader / runtime
 #   *.x86.o: built for boot loader when runtime is amd64
 #       TODO: rename *.x86.o to *.i386.o
-#
-# Files defined by OBJECTS and OBJECTS_BL should be cleaned
+#   clean: remove object files and EXTRA_CLEAN
 
 _AS_OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))
 _C_OBJECTS = $(patsubst %.c, %.o, $(C_SOURCES))
@@ -48,4 +48,8 @@ $(_AS_OBJECTS_BL): %.x86.o: %.S $(I_SOURCES) Makefile ../Makefile ../../Makefile
 $(_C_OBJECTS_BL): %.x86.o: %.c $(I_SOURCES) Makefile ../Makefile ../../Makefile
 	$(CC32) -c $(BCFLAGS) -o $@ $<
 endif
+
+.PHONY: clean
+clean:
+	$(RM) -rf $(OBJECTS) $(OBJECTS_BL) $(EXTRA_CLEAN)
 
