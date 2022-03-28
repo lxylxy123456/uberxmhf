@@ -662,7 +662,7 @@ static inline ulong_t VCPU_reg_get(VCPU *vcpu, struct regs* r,
         case CPU_REG_IP: return VCPU_grip(vcpu);
 
         default:
-            printf("CPU_Reg_Read: Invalid CPU register is given (sel:%u)!\n", sel);
+            printf("VCPU_reg_get: Invalid guest CPU register is given (sel:%u)!\n", sel);
             HALT();
             return 0; // should never hit
     }
@@ -714,7 +714,7 @@ static inline void VCPU_reg_set(VCPU *vcpu, struct regs* r,
             break;
 
         default:
-            printf("CPU_Reg_Read: Invalid CPU register is given (sel:%u)!\n", sel);
+            printf("VCPU_reg_set: Invalid guest CPU register is given (sel:%u)!\n", sel);
             HALT();
     }
 }
