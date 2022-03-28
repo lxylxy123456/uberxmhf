@@ -702,10 +702,10 @@ static inline void VCPU_reg_set(VCPU *vcpu, struct regs* r,
         case CPU_REG_DI: r->edi = val; break;
         case CPU_REG_BP: r->ebp = val; break;
 #endif /* __AMD64__ */
+
         case CPU_REG_SP: 
             VCPU_grsp_set(vcpu, val);
             break;
-
         case CPU_REG_FLAGS:
             VCPU_grflags_set(vcpu, val);
             break;
