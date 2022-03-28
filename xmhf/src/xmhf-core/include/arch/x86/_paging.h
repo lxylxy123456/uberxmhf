@@ -57,9 +57,15 @@
 #define ADDR_4GB 0x100000000
 #endif
 
-
-#define PAGE_MASK_4K				0xfffff000
-#define PAGE_MASK_1G       0xC0000000
+#ifdef __I386__
+    #define PAGE_MASK_4K		0xfffff000
+    #define PAGE_MASK_1G        0xC0000000
+#elif defined(__AMD64__)
+    #define PAGE_MASK_4K		0xffffffff_fffff000
+    #define PAGE_MASK_1G        0xffffffff_C0000000
+#else
+    #error "Unsupported Arch"
+#endif 
 
 // page sizes
 #define PAGE_SHIFT_4K   12
@@ -76,12 +82,17 @@
 #define PAGE_SIZE_2M    (1UL << PAGE_SHIFT_2M)
 #define PAGE_SIZE_4M    (1UL << PAGE_SHIFT_4M)
 #define PAGE_SIZE_1G    (1UL << PAGE_SHIFT_1G)
+
 #ifdef __AMD64__
 #define PAGE_SIZE_512G  (1UL << PAGE_SHIFT_512G)
 #define PAGE_SIZE_256T  (1UL << PAGE_SHIFT_256T)
 #endif /* __AMD64__ */
 
 /* For physical address: definitions in u64 for both i386 and amd64 */
+// [To-Eric][Bug?] Potential buffer overflow caused by ULL on i386? ULL is always 64-bit, right? If so, it can overflow ulong_t and uintptr_t on i386.  
+// [To-Eric] And why have both of <PAGE_SIZE_4K> and <PA_PAGE_SIZE_4K>?
+// [To-Eric] If we have to define something for different arch, I would suggest to use the way of <PAGE_MASK_4K>. 
+//           Actually I would suggest to have _paging_i386.h and _paging_amd64.h if there are too many defs for specific hardware.
 #define PA_PAGE_SIZE_4K     (1ULL << PAGE_SHIFT_4K)
 #define PA_PAGE_SIZE_2M     (1ULL << PAGE_SHIFT_2M)
 #define PA_PAGE_SIZE_4M     (1ULL << PAGE_SHIFT_4M)
@@ -111,6 +122,8 @@
 #define PAGE_ALIGN_UP256T(size) (((size) + PAGE_SIZE_256T - 1) & ~(PAGE_SIZE_256T - 1))
 #endif /* __AMD64__ */
 
+// [To-Eric][Bug] I highly suspect this definition removes my fix in 8b94fc3
+// "#define SPADDR_ALIGN_UP4K(spaddr)   (((spa_t)(spaddr) + PAGE_SIZE_4K - 1) & (~((spa_t)PAGE_SIZE_4K - 1)))" The type is very important, and note that spa_t is 64-bit even for i386.
 #define PA_PAGE_ALIGN_UP4K(size)    (((size) + PA_PAGE_SIZE_4K - 1) & ~(PA_PAGE_SIZE_4K - 1))
 #define PA_PAGE_ALIGN_UP2M(size)    (((size) + PA_PAGE_SIZE_2M - 1) & ~(PA_PAGE_SIZE_2M - 1))
 #define PA_PAGE_ALIGN_UP4M(size)    (((size) + PA_PAGE_SIZE_4M - 1) & ~(PA_PAGE_SIZE_4M - 1))

@@ -320,6 +320,8 @@ static void _vmx_setupEPT(VCPU *vcpu){
 	for (u64 paddr = 0; paddr < MAX_PHYS_ADDR; paddr += PA_PAGE_SIZE_4K) {
 		if (PA_PAGE_ALIGNED_512G(paddr)) {
 			/* Create PML4E */
+            // [To-Eric][Bug] (1) Do not use "/" in kernels because kernels then may have to handle float context. Use shift instead
+            // [To-Eric] (2) "i * PA_PAGE_SIZE_4K" is slow, use shift instead. Please change all their occurance.
 			u64 i = paddr / PA_PAGE_SIZE_512G;
 			pml4_entry[i] = (pdp_table + i * PA_PAGE_SIZE_4K) | 0x7;
 		}

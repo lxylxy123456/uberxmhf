@@ -625,7 +625,7 @@ enum CPU_Reg_Sel
 /*
  * Get a guest register
  */
-static inline uintptr_t VCPU_reg_get(VCPU *vcpu, struct regs* r,
+static inline ulong_t VCPU_reg_get(VCPU *vcpu, struct regs* r,
                                      enum CPU_Reg_Sel sel)
 {
     switch (sel)
@@ -673,7 +673,7 @@ static inline uintptr_t VCPU_reg_get(VCPU *vcpu, struct regs* r,
  * Set a guest register
  */
 static inline void VCPU_reg_set(VCPU *vcpu, struct regs* r,
-                                enum CPU_Reg_Sel sel, uintptr_t val)
+                                enum CPU_Reg_Sel sel, ulong_t val)
 {
     switch (sel)
     {
