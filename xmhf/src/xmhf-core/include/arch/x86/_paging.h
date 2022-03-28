@@ -58,11 +58,11 @@
 #endif
 
 #ifdef __I386__
-    #define PAGE_MASK_4K		0xfffff000
+    #define PAGE_MASK_4K		0xFFFFF000
     #define PAGE_MASK_1G        0xC0000000
 #elif defined(__AMD64__)
-    #define PAGE_MASK_4K		0xffffffff_fffff000
-    #define PAGE_MASK_1G        0xffffffff_C0000000
+    #define PAGE_MASK_4K		0xFFFFFFFFFFFFF000
+    #define PAGE_MASK_1G        0xFFFFFFFFC0000000
 #else
     #error "Unsupported Arch"
 #endif 
