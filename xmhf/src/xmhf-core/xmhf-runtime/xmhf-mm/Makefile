@@ -2,27 +2,11 @@
 # author: amit vasudevan (amitvasudevan@acm.org)
 
 # source files
-# AS_SOURCES = runtimesup.S 
 AS_SOURCES =
 
-C_SOURCES = xmhf-tlsf.c xmhf-mm.c
-
-OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))
-OBJECTS += $(patsubst %.c, %.o, $(C_SOURCES))
-
-I_SOURCES =  $(wildcard $(INCLUDEDIR)/*.h)
+C_SOURCES =  xmhf-tlsf.c
+C_SOURCES += xmhf-mm.c
 
 # targets
-.PHONY: all
-all: $(OBJECTS) 
-
-%.o: %.S $(I_SOURCES) Makefile ../Makefile ../../../Makefile 
-	$(CC) -c $(ASFLAGS) -o $@ $<
-%.o: %.c $(I_SOURCES) Makefile ../Makefile ../../../Makefile
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-.PHONY: clean 
-clean: 
-	$(RM) -rf *.o
-
+include ../runtime.mk
 
