@@ -157,6 +157,7 @@
 // amd64: manually follow this order in assembly code
 struct regs
 {
+    // [To-Eric] Using "#ifdef __I386__   ... #elif defined(__AMD64__) ... #else #error "Unsupported Arch" " is better because it can easily support new arch. The current code is silent and incorrect when accidentally seeing a new arch.
 #ifdef __AMD64__
   union { u64 rdi; u32 edi; } __attribute__ ((packed));
   union { u64 rsi; u32 esi; } __attribute__ ((packed));

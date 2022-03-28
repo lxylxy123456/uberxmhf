@@ -637,7 +637,6 @@ static inline ulong_t VCPU_reg_get(VCPU *vcpu, struct regs* r,
         case CPU_REG_DX: return r->rdx;
         case CPU_REG_SI: return r->rsi;
         case CPU_REG_DI: return r->rdi;
-        case CPU_REG_SP: return r->rsp;
         case CPU_REG_BP: return r->rbp;
 
         case CPU_REG_R8: return r->r8;
@@ -655,10 +654,10 @@ static inline ulong_t VCPU_reg_get(VCPU *vcpu, struct regs* r,
         case CPU_REG_DX: return r->edx;
         case CPU_REG_SI: return r->esi;
         case CPU_REG_DI: return r->edi;
-        case CPU_REG_SP: return r->esp;
         case CPU_REG_BP: return r->ebp;
 #endif /* __AMD64__ */
-
+        
+        case CPU_REG_SP: return VCPU_grsp(vcpu);
         case CPU_REG_FLAGS: return VCPU_grflags(vcpu);
         case CPU_REG_IP: return VCPU_grip(vcpu);
 
@@ -684,7 +683,6 @@ static inline void VCPU_reg_set(VCPU *vcpu, struct regs* r,
         case CPU_REG_DX: r->rdx = val; break;
         case CPU_REG_SI: r->rsi = val; break;
         case CPU_REG_DI: r->rdi = val; break;
-        case CPU_REG_SP: r->rsp = val; break;
         case CPU_REG_BP: r->rbp = val; break;
 
         case CPU_REG_R8: r->r8 = val; break;
@@ -702,9 +700,11 @@ static inline void VCPU_reg_set(VCPU *vcpu, struct regs* r,
         case CPU_REG_DX: r->edx = val; break;
         case CPU_REG_SI: r->esi = val; break;
         case CPU_REG_DI: r->edi = val; break;
-        case CPU_REG_SP: r->esp = val; break;
         case CPU_REG_BP: r->ebp = val; break;
 #endif /* __AMD64__ */
+        case CPU_REG_SP: 
+            VCPU_grsp_set(vcpu, val);
+            break;
 
         case CPU_REG_FLAGS:
             VCPU_grflags_set(vcpu, val);
