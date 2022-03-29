@@ -330,45 +330,12 @@ static uint32_t tpm_osap(uint32_t locality, tpm_entity_type_t ent_type,
     return ret;
 }
 
-uint32_t _tpm_seal(uint32_t locality,
-                  const tpm_encauth_t *enc_auth, uint32_t pcr_info_size,
-                  const tpm_pcr_info_long_t *pcr_info, uint32_t in_data_size,
-                  const uint8_t *in_data,
-                  tpm_authhandle_t hauth, const tpm_nonce_t *nonce_odd,
-                  uint8_t *cont_session, const tpm_authdata_t *pub_auth,
-                  uint8_t *sealed_data)
+void _tpm_seal(uint8_t *sealed_data)
 {
-    uint32_t ret, offset, out_size;
-
-    offset = 0;
-    UNLOAD_BLOB_TYPE(WRAPPER_IN_BUF, offset, enc_auth);
-    UNLOAD_INTEGER(WRAPPER_IN_BUF, offset, pcr_info_size);
-    UNLOAD_PCR_INFO_LONG(WRAPPER_IN_BUF, offset, pcr_info);
-    UNLOAD_INTEGER(WRAPPER_IN_BUF, offset, in_data_size);
-    UNLOAD_BLOB(WRAPPER_IN_BUF, offset, in_data, in_data_size);
-
-    UNLOAD_INTEGER(WRAPPER_IN_BUF, offset, hauth);
-    UNLOAD_BLOB_TYPE(WRAPPER_IN_BUF, offset, nonce_odd);
-    UNLOAD_INTEGER(WRAPPER_IN_BUF, offset, *cont_session);
-    UNLOAD_BLOB_TYPE(WRAPPER_IN_BUF, offset, pub_auth);
-
-    out_size = WRAPPER_OUT_MAX_SIZE;
-
-    ret = tpm_submit_cmd_auth1(locality, TPM_ORD_SEAL, offset, &out_size);
-
-#ifdef TPM_TRACE
-    printf("TPM: seal data, return value = %08X\n", ret);
-#endif
-    if ( ret != TPM_SUCCESS ) {
-        printf("TPM: seal data, return value = %08X\n", ret);
-        return ret;
-    }
-
-    offset = 0;
 //    LOAD_STORED_DATA12(WRAPPER_OUT_BUF, offset, sealed_data);
 
 	{
-	   const uint8_t *p1 = (const uint8_t *)(WRAPPER_OUT_BUF + offset);
+	   const uint8_t *p1 = (const uint8_t *)(WRAPPER_OUT_BUF);
 	   if ( ((tpm_stored_data12_header_t *)(sealed_data))->seal_info_size == 0 ) {
 //	       LOAD_INTEGER(WRAPPER_OUT_BUF, offset,
 //	                    ((tpm_stored_data12_short_t *)sealed_data)->enc_data_size);
@@ -398,7 +365,6 @@ uint32_t _tpm_seal(uint32_t locality,
 	   }
 	}
 
-    return ret;
 }
 
 static uint32_t _tpm_unseal(uint32_t locality, tpm_key_handle_t hkey,
