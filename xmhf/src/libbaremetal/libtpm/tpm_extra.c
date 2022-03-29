@@ -399,15 +399,16 @@ static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
 //    LOAD_STORED_DATA12(WRAPPER_OUT_BUF, offset, sealed_data);
 
 	{
+	   const uint8_t *p1 = (const uint8_t *)(WRAPPER_OUT_BUF + offset);
 	   if ( ((tpm_stored_data12_header_t *)(sealed_data))->seal_info_size == 0 ) {
 //	       LOAD_INTEGER(WRAPPER_OUT_BUF, offset,
 //	                    ((tpm_stored_data12_short_t *)sealed_data)->enc_data_size);
-			_reverse_copy2(
-				(uint8_t *)&(((tpm_stored_data12_short_t *)sealed_data)->enc_data_size),
-				(const uint8_t *)(WRAPPER_OUT_BUF + offset),
-				4
-				//sizeof(uint32_t)
-				);
+			uint8_t *p2 = (uint8_t *)&(((tpm_stored_data12_short_t *)sealed_data)->enc_data_size);
+			// p2[0] = p1[0];
+			// p2[1] = p1[1];
+			// p2[2] = p1[2];
+			// p2[3] = p1[3];
+			_reverse_copy2(p2, p1, 4);
 	   }
 	   else {
 //	       LOAD_PCR_INFO_LONG(WRAPPER_OUT_BUF, offset,
@@ -415,13 +416,10 @@ static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
 
 //			LOAD_INTEGER(WRAPPER_OUT_BUF, offset,
 //						(&((tpm_stored_data12_t *)sealed_data)->seal_info)->tag);
-
-			_reverse_copy2(
-				(uint8_t *)&((&((tpm_stored_data12_t *)sealed_data)->seal_info)->tag),
-				(const uint8_t *)(WRAPPER_OUT_BUF + offset),
-				2
-				//sizeof(uint16_t /* tpm_structure_tag_t */)
-				);
+			uint8_t *p3 = (uint8_t *)&((&((tpm_stored_data12_t *)sealed_data)->seal_info)->tag);
+			// p3[0] = p1[0];
+			// p3[1] = p1[1];
+			_reverse_copy2(p3, p1, 2);
 	   }
 	}
 
