@@ -8,9 +8,7 @@ typedef struct __attribute__ ((packed)) {
 } tpm_stored_data12_header_t;
 
 typedef struct __attribute__ ((packed)) {
-    tpm_stored_data12_header_t  header;
     uint32_t                    enc_data_size;
-    uint8_t                     enc_data[];
 } tpm_stored_data12_short_t;
 
 typedef struct __attribute__ ((packed)) {
@@ -18,10 +16,7 @@ typedef struct __attribute__ ((packed)) {
 } tpm_pcr_info_long_t;
 
 typedef struct __attribute__ ((packed)) {
-    tpm_stored_data12_header_t  header;
     tpm_pcr_info_long_t         seal_info;
-    uint32_t                    enc_data_size;
-    uint8_t                     enc_data[];
 } tpm_stored_data12_t;
 
 #define RSP_HEAD_SIZE           10
@@ -40,7 +35,7 @@ void _tpm_seal(uint8_t *sealed_data)
 
 	{
 	   const uint8_t *p1 = (const uint8_t *)(WRAPPER_OUT_BUF);
-	   if ( ((tpm_stored_data12_header_t *)(sealed_data))->seal_info_size == 0 ) {
+	   if ( ((tpm_stored_data12_header_t *)(sealed_data))->seal_info_size == 12 ) {
 //	       LOAD_INTEGER(WRAPPER_OUT_BUF, offset,
 //	                    ((tpm_stored_data12_short_t *)sealed_data)->enc_data_size);
 			uint8_t *p2 = (uint8_t *)&(((tpm_stored_data12_short_t *)sealed_data)->enc_data_size);
