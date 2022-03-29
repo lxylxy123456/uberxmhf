@@ -397,8 +397,11 @@ static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
 	                    ((tpm_stored_data12_short_t *)sealed_data)->enc_data_size);
 	   }
 	   else {
-	       LOAD_PCR_INFO_LONG(WRAPPER_OUT_BUF, offset,
-	                          &((tpm_stored_data12_t *)sealed_data)->seal_info);
+//	       LOAD_PCR_INFO_LONG(WRAPPER_OUT_BUF, offset,
+//	                          &((tpm_stored_data12_t *)sealed_data)->seal_info);
+
+			LOAD_INTEGER(WRAPPER_OUT_BUF, offset,
+						(&((tpm_stored_data12_t *)sealed_data)->seal_info)->tag);
 	   }
 	}
 
