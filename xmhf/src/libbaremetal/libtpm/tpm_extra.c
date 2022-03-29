@@ -389,7 +389,19 @@ static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
     }
 
     offset = 0;
-    LOAD_STORED_DATA12(WRAPPER_OUT_BUF, offset, sealed_data);
+//    LOAD_STORED_DATA12(WRAPPER_OUT_BUF, offset, sealed_data);
+
+	{
+	   if ( ((tpm_stored_data12_header_t *)(sealed_data))->seal_info_size == 0 ) {
+	       LOAD_INTEGER(WRAPPER_OUT_BUF, offset,
+	                    ((tpm_stored_data12_short_t *)sealed_data)->enc_data_size);
+	   }
+	   else {
+	       LOAD_PCR_INFO_LONG(WRAPPER_OUT_BUF, offset,
+	                          &((tpm_stored_data12_t *)sealed_data)->seal_info);
+	   }
+	}
+
     *sealed_data_size = offset;
     LOAD_BLOB_TYPE(WRAPPER_OUT_BUF, offset, nonce_even);
     LOAD_INTEGER(WRAPPER_OUT_BUF, offset, *cont_session);
