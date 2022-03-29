@@ -104,8 +104,5 @@ SECTIONS
    * this part out to see what sections end up in the output
    * which are not handled above, and handle them.
    */
-  .unaccounted : {
-    *(*)
-  } >unaccounted
 
 }
