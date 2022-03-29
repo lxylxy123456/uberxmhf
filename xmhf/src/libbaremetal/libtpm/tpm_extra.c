@@ -3,12 +3,7 @@
 #include <stdint.h>
 #include <sha1.h>
 
-typedef uint16_t tpm_structure_tag_t;
-typedef uint16_t tpm_entity_type_t;
-
 typedef struct __attribute__ ((packed)) {
-    tpm_structure_tag_t         tag;
-    tpm_entity_type_t           et;
     uint32_t                    seal_info_size;
 } tpm_stored_data12_header_t;
 
@@ -18,28 +13,8 @@ typedef struct __attribute__ ((packed)) {
     uint8_t                     enc_data[];
 } tpm_stored_data12_short_t;
 
-typedef uint8_t tpm_locality_selection_t;
-
 typedef struct __attribute__ ((packed)) {
-    uint16_t    size_of_select;
-    uint8_t     pcr_select[3];
-} tpm_pcr_selection_t;
-
-#define TPM_DIGEST_SIZE          20
-typedef struct __attribute__ ((packed)) {
-    uint8_t     digest[TPM_DIGEST_SIZE];
-} tpm_digest_t;
-
-typedef tpm_digest_t tpm_composite_hash_t;
-
-typedef struct __attribute__ ((packed)) {
-    tpm_structure_tag_t         tag;
-    tpm_locality_selection_t    locality_at_creation;
-    tpm_locality_selection_t    locality_at_release;
-    tpm_pcr_selection_t         creation_pcr_selection;
-    tpm_pcr_selection_t         release_pcr_selection;
-    tpm_composite_hash_t        digest_at_creation;
-    tpm_composite_hash_t        digest_at_release;
+    uint16_t         tag;
 } tpm_pcr_info_long_t;
 
 typedef struct __attribute__ ((packed)) {
