@@ -330,14 +330,7 @@ static uint32_t tpm_osap(uint32_t locality, tpm_entity_type_t ent_type,
     return ret;
 }
 
-static inline void _reverse_copy2(uint8_t *out, const uint8_t *in, uint32_t count)
-{
-    uint32_t i;
-    for ( i = 0; i < count; i++ )
-        out[i] = in[0];
-}
-
-static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
+uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
                   const tpm_encauth_t *enc_auth, uint32_t pcr_info_size,
                   const tpm_pcr_info_long_t *pcr_info, uint32_t in_data_size,
                   const uint8_t *in_data,
@@ -408,11 +401,8 @@ static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
 			// p2[1] = p1[1];
 			// p2[2] = p1[2];
 			// p2[3] = p1[3];
-//			_reverse_copy2(p2, p1, 4);
 			{
-				uint32_t count = 4;
-				uint32_t i;
-				for ( i = 0; i < count; i++ )
+				for (uint32_t i = 0; i < 4; i++ )
 					p2[i] = p1[0];
 			}
 	   }
@@ -425,21 +415,10 @@ static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
 			uint8_t *p3 = (uint8_t *)&((&((tpm_stored_data12_t *)sealed_data)->seal_info)->tag);
 			// p3[0] = p1[0];
 			// p3[1] = p1[1];
-//			_reverse_copy2(p3, p1, 2);
 			{
-				uint32_t count = 2;
-				uint32_t i;
-				for ( i = 0; i < count; i++ )
+				for (uint32_t i = 0; i < 2; i++ )
 					p3[i] = p1[0];
 			}
-/*
-static inline void _reverse_copy2(uint8_t *out, const uint8_t *in, uint32_t count)
-{
-    uint32_t i;
-    for ( i = 0; i < count; i++ )
-        out[i] = in[0];
-}
-*/
 	   }
 	}
 
