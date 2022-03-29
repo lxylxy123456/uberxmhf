@@ -330,6 +330,13 @@ static uint32_t tpm_osap(uint32_t locality, tpm_entity_type_t ent_type,
     return ret;
 }
 
+static inline void _reverse_copy2(uint8_t *out, const uint8_t *in, uint32_t count)
+{
+    uint32_t i;
+    for ( i = 0; i < count; i++ )
+        out[i] = in[count - i - 1];
+}
+
 static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
                   const tpm_encauth_t *enc_auth, uint32_t pcr_info_size,
                   const tpm_pcr_info_long_t *pcr_info, uint32_t in_data_size,
@@ -393,15 +400,24 @@ static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
 
 	{
 	   if ( ((tpm_stored_data12_header_t *)(sealed_data))->seal_info_size == 0 ) {
-	       LOAD_INTEGER(WRAPPER_OUT_BUF, offset,
-	                    ((tpm_stored_data12_short_t *)sealed_data)->enc_data_size);
+//	       LOAD_INTEGER(WRAPPER_OUT_BUF, offset,
+//	                    ((tpm_stored_data12_short_t *)sealed_data)->enc_data_size);
+			_reverse_copy2(
+				(uint8_t *)&(((tpm_stored_data12_short_t *)sealed_data)->enc_data_size),
+				(const uint8_t *)(WRAPPER_OUT_BUF + offset),
+				sizeof(((tpm_stored_data12_short_t *)sealed_data)->enc_data_size));
 	   }
 	   else {
 //	       LOAD_PCR_INFO_LONG(WRAPPER_OUT_BUF, offset,
 //	                          &((tpm_stored_data12_t *)sealed_data)->seal_info);
 
-			LOAD_INTEGER(WRAPPER_OUT_BUF, offset,
-						(&((tpm_stored_data12_t *)sealed_data)->seal_info)->tag);
+//			LOAD_INTEGER(WRAPPER_OUT_BUF, offset,
+//						(&((tpm_stored_data12_t *)sealed_data)->seal_info)->tag);
+
+			_reverse_copy2(
+				(uint8_t *)&((&((tpm_stored_data12_t *)sealed_data)->seal_info)->tag),
+				(const uint8_t *)(WRAPPER_OUT_BUF + offset),
+				sizeof((&((tpm_stored_data12_t *)sealed_data)->seal_info)->tag));
 	   }
 	}
 
