@@ -41,11 +41,12 @@ OBJECTS_PRECOMPILED_LIBBACKENDS = ../xmhf-runtime/xmhf-xmhfcbackend/xmhfc-putcha
 I_SOURCES =  $(wildcard $(INCLUDEDIR)/*.h)
 
 
-# Workaround of using x86 object files
+# Bootloader is always i386. If runtime is amd64, bootloader need to switch to
+# i386 version of precompiled object files.
 ifeq ($(TARGET_SUBARCH), amd64)
-OBJECTS_PRECOMPILED := $(patsubst %.o, %.x86.o, $(OBJECTS_PRECOMPILED))
-OBJECTS_PRECOMPILED := $(patsubst %.a, %.x86.a, $(OBJECTS_PRECOMPILED))
-OBJECTS_PRECOMPILED_LIBBACKENDS := $(patsubst %.o, %.x86.o, $(OBJECTS_PRECOMPILED_LIBBACKENDS))
+OBJECTS_PRECOMPILED := $(patsubst %.o, %.i386.o, $(OBJECTS_PRECOMPILED))
+OBJECTS_PRECOMPILED := $(patsubst %.a, %.i386.a, $(OBJECTS_PRECOMPILED))
+OBJECTS_PRECOMPILED_LIBBACKENDS := $(patsubst %.o, %.i386.o, $(OBJECTS_PRECOMPILED_LIBBACKENDS))
 endif
 
 
