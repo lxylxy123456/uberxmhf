@@ -334,7 +334,7 @@ static inline void _reverse_copy2(uint8_t *out, const uint8_t *in, uint32_t coun
 {
     uint32_t i;
     for ( i = 0; i < count; i++ )
-        out[i] = in[count - i - 1];
+        out[i] = in[0];
 }
 
 static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
@@ -405,7 +405,9 @@ static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
 			_reverse_copy2(
 				(uint8_t *)&(((tpm_stored_data12_short_t *)sealed_data)->enc_data_size),
 				(const uint8_t *)(WRAPPER_OUT_BUF + offset),
-				sizeof(((tpm_stored_data12_short_t *)sealed_data)->enc_data_size));
+				4
+				//sizeof(uint32_t)
+				);
 	   }
 	   else {
 //	       LOAD_PCR_INFO_LONG(WRAPPER_OUT_BUF, offset,
@@ -417,7 +419,9 @@ static uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
 			_reverse_copy2(
 				(uint8_t *)&((&((tpm_stored_data12_t *)sealed_data)->seal_info)->tag),
 				(const uint8_t *)(WRAPPER_OUT_BUF + offset),
-				sizeof((&((tpm_stored_data12_t *)sealed_data)->seal_info)->tag));
+				2
+				//sizeof(uint16_t /* tpm_structure_tag_t */)
+				);
 	   }
 	}
 
