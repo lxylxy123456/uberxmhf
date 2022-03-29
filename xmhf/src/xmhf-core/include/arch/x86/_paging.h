@@ -65,7 +65,7 @@
     #define PAGE_MASK_1G        0xFFFFFFFFC0000000
 #else
     #error "Unsupported Arch"
-#endif 
+#endif
 
 // page sizes
 #define PAGE_SHIFT_4K   12
