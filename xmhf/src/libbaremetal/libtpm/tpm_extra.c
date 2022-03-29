@@ -330,27 +330,17 @@ static uint32_t tpm_osap(uint32_t locality, tpm_entity_type_t ent_type,
     return ret;
 }
 
-uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
+uint32_t _tpm_seal(uint32_t locality,
                   const tpm_encauth_t *enc_auth, uint32_t pcr_info_size,
                   const tpm_pcr_info_long_t *pcr_info, uint32_t in_data_size,
                   const uint8_t *in_data,
                   tpm_authhandle_t hauth, const tpm_nonce_t *nonce_odd,
                   uint8_t *cont_session, const tpm_authdata_t *pub_auth,
-                  uint32_t *sealed_data_size, uint8_t *sealed_data,
-                  tpm_nonce_t *nonce_even, tpm_authdata_t *res_auth)
+                  uint8_t *sealed_data)
 {
     uint32_t ret, offset, out_size;
 
-    if ( enc_auth == NULL || pcr_info == NULL || in_data == NULL ||
-         nonce_odd == NULL || cont_session == NULL || pub_auth == NULL ||
-         sealed_data_size == NULL || sealed_data == NULL ||
-         nonce_even == NULL || res_auth == NULL ) {
-        printf("TPM: _tpm_seal() bad parameter\n");
-        return TPM_BAD_PARAMETER;
-    }
-
     offset = 0;
-    UNLOAD_INTEGER(WRAPPER_IN_BUF, offset, hkey);
     UNLOAD_BLOB_TYPE(WRAPPER_IN_BUF, offset, enc_auth);
     UNLOAD_INTEGER(WRAPPER_IN_BUF, offset, pcr_info_size);
     UNLOAD_PCR_INFO_LONG(WRAPPER_IN_BUF, offset, pcr_info);
@@ -372,20 +362,6 @@ uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
     if ( ret != TPM_SUCCESS ) {
         printf("TPM: seal data, return value = %08X\n", ret);
         return ret;
-    }
-
-#ifdef TPM_TRACE
-    {
-        printf("TPM: ");
-        print_hex(NULL, WRAPPER_OUT_BUF, out_size);
-    }
-#endif
-
-    if ( *sealed_data_size <
-         ( out_size - sizeof(*nonce_even) - sizeof(*cont_session)
-           - sizeof(*res_auth) ) ) {
-        printf("TPM: sealed blob is too small\n");
-        return TPM_NOSPACE;
     }
 
     offset = 0;
@@ -421,11 +397,6 @@ uint32_t _tpm_seal(uint32_t locality, tpm_key_handle_t hkey,
 			}
 	   }
 	}
-
-    *sealed_data_size = offset;
-    LOAD_BLOB_TYPE(WRAPPER_OUT_BUF, offset, nonce_even);
-    LOAD_INTEGER(WRAPPER_OUT_BUF, offset, *cont_session);
-    LOAD_BLOB_TYPE(WRAPPER_OUT_BUF, offset, res_auth);
 
     return ret;
 }
@@ -521,14 +492,16 @@ static uint32_t _tpm_wrap_seal(uint32_t locality,
     uint32_t ret;
     tpm_nonce_t odd_osap, even_osap, nonce_even, nonce_odd;
     tpm_authhandle_t hauth;
-    tpm_authdata_t shared_secret, pub_auth, res_auth;
+    tpm_authdata_t shared_secret, pub_auth;
     tpm_encauth_t enc_auth;
     uint8_t cont_session = false;
-    tpm_key_handle_t hkey = TPM_KH_SRK;
+    // tpm_key_handle_t hkey = TPM_KH_SRK;
     uint32_t pcr_info_size = sizeof(*pcr_info);
     uint32_t offset;
     uint32_t ordinal = TPM_ORD_SEAL;
     tpm_digest_t digest;
+	(void)sealed_data_size;
+	(void)sealed_data;
 
     /*
      * Skip generate nonce for odd_osap. Used to use the random value in stack,
@@ -584,13 +557,13 @@ static uint32_t _tpm_wrap_seal(uint32_t locality,
               WRAPPER_IN_BUF, offset,
               (uint8_t *)&pub_auth);
 
-    /* call the simple seal function */
-    ret = _tpm_seal(locality, hkey, (const tpm_encauth_t *)&enc_auth,
-                    pcr_info_size, pcr_info, in_data_size, in_data,
-                    hauth, &nonce_odd, &cont_session,
-                    (const tpm_authdata_t *)&pub_auth,
-                    sealed_data_size, sealed_data,
-                    &nonce_even, &res_auth);
+//    /* call the simple seal function */
+//    ret = _tpm_seal(locality, hkey, (const tpm_encauth_t *)&enc_auth,
+//                    pcr_info_size, pcr_info, in_data_size, in_data,
+//                    hauth, &nonce_odd, &cont_session,
+//                    (const tpm_authdata_t *)&pub_auth,
+//                    sealed_data_size, sealed_data,
+//                    &nonce_even, &res_auth);
 
     /* skip check for res_auth */
 
