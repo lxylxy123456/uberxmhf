@@ -50,6 +50,9 @@ skip this error.
 
 This is also reproducible in Debian 11.
 
+Bug report written in `bug.txt`, attachment is `b.i`. Reported in
+<https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105100>
+
 TODO
 
 ### Compile error in Debian 11's environment
@@ -66,7 +69,9 @@ scode.c:1281:5: note: called from here
 cc1: all warnings being treated as errors
 ```
 
-TODO
+This is fixed by git `08fcdb596..98b48c6aa`, which adds unlikely compiler hint
+in `EU_CHK` macros (unlikely is implemented with `__builtin_expect(!!(x), 0)`,
+from Linux code).
 
 ### Linking error
 
@@ -82,8 +87,61 @@ The 2 types of new section related to debug info is:
 * `.debug_loc` (Found in Debian 11)
 * `.debug_loclists` (Found in Fedora 35)
 
-# tmp notes
+### Runtime error: APs stuck at SMP initialize
 
-`--with-opt='-O3 -Wno-stringop-overflow'` for Fedora
-`--with-opt='-O3 -Wno-stringop-overflow -Wno-inline'` for Debian
+In `xmhf_baseplatform_arch_x86_smpinitialize_commonstart()`, APs stuck at
+`while(!g_ap_go_signal);` loop. The compiler optimizes this loop to a JMP
+instruction. This is because the `g_ap_go_signal` variable should be
+`volatile`.
+
+Updated the following variables:
+* `g_cpus_active`
+* `g_lock_cpus_active`
+* `g_ap_go_signal`
+* `g_lock_ap_go_signal`
+* `g_vmx_quiesce_counter`
+* `g_vmx_lock_quiesce_counter`
+* `g_vmx_quiesce_resume_counter`
+* `g_vmx_lock_quiesce_resume_counter`
+* `g_vmx_quiesce `
+* `g_vmx_lock_quiesce`
+* `g_vmx_quiesce_resume_signal`
+* `g_vmx_lock_quiesce_resume_signal`
+* `g_vmx_flush_all_tlb_signal`
+* `vcpu->sipireceived`
+* `g_appmain_success_counter`
+* `g_lock_appmain_success_counter`
+
+See git `b94f3aa19..7a41602ef`
+
+After the change, QEMU and HP XMHF 32 can run successfully.
+
+### Testing
+
+| XMHF | DRT | OS             | Platform | App          | Result |
+|------|-----|----------------|----------|--------------|--------|
+| x86  | n   | Debian 11 x86  | QEMU     | pal_demo x86 | good   |
+| x86  | n   | Debian 11 x86  | HP       | pal_demo x86 | good   |
+| x86  | y   | Debian 11 x86  | HP       | pal_demo x86 | good   |
+| x64  | n   | Debian 11 x64  | QEMU     | pal_demo *   | good   |
+| x64  | n   | Debian 11 x64  | HP       | pal_demo *   | good   |
+| x64  | y   | Debian 11 x64  | HP       | pal_demo *   | good   |
+| x64  | y   | Windows 10 x64 | HP       | pal_demo *   | good   |
+
+Looks well, so marking this bug as fixed.
+
+### Conclusion
+
+There are not a lot of things done to support `-O3` compile. Basically fixed
+some compile warnings, and use `--with-opt='-O3 -Wno-stringop-overflow'` to
+workaround a compile warning that cannot be fixed. The most important runtime
+problem is using `volatile` on variables to be accessed by multiple CPUs
+concurrently.
+
+## Fix
+
+`430f6881b..822842a83`
+* Fix compile warnings / errors when compile with `-O3`
+* Add ELF sections to linker scripts when compile with `-O3`
+* Use `volatile` keyword to fix runtime problems when `-O3`
 

@@ -259,12 +259,16 @@
 * Split large build targets for parallelism (`bug_056`)
 * Update .github/build.sh (`bug_056`)
 
-`cd81de2b9..` (c07296815)
+`cd81de2b9..822842a83`
 * PR from Miao: fix bug in 32-bit DMAP
 * Define runtime.mk to capture common logic in runtime Makefiles (`bug_057`)
 * Write documentation for setting up XMHF64 (`bug_057`)
 * Fix compile errors when compiling on Fedora (`bug_057`)
 * Add documentations for compiling on Fedora (`bug_057`)
+* Raise compile error when subarch not in (i386, amd64) (`bug_059`)
+* Fix compile warnings / errors when compile with `-O3` (`bug_058`)
+* Add ELF sections to linker scripts when compile with `-O3` (`bug_058`)
+* Use `volatile` keyword to fix runtime problems when `-O3` (`bug_058`)
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output
