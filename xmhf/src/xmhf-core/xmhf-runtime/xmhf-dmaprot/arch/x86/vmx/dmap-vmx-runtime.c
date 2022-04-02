@@ -515,10 +515,10 @@ u32 xmhf_dmaprot_arch_x86_vmx_enable(spa_t protectedbuffer_paddr,
     // Vt-d bootstrap has minimal DMA translation setup and protects entire
     // system memory. Relax this by instantiating a complete DMA translation
     // structure at a page granularity and protecting only the SL and Runtime
-    uintptr_t vmx_eap_vtd_pml4t_paddr, vmx_eap_vtd_pml4t_vaddr;
-    uintptr_t vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr;
-    uintptr_t vmx_eap_vtd_pdts_paddr, vmx_eap_vtd_pdts_vaddr;
-    uintptr_t vmx_eap_vtd_pts_paddr, vmx_eap_vtd_pts_vaddr;
+    uintptr_t vmx_eap_vtd_pml4t_paddr;
+    uintptr_t vmx_eap_vtd_pdpt_paddr;
+    uintptr_t vmx_eap_vtd_pdts_paddr
+    uintptr_t vmx_eap_vtd_pts_paddr;
     uintptr_t vmx_eap_vtd_ret_paddr;
 
     HALT_ON_ERRORCOND(protectedbuffer_size >= SIZE_G_RNTM_DMAPROT_BUFFER);
@@ -526,13 +526,9 @@ u32 xmhf_dmaprot_arch_x86_vmx_enable(spa_t protectedbuffer_paddr,
     // The VT-d page table created here is a partial one. If 4-level PT is used, then there is only one PML4 entry instead
     // of 512 entries. This is sufficient because the lower 3-level PT covers 0 - 512GB physical memory space
     vmx_eap_vtd_pml4t_paddr = protectedbuffer_paddr;
-    vmx_eap_vtd_pml4t_vaddr = protectedbuffer_vaddr;
     vmx_eap_vtd_pdpt_paddr = protectedbuffer_paddr + PAGE_SIZE_4K;
-    vmx_eap_vtd_pdpt_vaddr = protectedbuffer_vaddr + PAGE_SIZE_4K;
     vmx_eap_vtd_pdts_paddr = vmx_eap_vtd_pdpt_paddr + PAGE_SIZE_4K;
-    vmx_eap_vtd_pdts_vaddr = vmx_eap_vtd_pdpt_vaddr + PAGE_SIZE_4K;
     vmx_eap_vtd_pts_paddr = vmx_eap_vtd_pdts_paddr + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT);
-    vmx_eap_vtd_pts_vaddr = vmx_eap_vtd_pdts_vaddr + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT);
     vmx_eap_vtd_ret_paddr = vmx_eap_vtd_pts_paddr + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT * PAE_PTRS_PER_PDT);
 
     
