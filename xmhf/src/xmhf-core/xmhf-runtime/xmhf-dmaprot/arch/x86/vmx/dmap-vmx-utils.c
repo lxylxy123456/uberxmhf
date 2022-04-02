@@ -1,17 +1,11 @@
 // author: Miao Yu
 
 #include <xmhf.h>
+#include "dmap-vmx-internal.h"
 #include "../../../iommu-pt.h"
 
 extern void* vtd_cet; // cet holds all its structures in the memory linearly
 extern struct dmap_vmx_cap g_vtd_cap;
-
-#define NUM_PT_ENTRIES      512 // The number of page table entries in each level
-
-#define PAE_get_pml4tindex(x)    ((x) >> 39) & (NUM_PT_ENTRIES - 1)
-#define PAE_get_pdptindex(x)    ((x) >> 30) & (NUM_PT_ENTRIES - 1)
-#define PAE_get_pdtindex(x)     ( (x) >> 21) & (NUM_PT_ENTRIES - 1)
-#define PAE_get_ptindex(x)      ( (x) >> 12 ) & (NUM_PT_ENTRIES - 1)
 
 
 //! Invalidate the IOMMU PageTable corresponding to <pt_info>

@@ -205,7 +205,7 @@ void xmhf_runtime_entry(void){
 				protectedbuffer_size = xmhf_dmaprot_getbuffersize(DMAPROT_PHY_ADDR_SPACE_SIZE); // ADDR_512GB
 				HALT_ON_ERRORCOND(protectedbuffer_size <= SIZE_G_RNTM_DMAPROT_BUFFER);
 
-        xmhf_iommu_init();
+                xmhf_iommu_init();
 
 				printf("\nRuntime: Re-initializing DMA protection (physical address space size:0x%llX)...", DMAPROT_PHY_ADDR_SPACE_SIZE);
 				if(!xmhf_dmaprot_initialize(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size)){
@@ -216,6 +216,12 @@ void xmhf_runtime_entry(void){
 				//protect SL and runtime memory regions
 				xmhf_dmaprot_protect(rpb->XtVmmRuntimePhysBase - PAGE_SIZE_2M, rpb->XtVmmRuntimeSize+PAGE_SIZE_2M);
 				printf("\nRuntime: Protected SL+Runtime (%08lx-%08x) from DMA.", rpb->XtVmmRuntimePhysBase - PAGE_SIZE_2M, rpb->XtVmmRuntimePhysBase+rpb->XtVmmRuntimeSize);
+
+                // Enable DMA protection
+                if(!xmhf_dmaprot_enable(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size)){
+					printf("\nRuntime: Unable to enable DMA protection. HALT!");
+					HALT();
+				}
 		}
 
 #else //!__DMAP__
@@ -303,6 +309,12 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 #ifndef __XMHF_VERIFICATION__
   //initialize support for SMP guests
   xmhf_smpguest_initialize(vcpu);
+#endif
+
+#if defined (__DMAP__)
+  // [TODO][Superymk] Ugly hack: HP2540p's GPU does not work properly if not invoking <xmhf_dmaprot_invalidate_cache> 
+  // in <xmhf_runtime_main>.
+  xmhf_dmaprot_invalidate_cache();
 #endif
 
   //start partition (guest)
