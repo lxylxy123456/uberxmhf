@@ -517,7 +517,7 @@ u32 xmhf_dmaprot_arch_x86_vmx_enable(spa_t protectedbuffer_paddr,
     // structure at a page granularity and protecting only the SL and Runtime
     uintptr_t vmx_eap_vtd_pml4t_paddr;
     uintptr_t vmx_eap_vtd_pdpt_paddr;
-    uintptr_t vmx_eap_vtd_pdts_paddr
+    uintptr_t vmx_eap_vtd_pdts_paddr;
     uintptr_t vmx_eap_vtd_pts_paddr;
     uintptr_t vmx_eap_vtd_ret_paddr;
 
