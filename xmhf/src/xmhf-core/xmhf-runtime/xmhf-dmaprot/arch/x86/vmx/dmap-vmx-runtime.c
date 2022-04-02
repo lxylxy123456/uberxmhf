@@ -527,7 +527,7 @@ u32 xmhf_dmaprot_arch_x86_vmx_enable(spa_t protectedbuffer_paddr,
     // The VT-d page table created here is a partial one. If 4-level PT is used, then there is only one PML4 entry instead
     // of 512 entries. This is sufficient because the lower 3-level PT covers 0 - 512GB physical memory space
     vmx_eap_vtd_pml4t_paddr = protectedbuffer_paddr;
-    vmx_eap_vtd_pdpt_paddr = protectedbuffer_paddr + PAGE_SIZE_4K;
+    vmx_eap_vtd_pdpt_paddr = vmx_eap_vtd_pml4t_paddr + PAGE_SIZE_4K;
     vmx_eap_vtd_pdts_paddr = vmx_eap_vtd_pdpt_paddr + PAGE_SIZE_4K;
     vmx_eap_vtd_pts_paddr = vmx_eap_vtd_pdts_paddr + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT);
     vmx_eap_vtd_ret_paddr = vmx_eap_vtd_pts_paddr + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT * PAE_PTRS_PER_PDT);
