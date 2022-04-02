@@ -519,8 +519,7 @@ u32 xmhf_dmaprot_arch_x86_vmx_enable(spa_t protectedbuffer_paddr,
     uintptr_t vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr;
     uintptr_t vmx_eap_vtd_pdts_paddr, vmx_eap_vtd_pdts_vaddr;
     uintptr_t vmx_eap_vtd_pts_paddr, vmx_eap_vtd_pts_vaddr;
-    uintptr_t vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr;
-    uintptr_t vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr;
+    uintptr_t vmx_eap_vtd_ret_paddr;
 
     HALT_ON_ERRORCOND(protectedbuffer_size >= SIZE_G_RNTM_DMAPROT_BUFFER);
 
