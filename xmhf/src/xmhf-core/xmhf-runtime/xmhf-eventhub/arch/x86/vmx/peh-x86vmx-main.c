@@ -979,7 +979,7 @@ u32 xmhf_parteventhub_arch_x86vmx_print_guest(VCPU *vcpu, struct regs *r)
 #ifdef __AMD64__
 	if (vcpu->vmcs.control_VM_entry_controls & (1U << 9)) 
 	{
-		/* amd64 mode */
+		// amd64 mode
 		printf("\n	CPU(0x%02x): RFLAGS=0x%016llx",
 				vcpu->id, vcpu->vmcs.guest_RFLAGS);
 		printf("\n	SS:RSP =0x%04x:0x%016llx",
@@ -1004,7 +1004,7 @@ u32 xmhf_parteventhub_arch_x86vmx_print_guest(VCPU *vcpu, struct regs *r)
 #elif !defined(__I386__)
 	#error "Unsupported Arch"
 #endif /* !defined(__I386__) */
-	/* x86 mode */
+	// i386 mode
 	printf("\n	CPU(0x%02x): EFLAGS=0x%08x",
 			vcpu->id, (u32)vcpu->vmcs.guest_RFLAGS);
 	printf("\n	SS:ESP =0x%04x:0x%08x",
