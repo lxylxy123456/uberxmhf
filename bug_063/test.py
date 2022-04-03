@@ -126,7 +126,7 @@ def send_ssh(args, ssh_port, status):
 	ssh_cmd += ['ssh', '-p', str(ssh_port),
 				'-o', 'ConnectTimeout=%d' % SSH_TIMEOUT,
 				'-o', 'StrictHostKeyChecking=no',
-				'-o', 'UserKnownHostsFile=/dev/null', '127.0.0.1',
+				'-o', 'UserKnownHostsFile=/dev/null', 'lxy@127.0.0.1',
 				'bash', '-c', bash_script]
 	while True:
 		p = Popen(ssh_cmd, stdin=-1, stdout=-1, stderr=-1)
