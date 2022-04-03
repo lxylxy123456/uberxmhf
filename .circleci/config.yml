@@ -1,15 +1,9 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine.
-# See: https://circleci.com/docs/2.0/configuration-reference
 version: 2.1
 
-# Define a job to be invoked later in a workflow.
-# See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 jobs:
   say-hello:
-    # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
     machine:
-      # image: ubuntu-2004:current
+      # Need nested virtualization
       # https://discuss.circleci.com/t/new-android-machine-image-now-available-to-all-users/39467
       image: android:202102-01
     # Add steps to the job
@@ -17,11 +11,20 @@ jobs:
     steps:
       - checkout
       - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
+          name: "Apt-get"
+          command: "
+            sudo apt-get update && \
+            sudo apt-get install \
+                openssh-server git crossbuild-essential-i386 \
+                pbuilder texinfo ruby build-essential autoconf libtool \
+                -y
+          "
       - run:
           name: "Say hello"
-          command: "lscpu"
+          command: "
+            lscpu
+            ssh -V
+          "
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
