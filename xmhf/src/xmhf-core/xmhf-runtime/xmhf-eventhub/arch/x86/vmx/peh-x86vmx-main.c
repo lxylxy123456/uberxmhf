@@ -850,6 +850,14 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
 
+	if ((u32)vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+		if (vcpu->vmcs.guest_RIP > 0x10000ULL) {
+			printf("\n------------------------------------=-=-=-=-=--------------");
+			xmhf_baseplatform_arch_x86vmx_dumpVMCS(vcpu);
+			xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
+		}
+	}
+
 	//handle intercepts
 	switch((u32)vcpu->vmcs.info_vmexit_reason){
 		//--------------------------------------------------------------
