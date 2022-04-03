@@ -286,7 +286,7 @@ static void handle_monitor_trap(VCPU *vcpu, struct regs *r, u16 cs, uintptr_t ri
 			}
 		}
 	}
-	print_bpmt_info("MT", vcpu, r, cs, rip);
+	if (0) print_bpmt_info("MT", vcpu, r, cs, rip);
 	switch (((u64)cs << 32) | rip) {
 	default:
 		/* nop */
@@ -297,7 +297,7 @@ static void handle_monitor_trap(VCPU *vcpu, struct regs *r, u16 cs, uintptr_t ri
 static void handle_breakpoint_hit(VCPU *vcpu, struct regs *r, u16 cs, uintptr_t rip) {
 	(void)vcpu;
 	(void)r;
-	print_bpmt_info("BP", vcpu, r, cs, rip);
+	if (0) print_bpmt_info("BP", vcpu, r, cs, rip);
 	switch (((u64)cs << 32) | rip) {
 	case 0x000000007c00:
 		xxd(0, 16);
@@ -674,7 +674,6 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 			 * Need to change EPT to reflect MTRR changes, because host MTRRs
 			 * are not used when EPT is used.
 			 */
-			enable_monitor_trap(vcpu, 0);
 			if (xmhf_memprot_arch_x86vmx_mtrr_write(vcpu, r->ecx, write_data)) {
 				/*
 				 * When designed, xmhf_memprot_arch_x86vmx_mtrr_write() has not
@@ -1114,6 +1113,17 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 
 	enable_breakpoints(vcpu);
 
+	if ((u32)vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+		if (vcpu->vmcs.guest_RIP > 0x10000ULL) {
+			if (vcpu->vmcs.guest_RIP == 0x0009e046) {
+				enable_monitor_trap(vcpu, 0);
+			}
+			printf("\n------------------------------------=-=-=-=-=--------------");
+			xmhf_baseplatform_arch_x86vmx_dumpVMCS(vcpu);
+			xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
+		}
+	}
+
 	if (vcpu->vmcs.info_vmexit_reason == 37) {
 		// monitor trap
 		handle_monitor_trap(vcpu, r, vcpu->vmcs.guest_CS_selector, vcpu->vmcs.guest_RIP);
@@ -1136,14 +1146,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * is for quiescing (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION),
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
-
-	if ((u32)vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
-		if (vcpu->vmcs.guest_RIP > 0x10000ULL) {
-			printf("\n------------------------------------=-=-=-=-=--------------");
-			xmhf_baseplatform_arch_x86vmx_dumpVMCS(vcpu);
-			xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
-		}
-	}
 
 	//handle intercepts
 	switch((u32)vcpu->vmcs.info_vmexit_reason){
