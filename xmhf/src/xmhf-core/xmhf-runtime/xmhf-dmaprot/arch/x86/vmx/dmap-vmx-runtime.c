@@ -87,7 +87,7 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
     pt_t pt;
     uintptr_t physaddr = 0;
     spa_t m_low_spa = PA_PAGE_ALIGN_1G(machine_low_spa);
-    spa_t m_high_spa = PA_PAGE_ALIGN_UP1G(machine_high_spa);
+    spa_t m_high_spa = PA_PAGE_ALIGN_UP_1G(machine_high_spa);
     u32 num_1G_entries = (m_high_spa - (u64)m_low_spa) >> PAGE_SHIFT_1G;
 
     // Sanity checks
@@ -220,35 +220,6 @@ static bool _vtd_setupRETCET(struct dmap_vmx_cap *vtd_cap,
             *value |= 0x1ULL; // present, enable fault recording/processing, multilevel pt translation
         }
     }
-
-    return true;
-}
-
-// On 32bit machine, we always return 0 - 4G as the machine physical address range, no matter how many memory is installed
-// On 64-bit machine, the function queries the E820 map for the used memory region.
-bool vmx_get_machine_paddr_range(spa_t* machine_base_spa, spa_t* machine_limit_spa)
-{
-    // Sanity checks
-	if(!machine_base_spa || !machine_limit_spa)
-		return false;
-
-#ifdef __AMD64__
-    // Get the base and limit used system physical address from the E820 map
-    if (!xmhf_baseplatform_x86_e820_paddr_range(machine_base_spa, machine_limit_spa))
-    {
-        printf("\n%s: Get system physical address range error! Halting!", __FUNCTION__);
-        return false;
-    }
-
-    // 4K-align the return the address
-    *machine_base_spa = PAGE_ALIGN_4K(*machine_base_spa);
-    *machine_limit_spa = PAGE_ALIGN_UP4K(*machine_limit_spa);
-#elif defined(__I386__)
-    *machine_base_spa = 0;
-    *machine_limit_spa = ADDR_4GB;
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
 
     return true;
 }
@@ -400,7 +371,7 @@ static u32 vmx_eap_initialize(
         u64 phy_space_size = 0;
 
         // Get the base and limit used system physical address from the E820 map
-        status2 = vmx_get_machine_paddr_range(&machine_low_spa, &machine_high_spa);
+        status2 = xmhf_get_machine_paddr_range(&machine_low_spa, &machine_high_spa);
         if (!status2)
         {
             printf("\n%s: Get system physical address range error! Halting!", __FUNCTION__);
@@ -599,7 +570,7 @@ void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size)
     u32 pdptindex, pdtindex, ptindex;
 
     // compute page aligned end
-    end_paddr = PA_PAGE_ALIGN_UP4K(start_paddr + size);
+    end_paddr = PA_PAGE_ALIGN_UP_4K(start_paddr + size);
     start_paddr = PA_PAGE_ALIGN_4K(start_paddr);
 
     // sanity check
@@ -636,7 +607,7 @@ void xmhf_dmaprot_arch_x86_vmx_unprotect(spa_t start_paddr, size_t size)
     u32 pdptindex, pdtindex, ptindex;
 
     // compute page aligned end
-    end_paddr = PA_PAGE_ALIGN_UP4K(start_paddr + size);
+    end_paddr = PA_PAGE_ALIGN_UP_4K(start_paddr + size);
     start_paddr = PA_PAGE_ALIGN_4K(start_paddr);
 
     // sanity check

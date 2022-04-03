@@ -92,12 +92,15 @@
  *
  * This file defines two types of macros. PAGE_* are used for virtual addresses
  * (long, 32-bit for i386, 64-bit for amd64). PA_PAGE_* (SP stands for physical
- * address) are used for physical addresses (long long, always 64-bit).
+ * address) are used for physical addresses (long long, always 64-bit). These
+ * macros will check whether the operand type matches the size of virtual /
+ * physical address. If the size does not match, an static assertion error will
+ * fail.
  *
  * | PAGE_* macro    | PA_PAGE_* macro    | Usage                             |
  * |-----------------|--------------------|-----------------------------------|
  * | PAGE_SIZE_4K    | PA_PAGE_SIZE_4K    | Size of page (integer)            | 
- * | PAGE_ALIGN_UP4K | PA_PAGE_ALIGN_UP4K | Align address up to page boundary |
+ * | PAGE_ALIGN_UP_4K | PA_PAGE_ALIGN_UP_4K | Align address up to page boundary |
  * | PAGE_ALIGN_4K   | PA_PAGE_ALIGN_4K   | Align address to page boundary    |
  * | PAGE_ALIGNED_4K | PA_PAGE_ALIGNED_4K | Test whether address is aligned   |
  *
@@ -109,6 +112,10 @@
  * |---------|----------------------------|----------------------------|
  * | i386    | 4K, 2M, 4M, 1G             | 4K, 2M, 4M, 1G, 512G, 256T | 
  * | amd64   | 4K, 2M, 4M, 1G, 512G, 256T | 4K, 2M, 4M, 1G, 512G, 256T |
+ *
+ * PA_PAGE_ALIGN_UP_NOCHK_* macros are similar to PA_PAGE_ALIGN_UP_* but disable
+ * the type checking. This is necessary when the macro is used outside a
+ * function.
  */
 
 /* Normal macros: u32 for i386, u64 for amd64 */
@@ -143,67 +150,95 @@
 
 #endif
 
+/* Check whether x's type satisfies prefix pf ("" or "PA_") */
+#define _PAGE_TYPE_CHECK(x, pf) \
+    ({ _Static_assert(sizeof(x) == sizeof(pf##PAGE_SIZE_4K)); (x); })
+
 /* Align address up */
 
-#define PAGE_ALIGN_UP4K(size)   (((size) + PAGE_SIZE_4K - 1) & ~(PAGE_SIZE_4K - 1))
-#define PAGE_ALIGN_UP2M(size)   (((size) + PAGE_SIZE_2M - 1) & ~(PAGE_SIZE_2M - 1))
-#define PAGE_ALIGN_UP4M(size)   (((size) + PAGE_SIZE_4M - 1) & ~(PAGE_SIZE_4M - 1))
-#define PAGE_ALIGN_UP1G(size)   (((size) + PAGE_SIZE_1G - 1) & ~(PAGE_SIZE_1G - 1))
+/* Align an address x up. pf is prefix ("" or "PA_"), sz is "4K", "2M", ... */
+#define _PAGE_ALIGN_UP(x, pf, sz)                           \
+    ((_PAGE_TYPE_CHECK((x), pf) + pf##PAGE_SIZE_##sz - 1) & \
+     ~(pf##PAGE_SIZE_##sz - 1))
+
+/* Align a physical address x up, no type checking. sz is "4K", "2M", ... */
+#define _PA_PAGE_ALIGN_UP_NOCHK(x, sz)  \
+    (((x) + PA_PAGE_SIZE_##sz - 1) & ~(PA_PAGE_SIZE_##sz - 1))
+
+#define PAGE_ALIGN_UP_4K(x)         _PAGE_ALIGN_UP((x), , 4K)
+#define PAGE_ALIGN_UP_2M(x)         _PAGE_ALIGN_UP((x), , 2M)
+#define PAGE_ALIGN_UP_4M(x)         _PAGE_ALIGN_UP((x), , 4M)
+#define PAGE_ALIGN_UP_1G(x)         _PAGE_ALIGN_UP((x), , 1G)
 #ifdef __AMD64__
-#define PAGE_ALIGN_UP512G(size) (((size) + PAGE_SIZE_512G - 1) & ~(PAGE_SIZE_512G - 1))
-#define PAGE_ALIGN_UP256T(size) (((size) + PAGE_SIZE_256T - 1) & ~(PAGE_SIZE_256T - 1))
+#define PAGE_ALIGN_UP_512G(x)       _PAGE_ALIGN_UP((x), , 512G)
+#define PAGE_ALIGN_UP_256T(x)       _PAGE_ALIGN_UP((x), , 256T)
 #elif !defined(__I386__)
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) */
 
-#define PA_PAGE_ALIGN_UP4K(size)    (((size) + PA_PAGE_SIZE_4K - 1) & ~(PA_PAGE_SIZE_4K - 1))
-#define PA_PAGE_ALIGN_UP2M(size)    (((size) + PA_PAGE_SIZE_2M - 1) & ~(PA_PAGE_SIZE_2M - 1))
-#define PA_PAGE_ALIGN_UP4M(size)    (((size) + PA_PAGE_SIZE_4M - 1) & ~(PA_PAGE_SIZE_4M - 1))
-#define PA_PAGE_ALIGN_UP1G(size)    (((size) + PA_PAGE_SIZE_1G - 1) & ~(PA_PAGE_SIZE_1G - 1))
-#define PA_PAGE_ALIGN_UP512G(size)  (((size) + PA_PAGE_SIZE_512G - 1) & ~(PA_PAGE_SIZE_512G - 1))
-#define PA_PAGE_ALIGN_UP256T(size)  (((size) + PA_PAGE_SIZE_256T - 1) & ~(PA_PAGE_SIZE_256T - 1))
+#define PA_PAGE_ALIGN_UP_4K(x)      _PAGE_ALIGN_UP((x), PA_, 4K)
+#define PA_PAGE_ALIGN_UP_2M(x)      _PAGE_ALIGN_UP((x), PA_, 2M)
+#define PA_PAGE_ALIGN_UP_4M(x)      _PAGE_ALIGN_UP((x), PA_, 4M)
+#define PA_PAGE_ALIGN_UP_1G(x)      _PAGE_ALIGN_UP((x), PA_, 1G)
+#define PA_PAGE_ALIGN_UP_512G(x)    _PAGE_ALIGN_UP((x), PA_, 512G)
+#define PA_PAGE_ALIGN_UP_256T(x)    _PAGE_ALIGN_UP((x), PA_, 256T)
+
+#define PA_PAGE_ALIGN_UP_NOCHK_4K(x)    _PA_PAGE_ALIGN_UP_NOCHK((x), 4K)
+#define PA_PAGE_ALIGN_UP_NOCHK_2M(x)    _PA_PAGE_ALIGN_UP_NOCHK((x), 2M)
+#define PA_PAGE_ALIGN_UP_NOCHK_4M(x)    _PA_PAGE_ALIGN_UP_NOCHK((x), 4M)
+#define PA_PAGE_ALIGN_UP_NOCHK_1G(x)    _PA_PAGE_ALIGN_UP_NOCHK((x), 1G)
+#define PA_PAGE_ALIGN_UP_NOCHK_512G(x)  _PA_PAGE_ALIGN_UP_NOCHK((x), 512G)
+#define PA_PAGE_ALIGN_UP_NOCHK_256T(x)  _PA_PAGE_ALIGN_UP_NOCHK((x), 256T)
 
 /* Align address (down) */
 
-#define PAGE_ALIGN_4K(size)     ((size) & ~(PAGE_SIZE_4K - 1))
-#define PAGE_ALIGN_2M(size)     ((size) & ~(PAGE_SIZE_2M - 1))
-#define PAGE_ALIGN_4M(size)     ((size) & ~(PAGE_SIZE_4M - 1))
-#define PAGE_ALIGN_1G(size)     ((size) & ~(PAGE_SIZE_1G - 1))
+/* Align an address x down. pf is prefix ("" or "PA_"), sz is "4K", "2M", ... */
+#define _PAGE_ALIGN(x, pf, sz)   \
+    (_PAGE_TYPE_CHECK((x), pf) & ~(pf##PAGE_SIZE_##sz - 1))
+
+#define PAGE_ALIGN_4K(x)        _PAGE_ALIGN((x), , 4K)
+#define PAGE_ALIGN_2M(x)        _PAGE_ALIGN((x), , 2M)
+#define PAGE_ALIGN_4M(x)        _PAGE_ALIGN((x), , 4M)
+#define PAGE_ALIGN_1G(x)        _PAGE_ALIGN((x), , 1G)
 #ifdef __AMD64__
-#define PAGE_ALIGN_512G(size)   ((size) & ~(PAGE_SIZE_512G - 1))
-#define PAGE_ALIGN_256T(size)   ((size) & ~(PAGE_SIZE_256T - 1))
+#define PAGE_ALIGN_512G(x)      _PAGE_ALIGN((x), , 512G)
+#define PAGE_ALIGN_256T(x)      _PAGE_ALIGN((x), , 256T)
 #elif !defined(__I386__)
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) */
 
-#define PA_PAGE_ALIGN_4K(size)      ((size) & ~(PA_PAGE_SIZE_4K - 1))
-#define PA_PAGE_ALIGN_2M(size)      ((size) & ~(PA_PAGE_SIZE_2M - 1))
-#define PA_PAGE_ALIGN_4M(size)      ((size) & ~(PA_PAGE_SIZE_4M - 1))
-#define PA_PAGE_ALIGN_1G(size)      ((size) & ~(PA_PAGE_SIZE_1G - 1))
-#define PA_PAGE_ALIGN_512G(size)    ((size) & ~(PA_PAGE_SIZE_512G - 1))
-#define PA_PAGE_ALIGN_256T(size)    ((size) & ~(PA_PAGE_SIZE_256T - 1))
+#define PA_PAGE_ALIGN_4K(x)     _PAGE_ALIGN((x), PA_, 4K)
+#define PA_PAGE_ALIGN_2M(x)     _PAGE_ALIGN((x), PA_, 2M)
+#define PA_PAGE_ALIGN_4M(x)     _PAGE_ALIGN((x), PA_, 4M)
+#define PA_PAGE_ALIGN_1G(x)     _PAGE_ALIGN((x), PA_, 1G)
+#define PA_PAGE_ALIGN_512G(x)   _PAGE_ALIGN((x), PA_, 512G)
+#define PA_PAGE_ALIGN_256T(x)   _PAGE_ALIGN((x), PA_, 256T)
 
 /* Test whether address is aligned */
 
-#define PAGE_ALIGNED_4K(size)   (PAGE_ALIGN_4K(size) == size)
-#define PAGE_ALIGNED_2M(size)   (PAGE_ALIGN_2M(size) == size)
-#define PAGE_ALIGNED_4M(size)   (PAGE_ALIGN_4M(size) == size)
+/* Test if x is aligned. pf is prefix ("" or "PA_"), sz is "4K", "2M", ... */
+#define _PAGE_ALIGNED(x, pf, sz)   \
+    (pf##PAGE_ALIGN_##sz(x) == _PAGE_TYPE_CHECK((x), pf))
+
+#define PAGE_ALIGNED_4K(x)      _PAGE_ALIGNED((x), , 4K)
+#define PAGE_ALIGNED_2M(x)      _PAGE_ALIGNED((x), , 2M)
+#define PAGE_ALIGNED_4M(x)      _PAGE_ALIGNED((x), , 4M)
+#define PAGE_ALIGNED_1G(x)      _PAGE_ALIGNED((x), , 1G)
 #ifdef __AMD64__
-#define PAGE_ALIGNED_1G(size)   (PAGE_ALIGN_1G(size) == size)
-#define PAGE_ALIGNED_512G(size) (PAGE_ALIGN_512G(size) == size)
-#define PAGE_ALIGNED_256T(size) (PAGE_ALIGN_256T(size) == size)
+#define PAGE_ALIGNED_512G(x)    _PAGE_ALIGNED((x), , 512G)
+#define PAGE_ALIGNED_256T(x)    _PAGE_ALIGNED((x), , 256T)
 #elif !defined(__I386__)
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) */
 
-#define PA_PAGE_ALIGNED_4K(size)    (PA_PAGE_ALIGN_4K(size) == size)
-#define PA_PAGE_ALIGNED_2M(size)    (PA_PAGE_ALIGN_2M(size) == size)
-#define PA_PAGE_ALIGNED_4M(size)    (PA_PAGE_ALIGN_4M(size) == size)
-#define PA_PAGE_ALIGNED_1G(size)    (PA_PAGE_ALIGN_1G(size) == size)
-#define PA_PAGE_ALIGNED_512G(size)  (PA_PAGE_ALIGN_512G(size) == size)
-#define PA_PAGE_ALIGNED_256T(size)  (PA_PAGE_ALIGN_256T(size) == size)
+#define PA_PAGE_ALIGNED_4K(x)   _PAGE_ALIGNED((x), PA_, 4K)
+#define PA_PAGE_ALIGNED_2M(x)   _PAGE_ALIGNED((x), PA_, 2M)
+#define PA_PAGE_ALIGNED_4M(x)   _PAGE_ALIGNED((x), PA_, 4M)
+#define PA_PAGE_ALIGNED_1G(x)   _PAGE_ALIGNED((x), PA_, 1G)
+#define PA_PAGE_ALIGNED_512G(x) _PAGE_ALIGNED((x), PA_, 512G)
+#define PA_PAGE_ALIGNED_256T(x) _PAGE_ALIGNED((x), PA_, 256T)
 
-#define BYTES_TO_PAGE4K(size)   (PAGE_ALIGN_UP4K(size) >> PAGE_SHIFT_4K)
+#define BYTES_TO_PAGE4K(size)   (PAGE_ALIGN_UP_4K(size) >> PAGE_SHIFT_4K)
 
 // non-PAE mode specific definitions
 #define NPAE_PTRS_PER_PDT       1024
@@ -226,20 +261,14 @@
 #define PAE_ENTRY_SIZE     8
 
 // 4-level paging specific definitions
-#ifdef __AMD64__
-#define P4L_NPLM4T  (PAGE_ALIGN_UP256T(MAX_PHYS_ADDR) >> PAGE_SHIFT_256T)
-#define P4L_NPDPT   (PAGE_ALIGN_UP512G(MAX_PHYS_ADDR) >> PAGE_SHIFT_512G)
-#define P4L_NPDT    (PAGE_ALIGN_UP1G(MAX_PHYS_ADDR) >> PAGE_SHIFT_1G)
-#define P4L_NPT     (PAGE_ALIGN_UP2M(MAX_PHYS_ADDR) >> PAGE_SHIFT_2M)
-#elif defined(__I386__)
-/* i386: cannot calculate using PAGE_ALIGN_UP, because PAGE_SIZE is 32-bits */
-#define P4L_NPLM4T  1
-#define P4L_NPDPT   1
-#define P4L_NPDT    4
-#define P4L_NPT     2048
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#define P4L_NPLM4T  \
+    (PA_PAGE_ALIGN_UP_NOCHK_256T(MAX_PHYS_ADDR) >> PAGE_SHIFT_256T)
+#define P4L_NPDPT   \
+    (PA_PAGE_ALIGN_UP_NOCHK_512G(MAX_PHYS_ADDR) >> PAGE_SHIFT_512G)
+#define P4L_NPDT    \
+    (PA_PAGE_ALIGN_UP_NOCHK_1G(MAX_PHYS_ADDR) >> PAGE_SHIFT_1G)
+#define P4L_NPT     \
+    (PA_PAGE_ALIGN_UP_NOCHK_2M(MAX_PHYS_ADDR) >> PAGE_SHIFT_2M)
 
 // various paging flags
 #define _PAGE_BIT_PRESENT       0
@@ -505,10 +534,10 @@ typedef u32 *npt_t;
 #define set_present(entry) (((u64)entry) |= ((u64)_PAGE_PRESENT))
 #define set_not_present(entry) (((u64)entry) &= (~((u64)_PAGE_PRESENT)))
 
-#define SAME_PAGE_PAE(addr1, addr2)		\
+#define SAME_PAGE_PAE(addr1, addr2)             \
     (((addr1) >> PAE_PT_SHIFT) == ((addr2) >> PAE_PT_SHIFT))
 
-#define SAME_PAGE_NPAE(addr1, addr2)		\
+#define SAME_PAGE_NPAE(addr1, addr2)            \
     (((addr1) >> NPAE_PAGETABLE_SHIFT) == ((addr2) >> NPAE_PAGETABLE_SHIFT))
 
 
