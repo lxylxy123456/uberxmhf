@@ -9,7 +9,9 @@ jobs:
     # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
     # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
     machine:
-      image: ubuntu-2004:current
+      # image: ubuntu-2004:current
+      # https://discuss.circleci.com/t/new-android-machine-image-now-available-to-all-users/39467
+      image: android:202102-01
     # Add steps to the job
     # See: https://circleci.com/docs/2.0/configuration-reference/#steps
     steps:
