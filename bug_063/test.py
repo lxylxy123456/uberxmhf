@@ -61,7 +61,7 @@ def update_grub(args):
 			check_call(['sudo', 'chroot', dir_mnt, 'grub-editenv',
 						'/boot/grub/grubenv', 'set',
 						'next_entry=XMHF-%s' % args.subarch])
-			check_call(['sudo', 'sync'])
+			check_call(['sync'])
 		finally:
 			for i in range(5):
 				try:
