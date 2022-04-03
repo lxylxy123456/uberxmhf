@@ -44,59 +44,100 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-OUTPUT_ARCH(i386:x86-64)
+#include <xmhf.h>
 
-ENTRY(xmhf_runtime_entry)
+/* gcc -m32 will define i386, but we do not want it */
+#ifdef i386
+#undef i386
+#endif /* i386 */
+
+#ifdef __I386__
+OUTPUT_ARCH(i386)
+#elif define(__AMD64__)
+OUTPUT_ARCH(i386:x86-64)
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+#error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+
+ENTRY(_sl_start)
+
+/* Goal: constrain the size of the trusted portion of the SL to 64K. AMD
+ * systems limit the Secure Loader Block to 64K max.  Intel permits a
+ * larger MLE (their name for SLB), but we want to remain compatible
+ * with both.
+ */
+
+/* Useful reference:
+ * http://docs.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/4/html/Using_ld_the_GNU_Linker/memory.html
+ */
 
 MEMORY
 {
-  all (rwxai) : ORIGIN = 0x10200000, LENGTH = 768M /* length is arbitrary */
+  low  (rwxai) : ORIGIN = 0,   LENGTH = 64K
+  high (rwxai) : ORIGIN = 64K, LENGTH = 1984K /* balance of 2M total */
   debug (rwxai) : ORIGIN = 0, LENGTH = 1024M
   unaccounted (rwxai) : ORIGIN = 0, LENGTH = 0 /* see section .unaccounted at end */
 }
 
+
 SECTIONS
 {
-  . = 0x10200000;
+  . = 0x00000000;
+  .sl_header : {
+    *(.sl_header)
+    . = ALIGN(4096);
+  } >low
 
   .text : {
-    *(.s_rpb)
     *(.text)
     *(.text.unlikely)
-    . = ALIGN(4096);
-  } =0x9090
+  } >low
 
   .data : {
     *(.data)
+  } >low
+
+  .rodata : {
     *(.rodata)
     *(.rodata.str1.*)
-    *(.comment)
-    *(.eh_frame) /* exception-metadata. might be able to discard */
+  } >low
+
+  .bss : {
     *(.bss)
-    . = ALIGN(4);
-    _begin_xcph_table = .;
-    *(.xcph_table)
-    _end_xcph_table = .;
-    . = ALIGN(4096);
-  } =0x9090
+    /*. = ALIGN(4096);*/
+    . = ALIGN(16);
+  } >low
 
-  /*
-   * This section is marked as NOBITS in runtime.exe. Need to use
-   * --set-section-flags in objcopy to include this section to runtime.bin
-   */
-  .palign_data : {
-    *(.bss.palign_data)
-    . = ALIGN(4096);
-  } =0x9090
+  /* protected DMA protection buffer for DMA protection boot-strapping */
+  /*.protdmabuffer : {
+    *(.protdmabuffer)
+  } >low*/
 
-  /*
-   * This section is marked as NOBITS in runtime.exe. Need to use
-   * --set-section-flags in objcopy to include this section to runtime.bin
+  .sl_stack : {
+    *(.sl_stack)
+    . = ALIGN(0x10000);
+  } >low
+
+  /* Content below is UNTRUSTED.
+   * SL *MUST* sanitize any data here prior to use!
    */
-  .stack : {
-    *(.bss.stack)
+  .sl_untrusted_params : {
+    *(.sl_untrusted_params)
+    *(.comment)
     . = ALIGN(4096);
-  } =0x9090
+    /* .sl_long_pt is only used in amd64 XMHF */
+    *(.sl_long_pt)
+    . = ALIGN(0x200000);
+  } >high
+
+  /* .eh_frame overflows our memory limits when building on some platforms.
+   * Shouldn't be necessary since we don't use exceptions.
+   */
+  /DISCARD/ : {
+    *(.eh_frame)
+    *(.note.gnu.property)
+    *(.gnu.build.attributes)
+  } >low
 
   /* debug sections */
   .debug_abbrev : { *(.debug_abbrev) } >debug
@@ -110,11 +151,6 @@ SECTIONS
   .debug_rnglists : { *(.debug_rnglists) } >debug
   .debug_str : { *(.debug_str) } >debug
 
-  /DISCARD/ : {
-    *(.note.gnu.property)
-    *(.gnu.build.attributes)
-  }
-
   /* this is to cause the link to fail if there is
    * anything we didn't explicitly place.
    * when this does cause link to fail, temporarily comment
@@ -124,5 +160,4 @@ SECTIONS
   .unaccounted : {
     *(*)
   } >unaccounted
-
 }
