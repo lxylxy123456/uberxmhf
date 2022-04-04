@@ -219,8 +219,6 @@ if __name__ == '__main__':
 				pass
 	finally:
 		print('ERROR')
-		while os.path.exists('/tmp/pause'):
-			import time; time.sleep(1)
 		p.kill()
 		p.wait()
 
