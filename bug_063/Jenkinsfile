@@ -1,0 +1,76 @@
+void qemu_test(String subarch, String qemu_image) {
+    sh "rm -rf ../tmp"
+    sh "mkdir ../tmp"
+    sh """
+        python3 -u ../notes/bug_063/test.py \
+            --subarch ${subarch} \
+            --qemu-image .../qemu/${qemu_image} \
+            --xmhf-bin .../uberxmhf/ \
+            --nbd 9 \
+            --work-dir .../tmp \
+            --no-display
+    """
+}
+
+parameters {
+    string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64', description: '')
+}
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Logistics') {
+            steps {
+                dir ('.../uberxmhf') {
+                    sh "git fetch origin ${params.XMHF_BRANCH}"
+                    sh "git checkout ${params.XMHF_BRANCH}"
+                    sh "git pull origin ${params.XMHF_BRANCH}"
+                    sh ""
+                    script {
+                        cmt = sh(
+                            returnStdout: true,
+                            script: 'git rev-parse HEAD | head -c 9').trim()
+                        currentBuild.displayName += " ${params.XMHF_BRANCH}"
+                        currentBuild.displayName += " ${cmt}"
+                    }
+                    
+                }
+                dir ('.../notes') {
+                    sh "git pull"
+                }
+            }
+        }
+        stage('Build i386') {
+            steps {
+                dir ('.../uberxmhf') {
+                    sh "git clean -Xdf"
+                    sh "./.github/build.sh i386"
+                }
+            }
+        }
+        stage('Test i386') {
+            steps {
+                dir ('.../notes') {
+                    qemu_test "i386", "debian11x86-a1.qcow2"
+                }
+            }
+        }
+        stage('Build amd64') {
+            steps {
+                dir ('.../uberxmhf') {
+                    sh "git clean -Xdf"
+                    sh "./.github/build.sh amd64"
+                }
+            }
+        }
+        stage('Test amd64') {
+            steps {
+                dir ('.../notes') {
+                    qemu_test "amd64", "debian11x64-a1.qcow2"
+                }
+            }
+        }
+    }
+}
+
