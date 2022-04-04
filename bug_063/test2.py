@@ -189,13 +189,13 @@ def ssh_operations(args, ssh_port):
 	# 6. test booted 2
 	ss = [threading.Lock(), SSH_CONNECTING, 0, []]
 	stat = run_ssh('date; echo 6. test boot 2; [ ! -f /tmp/asdf ]', 150, 10, ss)
-	if stat or ss[2] == 0:
+	if stat or ss[2] != 0:
 		return 'Failed to boot 2: (%s, %d, %s)' % (stat, ss[2], ss[3])
 	# 7. run test
 	ss = [threading.Lock(), SSH_CONNECTING, 0, []]
 	stat = run_ssh('date; echo 7. run test; ./test_args%d 7 7 7' % wordsize,
 					10, 30, ss)
-	if stat or ss[2] == 0 or 'Test pass' not in ss[3]:
+	if stat or ss[2] != 0 or 'Test pass' not in ss[3]:
 		return 'Test failed: (%s, %d, %s)' % (stat, ss[2], ss[3])
 	# Success
 	return None
@@ -218,6 +218,9 @@ if __name__ == '__main__':
 			except subprocess.TimeoutExpired:
 				pass
 	finally:
+		print('ERROR')
+		while os.path.exists('/tmp/pause'):
+			import time; time.sleep(1)
 		p.kill()
 		p.wait()
 
