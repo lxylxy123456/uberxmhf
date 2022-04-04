@@ -113,7 +113,7 @@ def send_ssh(args, ssh_port, bash_script, status):
 		if args.verbose:
 			print('send_ssh:  retry SSH')
 
-def run_ssh(bash_script, connect_timeout, run_timeoutm, ss):
+def run_ssh(bash_script, connect_timeout, run_timeout, ss):
 	'''
 	Run an ssh command with timeout control etc
 	'''
