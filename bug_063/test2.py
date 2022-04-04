@@ -84,6 +84,8 @@ def send_ssh(args, ssh_port, bash_script, status):
 	ssh_cmd = get_ssh_cmd(args, ssh_port)
 	ssh_cmd += ['lxy@127.0.0.1', 'bash', '-c', bash_script]
 	state = None
+	if args.verbose:
+		print('send_ssh:', bash_script)
 	while True:
 		p = Popen(ssh_cmd, stdin=-1, stdout=-1, stderr=-1)
 		while True:
@@ -165,8 +167,9 @@ def ssh_operations(args, ssh_port):
 	print('scp done')
 	# 3. install
 	ss = [threading.Lock(), SSH_CONNECTING, 0, []]
-	stat = run_ssh('date; echo 3. install; ./install%d.sh' % wordsize, 10, 20,
-					ss)
+	install_num = { 'i386': 86, 'amd64': 64 }[args.subarch]
+	stat = run_ssh('date; echo 3. install; ./install%d.sh' % install_num,
+					10, 20, ss)
 	if stat or ss[2] != 0:
 		return 'Failed to install: (%s, %d, %s)' % (stat, ss[2], ss[3])
 	# 4. restart
