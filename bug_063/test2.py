@@ -218,13 +218,13 @@ if __name__ == '__main__':
 			except subprocess.TimeoutExpired:
 				pass
 	finally:
-		print('ERROR')
 		p.kill()
 		p.wait()
 
 	if result is None:
 		exit(0)
 	else:
+		print('ERROR in ssh_operations()')
 		print(result)
 		exit(1)
 

@@ -18,7 +18,7 @@ Disable PAE: `--cpu=qemu32,pae=no`
 
 ### Install packages
 ```sh
-apt-get install -y sudo    (others same as Ubuntu)
+apt-get install -y sudo libc6-i386    (others same as Ubuntu)
 ```
 
 ### Install non-PAE kernel
