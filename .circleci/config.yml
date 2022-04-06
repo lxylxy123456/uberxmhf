@@ -15,11 +15,10 @@ jobs:
           name: "Apt-get"
           command: "
             sudo apt-get update && \
-            sudo apt-get -q install \
+            sudo apt-get -y -q install \
                 git crossbuild-essential-i386 \
                 pbuilder texinfo ruby build-essential autoconf libtool \
-                qemu-system-x86 \
-                -y
+                qemu-system-x86 sshpass
           "
       - run:
           name: "Build i386"
