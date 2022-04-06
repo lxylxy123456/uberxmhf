@@ -56,7 +56,7 @@ jobs:
                 --subarch ${subarch} \
                 --qemu-image ${PWD}/qemu/${qemu_image} \
                 --qemu-image-back ${PWD}/qemu/${qemu_image_back} \
-                --xmhf-bin ${PWD}/xmhf64/ \
+                --xmhf-bin ${PWD}/ \
                 --sshpass jkl \
                 --work-dir ${PWD}/tmp/ \
                 --no-display \
