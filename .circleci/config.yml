@@ -33,6 +33,9 @@ jobs:
       - restore_cache:
           keys:
             - debian11x86
+      - restore_cache:
+          keys:
+            - debian11x64
       - run:
           name: "Download debian11x86"
           command: ".circleci/download.sh cache"
@@ -40,6 +43,10 @@ jobs:
           key: debian11x86
           paths:
             - cache/debian11x86.qcow2
+      - save_cache:
+          key: debian11x64
+          paths:
+            - cache/debian11x64.qcow2
       - run:
           name: "Test"
           command: |
@@ -67,4 +74,4 @@ workflows:
       - say-hello:
           matrix:
             parameters:
-              subarch: ["i386"]
+              subarch: ["i386", "amd64"]

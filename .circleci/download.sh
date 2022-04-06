@@ -20,5 +20,5 @@ download () {
 }
 
 download "1T1Yw8cBa2zo1fWSZIkry0aOuz2pZS6Tl" "$DOWNLOAD_DIR/debian11x86.qcow2"
-# download "1WntdHCKNmuJ5I34xqriokMlSAC3KcqL-" "$DOWNLOAD_DIR/debian11x64.qcow2"
+download "1WntdHCKNmuJ5I34xqriokMlSAC3KcqL-" "$DOWNLOAD_DIR/debian11x64.qcow2"
 
