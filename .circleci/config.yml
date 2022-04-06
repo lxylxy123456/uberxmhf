@@ -19,7 +19,7 @@ jobs:
 #            sudo apt-get -q install \
 #                openssh-server git crossbuild-essential-i386 \
 #                pbuilder texinfo ruby build-essential autoconf libtool \
-#                qemy-system-x86 \
+#                qemu-system-x86 \
 #                -y
 #          "
       - restore_cache:
@@ -33,10 +33,36 @@ jobs:
           paths:
             - cache/debian11x86.qcow2
       - run:
-          name: "Say hello"
+          name: "Versions"
           command: |
             lscpu
             ssh -V
+            qemu-system-x86_64 -version
+            gcc -v
+      - run:
+          name: "Build i386"
+          command: "./.github/build.sh i386"
+      - run:
+          name: "Test i386"
+          environment:
+            qemu_image_back: "debian11x86.qcow2"
+            qemu_image: "debian11x86-c.qcow2"
+            subarch: "i386"
+          command: |
+            rm -rf tmp qemu
+            mkdir tmp qemu
+            ln -s ${PWD}/cache/${qemu_image_back} qemu
+            qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
+                            -F qcow2 ${PWD}/qemu/${qemu_image}
+            python3 -u ./test2.py \
+                --subarch ${subarch} \
+                --qemu-image ${PWD}/qemu/${qemu_image} \
+                --qemu-image-back ${PWD}/qemu/${qemu_image_back} \
+                --xmhf-bin ${PWD}/xmhf64/ \
+                --sshpass jkl \
+                --work-dir ${PWD}/tmp/ \
+                --no-display \
+                --verbose
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
