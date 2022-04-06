@@ -6,6 +6,9 @@ jobs:
       # Need nested virtualization
       # https://discuss.circleci.com/t/new-android-machine-image-now-available-to-all-users/39467
       image: android:2022.03.1
+    parameters:
+      subarch:
+        type: string
     steps:
       - checkout
       - run:
