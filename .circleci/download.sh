@@ -8,14 +8,13 @@ fi
 DOWNLOAD_DIR="$1"
 mkdir -p "$DOWNLOAD_DIR"
 
-if ! python3 -c 'import gdown'; then
-	python3 -m pip install gdown
-fi
-
 download () {
 	if [ -f "$2" ]; then
 		echo "$2 already exists"
 	else
+		if ! python3 -c 'import gdown'; then
+			python3 -m pip install gdown
+		fi
 		python3 -m gdown.cli "$1" -O "$2"
 	fi
 }
