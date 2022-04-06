@@ -22,7 +22,7 @@ jobs:
           "
       - run:
           name: "Build"
-          command: "./.github/build.sh << matrix.subarch >>"
+          command: "./.github/build.sh << parameters.subarch >>"
       - run:
           name: "Versions"
           command: |
@@ -43,7 +43,7 @@ jobs:
       - run:
           name: "Test"
           command: |
-            source .circleci/env.sh << matrix.subarch >>
+            source .circleci/env.sh << parameters.subarch >>
             rm -rf tmp qemu
             mkdir tmp qemu
             ln -s ${PWD}/cache/${qemu_image_back} qemu
