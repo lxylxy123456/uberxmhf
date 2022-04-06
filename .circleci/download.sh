@@ -16,7 +16,7 @@ download () {
 	if [ -f "$2" ]; then
 		echo "$2 already exists"
 	else
-		gdown "$1" -O "$2"
+		python3 -m gdown.cli "$1" -O "$2"
 	fi
 }
 
