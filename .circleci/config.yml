@@ -27,7 +27,7 @@ jobs:
             - debian11x86
       - run:
           name: "Download debian11x86"
-          command: ".circleci/download.sh"
+          command: ".circleci/download.sh cache"
       - save_cache:
           key: debian11x86
           paths:
