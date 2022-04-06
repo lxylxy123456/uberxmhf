@@ -164,13 +164,13 @@ def ssh_operations(args, ssh_port):
 	print('scp')
 	check_call(scp_cmd)
 	print('scp done')
-	# 3. install
-	ss = [threading.Lock(), SSH_CONNECTING, 0, []]
-	install_num = { 'i386': 86, 'amd64': 64 }[args.subarch]
-	stat = run_ssh('date; echo 3. install; ./install%d.sh' % install_num,
-					10, 20, ss)
-	if stat or ss[2] != 0:
-		return 'Failed to install: (%s, %d, %s)' % (stat, ss[2], ss[3])
+#	# 3. install
+#	ss = [threading.Lock(), SSH_CONNECTING, 0, []]
+#	install_num = { 'i386': 86, 'amd64': 64 }[args.subarch]
+#	stat = run_ssh('date; echo 3. install; ./install%d.sh' % install_num,
+#					10, 20, ss)
+#	if stat or ss[2] != 0:
+#		return 'Failed to install: (%s, %d, %s)' % (stat, ss[2], ss[3])
 	# 4. restart
 	ss = [threading.Lock(), SSH_CONNECTING, 0, []]
 	stat = run_ssh('date; echo 4. restart; touch /tmp/asdf; sudo init 6; ',
