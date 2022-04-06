@@ -53,7 +53,7 @@ jobs:
             ln -s ${PWD}/cache/${qemu_image_back} qemu
             qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
                             -F qcow2 ${PWD}/qemu/${qemu_image}
-            python3 -u ./test2.py \
+            python3 -u ./.circleci/test2.py \
                 --subarch ${subarch} \
                 --qemu-image ${PWD}/qemu/${qemu_image} \
                 --qemu-image-back ${PWD}/qemu/${qemu_image_back} \
