@@ -5,7 +5,6 @@ jobs:
     machine:
       # Need nested virtualization
       # https://discuss.circleci.com/t/new-android-machine-image-now-available-to-all-users/39467
-      # image: android:202102-01
       image: android:2022.03.1
     steps:
       - checkout
@@ -19,8 +18,8 @@ jobs:
                 qemu-system-x86 sshpass
           "
       - run:
-          name: "Build i386"
-          command: "./.github/build.sh i386"
+          name: "Build"
+          command: "./.github/build.sh << matrix.subarch >>"
       - run:
           name: "Versions"
           command: |
@@ -39,19 +38,17 @@ jobs:
           paths:
             - cache/debian11x86.qcow2
       - run:
-          name: "Test i386"
-          environment:
-            qemu_image_back: "debian11x86.qcow2"
-            qemu_image: "debian11x86-c.qcow2"
-            subarch: "i386"
+          name: "Test"
           command: |
+            source .circleci/env.sh << matrix.subarch >>
             rm -rf tmp qemu
             mkdir tmp qemu
             ln -s ${PWD}/cache/${qemu_image_back} qemu
             qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
                             -F qcow2 ${PWD}/qemu/${qemu_image}
+            sha512sum ${PWD}/qemu/${qemu_image_back}
             python3 -u ./.circleci/test2.py \
-                --subarch ${subarch} \
+                --subarch ${SUBARCH} \
                 --qemu-image ${PWD}/qemu/${qemu_image} \
                 --qemu-image-back ${PWD}/qemu/${qemu_image_back} \
                 --xmhf-bin ${PWD}/ \
@@ -64,4 +61,7 @@ jobs:
 workflows:
   say-hello-workflow:
     jobs:
-      - say-hello
+      - say-hello:
+          matrix:
+            parameters:
+              subarch: ["i386"]
