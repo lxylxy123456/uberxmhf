@@ -211,7 +211,7 @@ if __name__ == '__main__':
 
 	# Simple workaround to watch serial output
 	if args.watch_serial:
-		threading.Thread(target=os.system, args=('tail -f %s' % serial_file,),
+		threading.Thread(target=os.system, args=('tail -F %s' % serial_file,),
 						daemon=True).start()
 
 	result = 'Unknown'
