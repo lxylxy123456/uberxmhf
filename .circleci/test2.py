@@ -21,6 +21,7 @@ def parse_args():
 	parser.add_argument('--no-display', action='store_true')
 	parser.add_argument('--sshpass', help='Password for ssh')
 	parser.add_argument('--verbose', action='store_true')
+	parser.add_argument('--watch-serial', action='store_true')
 	args = parser.parse_args()
 	return args
 
@@ -205,7 +206,13 @@ if __name__ == '__main__':
 	reset_qemu(args)
 	ssh_port = get_port()
 	print('Use ssh port', ssh_port)
-	p = spawn_qemu(args, os.path.join(args.work_dir, 'serial'))
+	serial_file = os.path.join(args.work_dir, 'serial')
+	p = spawn_qemu(args, serial_file)
+
+	# Simple workaround to watch serial output
+	if args.watch_serial:
+		threading.Thread(target=os.system, args=('tail -f %s' % serial_file,),
+						daemon=True).start()
 
 	result = 'Unknown'
 	try:
