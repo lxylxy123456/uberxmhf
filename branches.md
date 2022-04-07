@@ -270,13 +270,15 @@
 * Add ELF sections to linker scripts when compile with `-O3` (`bug_058`)
 * Use `volatile` keyword to fix runtime problems when `-O3` (`bug_058`)
 
-`822842a83..` (3bd65eec4)
+`822842a83..` (05943b8e0)
 * Combine common logic in page alignment macros (`bug_060`)
 * Add type checking in page alignment macros (`bug_060`)
 * Remove magic numbers depending on `__TARGET_BASE_SL` (`bug_061`)
 * Merge LD scripts across different subarchs (`bug_061`)
 * Change TR access rights for i386 (`bug_062`)
 * In QEMU, print warning if running amd64 guest in i386 XMHF (`bug_062`)
+* Support running Jenkins for CI (`bug_063`)
+* Support running Circle CI for CI (`bug_063`)
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output

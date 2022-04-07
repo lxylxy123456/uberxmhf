@@ -48,9 +48,42 @@ another bug.
 Note: `test2.py` no longer maintained in notes. From now on maintained in
 xmhf64 source code, in `.jenkins/test2.py`.
 
+### Jenkins Setup
+
+Sha512 of the QCOW2 files are
+```
+ebab48dd69c587e268ecfbf9a0897a661490c771d10cb2ee6d14191532301d6e90063db1e1339d6cba917df5a5e87ccf48709d776c87244f1fda9c79b0c4d4af  debian11x64.qcow2
+1f5c76e1638fd1d64019a3f68cb95914ee5ec4ae5742289fb69bcedd474e1901ab23b1e51ff5e81bdcef33aff432100c144fa9fae7a98921008701d88270e6c0  debian11x86.qcow2
+```
+
+Consider prefetch / pre-populate cache files in
+`/var/lib/jenkins/workspace/xmhf/cache`
+
+Hook
+* In <http://127.0.0.74:8080/job/xmhf/configure>, allow "触发远程构建"
+* In <http://127.0.0.74:8080/user/lxy/configure>, create API token
+
+Shell script for Hook
+```sh
+#!/bin/bash
+set -e
+SCRIPT_DIR="$(realpath "$(dirname $BASH_SOURCE)")"
+cd "$SCRIPT_DIR"
+
+XMHF_BRANCH=xmhf64
+if [ "$#" -gt 0 ]; then
+	XMHF_BRANCH="$1"
+fi
+TOKEN=<REDACTED>
+USR=lxy:<REDACTED>
+URL="http://127.0.0.1:8080/job/xmhf/buildWithParameters?token=$TOKEN"
+curl --user "$USR" "${URL}&XMHF_BRANCH=${XMHF_BRANCH}"
+echo Build requested
+```
+
 ## Fix
 
-`3bd65eec4..`
+`3bd65eec4..05943b8e0`
 * Support running Jenkins for CI
 * Support running Circle CI for CI
 
