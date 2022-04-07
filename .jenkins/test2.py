@@ -205,7 +205,7 @@ def ssh_operations(args, ssh_port):
 			break
 	# For Circle CI, cannot boot Debian on XMHF on KVM, so just return success
 	if args.no_test_xmhf:
-		sleep_dur = 30
+		sleep_dur = 50
 		for i in range(sleep_dur):
 			println('Sleep', i, '/', sleep_dur)
 		return None
@@ -227,7 +227,7 @@ if __name__ == '__main__':
 	args = parse_args()
 	reset_qemu(args)
 	ssh_port = get_port()
-	print('Use ssh port', ssh_port)
+	println('Use ssh port', ssh_port)
 	serial_file = os.path.join(args.work_dir, 'serial')
 	p = spawn_qemu(args, serial_file)
 
@@ -251,9 +251,10 @@ if __name__ == '__main__':
 		p.wait()
 
 	if result is None:
+		println('PASS: successful ssh_operations()')
 		exit(0)
 	else:
-		print('ERROR in ssh_operations()')
-		print(result)
+		println('ERROR in ssh_operations()')
+		println(result)
 		exit(1)
 
