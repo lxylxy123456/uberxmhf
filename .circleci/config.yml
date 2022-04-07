@@ -62,7 +62,7 @@ jobs:
                 --no-display \
                 --verbose \
                 --watch-serial \
-                --no-test-xmhf
+                --smp 1
 
 workflows:
   test-xmhf-workflow:
