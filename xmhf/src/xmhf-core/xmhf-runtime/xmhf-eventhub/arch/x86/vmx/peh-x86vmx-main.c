@@ -111,8 +111,9 @@ static uintptr_t * _vmx_decode_reg(u32 gpr, VCPU *vcpu, struct regs *r){
 
 //---intercept handler (CPUID)--------------------------------------------------
 static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
-	//printf("\nCPU(0x%02x): CPUID", vcpu->id);
 	u32 old_eax = r->eax;
+	// TODO
+	printf("\nCPU(0x%02x): CPUID 0x%08x", vcpu->id, r->eax);
 	asm volatile ("cpuid\r\n"
           :"=a"(r->eax), "=b"(r->ebx), "=c"(r->ecx), "=d"(r->edx)
           :"a"(r->eax), "c" (r->ecx));
@@ -334,7 +335,8 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 	u64 write_data = ((u64)r->edx << 32) | (u64)r->eax;
 
-	//printf("\nCPU(0x%02x): WRMSR 0x%08x 0x%08x%08x @ %p", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
+	// TODO
+	printf("\nCPU(0x%02x): WRMSR 0x%08x 0x%08x%08x @ %p", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
 
 	/* Disallow x2APIC MSRs */
 	HALT_ON_ERRORCOND((r->ecx & 0xffffff00U) != 0x800);
@@ -1101,9 +1103,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		}
 	} //end switch((u32)vcpu->vmcs.info_vmexit_reason)
 
-	{
-		printf("{%d,%d}", vcpu->id, vcpu->vmcs.info_vmexit_reason);
-	}
+//	{
+//		printf("{%d,%d}", vcpu->id, vcpu->vmcs.info_vmexit_reason);
+//	}
 
 	/*
 	 * Check and clear guest interruptibility state.
