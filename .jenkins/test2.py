@@ -71,161 +71,164 @@ def spawn_qemu(args, serial_file, ssh_port):
 	p = Popen(qemu_args, stdin=-1, stdout=-1, **popen_stderr)
 	return p
 
-def get_ssh_cmd(args, ssh_port, exe='ssh', port_opt='-p'):
-	ssh_cmd = []
-	if args.sshpass:
-		ssh_cmd += ['sshpass', '-p', args.sshpass]
-	ssh_cmd += [exe, port_opt, str(ssh_port),
-				'-o', 'ConnectTimeout=%d' % SSH_TIMEOUT,
-				'-o', 'StrictHostKeyChecking=no',
-				'-o', 'UserKnownHostsFile=/dev/null']
-	return ssh_cmd
-
-def send_ssh(args, ssh_port, bash_script, status):
-	'''
-	bash_script: script to run, must print something, or will retry forever
-	status[0] = lock
-	status[1] = SSH_CONNECTING (0): test not started yet
-	status[1] = SSH_RUNNING (1): test started
-	status[1] = SSH_COMPLETED (2): test finished
-	status[2] = command return code
-	status[3] = stdout lines
-	status[4] = whether abort
-	'''
-	ssh_cmd = get_ssh_cmd(args, ssh_port)
-	ssh_cmd += ['lxy@127.0.0.1', 'bash', '-c', bash_script]
-	state = None
-	if args.verbose:
-		println('send_ssh:', repr(bash_script))
-	while True:
-		p = Popen(ssh_cmd, stdin=-1, stdout=-1, stderr=-1)
+class SSHOperations:
+	def __init__(self, args, ssh_port):
+		self.args = args
+		self.ssh_port = ssh_port
+	def get_ssh_cmd(self, exe='ssh', port_opt='-p'):
+		ssh_cmd = []
+		if self.args.sshpass:
+			ssh_cmd += ['sshpass', '-p', self.args.sshpass]
+		ssh_cmd += [exe, port_opt, str(self.ssh_port),
+					'-o', 'ConnectTimeout=%d' % SSH_TIMEOUT,
+					'-o', 'StrictHostKeyChecking=no',
+					'-o', 'UserKnownHostsFile=/dev/null']
+		return ssh_cmd
+	def send_ssh(self, bash_script, status):
+		'''
+		bash_script: script to run, must print something, or will retry forever
+		status[0] = lock
+		status[1] = SSH_CONNECTING (0): test not started yet
+		status[1] = SSH_RUNNING (1): test started
+		status[1] = SSH_COMPLETED (2): test finished
+		status[2] = command return code
+		status[3] = stdout lines
+		status[4] = whether abort
+		'''
+		ssh_cmd = self.get_ssh_cmd()
+		ssh_cmd += ['lxy@127.0.0.1', 'bash', '-c', bash_script]
+		state = None
+		if self.args.verbose:
+			println('send_ssh:', repr(bash_script))
 		while True:
-			line = p.stdout.readline().decode()
-			if not line:
-				p.wait()
-				assert p.returncode is not None
-				# Connection failed
-				# Warning: will incorrectly retry is script has no output. This
-				# is necessary to distinguish between connection failure and
-				# command failure.
-				if status[1] == SSH_CONNECTING and p.returncode == 255:
-					break
-				# Command successfully completed
-				with status[0]:
-					status[1] = SSH_COMPLETED
-					status[2] = p.returncode
-				return
-			println('ssh:     ', repr(line.rstrip()))
-			with status[0]:
-				status[1] = SSH_RUNNING
-				status[2] = time.time()
-				status[3].append(line.strip())
-				# Check abort
-				if status[4]:
+			p = Popen(ssh_cmd, stdin=-1, stdout=-1, stderr=-1)
+			while True:
+				line = p.stdout.readline().decode()
+				if not line:
+					p.wait()
+					assert p.returncode is not None
+					# Connection failed
+					# Warning: will incorrectly retry is script has no output.
+					# This is necessary to distinguish between connection
+					# failure and command failure.
+					if status[1] == SSH_CONNECTING and p.returncode == 255:
+						break
+					# Command successfully completed
+					with status[0]:
+						status[1] = SSH_COMPLETED
+						status[2] = p.returncode
 					return
-		time.sleep(1)
-		if args.verbose:
-			println('send_ssh:  retry SSH', repr(bash_script))
+				println('ssh:     ', repr(line.rstrip()))
+				with status[0]:
+					status[1] = SSH_RUNNING
+					status[2] = time.time()
+					status[3].append(line.strip())
+					# Check abort
+					if status[4]:
+						return
+			time.sleep(1)
+			if self.args.verbose:
+				println('send_ssh:  retry SSH', repr(bash_script))
+	def run_ssh(self, bash_script, connect_timeout, run_timeout, ss):
+		'''
+		Run an ssh command with timeout control etc
+		'''
+		assert not ss
+		for i in [threading.Lock(), SSH_CONNECTING, 0, [], 0]:
+			ss.append(i)
+		ts = threading.Thread(target=self.send_ssh,
+								args=(bash_script, ss), daemon=True)
+		ts.start()
 
-def run_ssh(args, bash_script, connect_timeout, run_timeout, ss):
-	'''
-	Run an ssh command with timeout control etc
-	'''
-	assert not ss
-	for i in [threading.Lock(), SSH_CONNECTING, 0, [], 0]:
-		ss.append(i)
-	ts = threading.Thread(target=send_ssh,
-							args=(args, ssh_port, bash_script, ss), daemon=True)
-	ts.start()
-
-	start_time = time.time()
-	run_time = None
-	while True:
-		state = [None]
-		with ss[0]:
-			state[1:] = ss[1:]
-		if args.verbose:
-			println('run_ssh:  MET = %d;' % int(time.time() - start_time),
-					'state =', state[:3], len(state[3]))
-		if state[1] == SSH_CONNECTING:
-			if time.time() - start_time > connect_timeout:
-				return 'connect_aborted'
-		elif state[1] == SSH_RUNNING:
-			if run_time is None:
-				run_time = time.time()
-			if time.time() - run_time > run_timeout:
-				return 'run_time_exceeded'
-		elif state[1] == SSH_COMPLETED:
-			# test completed
-			return None
-		else:
-			raise ValueError
-		time.sleep(1)
-
-def ssh_operations(args, ssh_port):
-	'''
-	Return None if successful, error message otherwise
-	'''
-	wordsize = { 'i386': 32, 'amd64': 64 }[args.subarch]
-	# 1. test booted
-	ss = []
-	stat = run_ssh(args, 'date; echo 1. test boot; ', 120, 10, ss)
-	if stat or ss[2] != 0:
-		return 'Failed to boot 1: (%s, %d, %s)' % (stat, ss[2], ss[3])
-	# 2. scp
-	scp_cmd = get_ssh_cmd(args, ssh_port, 'scp', '-P')
-	scp_cmd += [
-		os.path.join(args.xmhf_bin, 'init-x86-%s.bin' % args.subarch),
-		os.path.join(args.xmhf_bin, 'hypervisor-x86-%s.bin.gz' % args.subarch),
-		'lxy@127.0.0.1:/tmp',
-	]
-	println('scp')
-	check_call(scp_cmd)
-	println('scp done')
-	# 3. install
-	ss = []
-	install_num = { 'i386': 86, 'amd64': 64 }[args.subarch]
-	stat = run_ssh(args, 'date; echo 3. install; ./install%d.sh' % install_num,
+		start_time = time.time()
+		run_time = None
+		while True:
+			state = [None]
+			with ss[0]:
+				state[1:] = ss[1:]
+			if self.args.verbose:
+				println('run_ssh:  MET = %d;' % int(time.time() - start_time),
+						'state =', state[:3], len(state[3]))
+			if state[1] == SSH_CONNECTING:
+				if time.time() - start_time > connect_timeout:
+					return 'connect_aborted'
+			elif state[1] == SSH_RUNNING:
+				if run_time is None:
+					run_time = time.time()
+				if time.time() - run_time > run_timeout:
+					return 'run_time_exceeded'
+			elif state[1] == SSH_COMPLETED:
+				# test completed
+				return None
+			else:
+				raise ValueError
+			time.sleep(1)
+	def ssh_operations(self):
+		'''
+		Return None if successful, error message otherwise
+		'''
+		wordsize = { 'i386': 32, 'amd64': 64 }[self.args.subarch]
+		# 1. test booted
+		ss = []
+		stat = self.run_ssh('date; echo 1. test boot; ', 120, 10, ss)
+		if stat or ss[2] != 0:
+			return 'Failed to boot 1: (%s, %d, %s)' % (stat, ss[2], ss[3])
+		# 2. scp
+		scp_cmd = self.get_ssh_cmd('scp', '-P')
+		pf = lambda x: os.path.join(self.args.xmhf_bin, x % self.args.subarch)
+		scp_cmd += [
+			pf('init-x86-%s.bin'),
+			pf('hypervisor-x86-%s.bin.gz'),
+			'lxy@127.0.0.1:/tmp',
+		]
+		println('scp')
+		check_call(scp_cmd)
+		println('scp done')
+		# 3. install
+		ss = []
+		install_num = { 'i386': 86, 'amd64': 64 }[self.args.subarch]
+		stat = self.run_ssh(
+					'date; echo 3. install; ./install%d.sh' % install_num,
 					10, 20, ss)
-	if stat or ss[2] != 0:
-		return 'Failed to install: (%s, %d, %s)' % (stat, ss[2], ss[3])
-	# 4. restart
-	ss = []
-	stat = run_ssh(args,
+		if stat or ss[2] != 0:
+			return 'Failed to install: (%s, %d, %s)' % (stat, ss[2], ss[3])
+		# 4. restart
+		ss = []
+		stat = self.run_ssh(
 					'date; echo 4. restart; touch /tmp/asdf; sudo init 6; ',
 					10, 20, ss)
-	if stat:
-		return 'Failed to restart: (%s, %d, %s)' % (stat, ss[2], ss[3])
-	# 5. make sure restart started
-	while True:
-		println('Checking restart')
+		if stat:
+			return 'Failed to restart: (%s, %d, %s)' % (stat, ss[2], ss[3])
+		# 5. make sure restart started
+		while True:
+			println('Checking restart')
+			ss = []
+			stat = self.run_ssh('date; echo 5. restart start; ls /tmp/asdf',
+								10, 10, ss)
+			if stat or ss[2] != 0:
+				println('Restart checked')
+				break
+		# For Circle CI, cannot boot Debian on XMHF on KVM, so return success
+		if self.args.no_test_xmhf:
+			sleep_dur = 50
+			for i in range(sleep_dur):
+				println('Sleep', i, '/', sleep_dur)
+			return None
+		# 6. test booted 2
 		ss = []
-		stat = run_ssh(args, 'date; echo 5. restart start; ls /tmp/asdf',
-						10, 10, ss)
+		stat = self.run_ssh('date; echo 6. test boot 2; [ ! -f /tmp/asdf ]',
+							150, 10, ss)
 		if stat or ss[2] != 0:
-			println('Restart checked')
-			break
-	# For Circle CI, cannot boot Debian on XMHF on KVM, so just return success
-	if args.no_test_xmhf:
-		sleep_dur = 50
-		for i in range(sleep_dur):
-			println('Sleep', i, '/', sleep_dur)
-		return None
-	# 6. test booted 2
-	ss = []
-	stat = run_ssh(args, 'date; echo 6. test boot 2; [ ! -f /tmp/asdf ]',
-					150, 10, ss)
-	if stat or ss[2] != 0:
-		return 'Failed to boot 2: (%s, %d, %s)' % (stat, ss[2], ss[3])
-	# 7. run test
-	ss = []
-	stat = run_ssh(args,
+			return 'Failed to boot 2: (%s, %d, %s)' % (stat, ss[2], ss[3])
+		# 7. run test
+		ss = []
+		stat = self.run_ssh(
 					'date; echo 7. run test; ./test_args%d 7 7 7' % wordsize,
 					10, 30, ss)
-	if stat or ss[2] != 0 or 'Test pass' not in ss[3]:
-		return 'Test failed: (%s, %d, %s)' % (stat, ss[2], ss[3])
-	# Success
-	return None
+		if stat or ss[2] != 0 or 'Test pass' not in ss[3]:
+			return 'Test failed: (%s, %d, %s)' % (stat, ss[2], ss[3])
+		# Success
+		return None
 
 def main():
 	args = parse_args()
@@ -242,7 +245,7 @@ def main():
 
 	result = 'Unknown'
 	try:
-		result = ssh_operations(args, ssh_port)
+		result = SSHOperations(args, ssh_port).ssh_operations()
 		if result is None:
 			# give the OS 10 seconds to shutdown; if wait() succeeds, calling
 			# wait() again will still succeed
