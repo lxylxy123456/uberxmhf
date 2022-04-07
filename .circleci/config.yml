@@ -22,7 +22,7 @@ jobs:
           "
       - run:
           name: "Build"
-          command: "./.github/build.sh << parameters.subarch >>"
+          command: "./.github/build.sh << parameters.subarch >> circleci"
       - run:
           name: "Versions"
           command: |
