@@ -127,7 +127,7 @@ def send_ssh(args, ssh_port, bash_script, status):
 		if args.verbose:
 			println('send_ssh:  retry SSH', repr(bash_script))
 
-def run_ssh(bash_script, connect_timeout, run_timeout, ss):
+def run_ssh(args, bash_script, connect_timeout, run_timeout, ss):
 	'''
 	Run an ssh command with timeout control etc
 	'''
@@ -169,7 +169,7 @@ def ssh_operations(args, ssh_port):
 	wordsize = { 'i386': 32, 'amd64': 64 }[args.subarch]
 	# 1. test booted
 	ss = []
-	stat = run_ssh('date; echo 1. test boot; ', 120, 10, ss)
+	stat = run_ssh(args, 'date; echo 1. test boot; ', 120, 10, ss)
 	if stat or ss[2] != 0:
 		return 'Failed to boot 1: (%s, %d, %s)' % (stat, ss[2], ss[3])
 	# 2. scp
@@ -185,13 +185,14 @@ def ssh_operations(args, ssh_port):
 	# 3. install
 	ss = []
 	install_num = { 'i386': 86, 'amd64': 64 }[args.subarch]
-	stat = run_ssh('date; echo 3. install; ./install%d.sh' % install_num,
+	stat = run_ssh(args, 'date; echo 3. install; ./install%d.sh' % install_num,
 					10, 20, ss)
 	if stat or ss[2] != 0:
 		return 'Failed to install: (%s, %d, %s)' % (stat, ss[2], ss[3])
 	# 4. restart
 	ss = []
-	stat = run_ssh('date; echo 4. restart; touch /tmp/asdf; sudo init 6; ',
+	stat = run_ssh(args,
+					'date; echo 4. restart; touch /tmp/asdf; sudo init 6; ',
 					10, 20, ss)
 	if stat:
 		return 'Failed to restart: (%s, %d, %s)' % (stat, ss[2], ss[3])
@@ -199,7 +200,8 @@ def ssh_operations(args, ssh_port):
 	while True:
 		println('Checking restart')
 		ss = []
-		stat = run_ssh('date; echo 5. restart start; ls /tmp/asdf', 10, 10, ss)
+		stat = run_ssh(args, 'date; echo 5. restart start; ls /tmp/asdf',
+						10, 10, ss)
 		if stat or ss[2] != 0:
 			println('Restart checked')
 			break
@@ -211,12 +213,14 @@ def ssh_operations(args, ssh_port):
 		return None
 	# 6. test booted 2
 	ss = []
-	stat = run_ssh('date; echo 6. test boot 2; [ ! -f /tmp/asdf ]', 150, 10, ss)
+	stat = run_ssh(args, 'date; echo 6. test boot 2; [ ! -f /tmp/asdf ]',
+					150, 10, ss)
 	if stat or ss[2] != 0:
 		return 'Failed to boot 2: (%s, %d, %s)' % (stat, ss[2], ss[3])
 	# 7. run test
 	ss = []
-	stat = run_ssh('date; echo 7. run test; ./test_args%d 7 7 7' % wordsize,
+	stat = run_ssh(args,
+					'date; echo 7. run test; ./test_args%d 7 7 7' % wordsize,
 					10, 30, ss)
 	if stat or ss[2] != 0 or 'Test pass' not in ss[3]:
 		return 'Test failed: (%s, %d, %s)' % (stat, ss[2], ss[3])
