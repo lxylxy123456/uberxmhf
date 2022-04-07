@@ -32,7 +32,7 @@ jobs:
             gcc -v
       - restore_cache:
           keys:
-            - debian11x86x64-<< parameters.subarch >>
+            - debian11x86x64-20220407-<< parameters.subarch >>
       - run:
           name: "Download Debian"
           command: |
@@ -48,7 +48,7 @@ jobs:
                 ;;
             esac
       - save_cache:
-          key: debian11x86x64-<< parameters.subarch >>
+          key: debian11x86x64-20220407-<< parameters.subarch >>
           paths:
             - cache/
       - run:
