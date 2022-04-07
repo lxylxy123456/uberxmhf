@@ -1171,6 +1171,8 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		}
 	} //end switch((u32)vcpu->vmcs.info_vmexit_reason)
 
+	printf("{%d,%d}", vcpu->id, vcpu->vmcs.info_vmexit_reason);
+
 	/*
 	 * Check and clear guest interruptibility state.
 	 * However, ignore bit 3, because it is for virtual NMI.
