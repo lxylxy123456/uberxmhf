@@ -1,0 +1,16 @@
+version: 2.1
+
+jobs:
+  test-note:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: "Say hello"
+          command: "echo Hello, World!"
+
+workflows:
+  test-note-workflow:
+    jobs:
+      - test-note
