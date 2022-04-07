@@ -31,22 +31,40 @@ jobs:
             qemu-system-x86_64 -version
             gcc -v
       - restore_cache:
+          when:
+            condition:
+              equal: [ i386, << parameters.subarch >> ]
           keys:
             - debian11x86
       - restore_cache:
+          when:
+            condition:
+              equal: [ amd64, << parameters.subarch >> ]
           keys:
             - debian11x64
       - run:
           name: "Download Debian i386"
+          when:
+            condition:
+              equal: [ i386, << parameters.subarch >> ]
           command: ".jenkins/download.sh cache debian11x86.qcow2"
       - run:
           name: "Download Debian amd64"
+          when:
+            condition:
+              equal: [ amd64, << parameters.subarch >> ]
           command: ".jenkins/download.sh cache debian11x64.qcow2"
       - save_cache:
+          when:
+            condition:
+              equal: [ i386, << parameters.subarch >> ]
           key: debian11x86
           paths:
             - cache/debian11x86.qcow2
       - save_cache:
+          when:
+            condition:
+              equal: [ amd64, << parameters.subarch >> ]
           key: debian11x64
           paths:
             - cache/debian11x64.qcow2
