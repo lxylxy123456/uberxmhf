@@ -223,7 +223,7 @@ def ssh_operations(args, ssh_port):
 	# Success
 	return None
 
-if __name__ == '__main__':
+def main():
 	args = parse_args()
 	reset_qemu(args)
 	ssh_port = get_port()
@@ -252,9 +252,20 @@ if __name__ == '__main__':
 
 	if result is None:
 		println('PASS: successful ssh_operations()')
-		exit(0)
 	else:
 		println('ERROR in ssh_operations()')
 		println(result)
-		exit(1)
+		return 1
+
+	# Test serial output
+	println('Test XMHF banner in serial')
+	check_call(['grep', 'eXtensible Modular Hypervisor', serial_file])
+	println('Test E820 in serial')
+	check_call(['grep', 'e820', serial_file])
+
+	println('TEST PASSED')
+	return 0
+
+if __name__ == '__main__':
+	exit(main())
 
