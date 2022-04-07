@@ -37,8 +37,11 @@ jobs:
           keys:
             - debian11x64
       - run:
-          name: "Download Debian"
-          command: ".circleci/download.sh cache"
+          name: "Download Debian i386"
+          command: ".jenkins/download.sh cache debian11x86.qcow2"
+      - run:
+          name: "Download Debian amd64"
+          command: ".jenkins/download.sh cache debian11x64.qcow2"
       - save_cache:
           key: debian11x86
           paths:
