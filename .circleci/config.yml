@@ -34,10 +34,7 @@ jobs:
           keys:
             - debian11x86x64-<< parameters.subarch >>
       - run:
-          name: "Download Debian i386"
-          command: ".jenkins/download.sh cache debian11x86.qcow2"
-      - run:
-          name: "Download Debian amd64"
+          name: "Download Debian"
           command: |
             case "<< parameters.subarch >>" in
             i386)
