@@ -833,6 +833,57 @@ static void _vmx_handle_intercept_xsetbv(VCPU *vcpu, struct regs *r){
 
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
+	/*
+	 * Optimize some types of intercepts to make hypervisor run fast.
+	 * These optimizations depend on behavior in intercept handling code.
+	 */
+	{
+		#define READ_VMCS(encoding, target)								\
+			do {														\
+				unsigned long field;									\
+				HALT_ON_ERRORCOND(__vmx_vmread((encoding), &field));	\
+				target = field;											\
+			} while(0)
+
+		#define WRITE_VMCS(encoding, target)							\
+			do {														\
+				unsigned long field;									\
+				field = (unsigned long) target;							\
+				HALT_ON_ERRORCOND(__vmx_vmwrite((encoding), field));	\
+			} while(0)
+
+		int can_optimize = 0;
+		READ_VMCS(0x4402, vcpu->vmcs.info_vmexit_reason);
+
+		if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_WRMSR) {
+			if (r->ecx == 0x6e0) {
+				can_optimize = 1;
+			}
+		} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_CPUID) {
+			can_optimize = 1;
+		}
+
+		if (can_optimize) {
+			/* Read VMCS fields */
+			READ_VMCS(0x681E, vcpu->vmcs.guest_RIP);
+			READ_VMCS(0x440C, vcpu->vmcs.info_vmexit_instruction_length);
+			/* Call intercept handler */
+			if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_WRMSR) {
+				_vmx_handle_intercept_wrmsr(vcpu, r);
+			} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_CPUID) {
+				_vmx_handle_intercept_cpuid(vcpu, r);
+			} else {
+				HALT_ON_ERRORCOND(0);
+			}
+			/* Write VMCS fields */
+			WRITE_VMCS(0x681E, vcpu->vmcs.guest_RIP);
+			/* Return from intercept */
+			return 1;
+		}
+
+		#undef READ_VMCS
+		#undef WRITE_VMCS
+	}
 	//read VMCS from physical CPU/core
 #ifndef __XMHF_VERIFICATION__
 	xmhf_baseplatform_arch_x86vmx_getVMCS(vcpu);
