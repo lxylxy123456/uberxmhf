@@ -53,7 +53,7 @@ def get_port():
 	else:
 		raise RuntimeError('Cannot get port')
 
-def spawn_qemu(args, serial_file):
+def spawn_qemu(args, serial_file, ssh_port):
 	qemu_args = [
 		'qemu-system-x86_64', '-m', '512M',
 		'--drive', 'media=disk,file=%s,index=2' % args.qemu_image,
@@ -229,7 +229,7 @@ def main():
 	ssh_port = get_port()
 	println('Use ssh port', ssh_port)
 	serial_file = os.path.join(args.work_dir, 'serial')
-	p = spawn_qemu(args, serial_file)
+	p = spawn_qemu(args, serial_file, ssh_port)
 
 	# Simple workaround to watch serial output
 	if args.watch_serial:
