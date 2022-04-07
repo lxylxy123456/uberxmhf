@@ -4,7 +4,7 @@ jobs:
   say-hello:
     machine:
       # Need nested virtualization
-      # https://discuss.circleci.com/t/new-android-machine-image-now-available-to-all-users/39467
+      # https://discuss.circleci.com/t/new-android-machine-image-now-/39467
       image: android:2022.03.1
     parameters:
       subarch:
@@ -57,7 +57,7 @@ jobs:
             qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
                             -F qcow2 ${PWD}/qemu/${qemu_image}
             sha512sum ${PWD}/qemu/${qemu_image_back}
-            python3 -u ./.circleci/test2.py \
+            python3 -u ./.jenkins/test2.py \
                 --subarch ${SUBARCH} \
                 --qemu-image ${PWD}/qemu/${qemu_image} \
                 --qemu-image-back ${PWD}/qemu/${qemu_image_back} \
@@ -66,7 +66,8 @@ jobs:
                 --work-dir ${PWD}/tmp/ \
                 --no-display \
                 --verbose \
-                --watch-serial
+                --watch-serial \
+                --no-test-xmhf
 
 workflows:
   say-hello-workflow:

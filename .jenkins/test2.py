@@ -22,6 +22,8 @@ def parse_args():
 	parser.add_argument('--sshpass', help='Password for ssh')
 	parser.add_argument('--verbose', action='store_true')
 	parser.add_argument('--watch-serial', action='store_true')
+	parser.add_argument('--no-test-xmhf', action='store_true',
+						help='Skip testing XMHF in QEMU for Circle CI set-up')
 	args = parser.parse_args()
 	return args
 
@@ -201,6 +203,12 @@ def ssh_operations(args, ssh_port):
 		if stat or ss[2] != 0:
 			println('Restart checked')
 			break
+	# For Circle CI, cannot boot Debian on XMHF on KVM, so just return success
+	if args.no_test_xmhf:
+		sleep_dur = 30
+		for i in range(sleep_dur):
+			println('Sleep', i, '/', sleep_dur)
+		return None
 	# 6. test booted 2
 	ss = []
 	stat = run_ssh('date; echo 6. test boot 2; [ ! -f /tmp/asdf ]', 150, 10, ss)
