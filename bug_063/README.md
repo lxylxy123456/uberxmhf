@@ -43,7 +43,7 @@ Bad
 				* Debian 11
 
 In the bad case, Debian 11 fails to start. This is probably a problem worth
-another bug.
+another bug. See `bug_064`.
 
 Note: `test2.py` no longer maintained in notes. From now on maintained in
 xmhf64 source code, in `.jenkins/test2.py`.
