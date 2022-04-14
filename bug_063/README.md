@@ -60,8 +60,8 @@ Consider prefetch / pre-populate cache files in
 `/var/lib/jenkins/workspace/xmhf/cache`
 
 Hook
-* In <http://127.0.0.74:8080/job/xmhf/configure>, allow "触发远程构建"
-* In <http://127.0.0.74:8080/user/lxy/configure>, create API token
+* In <http://127.0.0.1:8080/job/xmhf/configure>, allow "触发远程构建"
+* In <http://127.0.0.1:8080/user/lxy/configure>, create API token
 
 Shell script for Hook
 ```sh
