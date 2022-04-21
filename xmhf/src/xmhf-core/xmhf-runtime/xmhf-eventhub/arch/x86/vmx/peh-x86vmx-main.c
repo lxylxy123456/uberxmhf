@@ -832,72 +832,11 @@ static void _vmx_handle_intercept_xsetbv(VCPU *vcpu, struct regs *r){
 }
 
 
-#ifdef __OPTIMIZE_NESTED_VIRT__
-
-#define READ_VMCS(encoding, target)								\
-	do {														\
-		unsigned long field;									\
-		HALT_ON_ERRORCOND(__vmx_vmread((encoding), &field));	\
-		target = field;											\
-	} while(0)
-
-#define WRITE_VMCS(encoding, target)							\
-	do {														\
-		unsigned long field;									\
-		field = (unsigned long) target;							\
-		HALT_ON_ERRORCOND(__vmx_vmwrite((encoding), field));	\
-	} while(0)
-
-/*
- * Optimize xmhf_parteventhub_arch_x86vmx_intercept_handler for some frequently
- * used intercepts observed in real operating systems. This reduces number of
- * VMREAD / VMWRITE during the intercepts and speeds up when XMHF is running in
- * a hypervisor.
- *
- * The optimizations depend on the logic in the specific handlers. For example,
- * if _vmx_handle_intercept_cpuid() accesses more VMCS fields, then the
- * optimization may become incorrect.
- *
- * Return 1 if optimized, or 0 if not optimized.
- */
-static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
-	READ_VMCS(0x4402, vcpu->vmcs.info_vmexit_reason);
-
-	switch ((u32)vcpu->vmcs.info_vmexit_reason) {
-	case VMX_VMEXIT_WRMSR:
-		/* Only 0x6e0 (IA32_TSC_DEADLINE) and 0x80b (IA32_X2APIC_EOI) */
-		if (r->ecx == 0x6e0 || r->ecx == 0x80b) {
-			READ_VMCS(0x681E, vcpu->vmcs.guest_RIP);
-			READ_VMCS(0x440C, vcpu->vmcs.info_vmexit_instruction_length);
-			_vmx_handle_intercept_wrmsr(vcpu, r);
-			WRITE_VMCS(0x681E, vcpu->vmcs.guest_RIP);
-			return 1;
-		}
-		return 0;
-	case VMX_VMEXIT_CPUID:
-		/* Always optimize CPUID */
-		READ_VMCS(0x681E, vcpu->vmcs.guest_RIP);
-		READ_VMCS(0x440C, vcpu->vmcs.info_vmexit_instruction_length);
-		_vmx_handle_intercept_cpuid(vcpu, r);
-		WRITE_VMCS(0x681E, vcpu->vmcs.guest_RIP);
-		return 1;
-	default:
-		return 0;
-	}
-}
-
-#undef READ_VMCS
-#undef WRITE_VMCS
-
-#endif /* __OPTIMIZE_NESTED_VIRT__ */
 
 
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 #ifdef __OPTIMIZE_NESTED_VIRT__
-	if (_optimize_x86vmx_intercept_handler(vcpu, r)) {
-		return 1;
-	}
 #endif /* __OPTIMIZE_NESTED_VIRT__ */
 	//read VMCS from physical CPU/core
 #ifndef __XMHF_VERIFICATION__
