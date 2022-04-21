@@ -270,7 +270,7 @@
 * Add ELF sections to linker scripts when compile with `-O3` (`bug_058`)
 * Use `volatile` keyword to fix runtime problems when `-O3` (`bug_058`)
 
-`822842a83..` (7abab5b91)
+`822842a83..7abab5b91`
 * Combine common logic in page alignment macros (`bug_060`)
 * Add type checking in page alignment macros (`bug_060`)
 * Remove magic numbers depending on `__TARGET_BASE_SL` (`bug_061`)
@@ -282,6 +282,10 @@
 * Optimize XMHF for repeated intercepts (CPUID, WRMSR 0x6e0) (`bug_064`)
 * Optimize XMHF for sending LAPIC EOI (`bug_064`)
 * Enable Circle CI testing (`bug_064`)
+
+`7abab5b91..` (5c29efd57)
+* Update documentation
+* Fix some problems with Makefiles (`bug_066`)
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output

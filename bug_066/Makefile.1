@@ -1,0 +1,26 @@
+
+.PHONY: all
+all: bl rt sl gz
+
+.PHONY: rt
+rt:
+	sleep .1
+	cd rt && echo rt > rt.bin && date >> rt.bin
+
+.PHONY: sl
+sl: rt
+	sleep .1
+	cd sl && echo sl > sl.bin && date >> sl.bin
+
+.PHONY: bl
+bl: sl rt
+	sleep 0.1
+	cd bl && echo bl > bl.bin && date >> bl.bin
+
+bl/bl.bin: bl
+sl/sl.bin: sl
+rt/rt.bin: rt
+gz: sl/sl.bin rt/rt.bin bl/bl.bin
+	# concatenate sl image and runtime image 
+	cat sl/sl.bin rt/rt.bin bl/bl.bin > gz
+
