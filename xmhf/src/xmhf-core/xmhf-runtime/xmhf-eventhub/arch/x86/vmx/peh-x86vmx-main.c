@@ -540,7 +540,8 @@ static void _vmx_handle_intercept_rdmsr(VCPU *vcpu, struct regs *r){
 			}
 			break;
 		case IA32_X2APIC_ICR:
-			HALT_ON_ERRORCOND(0 && "TODO: x2APIC read");// TODO
+			// TODO: we can probably just forward it to hardware x2APIC
+			HALT_ON_ERRORCOND(0 && "TODO: x2APIC ICR read not implemented");
 			break;
 		default:{
 			if (rdmsr_safe(r) != 0) {
