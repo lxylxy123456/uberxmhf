@@ -960,6 +960,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * is for quiescing (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION),
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
+	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
+	}
 
 	//handle intercepts
 	switch((u32)vcpu->vmcs.info_vmexit_reason){
@@ -1023,7 +1026,16 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
  		case VMX_VMEXIT_EXCEPTION:{
 			switch( ((u32)vcpu->vmcs.info_vmexit_interrupt_information & INTR_INFO_VECTOR_MASK) ){
 				case 0x01:
+					{
 					xmhf_smpguest_arch_x86_eventhandler_dbexception(vcpu, r);
+					// TODO: tmp: inject MTF
+					printf("\nCPU(0x%02x): inject MFT! at %016llx", vcpu->id,
+							vcpu->vmcs.guest_RIP);
+					vcpu->vmcs.control_VM_entry_exception_errorcode = 0;
+					vcpu->vmcs.control_VM_entry_interruption_information =
+						/* vector = 0 */ (7UL << 8) |
+						INTR_INFO_VALID_MASK;
+					}
 					break;
 
 				case 0x02:	//NMI
