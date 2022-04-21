@@ -64,6 +64,8 @@
 
 #define MSR_APIC_BASE 0x0000001B
 
+#define IA32_X2APIC_ICR 0x830
+
 // EFER bits
 #define EFER_SCE 0  /* SYSCALL/SYSRET */
 #define EFER_LME 8  /* Long Mode enable */
