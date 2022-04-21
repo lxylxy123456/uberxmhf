@@ -119,8 +119,6 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 	if (old_eax == 0x1) {
 		/* Clear VMX capability */
 		r->ecx &= ~(1U << 5);
-		/* Clear x2APIC capability */
-		r->ecx &= ~(1U << 21);
 		/* Set Hypervisor Present */
 		r->ecx |= (1U << 31);
 	}
@@ -337,7 +335,9 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 	//printf("\nCPU(0x%02x): WRMSR 0x%08x 0x%08x%08x @ %p", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
 
 	/* Disallow x2APIC MSRs */
-	HALT_ON_ERRORCOND((r->ecx & 0xffffff00U) != 0x800);
+	// HALT_ON_ERRORCOND((r->ecx & 0xffffff00U) != 0x800);
+	HALT_ON_ERRORCOND(r->ecx != 0x830);
+	// eax = 0xc500, edx = 0x1
 
 	switch(r->ecx){
 		case IA32_SYSENTER_CS_MSR:
@@ -461,7 +461,8 @@ static void _vmx_handle_intercept_rdmsr(VCPU *vcpu, struct regs *r){
 	//printf("\nCPU(0x%02x): RDMSR 0x%08x @ %p", vcpu->id, r->ecx, vcpu->vmcs.guest_RIP);
 
 	/* Disallow x2APIC MSRs */
-	HALT_ON_ERRORCOND((r->ecx & 0xffffff00U) != 0x800);
+	// HALT_ON_ERRORCOND((r->ecx & 0xffffff00U) != 0x800);
+	HALT_ON_ERRORCOND(r->ecx != 0x830);
 
 	switch(r->ecx){
 		case IA32_SYSENTER_CS_MSR:
