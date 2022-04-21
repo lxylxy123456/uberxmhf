@@ -442,31 +442,50 @@ int xmhf_smpguest_arch_x86vmx_eventhandler_x2apic_icrwrite(VCPU *vcpu, struct re
 //----------------------------------------------------------------------
 
 static void _vmx_send_quiesce_signal(VCPU __attribute__((unused)) *vcpu){
-  volatile u32 *icr_low = (u32 *)(0xFEE00000 + 0x300);
-  volatile u32 *icr_high = (u32 *)(0xFEE00000 + 0x310);
-  u32 icr_high_value= 0xFFUL << 24;
-  u32 prev_icr_high_value;
-  u32 delivered;
+  u32 eax, edx;
 
-  prev_icr_high_value = *icr_high;
+  /* Check whether x2APIC is enabled */
+  rdmsr(MSR_APIC_BASE, &eax, &edx);
 
-  *icr_high = icr_high_value;    //send to all but self
-  *icr_low = 0x000C0400UL;      //send NMI
+  if (eax & (1U << 10)) {
+    /* x2APIC enabled, use it */
+    u32 eax = 0x000C0400UL;
+    u32 edx = 0xFFFFFFFFUL;
+    u32 send_pending;
+    wrmsr(IA32_X2APIC_ICR, eax, edx);
+    do {
+      rdmsr(IA32_X2APIC_ICR, &eax, &edx);
+      send_pending = eax & 0x00001000U;
+    } while (send_pending);
+  } else {
+    /* use LAPIC */
+    volatile u32 *icr_low = (u32 *)(0xFEE00000 + 0x300);
+    volatile u32 *icr_high = (u32 *)(0xFEE00000 + 0x310);
+    u32 icr_high_value= 0xFFUL << 24;
+    u32 prev_icr_high_value;
+    u32 delivered;
 
-  //check if IPI has been delivered successfully
-  //printf("\n%s: CPU(0x%02x): firing NMIs...", __FUNCTION__, vcpu->id);
+    prev_icr_high_value = *icr_high;
+
+    *icr_high = icr_high_value;    //send to all but self
+    *icr_low = 0x000C0400UL;      //send NMI
+
+    //check if IPI has been delivered successfully
+    //printf("\n%s: CPU(0x%02x): firing NMIs...", __FUNCTION__, vcpu->id);
 #ifndef __XMHF_VERIFICATION__
-  do{
-	delivered = *icr_high;
-	delivered &= 0x00001000;
-  }while(delivered);
+    do {
+      // TODO: should this be icr_low?
+      delivered = *icr_high;
+      delivered &= 0x00001000;
+    } while (delivered);
 #else
-	//TODO: plug in h/w model of LAPIC, for now assume hardware just
-	//works
+    //TODO: plug in h/w model of LAPIC, for now assume hardware just
+    //works
 #endif
 
-  //restore icr high
-  *icr_high = prev_icr_high_value;
+    //restore icr high
+    *icr_high = prev_icr_high_value;
+  }
 
   //printf("\n%s: CPU(0x%02x): NMIs fired!", __FUNCTION__, vcpu->id);
 }
