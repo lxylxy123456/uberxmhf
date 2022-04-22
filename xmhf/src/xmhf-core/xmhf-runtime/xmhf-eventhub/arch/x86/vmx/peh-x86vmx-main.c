@@ -967,7 +967,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
 	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
-		if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_WRMSR) {
+		if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_WRMSR) {
 			printf("{%d,%d,0x%x,0x%x,0x%x}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, r->ecx, r->eax, r->edx);
 		} else {
 			printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
