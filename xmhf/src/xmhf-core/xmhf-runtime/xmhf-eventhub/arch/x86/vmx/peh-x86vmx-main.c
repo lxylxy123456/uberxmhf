@@ -119,10 +119,6 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 	if (old_eax == 0x1) {
 		/* Clear VMX capability */
 		r->ecx &= ~(1U << 5);
-#if defined(__OPTIMIZE_NESTED_VIRT__) && defined(__I386__)
-		/* Clear x2APIC capability */
-		r->ecx &= ~(1U << 21);
-#endif /* defined(__OPTIMIZE_NESTED_VIRT__) && defined(__I386__) */
 		/* Set Hypervisor Present */
 		r->ecx |= (1U << 31);
 	}
@@ -976,13 +972,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * is for quiescing (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION),
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
-	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
-		if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_WRMSR) {
-			printf("{%d,%d,0x%x,0x%x,0x%x}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, r->ecx, r->eax, r->edx);
-		} else {
-			printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
-		}
-	}
+//	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+//		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
+//	}
 
 	//handle intercepts
 	switch((u32)vcpu->vmcs.info_vmexit_reason){
