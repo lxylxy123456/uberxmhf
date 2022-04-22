@@ -870,6 +870,7 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		case 0x6e0:	/* IA32_TSC_DEADLINE */
 			/* fallthrough */
 		case 0x80b:	/* IA32_X2APIC_EOI */
+			printf(">");
 			READ_VMCS(0x681E, vcpu->vmcs.guest_RIP);
 			READ_VMCS(0x440C, vcpu->vmcs.info_vmexit_instruction_length);
 			_vmx_handle_intercept_wrmsr(vcpu, r);
