@@ -836,8 +836,6 @@ static void _vmx_handle_intercept_xsetbv(VCPU *vcpu, struct regs *r){
 
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
-#ifdef __OPTIMIZE_NESTED_VIRT__
-#endif /* __OPTIMIZE_NESTED_VIRT__ */
 	//read VMCS from physical CPU/core
 #ifndef __XMHF_VERIFICATION__
 	xmhf_baseplatform_arch_x86vmx_getVMCS(vcpu);
@@ -856,9 +854,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * is for quiescing (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION),
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
-//	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
-//		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
-//	}
+	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
+	}
 
 	//handle intercepts
 	switch((u32)vcpu->vmcs.info_vmexit_reason){
