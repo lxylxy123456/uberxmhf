@@ -869,7 +869,7 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 
 	switch ((u32)vcpu->vmcs.info_vmexit_reason) {
 	case VMX_VMEXIT_WRMSR:
-		/* Only optimize WRMSR 0x6e0 () */
+		/* Only optimize WRMSR for some MSRs */
 		switch (r->ecx) {
 		case 0x6e0:	/* IA32_TSC_DEADLINE */
 			/* fallthrough */
