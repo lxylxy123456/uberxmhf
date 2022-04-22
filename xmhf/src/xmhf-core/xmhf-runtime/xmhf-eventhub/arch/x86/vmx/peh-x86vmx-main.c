@@ -856,6 +856,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 */
 	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
 		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
+		if (vcpu->vmcs.info_vmexit_reason == 48) {
+			xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
+		}
 	}
 
 	//handle intercepts
