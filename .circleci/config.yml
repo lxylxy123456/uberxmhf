@@ -73,4 +73,4 @@ workflows:
       - test-xmhf:
           matrix:
             parameters:
-              subarch: ["amd64"]
+              subarch: ["i386", "amd64"]
