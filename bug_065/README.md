@@ -90,7 +90,7 @@ Git `f5c27d852` replaces `#DB` with monitor trap. Looks like AMD does not
 support monitor trap, so AMD still needs `#DB`. So we do not change related
 function names.
 
-Possible clues about AMD's support on monitor trap
+Possible clues about AMD's support status on monitor trap
 * <https://lore.kernel.org/all/20220128005208.4008533-23-seanjc@google.com/>:
   `/* SVM has no hyperversior debug trap (VMX's Monitor Trap Flag). */`
 * See also: <https://stackoverflow.com/q/36480612>
@@ -107,6 +107,87 @@ python3 ../xmhf64/.jenkins/test2.py --subarch amd64 --xmhf-bin . --qemu-image ..
 
 Git `ae0d0ffea` captures exceptions.
 
-TODO: x2APIC
-TODO: Circle CI build regression
+### x2APIC
+
+Git `876b85972..e9a928acf` tries to add x2APIC support. However, looks like
+after x2APIC is used. LAPIC no longer works, so hypervisor cannot access LAPIC
+(when using NMI to quiesce other CPUs).
+
+This is covered in "10.12.5 x2APIC State Transitions". Basically need to look
+at the `IA32_APIC_BASE` register's bit 10 ("Enable x2APIC mode.")
+
+Git `876b85972..d134d2d84` contains more changes in the `xmhf64-dev` branch.
+They are squashed to commit `a13c6bfe1` in `xmhf64` branch.
+
+Looks like only x64 Debian in QEMU uses x2APIC. x86 Debian does not use x2APIC.
+HP does not support x2APIC.
+
+### Circle CI regression
+
+A regression happens in `617b027c8..ac146f45b`. After EPT violation
+interception handler, VMRESUME fails.
+
+The problem happens after the first EPT. We can compare the entire VMCS before
+and after
+
+```diff
+46c46
+< CPU(0x00): vcpu->vmcs.control_VMX_cpu_based=0x86006172
+---
+> CPU(0x00): vcpu->vmcs.control_VMX_cpu_based=0x8e006172
+48c48
+< CPU(0x00): vcpu->vmcs.control_exception_bitmap=0x00000000
+---
+> CPU(0x00): vcpu->vmcs.control_exception_bitmap=0xffffffff
+132c132
+< CPU(0x00): vcpu->vmcs.guest_interruptibility=0x00000000
+---
+> CPU(0x00): vcpu->vmcs.guest_interruptibility=0x00000008
+150c150
+< CPU(0x00): vcpu->vmcs.info_vminstr_error=0x00000000
+---
+> CPU(0x00): vcpu->vmcs.info_vminstr_error=0x00000007
+```
+
+My guess is that the host does not support monitor trap. The exception bitmap
+and interruptibility should be supported (used in other places).
+
+`vcpu->vmcs.control_VMX_cpu_based` is called 
+"Primary Processor-Based VM-Execution Controls". Should consule
+`IA32_VMX_PROCBASED_CTLS` (0x482). The value is
+`vcpu->vmx_msrs[2]=0xf7b9fffe0401e172`.
+
+We can see that monitor trap is indeed not supported. We should fall back to
+`#DB`.
+
+### Fall back to `#DB`
+
+The commit changing `#DB` to monitor trap is `f5c27d852`
+
+### Still Circle CI regression
+
+At `02ab74d97`, amd64 regression is fixed by optimizing EOI in x2APIC. However,
+i386 fails (stuck at a strange place).
+
+We may need to bisect
+
+* `be45d427f` is bad (`xmhf64-dev`)
+* `02ab74d97` is bad (`xmhf64`) (amd64 is good)
+* `dea6db4ea` is bad
+* `617b027c8` is good
+
+The problem is that commits in between starts with monitor trap, which makes
+everything bad. So we need to do manual work.
+
+We start a new branch `xmhf64-bug-065` from `617b027c8`, and move towards
+`dea6db4ea`.
+
+Then found that this is a bug caused by carelessness. The `xmhf64-bug-065`
+branch ends at `f8d51ce4c`.
+
+## Fix
+
+`5c29efd57..3d1952ab3`
+* Update NMI quiesce code
+* Support x2APIC
 

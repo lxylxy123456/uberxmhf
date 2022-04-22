@@ -283,9 +283,11 @@
 * Optimize XMHF for sending LAPIC EOI (`bug_064`)
 * Enable Circle CI testing (`bug_064`)
 
-`7abab5b91..` (5c29efd57)
+`7abab5b91..` (3d1952ab3)
 * Update documentation
 * Fix some problems with Makefiles (`bug_066`)
+* Update NMI quiesce code (`bug_065`)
+* Support x2APIC (`bug_065`)
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output
