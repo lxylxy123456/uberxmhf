@@ -119,6 +119,10 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 	if (old_eax == 0x1) {
 		/* Clear VMX capability */
 		r->ecx &= ~(1U << 5);
+#if defined(__OPTIMIZE_NESTED_VIRT__) && defined(__I386__)
+		/* Clear x2APIC capability */
+		r->ecx &= ~(1U << 21);
+#endif /* defined(__OPTIMIZE_NESTED_VIRT__) && defined(__I386__) */
 		/* Set Hypervisor Present */
 		r->ecx |= (1U << 31);
 	}
