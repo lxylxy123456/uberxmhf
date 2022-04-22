@@ -380,6 +380,10 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_dbexception(VCPU *vcpu, struct regs 
 #endif
 
 }
+
+int xmhf_smpguest_arch_x86vmx_eventhandler_x2apic_icrwrite(VCPU *vcpu, struct regs *r){
+	assert(0);
+}
 //----------------------------------------------------------------------
 
 
