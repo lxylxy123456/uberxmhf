@@ -49,6 +49,7 @@
 // author: amit vasudevan (amitvasudevan@acm.org)
 #include <xmhf.h>
 
+#include <hptw.h>	// TODO
 
 //---VMX decode assist----------------------------------------------------------
 //map a CPU register index into appropriate VCPU *vcpu or struct regs *r field
@@ -418,7 +419,7 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 //					vcpu->id);
 			printf("\nCPU(0x%02x): OS tries to write microcode!", vcpu->id);
 			printf("\ngva for microcode update: 0x%016llx", write_data);
-			
+			HALT_ON_ERRORCOND((void *) hptw_checked_access_va == NULL);
 			HALT_ON_ERRORCOND(0 && "Not implemented");
 			break;
 		case IA32_X2APIC_ICR:
