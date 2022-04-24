@@ -390,9 +390,12 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 		case IA32_MSR_FS_BASE:
 			vcpu->vmcs.guest_FS_base = (u64)write_data;
 			break;
-//		case IA32_MSR_GS_BASE:	// TODO
-//			vcpu->vmcs.guest_GS_base = (u64)write_data;
-//			break;
+// TODO
+#if 1
+		case IA32_MSR_GS_BASE:
+			vcpu->vmcs.guest_GS_base = (u64)write_data;
+			break;
+#endif
 		case MSR_EFER: /* fallthrough */
 		case MSR_IA32_PAT: /* fallthrough */
 		case MSR_K6_STAR: {
@@ -456,29 +459,33 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 				goto wrmsr_inject_gp;
 			}
 			break;
-		case 0xc0000101:	// TODO
+// TODO
+#if 0
+		case 0xc0000101:
 			write_data = vcpu->vmcs.guest_RIP;
 			/* fallthrough */
+#endif
 		case IA32_BIOS_UPDT_TRIG:
 //			printf("\nCPU(0x%02x): OS tries to write microcode, ignore",
 //					vcpu->id);
 			printf("\nCPU(0x%02x): OS tries to write microcode!", vcpu->id);
 			printf("\ngva for microcode update: 0x%016llx", write_data);
 			{
+				hpt_type_t guest_t = hpt_emhf_get_guest_hpt_type(vcpu);
 				hptw_ctx_t ctx[2] = {
 					{
 						.ptr2pa = wrmsr_host_ctx_ptr2pa,
 						.pa2ptr = wrmsr_host_ctx_pa2ptr,
 						.gzp = wrmsr_ctx_unimplemented,
-						.root_pa = vcpu->vmcs.control_EPT_pointer,
+						.root_pa = hpt_eptp_get_address(HPT_TYPE_EPT, vcpu->vmcs.control_EPT_pointer),
 						.t = HPT_TYPE_EPT,
 					},
 					{
 						.ptr2pa = wrmsr_guest_ctx_ptr2pa,
 						.pa2ptr = wrmsr_guest_ctx_pa2ptr,
 						.gzp = wrmsr_ctx_unimplemented,
-						.root_pa = vcpu->vmcs.guest_CR3,
-						.t = hpt_emhf_get_guest_hpt_type(vcpu),
+						.root_pa = hpt_cr3_get_address(guest_t, vcpu->vmcs.guest_CR3),
+						.t = guest_t,
 					}
 				};
 				int ans[9];
@@ -488,7 +495,6 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 					printf("ans[%d] = 0x%08x\n", i, ans[i]);
 				}
 			}
-			HALT_ON_ERRORCOND((void *) hptw_checked_access_va == NULL);
 			HALT_ON_ERRORCOND(0 && "Not implemented");
 			break;
 		case IA32_X2APIC_ICR:
