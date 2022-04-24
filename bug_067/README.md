@@ -36,4 +36,21 @@ TrustVisor uses a lot of page table operations. The library it uses is called
 "hpt" and "hptw". These probably stand for host page table. They are not
 well-documented, so now it's time to add some documentation.
 
+Possible related files are:
+* `xmhf/src/libbaremetal/libxmhfutil/hpt.c`:
+  operate on primitives (pm, pme)
+* `xmhf/src/libbaremetal/libxmhfutil/hpto.c`:
+  wrapper for functions in `hpt.c`, operate on pmo and pmeo
+* `xmhf/src/libbaremetal/libxmhfutil/hptw.c`
+* `xmhf/src/libbaremetal/libxmhfutil/hpt_internal.c`
+* `hypapps/trustvisor/src/hptw_emhf.c`
+
+Abbreviations:
+* hpt: host page table?
+* pm: page map (similar to page table, page directory, ...)
+* pme: page map entry (similar to page table entry)
+* pmo: page map object (pm + metadata about paging type, current level)
+* pmeo: page map entry object (pme + metadata)
+
+TODO: is TrustVisor walking both EPT and guest's PT? Can cause attack
 
