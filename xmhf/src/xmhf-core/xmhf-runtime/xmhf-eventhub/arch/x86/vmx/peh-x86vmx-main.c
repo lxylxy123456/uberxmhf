@@ -375,7 +375,7 @@ static void* wrmsr_ctx_unimplemented(void *vctx, size_t alignment, size_t sz)
 static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 	u64 write_data = ((u64)r->edx << 32) | (u64)r->eax;
 
-	//printf("\nCPU(0x%02x): WRMSR 0x%08x 0x%08x%08x @ %p", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
+	printf("\nCPU(0x%02x): WRMSR 0x%08x 0x%08x%08x @ %p", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
 
 	switch(r->ecx){
 		case IA32_SYSENTER_CS_MSR:
@@ -390,9 +390,9 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 		case IA32_MSR_FS_BASE:
 			vcpu->vmcs.guest_FS_base = (u64)write_data;
 			break;
-		case IA32_MSR_GS_BASE:
-			vcpu->vmcs.guest_GS_base = (u64)write_data;
-			break;
+//		case IA32_MSR_GS_BASE:	// TODO
+//			vcpu->vmcs.guest_GS_base = (u64)write_data;
+//			break;
 		case MSR_EFER: /* fallthrough */
 		case MSR_IA32_PAT: /* fallthrough */
 		case MSR_K6_STAR: {
@@ -456,6 +456,9 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 				goto wrmsr_inject_gp;
 			}
 			break;
+		case 0xc0000101:	// TODO
+			write_data = vcpu->vmcs.guest_RIP;
+			/* fallthrough */
 		case IA32_BIOS_UPDT_TRIG:
 //			printf("\nCPU(0x%02x): OS tries to write microcode, ignore",
 //					vcpu->id);
