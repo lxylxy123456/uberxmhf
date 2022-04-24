@@ -50,6 +50,7 @@
 #include <xmhf.h>
 
 #include <hptw.h>	// TODO
+#include <hpt_emhf.h>	// TODO
 
 //---VMX decode assist----------------------------------------------------------
 //map a CPU register index into appropriate VCPU *vcpu or struct regs *r field
@@ -310,6 +311,47 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 
 
 
+static hpt_pa_t wrmsr_host_ctx_ptr2pa(void *vctx, void *ptr)
+{
+	(void)vctx;
+	return hva2spa(ptr);
+}
+
+static void* wrmsr_host_ctx_pa2ptr(void *vctx, hpt_pa_t spa, size_t sz, hpt_prot_t access_type, hptw_cpl_t cpl, size_t *avail_sz)
+{
+	(void)vctx;
+	(void)access_type;
+	(void)cpl;
+	*avail_sz = sz;
+	return spa2hva(spa);
+}
+
+static hpt_pa_t wrmsr_guest_ctx_ptr2pa(void __attribute__((unused)) *ctx, void *ptr)
+{
+	return hva2gpa(ptr);
+}
+
+static void* wrmsr_guest_ctx_pa2ptr(void *vctx, hpt_pa_t gpa, size_t sz, hpt_prot_t access_type, hptw_cpl_t cpl, size_t *avail_sz)
+{
+	// TODO: bad practice
+	hptw_ctx_t *ctx = vctx;
+
+	return hptw_checked_access_va(ctx - 1,
+		                        access_type,
+		                        cpl,
+		                        gpa,
+		                        sz,
+		                        avail_sz);
+}
+
+static void* wrmsr_ctx_unimplemented(void *vctx, size_t alignment, size_t sz)
+{
+	(void)vctx;
+	(void)alignment;
+	(void)sz;
+	HALT_ON_ERRORCOND(0 && "Not implemented");
+	return NULL;
+}
 
 //------------------------------------------------------------------------------
 // guest MSR r/w intercept handling
@@ -419,6 +461,30 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 //					vcpu->id);
 			printf("\nCPU(0x%02x): OS tries to write microcode!", vcpu->id);
 			printf("\ngva for microcode update: 0x%016llx", write_data);
+			{
+				hptw_ctx_t ctx[2] = {
+					{
+						.ptr2pa = wrmsr_host_ctx_ptr2pa,
+						.pa2ptr = wrmsr_host_ctx_pa2ptr,
+						.gzp = wrmsr_ctx_unimplemented,
+						.root_pa = vcpu->vmcs.control_EPT_pointer,
+						.t = HPT_TYPE_EPT,
+					},
+					{
+						.ptr2pa = wrmsr_guest_ctx_ptr2pa,
+						.pa2ptr = wrmsr_guest_ctx_pa2ptr,
+						.gzp = wrmsr_ctx_unimplemented,
+						.root_pa = vcpu->vmcs.guest_CR3,
+						.t = hpt_emhf_get_guest_hpt_type(vcpu),
+					}
+				};
+				int ans[9];
+				int result = hptw_checked_copy_from_va(&ctx[1], 0, ans, write_data, sizeof(ans));
+				HALT_ON_ERRORCOND(result == 0);
+				for (int i = 0; i < 9; i++) {
+					printf("ans[%d] = 0x%08x\n", i, ans[i]);
+				}
+			}
 			HALT_ON_ERRORCOND((void *) hptw_checked_access_va == NULL);
 			HALT_ON_ERRORCOND(0 && "Not implemented");
 			break;
