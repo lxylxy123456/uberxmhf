@@ -166,6 +166,7 @@ void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 	size = header->total_size - size;
 	result = hptw_checked_copy_from_va(&ctx[1], 0, &header->update_data,
 										update_data, size);
+	printf("\nSECURITY: microcode provided by guest is not checked!!!");
 	// TODO: check whether update is compatible
 	// TODO: compute hash and check
 	/*
