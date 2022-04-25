@@ -27,6 +27,7 @@ OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/svm/peh-x86svm-main.o
 OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86-$(TARGET_SUBARCH)vmx-entry.o
 OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.o
 OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86-safemsr.o
+OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-ucode.o
 
 OBJECTS_PRECOMPILED += ./xmhf-smpguest/smpg-interface.o
 OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/smpg-x86.o

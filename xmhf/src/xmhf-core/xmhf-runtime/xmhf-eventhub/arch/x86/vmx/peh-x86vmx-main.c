@@ -49,8 +49,6 @@
 // author: amit vasudevan (amitvasudevan@acm.org)
 #include <xmhf.h>
 
-#include <hptw.h>	// TODO
-#include <hpt_emhf.h>	// TODO
 
 //---VMX decode assist----------------------------------------------------------
 //map a CPU register index into appropriate VCPU *vcpu or struct regs *r field
@@ -123,8 +121,6 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 		r->ecx &= ~(1U << 5);
 //		/* Set Hypervisor Present */
 //		r->ecx |= (1U << 31);
-		/* Unset Hypervisor Present */
-		r->ecx &= ~(1U << 31);
 	}
 	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 }
@@ -313,47 +309,6 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 
 
 
-static hpt_pa_t wrmsr_host_ctx_ptr2pa(void *vctx, void *ptr)
-{
-	(void)vctx;
-	return hva2spa(ptr);
-}
-
-static void* wrmsr_host_ctx_pa2ptr(void *vctx, hpt_pa_t spa, size_t sz, hpt_prot_t access_type, hptw_cpl_t cpl, size_t *avail_sz)
-{
-	(void)vctx;
-	(void)access_type;
-	(void)cpl;
-	*avail_sz = sz;
-	return spa2hva(spa);
-}
-
-static hpt_pa_t wrmsr_guest_ctx_ptr2pa(void __attribute__((unused)) *ctx, void *ptr)
-{
-	return hva2gpa(ptr);
-}
-
-static void* wrmsr_guest_ctx_pa2ptr(void *vctx, hpt_pa_t gpa, size_t sz, hpt_prot_t access_type, hptw_cpl_t cpl, size_t *avail_sz)
-{
-	// TODO: bad practice
-	hptw_ctx_t *ctx = vctx;
-
-	return hptw_checked_access_va(ctx - 1,
-		                        access_type,
-		                        cpl,
-		                        gpa,
-		                        sz,
-		                        avail_sz);
-}
-
-static void* wrmsr_ctx_unimplemented(void *vctx, size_t alignment, size_t sz)
-{
-	(void)vctx;
-	(void)alignment;
-	(void)sz;
-	HALT_ON_ERRORCOND(0 && "Not implemented");
-	return NULL;
-}
 
 //------------------------------------------------------------------------------
 // guest MSR r/w intercept handling
@@ -377,7 +332,7 @@ static void* wrmsr_ctx_unimplemented(void *vctx, size_t alignment, size_t sz)
 static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 	u64 write_data = ((u64)r->edx << 32) | (u64)r->eax;
 
-	printf("\nCPU(0x%02x): WRMSR 0x%08x 0x%08x%08x @ %p", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
+	//printf("\nCPU(0x%02x): WRMSR 0x%08x 0x%08x%08x @ %p", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
 
 	switch(r->ecx){
 		case IA32_SYSENTER_CS_MSR:
@@ -392,12 +347,9 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 		case IA32_MSR_FS_BASE:
 			vcpu->vmcs.guest_FS_base = (u64)write_data;
 			break;
-// TODO
-#if 1
 		case IA32_MSR_GS_BASE:
 			vcpu->vmcs.guest_GS_base = (u64)write_data;
 			break;
-#endif
 		case MSR_EFER: /* fallthrough */
 		case MSR_IA32_PAT: /* fallthrough */
 		case MSR_K6_STAR: {
@@ -461,43 +413,12 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 				goto wrmsr_inject_gp;
 			}
 			break;
-// TODO
-#if 0
-		case 0xc0000101:
-			write_data = vcpu->vmcs.guest_RIP;
-			/* fallthrough */
-#endif
 		case IA32_BIOS_UPDT_TRIG:
 //			printf("\nCPU(0x%02x): OS tries to write microcode, ignore",
 //					vcpu->id);
 			printf("\nCPU(0x%02x): OS tries to write microcode!", vcpu->id);
 			printf("\ngva for microcode update: 0x%016llx", write_data);
-			{
-				hpt_type_t guest_t = hpt_emhf_get_guest_hpt_type(vcpu);
-				hptw_ctx_t ctx[2] = {
-					{
-						.ptr2pa = wrmsr_host_ctx_ptr2pa,
-						.pa2ptr = wrmsr_host_ctx_pa2ptr,
-						.gzp = wrmsr_ctx_unimplemented,
-						.root_pa = hpt_eptp_get_address(HPT_TYPE_EPT, vcpu->vmcs.control_EPT_pointer),
-						.t = HPT_TYPE_EPT,
-					},
-					{
-						.ptr2pa = wrmsr_guest_ctx_ptr2pa,
-						.pa2ptr = wrmsr_guest_ctx_pa2ptr,
-						.gzp = wrmsr_ctx_unimplemented,
-						.root_pa = hpt_cr3_get_address(guest_t, vcpu->vmcs.guest_CR3),
-						.t = guest_t,
-					}
-				};
-				int ans[29];
-				int result = hptw_checked_copy_from_va(&ctx[1], 0, ans, write_data - 48, sizeof(ans));
-				HALT_ON_ERRORCOND(result == 0);
-				for (int i = 0; i < 29; i++) {
-					printf("\nans[%d] = 0x%08x", i, ans[i]);
-				}
-				HALT_ON_ERRORCOND(0 && "Not implemented");
-			}
+			handle_intel_ucode_update(vcpu, write_data);
 			HALT_ON_ERRORCOND(0 && "Not implemented");
 			break;
 		case IA32_X2APIC_ICR:
