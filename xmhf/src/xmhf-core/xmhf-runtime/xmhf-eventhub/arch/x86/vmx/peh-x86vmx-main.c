@@ -490,10 +490,10 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 						.t = guest_t,
 					}
 				};
-				int ans[9];
-				int result = hptw_checked_copy_from_va(&ctx[1], 0, ans, write_data, sizeof(ans));
+				int ans[29];
+				int result = hptw_checked_copy_from_va(&ctx[1], 0, ans, write_data - 48, sizeof(ans));
 				HALT_ON_ERRORCOND(result == 0);
-				for (int i = 0; i < 9; i++) {
+				for (int i = 0; i < 29; i++) {
 					printf("\nans[%d] = 0x%08x", i, ans[i]);
 				}
 				HALT_ON_ERRORCOND(0 && "Not implemented");
