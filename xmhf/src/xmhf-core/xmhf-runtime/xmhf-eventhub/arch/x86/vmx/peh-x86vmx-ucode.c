@@ -158,8 +158,8 @@ void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 	size = sizeof(intel_ucode_update_t);
 	result = hptw_checked_copy_from_va(&ctx[1], 0, header, va_header, size);
 	HALT_ON_ERRORCOND(result == 0);
-	printf("\ndate(mmddyyyy)=%08x, dsize=%d, tsize=%d", header->date,
-			header->data_size, header->total_size);
+	printf("\nCPU(0x%02x): date(mmddyyyy)=%08x, dsize=%d, tsize=%d",
+			vcpu->id, header->date, header->data_size, header->total_size);
 	/* If the following check fails, increase UCODE_TOTAL_SIZE_MAX */
 	HALT_ON_ERRORCOND(header->total_size <= UCODE_TOTAL_SIZE_MAX);
 	/* Copy the rest of of microcode update */
@@ -168,6 +168,7 @@ void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 										update_data, size);
 	// TODO: check whether update is compatible
 	// TODO: compute hash and check
+	/*
 	for (u32 i = 0; i < header->total_size; i++) {
 		if (i % 16 == 0) {
 			printf("\n%08x  ", i);
@@ -178,6 +179,10 @@ void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 		}
 		printf("%02x", copy_area[i]);
 	}
-	HALT_ON_ERRORCOND(0 && "Not implemented");
+	*/
+	printf("\nCPU(0x%02x): Calling physical ucode update at 0x%08lx",
+			vcpu->id, &header->update_data);
+	wrmsr64(IA32_BIOS_UPDT_TRIG, (uintptr_t) &header->update_data);
+	printf("\nCPU(0x%02x): Physical ucode update returned", vcpu->id);
 }
 

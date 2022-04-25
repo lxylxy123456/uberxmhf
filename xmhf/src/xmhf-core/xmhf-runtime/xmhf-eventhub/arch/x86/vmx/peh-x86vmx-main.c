@@ -419,7 +419,6 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 			printf("\nCPU(0x%02x): OS tries to write microcode!", vcpu->id);
 			printf("\ngva for microcode update: 0x%016llx", write_data);
 			handle_intel_ucode_update(vcpu, write_data);
-			HALT_ON_ERRORCOND(0 && "Not implemented");
 			break;
 		case IA32_X2APIC_ICR:
 			if (xmhf_smpguest_arch_x86vmx_eventhandler_x2apic_icrwrite(vcpu, r) == 0) {
