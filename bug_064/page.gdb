@@ -1,7 +1,7 @@
 define walk_pt_pte
   # PTE is defined in $e3
   print "Page size = 4K"
-  set $ans = $e3 & ~0xfff | $a & 0xfff
+  set $ans = $e3 & ~0xfff & ~(1ULL << 63) | $a & 0xfff
 end
 
 define walk_pt_pde
@@ -20,9 +20,9 @@ define walk_pt_pdte
   # PDE is defined in $e2, for PAE and 4-level paging
   if $e2 & (1 << 7)
     print "Page size = 2M"
-    set $ans = $e2 & ~0x1fffff | $a & 0x1fffff
+    set $ans = $e2 & ~0x1fffff & ~(1ULL << 63) | $a & 0x1fffff
   else
-    set $p3 = $e2 & ~0xfff | ((($a >> 12) & 0x1ff) << 3)
+    set $p3 = $e2 & ~0xfff & ~(1ULL << 63) | ((($a >> 12) & 0x1ff) << 3)
     set $e3 = (*(u64*)$p3)
     walk_pt_pte
   end
@@ -32,9 +32,9 @@ define walk_pt_pdpte
   # PDPTE is defined in $e1
   if $e1 & (1 << 7)
     print "Page size = 1G"
-    print /x $ans = $e1 & ~0x3fffffff | $a & 0x3fffffff
+    print /x $ans = $e1 & ~0x3fffffff & ~(1ULL << 63) | $a & 0x3fffffff
   else
-    set $p2 = $e1 & ~0xfff | ((($a >> 21) & 0x1ff) << 3)
+    set $p2 = $e1 & ~0xfff & ~(1ULL << 63) | ((($a >> 21) & 0x1ff) << 3)
     set $e2 = (*(u64*)$p2)
     walk_pt_pdte
   end
@@ -60,15 +60,15 @@ define walk_pt
     else
       if !($lmv & 0x100)
         print "PAE paging"
-        set $p1 = $c3 & ~0x1f  | ((($a >> 30) & 0x1f) << 3)
+        set $p1 = $c3 & ~0x1f & ~(1ULL << 63) | ((($a >> 30) & 0x1f) << 3)
         walk_pt_pdpte
         print /x $ans
       else
         if !($c4 & 0x1000)
           print "4-level paging"
-          set $p0 = $c3 & ~0xfff | ((($a >> 39) & 0x1ff) << 3)
+          set $p0 = $c3 & ~0xfff & ~(1ULL << 63) | ((($a >> 39) & 0x1ff) << 3)
           set $e0 = (*(u64*)$p0)
-          set $p1 = $e0 & ~0xfff | ((($a >> 30) & 0x1ff) << 3)
+          set $p1 = $e0 & ~0xfff & ~(1ULL << 63) | ((($a >> 30) & 0x1ff) << 3)
           set $e1 = (*(u64*)$p1)
           walk_pt_pdpte
           print /x $ans
