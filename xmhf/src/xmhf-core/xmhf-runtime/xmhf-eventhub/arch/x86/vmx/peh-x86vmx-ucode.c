@@ -52,6 +52,30 @@
 #include <hptw.h>
 #include <hpt_emhf.h>
 
+/*
+ * Maximum supported microcode size. For some CPUs this may need to be much
+ * larger (e.g. > 256K).
+ */
+#define UCODE_TOTAL_SIZE_MAX (PAGE_SIZE_4K)
+
+/* Space to temporarily copy microcode update (prevent TOCTOU attack) */
+static u8 ucode_copy_area[MAX_VCPU_ENTRIES * UCODE_TOTAL_SIZE_MAX]
+__attribute__(( section(".bss.palign_data") ));
+
+typedef struct __attribute__ ((packed)) {
+	u32 header_version;
+	u32 update_version;
+	u32 date;
+	u32 processor_signature;
+	u32 checksum;
+	u32 loader_version;
+	u32 processor_flags;
+	u32 data_size;
+	u32 total_size;
+	u32 reserved[3];
+	u8 update_data[0];
+} intel_ucode_update_t;
+
 // TODO: rename "wrmsr" in function names
 static hpt_pa_t wrmsr_host_ctx_ptr2pa(void *vctx, void *ptr)
 {
@@ -122,12 +146,37 @@ void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 			.t = guest_t,
 		}
 	};
-	int ans[29];
-	int result = hptw_checked_copy_from_va(&ctx[1], 0, ans, update_data - 48,
-											sizeof(ans));
+	u64 va_header = update_data - sizeof(intel_ucode_update_t);
+	u8 *copy_area;
+	intel_ucode_update_t *header;
+	int result;
+	size_t size;
+	HALT_ON_ERRORCOND(vcpu->idx < UCODE_TOTAL_SIZE_MAX);
+	copy_area = ucode_copy_area + UCODE_TOTAL_SIZE_MAX * vcpu->idx;
+	/* Copy header of microcode update */
+	header = (intel_ucode_update_t *) copy_area;
+	size = sizeof(intel_ucode_update_t);
+	result = hptw_checked_copy_from_va(&ctx[1], 0, header, va_header, size);
 	HALT_ON_ERRORCOND(result == 0);
-	for (int i = 0; i < 29; i++) {
-		printf("\nans[%d] = 0x%08x", i, ans[i]);
+	printf("\ndate(mmddyyyy)=%08x, dsize=%d, tsize=%d", header->date,
+			header->data_size, header->total_size);
+	/* If the following check fails, increase UCODE_TOTAL_SIZE_MAX */
+	HALT_ON_ERRORCOND(header->total_size <= UCODE_TOTAL_SIZE_MAX);
+	/* Copy the rest of of microcode update */
+	size = header->total_size - size;
+	result = hptw_checked_copy_from_va(&ctx[1], 0, &header->update_data,
+										update_data, size);
+	// TODO: check whether update is compatible
+	// TODO: compute hash and check
+	for (u32 i = 0; i < header->total_size; i++) {
+		if (i % 16 == 0) {
+			printf("\n%08x  ", i);
+		} else if (i % 8 == 0) {
+			printf("  ");
+		} else {
+			printf(" ");
+		}
+		printf("%02x", copy_area[i]);
 	}
 	HALT_ON_ERRORCOND(0 && "Not implemented");
 }
