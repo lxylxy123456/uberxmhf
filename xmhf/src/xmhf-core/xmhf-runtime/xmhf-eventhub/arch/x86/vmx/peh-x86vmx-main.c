@@ -123,6 +123,8 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 		r->ecx &= ~(1U << 5);
 //		/* Set Hypervisor Present */
 //		r->ecx |= (1U << 31);
+		/* Unset Hypervisor Present */
+		r->ecx &= ~(1U << 31);
 	}
 	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 }
@@ -492,8 +494,9 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 				int result = hptw_checked_copy_from_va(&ctx[1], 0, ans, write_data, sizeof(ans));
 				HALT_ON_ERRORCOND(result == 0);
 				for (int i = 0; i < 9; i++) {
-					printf("ans[%d] = 0x%08x\n", i, ans[i]);
+					printf("\nans[%d] = 0x%08x", i, ans[i]);
 				}
+				HALT_ON_ERRORCOND(0 && "Not implemented");
 			}
 			HALT_ON_ERRORCOND(0 && "Not implemented");
 			break;
