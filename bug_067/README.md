@@ -253,4 +253,5 @@ We do not need to perform
 TODO: clean up TODOs in xmhf64-dev code
 TODO: check processor signature etc
 TODO: compute crypto hash
+TODO: write Python script to calculate hash in /usr/lib/firmware/intel-ucode
 
