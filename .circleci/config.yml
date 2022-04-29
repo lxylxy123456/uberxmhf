@@ -51,9 +51,9 @@ jobs:
           name: "Check"
           command: |
             python3 -u ./.jenkins/test3.py \
-                --subarch ${SUBARCH} \
-                --qemu-image ${PWD}/qemu/${qemu_image} \
-                --qemu-image-back ${PWD}/qemu/${qemu_image_back} \
+                --subarch amd64 \
+                --qemu-image asdf \
+                --qemu-image-back asdf \
                 --xmhf-bin ${PWD}/ \
                 --sshpass jkl \
                 --work-dir ${PWD}/tmp/ \
