@@ -104,6 +104,7 @@ def generate_xmhf_image(args):
 				'bs=512', 'count=1M', 'iflag=count_bytes'])
 	check_call(['dd', 'if=%s' % b_img, 'of=%s' % c_img, 'conv=sparse,notrunc',
 				'bs=512', 'seek=1M', 'oflag=seek_bytes'])
+	check_call(['xxd', c_img])
 	return c_img
 
 def spawn_qemu(args, xmhf_img, serial_file, ssh_port):
