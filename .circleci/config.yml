@@ -14,8 +14,9 @@ jobs:
       - run:
           name: "Apt-get"
           command: |
+            lsb_release -a
             sudo apt-get update
-            sudo apt-get -y -q update e2fsprogs
+            sudo apt-get -y -q --only-upgrade install e2fsprogs
       - run:
           name: sanity
           command: |
