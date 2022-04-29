@@ -30,7 +30,6 @@ jobs:
             echo DDDD
             mkdir mnt
             sudo mount b.img mnt
-            find mnt
             cat mnt/jkl
             xxd b.img
       - checkout
