@@ -22,11 +22,11 @@ jobs:
             dd if=/dev/zero of=b.img bs=512K seek=1 count=0
             /sbin/mkfs.ext4 b.img
             echo AAAA
-            echo write jkl jkl | /sbin/debugfs -w b.img
+            echo write jkl jkl | /sbin/debugfs -w b.img | grep .
             echo BBBB
-            echo cat jkl | /sbin/debugfs -w b.img
+            echo cat jkl | /sbin/debugfs -w b.img | grep .
             echo CCCC
-            echo ? | /sbin/debugfs -w b.img
+            echo ? | /sbin/debugfs -w b.img | grep .
             echo DDDD
             mkdir mnt
             sudo mount b.img mnt
