@@ -50,6 +50,8 @@ jobs:
       - run:
           name: "Check"
           command: |
+            rm -rf tmp qemu
+            mkdir tmp qemu
             python3 -u ./.jenkins/test3.py \
                 --subarch amd64 \
                 --qemu-image asdf \
