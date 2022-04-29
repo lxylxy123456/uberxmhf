@@ -12,6 +12,11 @@ jobs:
         type: string
     steps:
       - run:
+          name: "Apt-get"
+          command: |
+            sudo apt-get update
+            sudo apt-get -y -q update e2fsprogs
+      - run:
           name: sanity
           command: |
             /sbin/debugfs -V
