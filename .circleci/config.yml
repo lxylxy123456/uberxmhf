@@ -13,43 +13,13 @@ jobs:
     steps:
       - checkout
       - run:
-          name: sanity
-          command: |
-            rm -rf sanity_test
-            mkdir sanity_test
-            cd sanity_test
-            /sbin/debugfs -V
-            echo asdjf > jkl
-            dd if=/dev/zero of=b.img bs=512K seek=1 count=0
-            /sbin/mkfs.ext4 b.img
-            echo AAAA
-            echo write jkl jkl > my_script
-            echo mkdir uio >> my_script
-            echo cd uio >> my_script
-            echo write jkl jkl2 >> my_script
-            /sbin/debugfs -f my_script -w b.img
-            echo BBBB
-            echo cat jkl | /sbin/debugfs -w b.img | grep .
-            echo CCCC
-            echo ? | /sbin/debugfs -w b.img | grep .
-            echo DDDD
-            mkdir mnt
-            sudo mount b.img mnt
-            sudo find mnt
-            cat mnt/jkl
-            xxd b.img | grep asdjf
-      - run:
-          name: sanity 2
-          command: |
-            cat /home/circleci/project/.jenkins/boot/grub/grub.cfg
-      - run:
           name: "Apt-get"
           command: "
             sudo apt-get update && \
             sudo apt-get -y -q install \
                 git crossbuild-essential-i386 \
                 pbuilder texinfo ruby build-essential autoconf libtool \
-                qemu-system-x86 sshpass xxd
+                qemu-system-x86 sshpass
           "
       - run:
           name: "Build"
@@ -112,4 +82,4 @@ workflows:
       - test-xmhf:
           matrix:
             parameters:
-              subarch: ["i386"]
+              subarch: ["i386", "amd64"]
