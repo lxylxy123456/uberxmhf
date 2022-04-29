@@ -11,7 +11,29 @@ jobs:
       subarch:
         type: string
     steps:
+      - run:
+          name: sanity
+          command: |
+            /sbin/debugfs -V
+            set -xe
+            rm -rf sanity_test
+            mkdir sanity_test
+            cd sanity_test
+            echo asdjf > jkl
+            dd if=/dev/zero of=b.img bs=128K seek=1 count=0
+            /sbin/mkfs.ext4 b.img
+            echo mkdir uio | /sbin/debugfs -w b.img
+            echo write jkl uio/jkl | /sbin/debugfs -w b.img
+            echo cat uio/jkl | /sbin/debugfs -w b.img
+            mkdir mnt
+            sudo mount b.img mnt
+            find mnt
+            cat mnt/uio/jkl
       - checkout
+      - run:
+          name: sanity 2
+          command: |
+            cat /home/circleci/project/.jenkins/boot/grub/grub.cfg
       - run:
           name: "Apt-get"
           command: "
@@ -82,4 +104,4 @@ workflows:
       - test-xmhf:
           matrix:
             parameters:
-              subarch: ["i386", "amd64"]
+              subarch: ["i386"]
