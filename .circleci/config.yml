@@ -26,6 +26,8 @@ jobs:
             echo BBBB
             echo cat jkl | /sbin/debugfs -w b.img
             echo CCCC
+            echo ? | /sbin/debugfs -w b.img
+            echo DDDD
             mkdir mnt
             sudo mount b.img mnt
             find mnt
