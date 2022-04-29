@@ -11,6 +11,7 @@ jobs:
       subarch:
         type: string
     steps:
+      - checkout
       - run:
           name: sanity
           command: |
@@ -33,7 +34,6 @@ jobs:
             sudo mount b.img mnt
             cat mnt/jkl
             xxd b.img | grep asdjf
-      - checkout
       - run:
           name: sanity 2
           command: |
@@ -47,6 +47,22 @@ jobs:
                 pbuilder texinfo ruby build-essential autoconf libtool \
                 qemu-system-x86 sshpass xxd
           "
+      - run:
+          name: "Check"
+          command: |
+            python3 -u ./.jenkins/test3.py \
+                --subarch ${SUBARCH} \
+                --qemu-image ${PWD}/qemu/${qemu_image} \
+                --qemu-image-back ${PWD}/qemu/${qemu_image_back} \
+                --xmhf-bin ${PWD}/ \
+                --sshpass jkl \
+                --work-dir ${PWD}/tmp/ \
+                --no-display \
+                --verbose \
+                --boot-dir ${PWD}/.jenkins/boot \
+                --watch-serial \
+                --skip-reset-qemu \
+                --smp 2
       - run:
           name: "Build"
           command: "./.github/build.sh << parameters.subarch >> circleci"
