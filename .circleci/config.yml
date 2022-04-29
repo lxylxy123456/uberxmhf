@@ -52,24 +52,6 @@ jobs:
                 qemu-system-x86 sshpass xxd
           "
       - run:
-          name: "Check"
-          command: |
-            rm -rf tmp qemu
-            mkdir tmp qemu
-            python3 -u ./.jenkins/test3.py \
-                --subarch amd64 \
-                --qemu-image asdf \
-                --qemu-image-back asdf \
-                --xmhf-bin ${PWD}/ \
-                --sshpass jkl \
-                --work-dir ${PWD}/tmp/ \
-                --no-display \
-                --verbose \
-                --boot-dir ${PWD}/.jenkins/boot \
-                --watch-serial \
-                --skip-reset-qemu \
-                --smp 2
-      - run:
           name: "Build"
           command: "./.github/build.sh << parameters.subarch >> circleci"
       - run:
