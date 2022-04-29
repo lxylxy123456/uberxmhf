@@ -24,6 +24,8 @@ jobs:
             /sbin/mkfs.ext4 b.img
             echo AAAA
             echo write jkl jkl > my_script
+            echo mkdir uio >> my_script
+            echo write jkl uio/jkl2 >> my_script
             /sbin/debugfs -f my_script -w b.img
             echo BBBB
             echo cat jkl | /sbin/debugfs -w b.img | grep .
@@ -32,6 +34,7 @@ jobs:
             echo DDDD
             mkdir mnt
             sudo mount b.img mnt
+            sudo find mnt
             cat mnt/jkl
             xxd b.img | grep asdjf
       - run:
