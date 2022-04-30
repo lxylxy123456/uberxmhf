@@ -556,5 +556,9 @@ cce2c94d0 fix compiler warning in smpg-x86svm.c									V
 
 The data above is also saved in `commits.txt`. Write `commits.py` to process.
 
+```sh
+python3 commits.py > feature_bug.md
+```
 
+Currently waiting for PR review
 

@@ -283,7 +283,7 @@
 * Optimize XMHF for sending LAPIC EOI (`bug_064`)
 * Enable Circle CI testing (`bug_064`)
 
-`7abab5b91..` (18ecd868e)
+`7abab5b91..18ecd868e`
 * Update documentation
 * Fix some problems with Makefiles (`bug_066`)
 * Update NMI quiesce code (`bug_065`)
