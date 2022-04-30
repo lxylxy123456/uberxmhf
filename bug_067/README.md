@@ -255,3 +255,8 @@ TODO: check processor signature etc
 TODO: compute crypto hash
 TODO: write Python script to calculate hash in /usr/lib/firmware/intel-ucode
 
+## Fix
+
+`1a3f267cd..007ab17d2`
+* Add comments for the hpt library
+

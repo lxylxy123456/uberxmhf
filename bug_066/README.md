@@ -58,6 +58,6 @@ list all of them, so we just always remake `$(HYPERVISOR_BIN_GZ)`.
 
 ## Fix
 
-`c5e1f534b..5c29efd57`
+`016013a8c..5c29efd57`
 * Fix bug in xmhf/src/xmhf-core/Makefile to correctly parallel remake
 

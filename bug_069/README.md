@@ -2,7 +2,7 @@
 
 ## Scope
 * All XMHF
-* Git `a98450a7c`
+* Git `007ab17d2`
 
 ## Behavior
 
@@ -176,4 +176,19 @@ Created new branch `xmhf64-bug_069`. In `4b87ee173`, use `xxd` to dump the
 entire content of `c.img`. Looks like that `debugfs` cannot correctly write
 files.
 
-TODO
+After some debugging, looks like debugfs is at an older version, and `write`
+command cannot handle paths correctly:
+* `write file file` is correct
+* `write file path/file` will cause a file called `path/file` created in the
+  root directory. This causes I/O error when mounting the file system and ls
+  the root directory.
+
+The problem can be fixed by `cd` to the correct directory and then write file.
+
+The last commit of branch `xmhf64-bug_069` is `db4bee8a4`.
+
+## Fix
+
+`007ab17d2..18ecd868e`
+* Use debugfs to speed up CI testing
+

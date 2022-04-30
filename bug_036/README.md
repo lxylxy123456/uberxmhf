@@ -1727,7 +1727,7 @@ a demo of using the above techniques to debug. For example QEMU serial is
 
 ## Fix
 
-`43b3d6552..835d832f6`, `a2fe5a973..3bbcf39a8`
+`43b3d6552..835d832f6`, `a7fa77062..3bbcf39a8`
 * Fix bug of interpreting RSP in real mode
 * Reduce code used to read fixed MTRRs
 * Remove hardcoding of memorytype=WB in `_vmx_setupEPT()`
