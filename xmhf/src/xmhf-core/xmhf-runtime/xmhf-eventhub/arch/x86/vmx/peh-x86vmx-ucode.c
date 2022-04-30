@@ -76,6 +76,19 @@ typedef struct __attribute__ ((packed)) {
 	u8 update_data[0];
 } intel_ucode_update_t;
 
+typedef struct __attribute__ ((packed)) {
+	u32 processor_signature;
+	u32 processor_flags;
+	u32 checksum;
+} intel_ucode_ext_sign_t;
+
+typedef struct __attribute__ ((packed)) {
+	u32 extended_signature_count;
+	u32 extended_processor_signature_table_checksum;
+	u32 reserved[3];
+	intel_ucode_ext_sign_t signatures[0];
+} intel_ucode_ext_sign_table_t;
+
 typedef struct {
 	hptw_ctx_t guest_ctx;
 	hptw_ctx_t host_ctx;
@@ -105,7 +118,7 @@ static void* ucode_guest_ctx_pa2ptr(void *vctx, hpt_pa_t gpa, size_t sz, hpt_pro
 {
 	ucode_hptw_ctx_pair_t *ctx_pair = vctx;
 
-	return hptw_checked_access_va(&ctx_pair.host_ctx,
+	return hptw_checked_access_va(&ctx_pair->host_ctx,
 									access_type,
 									cpl,
 									gpa,
@@ -120,6 +133,46 @@ static void* ucode_ctx_unimplemented(void *vctx, size_t alignment, size_t sz)
 	(void)sz;
 	HALT_ON_ERRORCOND(0 && "Not implemented");
 	return NULL;
+}
+
+/*
+ * Check the processor flags of update
+ * Return 1 if the update is for this processor, 0 otherwise
+ */
+static int ucode_check_processor_flags(u32 processor_flags)
+{
+	u64 flag = 1 << ((rdmsr64(IA32_PLATFORM_ID) >> 50) & 0x7);
+	return !!(processor_flags & flag);
+}
+
+/*
+ * Check the processor signature and processor flags of update
+ * Return 1 if the update is for this processor, 0 otherwise
+ */
+static int ucode_check_processor(intel_ucode_update_t *header)
+{
+	u32 eax, ebx, ecx, edx;
+	cpuid(1, &eax, &ebx, &ecx, &edx);
+	HALT_ON_ERRORCOND(header->header_version == 1);
+	if (header->processor_signature == eax) {
+		return ucode_check_processor_flags(header->processor_flags);
+	} else if (header->total_size > header->data_size + 48) {
+		intel_ucode_ext_sign_table_t *ext_sign_table;
+		u32 n;
+		u32 ext_size = header->total_size - (header->data_size + 48);
+		HALT_ON_ERRORCOND(ext_size >= sizeof(intel_ucode_ext_sign_table_t));
+		ext_sign_table = ((void *) header) + (header->data_size + 48);
+		n = ext_sign_table->extended_signature_count;
+		HALT_ON_ERRORCOND(ext_size >= sizeof(intel_ucode_ext_sign_table_t) +
+							n * sizeof(intel_ucode_ext_sign_t));
+		for (u32 i = 0; i < n; i++) {
+			intel_ucode_ext_sign_t *signature = &ext_sign_table->signatures[i];
+			if (signature->processor_signature == eax) {
+				return ucode_check_processor_flags(signature->processor_flags);
+			}
+		}
+	}
+	return 0;
 }
 
 /*
@@ -170,9 +223,14 @@ void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 	size = header->total_size - size;
 	result = hptw_checked_copy_from_va(ctx, 0, &header->update_data,
 										update_data, size);
+	/* Check the hash of the update */
+	// TODO
 	printf("\nSECURITY: microcode provided by guest is not checked!!!");
-	// TODO: check whether update is compatible
-	// TODO: compute hash and check
+	/* Check whether update is for the processor */
+	if (!ucode_check_processor(header)) {
+		printf("\nCPU(0x%02x): Incompatible microcode update, HALT!", vcpu->id);
+		HALT();
+	}
 	/*
 	for (u32 i = 0; i < header->total_size; i++) {
 		if (i % 16 == 0) {
@@ -185,6 +243,7 @@ void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 		printf("%02x", copy_area[i]);
 	}
 	*/
+	/* Forward microcode update to host */
 	printf("\nCPU(0x%02x): Calling physical ucode update at 0x%08lx",
 			vcpu->id, &header->update_data);
 	wrmsr64(IA32_BIOS_UPDT_TRIG, (uintptr_t) &header->update_data);
