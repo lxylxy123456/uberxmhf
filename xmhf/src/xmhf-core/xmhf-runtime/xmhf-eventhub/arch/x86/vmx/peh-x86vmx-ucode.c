@@ -76,14 +76,13 @@ typedef struct __attribute__ ((packed)) {
 	u8 update_data[0];
 } intel_ucode_update_t;
 
-// TODO: rename "wrmsr" in function names
-static hpt_pa_t wrmsr_host_ctx_ptr2pa(void *vctx, void *ptr)
+static hpt_pa_t ucode_host_ctx_ptr2pa(void *vctx, void *ptr)
 {
 	(void)vctx;
 	return hva2spa(ptr);
 }
 
-static void* wrmsr_host_ctx_pa2ptr(void *vctx, hpt_pa_t spa, size_t sz, hpt_prot_t access_type, hptw_cpl_t cpl, size_t *avail_sz)
+static void* ucode_host_ctx_pa2ptr(void *vctx, hpt_pa_t spa, size_t sz, hpt_prot_t access_type, hptw_cpl_t cpl, size_t *avail_sz)
 {
 	(void)vctx;
 	(void)access_type;
@@ -92,12 +91,12 @@ static void* wrmsr_host_ctx_pa2ptr(void *vctx, hpt_pa_t spa, size_t sz, hpt_prot
 	return spa2hva(spa);
 }
 
-static hpt_pa_t wrmsr_guest_ctx_ptr2pa(void __attribute__((unused)) *ctx, void *ptr)
+static hpt_pa_t ucode_guest_ctx_ptr2pa(void __attribute__((unused)) *ctx, void *ptr)
 {
 	return hva2gpa(ptr);
 }
 
-static void* wrmsr_guest_ctx_pa2ptr(void *vctx, hpt_pa_t gpa, size_t sz, hpt_prot_t access_type, hptw_cpl_t cpl, size_t *avail_sz)
+static void* ucode_guest_ctx_pa2ptr(void *vctx, hpt_pa_t gpa, size_t sz, hpt_prot_t access_type, hptw_cpl_t cpl, size_t *avail_sz)
 {
 	// TODO: bad practice
 	hptw_ctx_t *ctx = vctx;
@@ -110,7 +109,7 @@ static void* wrmsr_guest_ctx_pa2ptr(void *vctx, hpt_pa_t gpa, size_t sz, hpt_pro
 		                        avail_sz);
 }
 
-static void* wrmsr_ctx_unimplemented(void *vctx, size_t alignment, size_t sz)
+static void* ucode_ctx_unimplemented(void *vctx, size_t alignment, size_t sz)
 {
 	(void)vctx;
 	(void)alignment;
@@ -131,17 +130,17 @@ void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 	hpt_type_t guest_t = hpt_emhf_get_guest_hpt_type(vcpu);
 	hptw_ctx_t ctx[2] = {
 		{
-			.ptr2pa = wrmsr_host_ctx_ptr2pa,
-			.pa2ptr = wrmsr_host_ctx_pa2ptr,
-			.gzp = wrmsr_ctx_unimplemented,
+			.ptr2pa = ucode_host_ctx_ptr2pa,
+			.pa2ptr = ucode_host_ctx_pa2ptr,
+			.gzp = ucode_ctx_unimplemented,
 			.root_pa = hpt_eptp_get_address(HPT_TYPE_EPT,
 											vcpu->vmcs.control_EPT_pointer),
 			.t = HPT_TYPE_EPT,
 		},
 		{
-			.ptr2pa = wrmsr_guest_ctx_ptr2pa,
-			.pa2ptr = wrmsr_guest_ctx_pa2ptr,
-			.gzp = wrmsr_ctx_unimplemented,
+			.ptr2pa = ucode_guest_ctx_ptr2pa,
+			.pa2ptr = ucode_guest_ctx_pa2ptr,
+			.gzp = ucode_ctx_unimplemented,
 			.root_pa = hpt_cr3_get_address(guest_t, vcpu->vmcs.guest_CR3),
 			.t = guest_t,
 		}
