@@ -76,6 +76,11 @@ typedef struct __attribute__ ((packed)) {
 	u8 update_data[0];
 } intel_ucode_update_t;
 
+typedef struct {
+	hptw_ctx_t guest_ctx;
+	hptw_ctx_t host_ctx;
+} ucode_hptw_ctx_pair_t;
+
 static hpt_pa_t ucode_host_ctx_ptr2pa(void *vctx, void *ptr)
 {
 	(void)vctx;
@@ -98,15 +103,14 @@ static hpt_pa_t ucode_guest_ctx_ptr2pa(void __attribute__((unused)) *ctx, void *
 
 static void* ucode_guest_ctx_pa2ptr(void *vctx, hpt_pa_t gpa, size_t sz, hpt_prot_t access_type, hptw_cpl_t cpl, size_t *avail_sz)
 {
-	// TODO: bad practice
-	hptw_ctx_t *ctx = vctx;
+	ucode_hptw_ctx_pair_t *ctx_pair = vctx;
 
-	return hptw_checked_access_va(ctx - 1,
-		                        access_type,
-		                        cpl,
-		                        gpa,
-		                        sz,
-		                        avail_sz);
+	return hptw_checked_access_va(&ctx_pair.host_ctx,
+									access_type,
+									cpl,
+									gpa,
+									sz,
+									avail_sz);
 }
 
 static void* ucode_ctx_unimplemented(void *vctx, size_t alignment, size_t sz)
@@ -128,23 +132,24 @@ static void* ucode_ctx_unimplemented(void *vctx, size_t alignment, size_t sz)
 void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 {
 	hpt_type_t guest_t = hpt_emhf_get_guest_hpt_type(vcpu);
-	hptw_ctx_t ctx[2] = {
-		{
+	ucode_hptw_ctx_pair_t ctx_pair = {
+		.guest_ctx = {
+			.ptr2pa = ucode_guest_ctx_ptr2pa,
+			.pa2ptr = ucode_guest_ctx_pa2ptr,
+			.gzp = ucode_ctx_unimplemented,
+			.root_pa = hpt_cr3_get_address(guest_t, vcpu->vmcs.guest_CR3),
+			.t = guest_t,
+		},
+		.host_ctx = {
 			.ptr2pa = ucode_host_ctx_ptr2pa,
 			.pa2ptr = ucode_host_ctx_pa2ptr,
 			.gzp = ucode_ctx_unimplemented,
 			.root_pa = hpt_eptp_get_address(HPT_TYPE_EPT,
 											vcpu->vmcs.control_EPT_pointer),
 			.t = HPT_TYPE_EPT,
-		},
-		{
-			.ptr2pa = ucode_guest_ctx_ptr2pa,
-			.pa2ptr = ucode_guest_ctx_pa2ptr,
-			.gzp = ucode_ctx_unimplemented,
-			.root_pa = hpt_cr3_get_address(guest_t, vcpu->vmcs.guest_CR3),
-			.t = guest_t,
 		}
 	};
+	hptw_ctx_t *ctx = &ctx_pair.guest_ctx;
 	u64 va_header = update_data - sizeof(intel_ucode_update_t);
 	u8 *copy_area;
 	intel_ucode_update_t *header;
@@ -155,7 +160,7 @@ void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 	/* Copy header of microcode update */
 	header = (intel_ucode_update_t *) copy_area;
 	size = sizeof(intel_ucode_update_t);
-	result = hptw_checked_copy_from_va(&ctx[1], 0, header, va_header, size);
+	result = hptw_checked_copy_from_va(ctx, 0, header, va_header, size);
 	HALT_ON_ERRORCOND(result == 0);
 	printf("\nCPU(0x%02x): date(mmddyyyy)=%08x, dsize=%d, tsize=%d",
 			vcpu->id, header->date, header->data_size, header->total_size);
@@ -163,7 +168,7 @@ void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 	HALT_ON_ERRORCOND(header->total_size <= UCODE_TOTAL_SIZE_MAX);
 	/* Copy the rest of of microcode update */
 	size = header->total_size - size;
-	result = hptw_checked_copy_from_va(&ctx[1], 0, &header->update_data,
+	result = hptw_checked_copy_from_va(ctx, 0, &header->update_data,
 										update_data, size);
 	printf("\nSECURITY: microcode provided by guest is not checked!!!");
 	// TODO: check whether update is compatible
