@@ -686,3 +686,9 @@ cb825af84 Add a little bit documentation for hptw_emhf.c                        
 007ab17d2 Remove nmm_*_gpaddr() functions                                       bug_067
 ```
 
+#### `Feature: Intel microcode update`
+```
+e995b81e3 Implement microcode update                                            bug_067
+d0f2be0fb Enable ucode in CI                                                    bug_067
+```
+

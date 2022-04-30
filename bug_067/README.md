@@ -230,7 +230,8 @@ CPU(0x04): Physical ucode update returned
 
 On Windows 10, also works. Serial output is the same.
 
-Git `a98450a7c` makes it a configuration option.
+Git `a98450a7c` makes it a configuration option. From now on, use
+`--enable-update-intel-ucode` in `./configure`.
 
 ### Checking processor signature
 
@@ -250,13 +251,80 @@ The checks we need to perform are covered in
 We do not need to perform
 * "9.11.5 Microcode Update Checksum": will be covered by crypto hash
 
-TODO: clean up TODOs in xmhf64-dev code
-TODO: check processor signature etc
-TODO: compute crypto hash
-TODO: write Python script to calculate hash in /usr/lib/firmware/intel-ucode
+### Check processor signature etc
+
+We implement checking processor identification and platform identification in
+git `175c95834`. HP succeeds, QEMU fails. This is expected behavior.
+
+We also use GDB to check QEMU's failure logic. After running the above
+"GDB script":
+
+```
+d
+symbol-file
+symbol-file xmhf/src/xmhf-core/xmhf-runtime/runtime.exe
+hb handle_intel_ucode_update
+c
+
+hb ucode_check_processor
+c
+```
+
+Unfortunately the `else if (header->total_size > header->data_size + 48)`
+branch is not executed. But other things look good.
+
+### Compute crypto hash
+
+We know that TrustVisor uses the crypto library. Likely we need to initialize
+something, like in `trustvisor_master_crypto_init()`.
+
+Or maybe we do not need to initialize, just use `sha1_buffer()`.
+
+We verify this experimentally.
+
+It turns out `sha1_buffer()` is very convenient, so we use it. For example,
+the following program prints `SHA1={c4f9375f9834b4e7f0a528cc65c055702bf5f24a}`
+easily.
+
+```c
+unsigned char a[10] = "123456\n";
+unsigned char md[SHA_DIGEST_LENGTH];
+HALT_ON_ERRORCOND(sha1_buffer(a, 7, md) == 0);
+printf("SHA1={");
+for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
+	printf("%x", md[i]);
+}
+printf("}");
+```
+
+Git `bd96617f2` implements call to `sha1_buffer()`. The serial output is
+
+```
+gva for microcode update: 0xffff8880327c7ae0
+CPU(0x00): date(mmddyyyy)=04232018, dsize=4048, tsize=4096
+SHA1(update) = 48 70 94 85 cb d2 72 9e 96 d8 d0 8e cc 31 77 ad 
+SHA1(update) = 57 fd 95 2b 
+```
+
+We can verify the result by computing it in Linux
+```sh
+$ dd if=/usr/lib/firmware/intel-ucode/06-25-05 bs=4K count=1 status=none | sha1sum
+48709485cbd2729e96d8d08ecc3177ad57fd952b  -
+$
+```
+
+### Write Python script to calculate hash
+
+We write a script to parse all updates in `/usr/lib/firmware/intel-ucode` and
+compute SHA-1 hashes. See `intel_ucode_sha1.py`.
+
+At this point, commits in `xmhf64-dev` can be diffed through
+`18ecd868e..9edbbc2f5`. We squash these commits to `xmhf64`:
+`18ecd868e..e995b81e3`.
 
 ## Fix
 
-`1a3f267cd..007ab17d2`
+`1a3f267cd..007ab17d2`, `18ecd868e..d0f2be0fb`
 * Add comments for the hpt library
+* Support forwarding guest's microcode update request to hardware
 

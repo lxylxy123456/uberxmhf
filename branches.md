@@ -291,6 +291,9 @@
 * Add comments for the hpt library (`bug_067`)
 * Use debugfs to speed up CI testing (`bug_069`)
 
+`18ecd868e..` (d0f2be0fb)
+* Support forwarding guest's microcode update request to hardware (`bug_067`)
+
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output
 * `0d7e0599d`: Handle VMCALL `KVM_HC_VAPIC_POLL_IRQ` (run WinXP SP3 on QEMU)

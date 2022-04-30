@@ -1,3 +1,5 @@
+d0f2be0fb Enable ucode in CI													V (bug_067)
+e995b81e3 Implement microcode update											Feature: Intel microcode update (bug_067)
 18ecd868e Prevent commands containing paths in debugfs										V (bug_069)
 e61506a5f Use debugfs -f																	V (bug_069)
 a830c3af4 Remove unnecessary files															V (bug_069)
