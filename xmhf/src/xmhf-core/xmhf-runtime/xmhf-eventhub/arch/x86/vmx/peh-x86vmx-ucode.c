@@ -136,7 +136,20 @@ static void* ucode_ctx_unimplemented(void *vctx, size_t alignment, size_t sz)
 }
 
 /*
- * Check the processor flags of update
+ * Check SHA-1 hash of the update
+ * Return 1 if the update is recognized, 0 otherwise
+ */
+static int ucode_check_sha1(intel_ucode_update_t *header)
+{
+	const unsigned char *buffer = (const unsigned char *) header;
+	unsigned char md[SHA_DIGEST_LENGTH];
+	HALT_ON_ERRORCOND(sha1_buffer(buffer, header->total_size, md) == 0);
+	print_hex("SHA1(update) = ", md, SHA_DIGEST_LENGTH);
+	return 0;
+}
+
+/*
+ * Check the processor flags of the update
  * Return 1 if the update is for this processor, 0 otherwise
  */
 static int ucode_check_processor_flags(u32 processor_flags)
@@ -146,7 +159,7 @@ static int ucode_check_processor_flags(u32 processor_flags)
 }
 
 /*
- * Check the processor signature and processor flags of update
+ * Check the processor signature and processor flags of the update
  * Return 1 if the update is for this processor, 0 otherwise
  */
 static int ucode_check_processor(intel_ucode_update_t *header)
@@ -224,6 +237,10 @@ void handle_intel_ucode_update(VCPU *vcpu, u64 update_data)
 	result = hptw_checked_copy_from_va(ctx, 0, &header->update_data,
 										update_data, size);
 	/* Check the hash of the update */
+	if (!ucode_check_sha1(header)) {
+		printf("\nCPU(0x%02x): Unrecognized microcode update, HALT!", vcpu->id);
+		HALT();
+	}
 	// TODO
 	printf("\nSECURITY: microcode provided by guest is not checked!!!");
 	/* Check whether update is for the processor */
