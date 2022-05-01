@@ -71,11 +71,6 @@
 
 //pull in required crypto (SHA-1)
 //libXMHFcrypto
-#ifndef __ASSEMBLY__
-	#include <tomcrypt.h>
-	#include <sha1.h>
-#endif /* __ASSEMBLY__ */
-
 
 //pull in required TPM library
 //libtpm

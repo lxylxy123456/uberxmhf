@@ -84,16 +84,6 @@ endif
 ### Configure libraries (depends on TARGET_SUBARCH)
 ################################################################################
 
-# libtommath
-export LIBTOMMATH_SRC := $(realpath @LIBTOMMATH_SRC@)
-LIBTOMMATH_BUILD = $(CURDIR)/_build_libtommath
-LIBTOMMATH_ARCHIVE = libtommath.a
-
-# libtomcrypt
-export LIBTOMCRYPT_SRC := $(realpath @LIBTOMCRYPT_SRC@)
-LIBTOMCRYPT_BUILD = $(CURDIR)/_build_libtomcrypt
-LIBTOMCRYPT_ARCHIVE = libtomcrypt.a
-
 # libbaremetal "source" location, currently hard-coded
 # TODO: specify via configure
 # LIBBAREMETAL_SRC = $(CURDIR)/libbaremetal
@@ -114,7 +104,6 @@ LIBBAREMETAL_BUILD = $(CURDIR)/_build_libbaremetal
 # i386 versions of libraries if runtime is amd64.
 ifeq ($(TARGET_SUBARCH), amd64)
 LIBBAREMETAL_BUILD32 = $(CURDIR)/_build_libbaremetal32
-LIBTOMCRYPT_BUILD32 = $(CURDIR)/_build_libtomcrypt32
 endif
 
 # Libraries for secureloader and runtime: libbaremetal, tomcrypt, tommath
@@ -124,8 +113,6 @@ ADDL_LIBS += $(LIBBAREMETAL_BUILD)/_objects/$(LIBBAREMETAL_ARCHIVE)
 # Includes for secureloader and runtime
 export ADDL_INCLUDES :=
 ADDL_INCLUDES += -I$(EMHF_INCLUDE) $(LIBBAREMETAL_INC)
-ADDL_INCLUDES += -I$(LIBTOMCRYPT_SRC)/src/headers/
-ADDL_INCLUDES += -I$(LIBTOMMATH_SRC)
 
 # Libraries for bootloader (always i386): libbaremetal, tomcrypt
 export ADDL_LIBS_BOOTLOADER :=
@@ -138,16 +125,12 @@ endif
 # Includes for bootloader
 export ADDL_INCLUDES_BOOTLOADER :=
 ADDL_INCLUDES_BOOTLOADER += -I$(EMHF_INCLUDE) $(LIBBAREMETAL_INC)
-ADDL_INCLUDES_BOOTLOADER += -I$(LIBTOMCRYPT_SRC)/src/headers/
 
 # List of subdirs need to be built
 export LIB_SUBDIRS :=
 LIB_SUBDIRS += $(LIBBAREMETAL_BUILD)
-LIB_SUBDIRS += $(LIBTOMCRYPT_BUILD)
-LIB_SUBDIRS += $(LIBTOMMATH_BUILD)
 ifeq ($(TARGET_SUBARCH), amd64)
 LIB_SUBDIRS += $(LIBBAREMETAL_BUILD32)
-LIB_SUBDIRS += $(LIBTOMCRYPT_BUILD32)
 endif
 
 
@@ -328,26 +311,6 @@ $(APP_ARCHIVE):
 	@echo primary hyperapp build SUCCESS
 	@echo ---------------------------------------------------------------
 
-$(LIBTOMMATH_BUILD):
-	@echo ---------------------------------------------------------------
-	@echo Building libtommath...
-	@echo ---------------------------------------------------------------
-	mkdir -p $(LIBTOMMATH_BUILD)
-	cd $(LIBTOMMATH_BUILD) && $(MAKE) -f $(LIBTOMMATH_SRC)/makefile CFLAGS="$(filter-out -Werror,$(CFLAGS))" -w $(LIBTOMMATH_ARCHIVE)
-	@echo ---------------------------------------------------------------
-	@echo libtommath.a build SUCCESS
-	@echo ---------------------------------------------------------------
-
-$(LIBTOMCRYPT_BUILD):
-	@echo ---------------------------------------------------------------
-	@echo Building libtomcrypt...
-	@echo ---------------------------------------------------------------
-	mkdir -p $(LIBTOMCRYPT_BUILD)
-	cd $(LIBTOMCRYPT_BUILD) && $(MAKE) -f $(LIBTOMCRYPT_SRC)/makefile CFLAGS="$(filter-out -Werror,$(CFLAGS)) -DLTC_SOURCE" -w $(LIBTOMCRYPT_ARCHIVE)
-	@echo ---------------------------------------------------------------
-	@echo libtomcrypt.a build SUCCESS
-	@echo ---------------------------------------------------------------
-
 $(LIBBAREMETAL_BUILD):
 	@echo ---------------------------------------------------------------
 	@echo Building libbaremetal...
@@ -359,16 +322,6 @@ $(LIBBAREMETAL_BUILD):
 	@echo ---------------------------------------------------------------
 
 ifeq ($(TARGET_SUBARCH), amd64)
-
-$(LIBTOMCRYPT_BUILD32):
-	@echo ---------------------------------------------------------------
-	@echo Building libtomcrypt 32-bits...
-	@echo ---------------------------------------------------------------
-	mkdir -p $(LIBTOMCRYPT_BUILD32)
-	cd $(LIBTOMCRYPT_BUILD32) && $(MAKE) -f $(LIBTOMCRYPT_SRC)/makefile CFLAGS="$(filter-out -Werror,$(BCFLAGS)) -DLTC_SOURCE" -w $(LIBTOMCRYPT_ARCHIVE)
-	@echo ---------------------------------------------------------------
-	@echo libtomcrypt.a 32-bits build SUCCESS
-	@echo ---------------------------------------------------------------
 
 $(LIBBAREMETAL_BUILD32):
 	@echo ---------------------------------------------------------------
@@ -433,24 +386,6 @@ clean:
 	@echo ---------------------------------------------------------------
 	@echo libbaremetal.a clean SUCCESS
 	@echo ---------------------------------------------------------------
-	@echo ---------------------------------------------------------------
-	@echo Cleaning libtommath and libtomcrypt...
-	@echo ---------------------------------------------------------------
-	rm -rf $(LIBTOMMATH_BUILD)
-	rm -rf $(LIBTOMCRYPT_BUILD)
-	@echo ---------------------------------------------------------------
-	@echo libtommath and libtomcrypt clean SUCCESS...
-	@echo ---------------------------------------------------------------
-ifeq ($(TARGET_SUBARCH), amd64)
-	@echo ---------------------------------------------------------------
-	@echo Cleaning 32-bits external libraries...
-	@echo ---------------------------------------------------------------
-	rm -rf $(LIBTOMCRYPT_BUILD32)
-	rm -rf $(LIBBAREMETAL_BUILD32)
-	@echo ---------------------------------------------------------------
-	@echo 32-bits external libraries clean SUCCESS...
-	@echo ---------------------------------------------------------------
-endif
 	@echo ---------------------------------------------------------------
 	@echo Cleaning XMHF core/hyperapp...
 	@echo ---------------------------------------------------------------

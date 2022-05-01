@@ -90,7 +90,6 @@
 #include <string.h>
 #include <print_hex.h>
 #include <tpm.h>
-#include <tomcrypt.h>
 #include <sha1.h>
 
 /* These go with _tpm_submit_cmd in tpm.c */

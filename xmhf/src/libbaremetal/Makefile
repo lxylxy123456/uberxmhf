@@ -8,7 +8,8 @@
 srcdir := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
 # grab all the sub-library directories
-LIBDIRS = $(wildcard $(srcdir)/lib*)
+# LIBDIRS = $(wildcard $(srcdir)/lib*)
+LIBDIRS = $(srcdir)/libxmhfc  $(srcdir)/libxmhfutil
 
 
 .PHONY: all
