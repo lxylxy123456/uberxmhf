@@ -894,6 +894,7 @@ void cstartup(multiboot_info_t *mbi){
 
     HALT_ON_ERRORCOND(sl_rt_size > 0x200000); /* 2M */
 
+#if 0
     /* runtime */
     print_hex("    INIT(early): *UNTRUSTED* gold runtime: ",
               g_init_gold.sha_runtime, SHA_DIGEST_LENGTH);
@@ -909,7 +910,7 @@ void cstartup(multiboot_info_t *mbi){
               g_init_gold.sha_slabove64K, SHA_DIGEST_LENGTH);
     hashandprint("    INIT(early): *UNTRUSTED* comp SL above 64K): ",
                  (u8*)hypervisor_image_baseaddress+0x10000, 0x200000-0x10000);
-
+#endif
 
     //print out stats
     printf("\nINIT(early): relocated hypervisor binary image to 0x%08x", hypervisor_image_baseaddress);
