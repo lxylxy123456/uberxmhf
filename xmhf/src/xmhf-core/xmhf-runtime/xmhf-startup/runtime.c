@@ -52,7 +52,6 @@
 
 //---runtime main---------------------------------------------------------------
 void xmhf_runtime_entry(void){
-#if 0 /* __NOT_RUNNING_LHV__ */
 	u32 cpu_vendor;
 
 	//get CPU vendor
@@ -69,6 +68,7 @@ void xmhf_runtime_entry(void){
   	//initialize basic platform elements
 	xmhf_baseplatform_initialize();
 
+#if 0 /* __NOT_RUNNING_LHV__ */
     //[debug] dump E820 and MP table
  	#ifndef __XMHF_VERIFICATION__
  	printf("\nNumber of E820 entries = %u", rpb->XtVmmE820NumEntries);
