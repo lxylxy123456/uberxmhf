@@ -94,8 +94,8 @@ OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-$(TARGET_SUBARCH)-s
 #OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/vmx/part-x86-$(TARGET_SUBARCH)vmx-sup.o
 
 OBJECTS_PRECOMPILED += ./xmhf-startup/runtime.o
-#OBJECTS_PRECOMPILED += ./xmhf-startup/rntm-data.o
-#OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-data.o
+OBJECTS_PRECOMPILED += ./xmhf-startup/rntm-data.o
+OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-data.o
 
 
 
