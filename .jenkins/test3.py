@@ -262,7 +262,7 @@ def main():
 #				p.wait(timeout=HALT_TIMEOUT)
 #			except subprocess.TimeoutExpired:
 #				pass
-		for i in range(15):
+		for i in range(10):
 			println('MET:', i)
 			time.sleep(1)
 		# OS cannot be started, always pass
