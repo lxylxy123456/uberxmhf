@@ -213,7 +213,6 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
   xmhf_partition_start(vcpu);
 #endif
 
-  printf("\nCPU(?): FATAL, should not be here. HALTING!");
-//  printf("\nCPU(0x%02x): FATAL, should not be here. HALTING!", vcpu->id);
+  printf("\nCPU(0x%02x): FATAL, should not be here. HALTING!", vcpu->id);
   HALT();
 }
