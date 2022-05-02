@@ -8,6 +8,13 @@ void lhv_main(VCPU *vcpu)
 	console_clear(&vc);
 	if (vcpu->isbsp) {
 		console_cursor_clear();
+		timer_init();
+		if (0) {	// TODO: currently will trigger double fault
+			u64 a;
+			get_eflags(a);
+			a |= EFLAGS_IF;
+			set_eflags(a);
+		}
 	}
 	for (int i = 0; i < vc.width; i++) {
 		for (int j = 0; j < vc.height; j++) {
