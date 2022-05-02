@@ -68,7 +68,6 @@ void xmhf_runtime_entry(void){
   	//initialize basic platform elements
 	xmhf_baseplatform_initialize();
 
-#if 0 /* __NOT_RUNNING_LHV__ */
     //[debug] dump E820 and MP table
  	#ifndef __XMHF_VERIFICATION__
  	printf("\nNumber of E820 entries = %u", rpb->XtVmmE820NumEntries);
@@ -131,8 +130,10 @@ void xmhf_runtime_entry(void){
 
 #endif
 
+#if 0 /* __NOT_RUNNING_LHV__ */
 	//initialize base platform with SMP
 	xmhf_baseplatform_smpinitialize();
+#endif
 
 	printf("\nRuntime: We should NEVER get here!");
 	HALT_ON_ERRORCOND(0);
@@ -143,7 +144,10 @@ void xmhf_runtime_entry(void){
 //isEarlyInit = 1 if we were boot-strapped by the BIOS and is 0
 //in the event we were launched from a running OS
 void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
+  (void) vcpu;
+  (void) isEarlyInit;
 
+#if 0 /* __NOT_RUNNING_LHV__ */
   //initialize CPU
   xmhf_baseplatform_cpuinitialize();
 
