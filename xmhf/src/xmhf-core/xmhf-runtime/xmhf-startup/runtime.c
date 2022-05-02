@@ -182,6 +182,9 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
 	}
 
+	((u32 *)g_runtime_TSS)[2] = 0x18;
+	((u32 *)g_runtime_TSS)[25] = 0x680000;	// TODO: not understood
+
 	lhv_main(vcpu);
 
 #if 0 /* __NOT_RUNNING_LHV__ */

@@ -335,7 +335,7 @@ void xmhf_sl_arch_xfer_control_to_runtime(RPB *rpb){
 		//fix TSS descriptor, 18h
 		t= (TSSENTRY *)((hva_t)(hva2sla((void *)gdt_base)) + __TRSEL );
 		t->attributes1= 0x89;
-		t->limit16_19attributes2= 0x10;
+		t->limit16_19attributes2= 0x00;
 #ifdef __AMD64__
 		t->baseAddr0_15= (u16)(tss_base & 0x000000000000FFFF);
 		t->baseAddr16_23= (u8)((tss_base & 0x0000000000FF0000) >> 16);
