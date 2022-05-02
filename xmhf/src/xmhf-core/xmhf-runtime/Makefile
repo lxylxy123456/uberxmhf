@@ -12,8 +12,8 @@
 #OBJECTS_PRECOMPILED += ./xmhf-tpm/arch/x86/svm/tpm-x86svm.o
 #OBJECTS_PRECOMPILED += ./xmhf-tpm/arch/x86/vmx/tpm-x86vmx.o
 
-OBJECTS_PRECOMPILED = ./xmhf-mm/xmhf-tlsf.o 
-OBJECTS_PRECOMPILED += ./xmhf-mm/xmhf-mm.o
+#OBJECTS_PRECOMPILED = ./xmhf-mm/xmhf-tlsf.o 
+#OBJECTS_PRECOMPILED += ./xmhf-mm/xmhf-mm.o
 
 #OBJECTS_PRECOMPILED += ./xmhf-memprot/memp-interface.o
 #OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/memp-x86.o
@@ -101,29 +101,29 @@ OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-data.o
 
 # separate from OBJECTS_PRECOMPILED because needs to come after libs on link line
 OBJECTS_PRECOMPILED_LIBBACKENDS = ./xmhf-xmhfcbackend/xmhfc-putchar.o
-OBJECTS_PRECOMPILED_LIBBACKENDS += ./xmhf-xmhfcbackend/stl/xmhfc-bitmap.o
-OBJECTS_PRECOMPILED_LIBBACKENDS += ./xmhf-xmhfcbackend/stl/xmhfc-dlist.o
+#OBJECTS_PRECOMPILED_LIBBACKENDS += ./xmhf-xmhfcbackend/stl/xmhfc-bitmap.o
+#OBJECTS_PRECOMPILED_LIBBACKENDS += ./xmhf-xmhfcbackend/stl/xmhfc-dlist.o
 # For some strange linker problem we need to add this
 OBJECTS_PRECOMPILED_LIBBACKENDS += ./xmhf-debug/lib.a
 
 #XMHF memory protection component
-RUNTIME_COMPONENTS = xmhf-memprot
+#RUNTIME_COMPONENTS = xmhf-memprot
 #XMHF Memory management component
-RUNTIME_COMPONENTS += xmhf-mm
+#RUNTIME_COMPONENTS += xmhf-mm
 #XMHF partition event-hub component
-RUNTIME_COMPONENTS += xmhf-eventhub
+#RUNTIME_COMPONENTS += xmhf-eventhub
 #XMHF SMP guest component
-RUNTIME_COMPONENTS += xmhf-smpguest
+#RUNTIME_COMPONENTS += xmhf-smpguest
 ifeq ($(DMAP), y)
 #XMHF DMA protection component
-RUNTIME_COMPONENTS += xmhf-dmaprot
+#RUNTIME_COMPONENTS += xmhf-dmaprot
 endif
 #XMHF exception handler component
 RUNTIME_COMPONENTS += xmhf-xcphandler
 #XMHF base platform component
 RUNTIME_COMPONENTS += xmhf-baseplatform
 #XMHF partition component
-RUNTIME_COMPONENTS += xmhf-partition
+#RUNTIME_COMPONENTS += xmhf-partition
 #XMHF TPM component
 #RUNTIME_COMPONENTS += xmhf-tpm
 #XMHF debug component
