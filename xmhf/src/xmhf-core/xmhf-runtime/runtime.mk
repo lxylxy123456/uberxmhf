@@ -38,7 +38,8 @@ all: $(OBJECTS)
 # Generate .d files
 DEPFLAGS = -MMD
 
-M_SOURCES = Makefile ../Makefile ../../Makefile
+#M_SOURCES = Makefile ../Makefile ../../Makefile
+M_SOURCES = Makefile ../../Makefile
 
 $(_AS_OBJECTS): %.o: %.S $(M_SOURCES)
 	$(CC) -c $(ASFLAGS) $(DEPFLAGS) -o $@ $<

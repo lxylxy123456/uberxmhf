@@ -136,7 +136,8 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
 
     switch(vector){
     case CPU_EXCEPTION_NMI:
-        xmhf_smpguest_arch_x86_eventhandler_nmiexception(vcpu, r, 0);
+        //xmhf_smpguest_arch_x86_eventhandler_nmiexception(vcpu, r, 0);
+        HALT_ON_ERRORCOND(0);	// TODO: not implemented
         break;
 
     default:
@@ -271,6 +272,8 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
             // Exception #BP may be caused by failed VMRESUME. Dump VMCS
             if (vector == CPU_EXCEPTION_BP &&
                 get_cpu_vendor_or_die() == CPU_VENDOR_INTEL) {
+                HALT_ON_ERRORCOND(0);	// TODO: not implemented
+#if 0
                 xmhf_baseplatform_arch_x86vmx_getVMCS(vcpu);
 #ifdef __I386__
                 /*
@@ -285,6 +288,7 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
     #error "Unsupported Arch"
 #endif /* !defined(__AMD64__) */
                 xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
+#endif
             }
             HALT();
         }

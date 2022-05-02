@@ -50,14 +50,14 @@ OBJECTS_PRECOMPILED += ./xmhf-mm/xmhf-mm.o
 #OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-data.o
 #endif
 
-#OBJECTS_PRECOMPILED += ./xmhf-xcphandler/xcph-interface.o
-#OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/x86/xcph-x86.o
-#OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/x86/xcph-stubs-$(TARGET_SUBARCH).o
+OBJECTS_PRECOMPILED += ./xmhf-xcphandler/xcph-interface.o
+OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/x86/xcph-x86.o
+OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/x86/xcph-stubs-$(TARGET_SUBARCH).o
 
 #OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface.o
 #OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface-runtime.o
 #OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface-smp.o
-#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-data.o
+OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-data.o
 #OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86.o
 #OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-data.o
 #OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-pci.o
