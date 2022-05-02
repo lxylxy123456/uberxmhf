@@ -62,7 +62,7 @@ jobs:
             ln -s ${PWD}/cache/${qemu_image_back} qemu
             # qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
             #                 -F qcow2 ${PWD}/qemu/${qemu_image}
-            sha512sum ${PWD}/qemu/${qemu_image_back}
+            # sha512sum ${PWD}/qemu/${qemu_image_back}
             python3 -u ./.jenkins/test3.py \
                 --subarch ${SUBARCH} \
                 --qemu-image ${PWD}/qemu/${qemu_image} \
