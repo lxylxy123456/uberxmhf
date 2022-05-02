@@ -7,12 +7,12 @@
 # OBJECTS_PRECOMPILED = ./xmhf-debug/lib.a
 
 # OBJECTS_PRECOMPILED += ./xmhf-tpm/tpm-interface.o 
-OBJECTS_PRECOMPILED = ./xmhf-tpm/tpm-interface.o 
-OBJECTS_PRECOMPILED += ./xmhf-tpm/arch/x86/tpm-x86.o
-OBJECTS_PRECOMPILED += ./xmhf-tpm/arch/x86/svm/tpm-x86svm.o
-OBJECTS_PRECOMPILED += ./xmhf-tpm/arch/x86/vmx/tpm-x86vmx.o
+#OBJECTS_PRECOMPILED = ./xmhf-tpm/tpm-interface.o 
+#OBJECTS_PRECOMPILED += ./xmhf-tpm/arch/x86/tpm-x86.o
+#OBJECTS_PRECOMPILED += ./xmhf-tpm/arch/x86/svm/tpm-x86svm.o
+#OBJECTS_PRECOMPILED += ./xmhf-tpm/arch/x86/vmx/tpm-x86vmx.o
 
-OBJECTS_PRECOMPILED += ./xmhf-mm/xmhf-tlsf.o 
+OBJECTS_PRECOMPILED = ./xmhf-mm/xmhf-tlsf.o 
 OBJECTS_PRECOMPILED += ./xmhf-mm/xmhf-mm.o
 
 OBJECTS_PRECOMPILED += ./xmhf-memprot/memp-interface.o
@@ -124,7 +124,7 @@ RUNTIME_COMPONENTS += xmhf-baseplatform
 #XMHF partition component
 RUNTIME_COMPONENTS += xmhf-partition
 #XMHF TPM component
-RUNTIME_COMPONENTS += xmhf-tpm
+#RUNTIME_COMPONENTS += xmhf-tpm
 #XMHF debug component
 RUNTIME_COMPONENTS += xmhf-debug
 #XMHF libxmhfc environment callbacks

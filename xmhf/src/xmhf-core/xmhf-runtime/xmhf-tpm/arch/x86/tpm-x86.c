@@ -122,7 +122,7 @@ static void dump_locality_access_regs(void) {
 }*/
 
 
-#if 0
+
 static uint32_t tpm_get_flags(uint32_t locality, uint32_t flag_id,
                        uint8_t *flags, uint32_t flag_size)
 {
@@ -163,6 +163,7 @@ static uint32_t tpm_get_flags(uint32_t locality, uint32_t flag_id,
     return ret;
 }
 
+
 static uint32_t tpm_get_timeout(uint32_t locality,
                        uint8_t *prop, uint32_t prop_size)
 {
@@ -200,6 +201,7 @@ static uint32_t tpm_get_timeout(uint32_t locality,
 
     return ret;
 }
+
 
 /* ensure TPM is ready to accept commands */
 static bool is_tpm_ready(uint32_t locality)
@@ -271,7 +273,7 @@ static bool is_tpm_ready(uint32_t locality)
 
     return true;
 }
-#endif
+
 
 static bool release_locality(uint32_t locality)
 {
@@ -327,10 +329,7 @@ void xmhf_tpm_arch_deactivate_all_localities(void) {
 
 //check if TPM is ready for use
 bool xmhf_tpm_arch_is_tpm_ready(uint32_t locality){
-	(void) locality;
-	HALT_ON_ERRORCOND(0);
-	return 0;
-	// return is_tpm_ready(locality);
+	return is_tpm_ready(locality);
 }
 
 

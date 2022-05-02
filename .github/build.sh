@@ -22,7 +22,8 @@ LINUX_BASE=""					# DEB or RPM
 LINUX_BIT=$(getconf LONG_BIT)	# 32 or 64
 
 # Information about XMHF
-APPROOT="hypapps/trustvisor"
+#APPROOT="hypapps/trustvisor"
+APPROOT="hypapps/helloworld"
 SUBARCH=""
 DRT="n"
 DMAP="n"

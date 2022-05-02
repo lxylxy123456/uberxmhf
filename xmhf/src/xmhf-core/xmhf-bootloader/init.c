@@ -794,6 +794,7 @@ void wakeupAPs(void){
     printf("\nAPs should be awake!");
 }
 
+#if 0
 /* The TPM must be ready for the AMD CPU to send it commands at
  * Locality 4 when executing SKINIT. Ideally all that is necessary is
  * to xmhf_tpm_deactivate_all_localities(), but some TPM's are still not
@@ -822,6 +823,7 @@ bool svm_prepare_tpm(void) {
 
     return ret;
 }
+#endif
 
 //---init main----------------------------------------------------------------
 void cstartup(multiboot_info_t *mbi){
@@ -1037,6 +1039,7 @@ void mp_cstartup (VCPU *vcpu){
            vcpu->cpu_vendor == CPU_VENDOR_AMD);
 
     if(isbsp()){
+#if 0
         //clear microcode if AMD CPU
         if(vcpu->cpu_vendor == CPU_VENDOR_AMD){
             printf("\nBSP(0x%02x): Clearing microcode...", vcpu->id);
@@ -1048,6 +1051,7 @@ void mp_cstartup (VCPU *vcpu){
                 // XXX TODO HALT();
             }
         }
+#endif
 
         printf("\nBSP(0x%02x): Rallying APs...", vcpu->id);
 
