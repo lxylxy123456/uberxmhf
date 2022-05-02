@@ -122,14 +122,11 @@ RPB arch_rpb __attribute__(( section(".s_rpb") )) = {
 	.XtVmmRuntimePhysBase= 0,
 	.XtVmmRuntimeVirtBase= 0,
 	.XtVmmRuntimeSize= 0,
-	//.XtVmmE820Buffer= (hva_t)g_e820map,
-	.XtVmmE820Buffer= (hva_t)0x93333333, // TODO
+	.XtVmmE820Buffer= (hva_t)g_e820map,
 	.XtVmmE820NumEntries= 0,
-	//.XtVmmMPCpuinfoBuffer= (hva_t)g_cpumap,
-	.XtVmmMPCpuinfoBuffer= (hva_t)0x94444444, // TODO
+	.XtVmmMPCpuinfoBuffer= (hva_t)g_cpumap,
 	.XtVmmMPCpuinfoNumEntries= 0,
-	//.XtVmmTSSBase= (hva_t)g_runtime_TSS,
-	.XtVmmTSSBase= (hva_t)0x95555555, // TODO
+	.XtVmmTSSBase= (hva_t)g_runtime_TSS,
 	.RtmUartConfig = {0, 0, 0, 0, 0, 0, 0},
 	.isEarlyInit=1,					//1 for an "early init" else 0 (late-init)
 };
