@@ -41,18 +41,18 @@ jobs:
           path: init-x86-amd64.bin
       - store_artifacts:
           path: hypervisor-x86-amd64.bin.gz
-      - restore_cache:
-          keys:
-            - debian11x86x64-20220407-<< parameters.subarch >>
-      - run:
-          name: "Download Debian"
-          command: |
-            source .circleci/env.sh << parameters.subarch >>
-            .jenkins/download.sh cache ${qemu_image_back}
-      - save_cache:
-          key: debian11x86x64-20220407-<< parameters.subarch >>
-          paths:
-            - cache/
+#      - restore_cache:
+#          keys:
+#            - debian11x86x64-20220407-<< parameters.subarch >>
+#      - run:
+#          name: "Download Debian"
+#          command: |
+#            source .circleci/env.sh << parameters.subarch >>
+#            .jenkins/download.sh cache ${qemu_image_back}
+#      - save_cache:
+#          key: debian11x86x64-20220407-<< parameters.subarch >>
+#          paths:
+#            - cache/
       - run:
           name: "Test"
           command: |
@@ -60,8 +60,8 @@ jobs:
             rm -rf tmp qemu
             mkdir tmp qemu
             ln -s ${PWD}/cache/${qemu_image_back} qemu
-            qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
-                            -F qcow2 ${PWD}/qemu/${qemu_image}
+            # qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
+            #                 -F qcow2 ${PWD}/qemu/${qemu_image}
             sha512sum ${PWD}/qemu/${qemu_image_back}
             python3 -u ./.jenkins/test3.py \
                 --subarch ${SUBARCH} \

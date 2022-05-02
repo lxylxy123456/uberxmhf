@@ -254,14 +254,16 @@ def main():
 
 	result = 'Unknown'
 	try:
-		result = SSHOperations(args, ssh_port).ssh_operations()
-		if result is None:
-			# give the OS 10 seconds to shutdown; if wait() succeeds, calling
-			# wait() again will still succeed
-			try:
-				p.wait(timeout=HALT_TIMEOUT)
-			except subprocess.TimeoutExpired:
-				pass
+#		result = SSHOperations(args, ssh_port).ssh_operations()
+#		if result is None:
+#			# give the OS 10 seconds to shutdown; if wait() succeeds, calling
+#			# wait() again will still succeed
+#			try:
+#				p.wait(timeout=HALT_TIMEOUT)
+#			except subprocess.TimeoutExpired:
+#				pass
+		for i in range(20):
+			println('MET:', i)
 	finally:
 		p.kill()
 		p.wait()
