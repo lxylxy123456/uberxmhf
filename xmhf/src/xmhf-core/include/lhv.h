@@ -6,6 +6,7 @@ typedef struct {
 	char color;
 } console_vc_t;
 
+void console_cursor_clear(void);
 void console_clear(console_vc_t *vc);
 char console_get_char(console_vc_t *vc, int x, int y);
 void console_put_char(console_vc_t *vc, int x, int y, char c);

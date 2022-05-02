@@ -1,9 +1,21 @@
 #include <xmhf.h>
 #include <lhv.h>
 
+#define CRTC_IDX_REG 0x3d4
+#define CRTC_DATA_REG 0x3d5
+#define CRTC_CURSOR_LSB_IDX 15
+#define CRTC_CURSOR_MSB_IDX 14
 #define CONSOLE_MEM_BASE ((volatile char *) 0xB8000)
 #define CONSOLE_WIDTH 80
 #define CONSOLE_HEIGHT 25
+
+void console_cursor_clear(void)
+{
+	outb(CRTC_CURSOR_LSB_IDX, CRTC_IDX_REG);
+	outb(0, CRTC_DATA_REG);
+	outb(CRTC_CURSOR_MSB_IDX, CRTC_IDX_REG);
+	outb(0, CRTC_DATA_REG);
+}
 
 static volatile char *console_get_mmio(console_vc_t *vc, int x, int y)
 {
