@@ -9,7 +9,12 @@ void lhv_main(VCPU *vcpu)
 	if (vcpu->isbsp) {
 		console_cursor_clear();
 		timer_init();
-		if (0) {	// TODO: currently will trigger double fault
+		// asm volatile ("int $0xf8");
+		if (0) {
+			int *a = (int *) 0xf0f0f0f0f0f0f0f0;
+			printf("%d", *a);
+		}
+		if (1) {	// TODO: currently will trigger double fault
 			u64 a;
 			get_eflags(a);
 			a |= EFLAGS_IF;
