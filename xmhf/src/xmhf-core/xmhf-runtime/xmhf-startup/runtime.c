@@ -145,73 +145,7 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
   (void) vcpu;
   (void) isEarlyInit;
 
-#if 0 /* __NOT_RUNNING_LHV__ */
-  //initialize CPU
-  xmhf_baseplatform_cpuinitialize();
-
-  //initialize partition monitor (i.e., hypervisor) for this CPU
-  xmhf_partition_initializemonitor(vcpu);
-
-  //setup guest OS state for partition
-  xmhf_partition_setupguestOSstate(vcpu);
-
-  //initialize memory protection for this core
-  xmhf_memprot_initialize(vcpu);
-
-  //initialize application parameter block and call app main
-  {
-    APP_PARAM_BLOCK appParamBlock;
-
-    appParamBlock.bootsector_ptr = rpb->XtGuestOSBootModuleBase;
-    appParamBlock.bootsector_size = rpb->XtGuestOSBootModuleSize;
-    appParamBlock.optionalmodule_ptr = rpb->runtime_appmodule_base;
-    appParamBlock.optionalmodule_size = rpb->runtime_appmodule_size;
-    appParamBlock.runtimephysmembase = rpb->XtVmmRuntimePhysBase;
-    appParamBlock.boot_drive = rpb->XtGuestOSBootDrive;
-    COMPILE_TIME_ASSERT(sizeof(appParamBlock.cmdline) >= sizeof(rpb->cmdline));
-    #ifndef __XMHF_VERIFICATION__
-    strncpy(appParamBlock.cmdline, rpb->cmdline, sizeof(appParamBlock.cmdline));
-    #endif
-
-    //call app main
-    if(xmhf_app_main(vcpu, &appParamBlock)){
-        printf("\nCPU(0x%02x): EMHF app. failed to initialize. HALT!", vcpu->id);
-        HALT();
-    }
-  }
-
-#ifndef __XMHF_VERIFICATION__
-  //increment app main success counter
-  spin_lock(&g_lock_appmain_success_counter);
-  g_appmain_success_counter++;
-  spin_unlock(&g_lock_appmain_success_counter);
-
-  //if BSP, wait for all cores to go through app main successfully
-  //TODO: conceal g_midtable_numentries behind interface
-  //xmhf_baseplatform_getnumberofcpus
-  if(vcpu->isbsp && (g_midtable_numentries > 1)){
-		printf("\nCPU(0x%02x): Waiting for all cores to cycle through appmain...", vcpu->id);
-		while(g_appmain_success_counter < g_midtable_numentries);
-		printf("\nCPU(0x%02x): All cores have successfully been through appmain.", vcpu->id);
-  }
-#endif
-
-  //late initialization is still WiP and we can get only this far
-  //currently
-	if(!isEarlyInit){
-		printf("\nCPU(0x%02x): Late-initialization, WiP, HALT!", vcpu->id);
-		HALT();
-	}
-
-#ifndef __XMHF_VERIFICATION__
-  //initialize support for SMP guests
-  xmhf_smpguest_initialize(vcpu);
-#endif
-
-  //start partition (guest)
-  printf("\n%s[%02x]: starting partition...", __FUNCTION__, vcpu->id);
-  xmhf_partition_start(vcpu);
-#endif
+  HALT_ON_ERRORCOND(isEarlyInit == 0);
 
   printf("\nCPU(0x%02x): FATAL, should not be here. HALTING!", vcpu->id);
   HALT();

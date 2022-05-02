@@ -37,7 +37,8 @@ void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
             --no-display \
             --verbose \
             --boot-dir ${PWD}/.jenkins/boot \
-            --watch-serial
+            --watch-serial \
+            --skip-reset-qemu
     """
 }
 

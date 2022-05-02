@@ -74,7 +74,8 @@ jobs:
                 --verbose \
                 --boot-dir ${PWD}/.jenkins/boot \
                 --watch-serial \
-                --smp 2
+                --smp 2 \
+                --skip-reset-qemu
 
 workflows:
   test-xmhf-workflow:
