@@ -104,7 +104,7 @@ XtRtmEmitIdtStub 4  0
 XtRtmEmitIdtStub 5  0
 XtRtmEmitIdtStub 6  0
 XtRtmEmitIdtStub 7  0
-XtRtmEmitIdtStub 8  0
+XtRtmEmitIdtStub 8  1
 XtRtmEmitIdtStub 9  0
 XtRtmEmitIdtStub a  1
 XtRtmEmitIdtStub b  1

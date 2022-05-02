@@ -156,7 +156,8 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
             hva_t *found = NULL;
 
             // skip error code on stack if applicable
-            if (vector == CPU_EXCEPTION_TS ||
+            if (vector == CPU_EXCEPTION_DF ||
+                vector == CPU_EXCEPTION_TS ||
                 vector == CPU_EXCEPTION_NP ||
                 vector == CPU_EXCEPTION_SS ||
                 vector == CPU_EXCEPTION_GP ||
