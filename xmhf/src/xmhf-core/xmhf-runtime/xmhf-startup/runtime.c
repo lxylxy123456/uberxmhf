@@ -52,7 +52,7 @@
 
 //---runtime main---------------------------------------------------------------
 void xmhf_runtime_entry(void){
-#if 0
+#if 0 /* __NOT_RUNNING_LHV__ */
 	u32 cpu_vendor;
 
 	//get CPU vendor

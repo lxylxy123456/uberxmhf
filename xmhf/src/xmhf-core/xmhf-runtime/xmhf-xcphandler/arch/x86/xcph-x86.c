@@ -273,7 +273,7 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
             if (vector == CPU_EXCEPTION_BP &&
                 get_cpu_vendor_or_die() == CPU_VENDOR_INTEL) {
                 HALT_ON_ERRORCOND(0);	// TODO: not implemented
-#if 0
+#if 0 /* __NOT_RUNNING_LHV__ */
                 xmhf_baseplatform_arch_x86vmx_getVMCS(vcpu);
 #ifdef __I386__
                 /*

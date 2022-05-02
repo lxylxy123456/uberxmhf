@@ -794,7 +794,7 @@ void wakeupAPs(void){
     printf("\nAPs should be awake!");
 }
 
-#if 0
+#if 0 /* __NOT_RUNNING_LHV__ */
 /* The TPM must be ready for the AMD CPU to send it commands at
  * Locality 4 when executing SKINIT. Ideally all that is necessary is
  * to xmhf_tpm_deactivate_all_localities(), but some TPM's are still not
@@ -896,7 +896,7 @@ void cstartup(multiboot_info_t *mbi){
 
     HALT_ON_ERRORCOND(sl_rt_size > 0x200000); /* 2M */
 
-#if 0
+#if 0 /* __NOT_RUNNING_LHV__ */
     /* runtime */
     print_hex("    INIT(early): *UNTRUSTED* gold runtime: ",
               g_init_gold.sha_runtime, SHA_DIGEST_LENGTH);
@@ -1039,7 +1039,7 @@ void mp_cstartup (VCPU *vcpu){
            vcpu->cpu_vendor == CPU_VENDOR_AMD);
 
     if(isbsp()){
-#if 0
+#if 0 /* __NOT_RUNNING_LHV__ */
         //clear microcode if AMD CPU
         if(vcpu->cpu_vendor == CPU_VENDOR_AMD){
             printf("\nBSP(0x%02x): Clearing microcode...", vcpu->id);
