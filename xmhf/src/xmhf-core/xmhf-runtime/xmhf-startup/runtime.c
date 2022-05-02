@@ -138,17 +138,51 @@ void xmhf_runtime_entry(void){
 }
 
 extern void lhv_main(VCPU *vcpu);
+extern u32 x_gdt_start[];
 
 //we get control here in the context of *each* physical CPU core
 //vcpu->isbsp = 1 if the core is a BSP or 0 if its an AP
 //isEarlyInit = 1 if we were boot-strapped by the BIOS and is 0
 //in the event we were launched from a running OS
 void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
-  (void) vcpu;
-  (void) isEarlyInit;
+	HALT_ON_ERRORCOND(isEarlyInit);
 
-  HALT_ON_ERRORCOND(isEarlyInit);
-  lhv_main(vcpu);
+	// Set TR, from _vmx_initVT()
+	{
+		hva_t gdtstart = (hva_t)&x_gdt_start;
+		u16 trselector = __TRSEL;
+#ifdef __AMD64__
+		asm volatile("movq %0, %%rdi\r\n"
+			"xorq %%rax, %%rax\r\n"
+			"movw %1, %%ax\r\n"
+			"addq %%rax, %%rdi\r\n"		//%rdi is pointer to TSS descriptor in GDT
+			"addq $0x4, %%rdi\r\n"		//%rdi points to 2nd byte of 128-bit TSS desc.
+			"lock andl $0xFFFF00FF, (%%rdi)\r\n"
+			"lock orl  $0x00008900, (%%rdi)\r\n"
+			"ltr %%ax\r\n"				//load TR
+			:
+			: "m"(gdtstart), "m"(trselector)
+			: "rdi", "rax"
+			);
+#elif defined(__I386__)
+		asm volatile("movl %0, %%edi\r\n"
+			"xorl %%eax, %%eax\r\n"
+			"movw %1, %%ax\r\n"
+			"addl %%eax, %%edi\r\n"		//%edi is pointer to TSS descriptor in GDT
+			"addl $0x4, %%edi\r\n"		//%edi points to top 32-bits of 64-bit TSS desc.
+			"lock andl $0xFFFF00FF, (%%edi)\r\n"
+			"lock orl  $0x00008900, (%%edi)\r\n"
+			"ltr %%ax\r\n"				//load TR
+			:
+			: "m"(gdtstart), "m"(trselector)
+			: "edi", "eax"
+		);
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+	#error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+	}
+
+	lhv_main(vcpu);
 
 #if 0 /* __NOT_RUNNING_LHV__ */
   //initialize CPU
