@@ -15,7 +15,7 @@ void lhv_main(VCPU *vcpu)
 			printf("%d", *a);
 		}
 		if (1) {	// TODO: currently will trigger double fault
-			u64 a;
+			uintptr_t a;
 			get_eflags(a);
 			a |= EFLAGS_IF;
 			set_eflags(a);
