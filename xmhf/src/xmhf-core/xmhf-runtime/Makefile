@@ -15,95 +15,96 @@
 OBJECTS_PRECOMPILED = ./xmhf-mm/xmhf-tlsf.o 
 OBJECTS_PRECOMPILED += ./xmhf-mm/xmhf-mm.o
 
-OBJECTS_PRECOMPILED += ./xmhf-memprot/memp-interface.o
-OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/memp-x86.o
-OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/vmx/memp-x86vmx.o
-OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/vmx/memp-x86vmx-data.o
-OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/svm/memp-x86svm.o
-OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/svm/memp-x86svm-data.o
+#OBJECTS_PRECOMPILED += ./xmhf-memprot/memp-interface.o
+#OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/memp-x86.o
+#OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/vmx/memp-x86vmx.o
+#OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/vmx/memp-x86vmx-data.o
+#OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/svm/memp-x86svm.o
+#OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/svm/memp-x86svm-data.o
 
-OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/svm/peh-x86-$(TARGET_SUBARCH)svm-entry.o
-OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/svm/peh-x86svm-main.o
-OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86-$(TARGET_SUBARCH)vmx-entry.o
-OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.o
-OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86-safemsr.o
-ifeq ($(UPDATE_INTEL_UCODE), y)
-OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-ucode.o
-OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-ucode-data.o
-endif
+#OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/svm/peh-x86-$(TARGET_SUBARCH)svm-entry.o
+#OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/svm/peh-x86svm-main.o
+#OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86-$(TARGET_SUBARCH)vmx-entry.o
+#OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.o
+#OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86-safemsr.o
+#ifeq ($(UPDATE_INTEL_UCODE), y)
+#OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-ucode.o
+#OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-ucode-data.o
+#endif
 
-OBJECTS_PRECOMPILED += ./xmhf-smpguest/smpg-interface.o
-OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/smpg-x86.o
-OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/svm/smpg-x86svm.o
-OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/svm/smpg-x86svm-data.o
-OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/vmx/smpg-x86vmx.o
-OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/vmx/smpg-x86vmx-data.o
+#OBJECTS_PRECOMPILED += ./xmhf-smpguest/smpg-interface.o
+#OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/smpg-x86.o
+#OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/svm/smpg-x86svm.o
+#OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/svm/smpg-x86svm-data.o
+#OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/vmx/smpg-x86vmx.o
+#OBJECTS_PRECOMPILED += ./xmhf-smpguest/arch/x86/vmx/smpg-x86vmx-data.o
 
-ifeq ($(DMAP), y)
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/dmap-interface-runtime.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/iommu-pt.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/dmap-x86-runtime.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/svm/dmap-svm.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-runtime.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-utils.o
-OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-data.o
-endif
+#ifeq ($(DMAP), y)
+#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/dmap-interface-runtime.o
+#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/iommu-pt.o
+#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/dmap-x86-runtime.o
+#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/svm/dmap-svm.o
+#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal.o
+#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-runtime.o
+#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-utils.o
+#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-data.o
+#endif
 
-OBJECTS_PRECOMPILED += ./xmhf-xcphandler/xcph-interface.o
-OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/x86/xcph-x86.o
-OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/x86/xcph-stubs-$(TARGET_SUBARCH).o
+#OBJECTS_PRECOMPILED += ./xmhf-xcphandler/xcph-interface.o
+#OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/x86/xcph-x86.o
+#OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/x86/xcph-stubs-$(TARGET_SUBARCH).o
 
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface-runtime.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface-smp.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-data.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-data.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-pci.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-acpi.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-pit.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-smp.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-$(TARGET_SUBARCH)-smptrampoline.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface-runtime.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface-smp.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-data.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-data.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-pci.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-acpi.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-pit.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-smp.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-$(TARGET_SUBARCH)-smptrampoline.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-$(TARGET_SUBARCH)-smplock.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-reboot.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-reboot.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
 
 
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-data.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-smp.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-vmcs.o
-ifeq ($(DRT), y)
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs.o
-endif
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-reboot.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-data.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-smp.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-vmcs.o
+#ifeq ($(DRT), y)
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs.o
+#endif
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-reboot.o
 
 
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/svm/bplt-x86svm.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/svm/bplt-x86svm-data.o
-OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/svm/bplt-x86svm-smp.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/svm/bplt-x86svm.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/svm/bplt-x86svm-data.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/svm/bplt-x86svm-smp.o
 
 
-OBJECTS_PRECOMPILED += ./xmhf-partition/part-interface.o
-OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/part-x86.o
-OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/svm/part-x86svm.o
-OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/svm/part-x86-$(TARGET_SUBARCH)svm-sup.o
-OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/vmx/part-x86vmx.o
-OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/vmx/part-x86-$(TARGET_SUBARCH)vmx-sup.o
+#OBJECTS_PRECOMPILED += ./xmhf-partition/part-interface.o
+#OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/part-x86.o
+#OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/svm/part-x86svm.o
+#OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/svm/part-x86-$(TARGET_SUBARCH)svm-sup.o
+#OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/vmx/part-x86vmx.o
+#OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/vmx/part-x86-$(TARGET_SUBARCH)vmx-sup.o
 
 OBJECTS_PRECOMPILED += ./xmhf-startup/runtime.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/rntm-data.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-data.o
+#OBJECTS_PRECOMPILED += ./xmhf-startup/rntm-data.o
+#OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-data.o
 
-OBJECTS_PRECOMPILED += ./xmhf-debug/lib.a
 
 
 # separate from OBJECTS_PRECOMPILED because needs to come after libs on link line
 OBJECTS_PRECOMPILED_LIBBACKENDS = ./xmhf-xmhfcbackend/xmhfc-putchar.o
 OBJECTS_PRECOMPILED_LIBBACKENDS += ./xmhf-xmhfcbackend/stl/xmhfc-bitmap.o
 OBJECTS_PRECOMPILED_LIBBACKENDS += ./xmhf-xmhfcbackend/stl/xmhfc-dlist.o
+# For some strange linker problem we need to add this
+OBJECTS_PRECOMPILED_LIBBACKENDS += ./xmhf-debug/lib.a
 
 #XMHF memory protection component
 RUNTIME_COMPONENTS = xmhf-memprot
