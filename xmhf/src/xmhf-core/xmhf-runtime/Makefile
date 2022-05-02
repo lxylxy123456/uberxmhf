@@ -56,29 +56,29 @@ OBJECTS_PRECOMPILED += ./xmhf-xcphandler/arch/x86/xcph-stubs-$(TARGET_SUBARCH).o
 
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface.o
 #OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface-runtime.o
-#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface-smp.o
+OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-interface-smp.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/bplt-data.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-data.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-pci.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-acpi.o
-#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-pit.o
-#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-smp.o
-#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-$(TARGET_SUBARCH)-smptrampoline.o
+OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-pit.o
+OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-smp.o
+OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-$(TARGET_SUBARCH)-smptrampoline.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-$(TARGET_SUBARCH)-smplock.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
-#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-reboot.o
+OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-reboot.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
 
 
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.o
-#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-data.o
-#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-smp.o
+OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-data.o
+OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-smp.o
 #OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-vmcs.o
 #ifeq ($(DRT), y)
 #OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs.o
 #endif
-#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-reboot.o
+OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-reboot.o
 
 
 #OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/svm/bplt-x86svm.o

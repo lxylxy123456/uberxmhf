@@ -111,6 +111,7 @@ void xmhf_baseplatform_arch_x86vmx_allocandsetupvcpus(u32 cpu_vendor){
 	#endif
 
 	//allocate EPT paging structures
+#if 0 /* __NOT_RUNNING_LHV__ */
 	#ifdef __NESTED_PAGING__
 	{
 		vcpu->vmx_vaddr_ept_pml4_table = ((hva_t)g_vmx_ept_pml4_table_buffers + (i * P4L_NPLM4T * PAGE_SIZE_4K));
@@ -119,6 +120,7 @@ void xmhf_baseplatform_arch_x86vmx_allocandsetupvcpus(u32 cpu_vendor){
 		vcpu->vmx_vaddr_ept_p_tables = ((hva_t)g_vmx_ept_p_table_buffers + (i * P4L_NPT * PAGE_SIZE_4K));
 	}
 	#endif
+#endif
 
 	//other VCPU data such as LAPIC id, SIPI vector and receive indication
     vcpu->id = g_midtable[i].cpu_lapic_id;

@@ -130,10 +130,8 @@ void xmhf_runtime_entry(void){
 
 #endif
 
-#if 0 /* __NOT_RUNNING_LHV__ */
 	//initialize base platform with SMP
 	xmhf_baseplatform_smpinitialize();
-#endif
 
 	printf("\nRuntime: We should NEVER get here!");
 	HALT_ON_ERRORCOND(0);
