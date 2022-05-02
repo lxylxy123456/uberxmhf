@@ -110,7 +110,7 @@ def spawn_qemu(args, xmhf_img, serial_file, ssh_port):
 	qemu_args = [
 		'qemu-system-x86_64', '-m', '512M',
 		'--drive', 'media=disk,file=%s,format=raw,index=1' % xmhf_img,
-		'--drive', 'media=disk,file=%s,format=qcow2,index=2' % args.qemu_image,
+#		'--drive', 'media=disk,file=%s,format=qcow2,index=2' % args.qemu_image,
 		'-device', 'e1000,netdev=net0',
 		'-netdev', 'user,id=net0,hostfwd=tcp::%d-:22' % ssh_port,
 		'-smp', str(args.smp), '-cpu', 'Haswell,vmx=yes', '--enable-kvm',
