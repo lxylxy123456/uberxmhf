@@ -264,6 +264,7 @@ def main():
 #				pass
 		for i in range(20):
 			println('MET:', i)
+			time.sleep(1)
 	finally:
 		p.kill()
 		p.wait()
