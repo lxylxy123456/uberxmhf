@@ -10,6 +10,7 @@ C_SOURCES += lhv.c
 C_SOURCES += lhv-console.c
 C_SOURCES += lhv-timer.c
 C_SOURCES += lhv-pic.c
+C_SOURCES += lhv-keyboard.c
 
 C_SOURCES += ./arch/x86/rntm-x86-data.c
 

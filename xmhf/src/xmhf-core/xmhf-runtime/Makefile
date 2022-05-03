@@ -100,6 +100,7 @@ OBJECTS_PRECOMPILED += ./xmhf-startup/lhv.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-console.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-timer.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-pic.o
+OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-keyboard.o
 
 
 # separate from OBJECTS_PRECOMPILED because needs to come after libs on link line

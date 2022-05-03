@@ -14,12 +14,6 @@ void lhv_main(VCPU *vcpu)
 			int *a = (int *) 0xf0f0f0f0f0f0f0f0;
 			printf("%d", *a);
 		}
-		if (1) {	// TODO: currently will trigger double fault
-			uintptr_t a;
-			get_eflags(a);
-			a |= EFLAGS_IF;
-			set_eflags(a);
-		}
 	}
 	for (int i = 0; i < vc.width; i++) {
 		for (int j = 0; j < vc.height; j++) {
@@ -27,6 +21,15 @@ void lhv_main(VCPU *vcpu)
 			console_put_char(&vc, i, j, '0' + vcpu->id);
 		}
 	}
+	if (vcpu->isbsp) {
+		if (1) {	// TODO: currently will trigger double fault
+			uintptr_t a;
+			get_eflags(a);
+			a |= EFLAGS_IF;
+			set_eflags(a);
+		}
+	}
+
 	printf("\nCPU(0x%02x): not implemented", vcpu->id);
 	HALT_ON_ERRORCOND(0);
 }
