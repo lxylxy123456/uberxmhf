@@ -92,12 +92,105 @@ Then we add console and timer drivers. However, we have trouble enabling
 interrupts. Git is `2a8c90379`. Sending software interrupts using the INT
 instruction works well, but setting EFLAGS.IF will result in double fault.
 
+#### TSS
+
 Looks like the problem is TSS. In QEMU, can use `info registers` to print
 current registers. Pebbles kernel shows:
 `TR =0008 00100950 00000067 00008b00 DPL=0 TSS32-busy`, but LHV shows
+ TR =0018 10209340 00000067 00008b00 DPL=0 TSS32-busy
 `TR =0000 0000000000000000 0000ffff 00008b00 DPL=0 TSS64-busy`.
 
-TODO: check TSS
+Found a bug in 32-bit xmhf:
+`t= (TSSENTRY *)((u32)gdt_base + __TRSEL );` should be something like
+`t= (TSSENTRY *)((u32)hva2sla(gdt_base) + __TRSEL );`
+
+This program can help printing the values.
+```
+printf("\nt  = 0x%016llx", (long long)(uintptr_t)(void *)t);
+printf("\ntb = 0x%016llx", (long long)(uintptr_t) tss_base);
+printf("\n*t = 0x%016llx", (long long)*(long long *)t);
+HALT();
+```
+
+Bug fixed in `d2bd1d05a`.
+
+Then added TSS, git `020c5cf3b`. However, the error is the same.
+
+Also noticed that even 32-bit XMHF uses PAE paging for the host. So it should
+be possible to support PAE guests easily (even these guests access PA > 4 GiB).
+Just need to modify `xmhf_sl_arch_x86_setup_runtime_paging()`, change
+`ADDR_4GB` to `MAX_PHYS_ADDR`.
+
+Now we think that the problem is probably not related to TSS.
+
+#### Debugging QEMU
+
+When running without KVM and with `-d int`, can see the following log
+
+```
+     0: v=08 e=0000 i=0 cpl=0 IP=0008:102036fa pc=102036fa SP=0010:10b56f6c env->regs[R_EAX]=00000006
+EAX=00000006 EBX=102092e0 ECX=0000002e EDX=00000040
+ESI=10206da0 EDI=1020a99c EBP=10b56fa4 ESP=10b56f6c
+EIP=102036fa EFL=00000206 [-----P-] CPL=0 II=0 A20=1 SMM=0 HLT=0
+ES =0010 00000000 ffffffff 00cf9300 DPL=0 DS   [-WA]
+CS =0008 00000000 ffffffff 00cf9a00 DPL=0 CS32 [-R-]
+SS =0010 00000000 ffffffff 00cf9300 DPL=0 DS   [-WA]
+DS =0010 00000000 ffffffff 00cf9300 DPL=0 DS   [-WA]
+FS =0010 00000000 ffffffff 00cf9300 DPL=0 DS   [-WA]
+GS =0010 00000000 ffffffff 00cf9300 DPL=0 DS   [-WA]
+LDT=0000 00000000 0000ffff 00008200 DPL=0 LDT
+TR =0018 10209340 00000067 00008900 DPL=0 TSS32-avl
+GDT=     1020a980 0000001f
+IDT=     10206010 000003ff
+CR0=80000015 CR2=00000000 CR3=10b4e000 CR4=00000030
+DR0=00000000 DR1=00000000 DR2=00000000 DR3=00000000 
+DR6=ffff0ff0 DR7=00000400
+CCS=00000004 CCD=00000206 CCO=EFLAGS  
+EFER=0000000000000000
+```
+
+Note: sample command:
+
+```
+qemu-system-i386 -m 512M \
+	--drive media=disk,file=.../c.img,index=2 -cpu Haswell \
+	-gdb tcp::1234 -serial stdio -smp 1 -d int
+```
+
+This log is printed by `do_interrupt_all()` in QEMU. We can probably debug
+this. Also, the double fault / triple fault is generated in
+`check_exception()` in `excp_helper.c`:
+
+```c
+    if ((first_contributory && second_contributory)
+        || (env->old_exception == EXCP0E_PAGE &&
+            (second_contributory || (intno == EXCP0E_PAGE)))) {
+        intno = EXCP08_DBLE;
+        *error_code = 0;
+    }
+```
+
+The stack trace is
+```
+#0  do_interrupt_all (cpu=cpu@entry=0x5555567b1080, intno=8, is_int=is_int@entry=0, error_code=error_code@entry=0, next_eip=next_eip@entry=0, is_hw=is_hw@entry=1) at ../target/i386/tcg/seg_helper.c:1042
+#1  0x0000555555ad6374 in do_interrupt_x86_hardirq (is_hw=1, intno=<optimized out>, env=0x5555567b98d0) at ../target/i386/tcg/seg_helper.c:1112
+#2  x86_cpu_exec_interrupt (cs=0x5555567b1080, interrupt_request=<optimized out>) at ../target/i386/tcg/seg_helper.c:1165
+#3  0x0000555555bded56 in cpu_handle_interrupt (last_tb=<synthetic pointer>, cpu=0x5555567b1080) at ../accel/tcg/cpu-exec.c:763
+#4  cpu_exec (cpu=cpu@entry=0x5555567b1080) at ../accel/tcg/cpu-exec.c:917
+#5  0x00007fffdf6d2ad7 in tcg_cpus_exec (cpu=cpu@entry=0x5555567b1080) at ../accel/tcg/tcg-accel-ops.c:67
+#6  0x00007fffdf6d2bf7 in mttcg_cpu_thread_fn (arg=0x5555567b1080) at ../accel/tcg/tcg-accel-ops-mttcg.c:70
+#7  0x0000555555d22373 in qemu_thread_start (args=0x5555565d9c90) at ../util/qemu-thread-posix.c:541
+#8  0x00007ffff6cc085a in start_thread (arg=<optimized out>) at pthread_create.c:443
+#9  0x00007ffff6c604c0 in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:81
+```
+
+Looks like the interrupt happens to use the double fault's vector. There are
+some configurations needed on the PIC. See Pebbles `410kern/x86/pic.c` as an
+example.
+
+This also explains why the double fault we receive looks like that it does not
+have an error code.
+
 TODO: try to enable interrupts earlier (e.g. in sl)
 TODO: compare with things that are known to work
 TODO: write standalone code that can setup IDT
