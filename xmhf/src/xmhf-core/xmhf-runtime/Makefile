@@ -99,6 +99,7 @@ OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-data.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-console.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-timer.o
+OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-pic.o
 
 
 # separate from OBJECTS_PRECOMPILED because needs to come after libs on link line

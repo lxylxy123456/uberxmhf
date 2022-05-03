@@ -16,3 +16,6 @@ void console_get_vc(console_vc_t *vc, int num);
 /* lhv-timer.c */
 void timer_init(void);
 
+/* lhv-pic.c */
+void pic_init(void);
+

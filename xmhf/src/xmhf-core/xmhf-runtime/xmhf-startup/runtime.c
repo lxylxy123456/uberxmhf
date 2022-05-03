@@ -49,6 +49,7 @@
 
 //---includes-------------------------------------------------------------------
 #include <xmhf.h>
+#include <lhv.h>
 
 //---runtime main---------------------------------------------------------------
 void xmhf_runtime_entry(void){
@@ -129,6 +130,8 @@ void xmhf_runtime_entry(void){
 	#endif	//__DRT__
 
 #endif
+
+	pic_init();
 
 	//initialize base platform with SMP
 	xmhf_baseplatform_smpinitialize();
