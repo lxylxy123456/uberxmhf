@@ -191,9 +191,18 @@ example.
 This also explains why the double fault we receive looks like that it does not
 have an error code.
 
-TODO: try to enable interrupts earlier (e.g. in sl)
-TODO: compare with things that are known to work
-TODO: write standalone code that can setup IDT
-TODO: try on real hardware
-TODO: possible to disable KVM and debug QEMU source code
+Git `2c2028e3d` fixes the problem. Now everything looks good.
+
+Previous ideas
+* Try to enable interrupts earlier (e.g. in sl)
+	* This will not work
+* Compare with things that are known to work
+	* This is what we did, but we compared code
+* Write standalone code that can setup IDT
+	* This will be complicated
+* Try on real hardware
+	* This will not work
+* Possible to disable KVM and debug QEMU source code
+	* We did this, and figured out that we encountered interrupt, not double
+	  fault.
 
