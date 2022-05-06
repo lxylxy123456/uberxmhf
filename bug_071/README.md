@@ -64,7 +64,13 @@ Need to download some software
 ### AMT WiFi setting causes Debian iwlwifi `-110`
 
 After applying WiFi settings using ACUWizard in Windows 10, Debian can no
-longer
+longer connect to WiFi. The workaround is to use a USB network connection for
+Debian.
+
+### AMT version
+
+Need to use amtterm version 1.7 or higher. e.g.
+<https://rpmfind.net/linux/opensuse/tumbleweed/repo/oss/i586/amtterm-1.7-1.1.i586.rpm>
 
 ### Running UEFI in QEMU
 
@@ -115,6 +121,18 @@ Multiboot, but compatible with UEFI. So the plan is now to replace Multiboot
 with Multiboot2. We still try to use the normal boot logic:
 * Old logic: BIOS -> GRUB --(multiboot)-> XMHF -> GRUB -> OS
 * New logic: UEFI -> GRUB --(multiboot2)-> XMHF -> GRUB -> OS
+
+### UEFI interfaces
+
+It is possible to implement XMHF as a UEFI driver. The logic will be
+* UEFI -> XMHF -> UEFI -> OS (Windows / GRUB -> Linux)
+
+The UEFI spec says
+> A UEFI driver is not unloaded from memory if it returns a status code of
+> `EFI_SUCCESS`.
+
+If not using this method, can also use UEFI boot services' LoadImage and
+StartImage functions.
 
 ### Booting
 
