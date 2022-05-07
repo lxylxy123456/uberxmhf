@@ -194,10 +194,10 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 					pe820entry->length_high = g_e820map[r->ebx].length_high;
 					pe820entry->type = g_e820map[r->ebx].type;
 					/*
-					 * Check whether maximum physical address is within
-					 * configured limit. Note that i386 XMHF supports PAE, so
-					 * this still needs to be checked.
+					 * 64-bit: Check whether exceed supported memory.
+					 * 32-bit: Continue even if machine has physical memory > 4G
 					 */
+#ifdef __AMD64__
 					{
 						u64 baseaddr = (((u64)pe820entry->baseaddr_high) << 32) |
 										pe820entry->baseaddr_low;
@@ -205,6 +205,9 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 									pe820entry->length_low;
 						HALT_ON_ERRORCOND(baseaddr + length <= MAX_PHYS_ADDR);
 					}
+#elif !defined(__I386__)
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) */
 				}else{
 					printf("\nCPU(0x%02x): INT15 E820. Guest buffer is beyond guest "
 							"physical memory bounds. Halting!", vcpu->id);
