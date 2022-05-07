@@ -22,7 +22,7 @@ void lhv_main(VCPU *vcpu)
 		}
 	}
 	if (vcpu->isbsp) {
-		if (1) {	// TODO: currently will trigger double fault
+		if (1) {
 			uintptr_t a;
 			get_eflags(a);
 			a |= EFLAGS_IF;
