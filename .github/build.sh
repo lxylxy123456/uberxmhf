@@ -7,7 +7,7 @@
 #   --no-dbg: do not use QEMU debug workarounds (--enable-debug-qemu)
 #   --no-ucode: disable Intel microcode update (--enable-update-intel-ucode)
 #   --app APP: set hypapp, default is "hypapps/trustvisor" (--with-approot)
-#   --mem MEM: if amd64, set physical memory, default is 0x140000000 (5GiB)
+#   --mem MEM: set physical memory, default is 0x140000000 (5GiB)
 #   release: equivalent to --drt --dmap --no-dbg (For GitHub actions)
 #   debug: ignored (For GitHub actions)
 #   O0: ignored (For GitHub actions)
@@ -28,7 +28,7 @@ DRT="n"
 DMAP="n"
 QEMU="y"
 UCODE="y"
-AMD64MEM="0x140000000"
+MAX_MEM="0x140000000"
 DRY_RUN="n"
 CIRCLE_CI="n"
 OPT=""
@@ -89,7 +89,7 @@ while [ "$#" -gt 0 ]; do
 			shift
 			;;
 		--mem)
-			AMD64MEM="$2"
+			MAX_MEM="$2"
 			shift
 			;;
 		release)
@@ -136,7 +136,6 @@ if [ "$SUBARCH" == "i386" ]; then
 else if [ "$SUBARCH" == "amd64" ]; then
 	# Building amd64 XMHF
 	CONF+=("--with-target-subarch=amd64")
-	CONF+=("--with-amd64-max-phys-addr=$AMD64MEM")
 	if [ "$LINUX_BASE" == "DEB" -a "$LINUX_BIT" == "32" ]; then
 		# Building on i386 Debian
 		CONF+=("CC=x86_64-linux-gnu-gcc")
@@ -145,6 +144,8 @@ else if [ "$SUBARCH" == "amd64" ]; then
 else
 	echo 'Error: unexpected $SUBARCH'; exit 1
 fi; fi
+
+CONF+=("--with-max-phys-addr=$MAX_MEM")
 
 if [ "$DRT" == "n" ]; then
 	CONF+=("--disable-drt")
