@@ -42,7 +42,6 @@ static void update_screen(VCPU *vcpu, int *x, int y)
 	(*x)++;
 	*x %= vc.width;
 }
-u32 lhv_lapic_x;
 
 void handle_timer_interrupt(VCPU *vcpu, int vector)
 {

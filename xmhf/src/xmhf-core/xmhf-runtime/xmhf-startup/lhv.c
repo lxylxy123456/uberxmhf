@@ -15,8 +15,9 @@ void lhv_main(VCPU *vcpu)
 		}
 	}
 	timer_init(vcpu);
+	assert(vc.height >= 2);
 	for (int i = 0; i < vc.width; i++) {
-		for (int j = 0; j < vc.height; j++) {
+		for (int j = 0; j < 2; j++) {
 			HALT_ON_ERRORCOND(console_get_char(&vc, i, j) == ' ');
 			console_put_char(&vc, i, j, '0' + vcpu->id);
 		}

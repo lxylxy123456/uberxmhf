@@ -185,6 +185,9 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
 	}
 
+	/* Enable LAPIC (at this time only BSP is enabled) */
+	write_lapic(LAPIC_SVR, read_lapic(LAPIC_SVR) | LAPIC_ENABLE);
+
 	lhv_main(vcpu);
 
 #if 0 /* __NOT_RUNNING_LHV__ */

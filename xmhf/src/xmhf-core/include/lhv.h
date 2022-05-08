@@ -35,10 +35,12 @@ void handle_keyboard_interrupt(VCPU *vcpu, int vector);
 #define LAPIC_DEFAULT_BASE    0xfee00000
 #define IOAPIC_DEFAULT_BASE   0xfec00000
 #define LAPIC_EOI              0x0B0     /* EOI */
+#define LAPIC_SVR              0x0F0     /* Spurious Interrupt Vector */
 #define LAPIC_LVT_TIMER        0x320     /* Local Vector Table 0 (TIMER) */
 #define LAPIC_TIMER_INIT       0x380     /* Timer Initial Count */
 #define LAPIC_TIMER_CUR        0x390     /* Timer Current Count */
 #define LAPIC_TIMER_DIV        0x3E0     /* Timer Divide Configuration */
+#define LAPIC_ENABLE      0x00000100     /* Unit Enable */
 
 static inline u32 read_lapic(u32 reg) {
 	return *(volatile u32 *)(uintptr_t)(LAPIC_DEFAULT_BASE + reg);
