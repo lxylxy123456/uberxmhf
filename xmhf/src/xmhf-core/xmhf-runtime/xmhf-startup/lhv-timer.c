@@ -8,18 +8,20 @@
 #define TIMER_MODE_IO_PORT 0x43
 #define TIMER_SQUARE_WAVE 0x36
 
-void timer_init(void)
+void timer_init(VCPU *vcpu)
 {
 	/* PIT */
-	u64 ncycles = TIMER_RATE * TIMER_PERIOD / 1000;
-	HALT_ON_ERRORCOND(ncycles == (u64)(u16)ncycles);
-	outb(TIMER_SQUARE_WAVE, TIMER_MODE_IO_PORT);
-	outb((u8)(ncycles), TIMER_PERIOD_IO_PORT);
-	outb((u8)(ncycles >> 8), TIMER_PERIOD_IO_PORT);
+	if (vcpu->isbsp) {
+		u64 ncycles = TIMER_RATE * TIMER_PERIOD / 1000;
+		HALT_ON_ERRORCOND(ncycles == (u64)(u16)ncycles);
+		outb(TIMER_SQUARE_WAVE, TIMER_MODE_IO_PORT);
+		outb((u8)(ncycles), TIMER_PERIOD_IO_PORT);
+		outb((u8)(ncycles >> 8), TIMER_PERIOD_IO_PORT);
+	}
 
 	/* LAPIC Timer */
-	write_lapic(LAPIC_TIMER_DIV, 0x00000000);
-	write_lapic(LAPIC_TIMER_INIT, 0x01800000);
+	write_lapic(LAPIC_TIMER_DIV, 0x0000000b);
+	write_lapic(LAPIC_TIMER_INIT, 0x03000000);
 	write_lapic(LAPIC_LVT_TIMER, 0x00020022);
 }
 

@@ -22,7 +22,7 @@ void console_put_char(console_vc_t *vc, int x, int y, char c);
 void console_get_vc(console_vc_t *vc, int num);
 
 /* lhv-timer.c */
-void timer_init(void);
+void timer_init(VCPU *vcpu);
 void handle_timer_interrupt(VCPU *vcpu, int vector);
 
 /* lhv-pic.c */
