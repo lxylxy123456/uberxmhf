@@ -233,6 +233,8 @@ typedef struct _vcpu {
 
   int lhv_lapic_x;
   int lhv_pit_x;
+  u64 lapic_time;
+  u64 pit_time;
 } VCPU;
 
 #define SIZE_STRUCT_VCPU    (sizeof(struct _vcpu))
