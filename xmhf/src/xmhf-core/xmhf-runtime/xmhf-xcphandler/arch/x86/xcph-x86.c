@@ -142,11 +142,15 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
         break;
 
 	case 0x20:
-		handle_timer_interrupt();
+		handle_timer_interrupt(vcpu, vector);
 		break;
 
 	case 0x21:
-		handle_keyboard_interrupt();
+		handle_keyboard_interrupt(vcpu, vector);
+		break;
+
+	case 0x22:
+		handle_timer_interrupt(vcpu, vector);
 		break;
 
     default:

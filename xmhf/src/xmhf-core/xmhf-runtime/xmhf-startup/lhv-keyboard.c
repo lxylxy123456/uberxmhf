@@ -4,10 +4,10 @@
 
 #define KEYBOARD_PORT 0x60
 
-void handle_keyboard_interrupt(void)
+void handle_keyboard_interrupt(VCPU *vcpu, int vector)
 {
-	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	uint8_t scancode = inb(KEYBOARD_PORT);
+	(void) vector;
 	printf("\nCPU(0x%02x): key press: %d", vcpu->id, (int)scancode);
 	outb(INT_ACK_CURRENT, INT_CTL_PORT);
 }

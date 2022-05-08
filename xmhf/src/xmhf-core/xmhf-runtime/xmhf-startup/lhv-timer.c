@@ -10,20 +10,26 @@
 
 void timer_init(void)
 {
+	/* PIT */
 	u64 ncycles = TIMER_RATE * TIMER_PERIOD / 1000;
 	HALT_ON_ERRORCOND(ncycles == (u64)(u16)ncycles);
 	outb(TIMER_SQUARE_WAVE, TIMER_MODE_IO_PORT);
 	outb((u8)(ncycles), TIMER_PERIOD_IO_PORT);
 	outb((u8)(ncycles >> 8), TIMER_PERIOD_IO_PORT);
+
+	/* LAPIC Timer */
+	write_lapic(LAPIC_TIMER_DIV, 0x00000003);
+	write_lapic(LAPIC_TIMER_INIT, 0x00003000);
+	write_lapic(LAPIC_LVT_TIMER, 0x00020022);
 }
 
-void handle_timer_interrupt(void)
+void handle_timer_interrupt(VCPU *vcpu, int vector)
 {
 	static int x = 0;
 	static int y = 0;
-    VCPU *vcpu = _svm_and_vmx_getvcpu();
 	console_vc_t vc;
 	console_get_vc(&vc, vcpu->idx);
+	(void) vector;
 	{
 		char c = console_get_char(&vc, x, y);
 		c -= '0';
