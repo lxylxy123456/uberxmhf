@@ -206,3 +206,21 @@ Previous ideas
 	* We did this, and figured out that we encountered interrupt, not double
 	  fault.
 
+### Fast install
+
+For lhv we do not depend on Debian, so can install quickly using `test3.py`
+
+```sh
+python3 ../xmhf64/.jenkins/test3.py \
+	--skip-reset-qemu --skip-test --boot-dir ../xmhf64/.jenkins/boot/ \
+	--subarch i386 --xmhf-bin . --work-dir /tmp/xmhf-grub-i386
+```
+
+### LAPIC timer
+
+15410's `p3/410kern/smp/smp4.pdf` is very helpful. APIC is documented in Intel
+v3 "10.5.4 APIC Timer".
+
+In git `968ebcefa`, completed set up of LAPIC timer. A problem is that LAPIC
+timer is not as accurate as PIT, but we can live with it.
+
