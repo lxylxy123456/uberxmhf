@@ -109,14 +109,14 @@ void handle_timer_interrupt(VCPU *vcpu, int vector)
 		vcpu->pit_time++;
 		update_screen(vcpu, &vcpu->lhv_pit_x, 0);
 		outb(INT_ACK_CURRENT, INT_CTL_PORT);
-		if ("Calibrate timer" && vcpu->pit_time % 50 == 0) {
+		if (!"Calibrate timer" && vcpu->pit_time % 50 == 0) {
 			calibrate_timer(vcpu);
 		}
 	} else if (vector == 0x22) {
 		vcpu->lapic_time++;
 		update_screen(vcpu, &vcpu->lhv_lapic_x, 1);
 		write_lapic(LAPIC_EOI, 0);
-		if ("Calibrate timer" && vcpu->isbsp && vcpu->lapic_time % 50 == 0) {
+		if (!"Calibrate timer" && vcpu->isbsp && vcpu->lapic_time % 50 == 0) {
 			calibrate_timer(vcpu);
 		}
 	} else {
