@@ -29,12 +29,6 @@ void lhv_main(VCPU *vcpu)
 			set_eflags(a);
 		}
 	}
-	if (vcpu->isbsp) {
-		printf("\nLVT: 0x%08x", read_lapic(LAPIC_LVT_TIMER));
-		printf("\nINI: 0x%08x", read_lapic(LAPIC_TIMER_INIT));
-		printf("\nCUR: 0x%08x", read_lapic(LAPIC_TIMER_CUR));
-		printf("\nDIV: 0x%08x", read_lapic(LAPIC_TIMER_DIV));
-	}
 
 	HALT();
 }
