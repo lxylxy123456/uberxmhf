@@ -160,5 +160,15 @@ One thing to notice is that after entering SL, XMHF cannot call EFI functions
 anymore. These functions are at unprotected memory and may be modified by guest
 OS.
 
+### Debugging serial output
+
+See `bug_073`. This may be a big project. We should continue working on
+`bug_071` concurrently.
+
+### Multiboot2
+
+tboot-1.10.4's `tboot/common/boot.S` is a good reference for multiboot2 header.
+Following this we can update `xmhf/src/xmhf-core/xmhf-bootloader/header.S`.
+
 TODO: use multiboot2
 
