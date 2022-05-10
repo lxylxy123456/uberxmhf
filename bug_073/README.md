@@ -110,6 +110,9 @@ mentioned in 15410 looks useful.
 Looks like BIOS has does a lot of work for PCI. Maybe when booting without UEFI
 the BIOS already sets up the serial ports. However in UEFI it no longer works.
 
+Looks like what we need to do is called "PCI Device Enumeration". See
+Chapter 9.
+
 ### QEMU
 
 Also it looks like QEMU supports a device called "pci-serial". Maybe we can use
@@ -140,10 +143,81 @@ $
 However, XMHF's serial port output also works. I guess that maybe the QEMU's
 UEFI firmware is performing the initialization. But HP's UEFI firmware is not.
 
+### Xen
+
+Looks like Xen may support AMT. However the documentation does not mention
+UEFI (<https://wiki.xenproject.org/wiki/Xen_Serial_Console>).
+> If you have a PCI serial card, or a SOL device, or an Intel AMT card, you
+> might need to run "lspci -vvv" and find the serial port information from
+> there.
+> NOTE: With Xen 4.2, you do _not_ have to find the serial information and Xen
+> can find it automatically. You pass the extra argument pci in the com1 line,
+> as so: com1=115200,8n1,pci. If you have an Intel AMT, then the extra argument
+> is amt.
+
+We can give it a try.
+
+### Lspci
+
+`lspci -vvv` on HP output is
+
+```
+00:16.0 Communication controller: Intel Corporation Tiger Lake-LP Management Engine Interface (rev 20)
+	Subsystem: Hewlett-Packard Company Tiger Lake-LP Management Engine Interface
+	Control: I/O- Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B- DisINTx+
+	Status: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR- INTx-
+	Latency: 0
+	Interrupt: pin A routed to IRQ 177
+	IOMMU group: 12
+	Region 0: Memory at 603f2a5000 (64-bit, non-prefetchable) [size=4K]
+	Capabilities: [50] Power Management version 3
+		Flags: PMEClk- DSI- D1- D2- AuxCurrent=0mA PME(D0-,D1-,D2-,D3hot+,D3cold-)
+		Status: D0 NoSoftRst+ PME-Enable- DSel=0 DScale=0 PME-
+	Capabilities: [8c] MSI: Enable+ Count=1/1 Maskable- 64bit+
+		Address: 00000000fee008b8  Data: 0000
+	Capabilities: [a4] Vendor Specific Information: Len=14 <?>
+	Kernel driver in use: mei_me
+	Kernel modules: mei_me
+
+00:16.3 Serial controller: Intel Corporation Device a0e3 (rev 20) (prog-if 02 [16550])
+	Subsystem: Hewlett-Packard Company Device 880d
+	Control: I/O+ Mem+ BusMaster- SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B- DisINTx-
+	Status: Cap+ 66MHz+ UDF- FastB2B+ ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR- INTx-
+	Interrupt: pin D routed to IRQ 19
+	IOMMU group: 12
+	Region 0: I/O ports at 3060 [size=8]
+	Region 1: Memory at 6e301000 (32-bit, non-prefetchable) [size=4K]
+	Capabilities: [40] MSI: Enable- Count=1/1 Maskable- 64bit+
+		Address: 0000000000000000  Data: 0000
+	Capabilities: [50] Power Management version 3
+		Flags: PMEClk- DSI+ D1- D2- AuxCurrent=0mA PME(D0-,D1-,D2-,D3hot-,D3cold-)
+		Status: D0 NoSoftRst+ PME-Enable- DSel=0 DScale=0 PME-
+	Kernel driver in use: serial
+```
+
+`lspci -vvv` on QEMU with pci-serial output is
+
+```
+00:04.0 Serial controller: Red Hat, Inc. QEMU PCI 16550A Adapter (rev 01) (prog-if 02 [16550])
+	Subsystem: Red Hat, Inc. QEMU Virtual Machine
+	Physical Slot: 4
+	Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B- DisINTx-
+	Status: Cap- 66MHz- UDF- FastB2B- ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR- INTx-
+	Latency: 0
+	Interrupt: pin A routed to IRQ 11
+	Region 0: I/O ports at c050 [size=8]
+	Kernel driver in use: serial
+```
+
+Maybe we can compare this with the list of PCI devices from UEFI shell / app.
+
+# tmp
+
 TODO: check stackoverflow
 TODO: maybe ask BareFlake people
 TODO: see whether UEFI provides serial initialization (back to `bug_071`)
 TODO: see whether UEFI provides PCI support
 TODO: read Linux code, see how PCI is initialized
 TODO: read OVMF code, see whether it touches PCI
+TODO: try Xen
 

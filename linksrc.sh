@@ -16,7 +16,6 @@ fi
 cd "$GIT_DIR"
 find * -type d -exec mkdir -p "${BUILD_DIR}"/{} \;
 find * -type f -exec ln -Tsf "${GIT_DIR}"/{} "${BUILD_DIR}"/{} \;
-ln -Tsf "${GIT_DIR}"/.github/build.sh "${BUILD_DIR}/build.sh"
 ln -Tsf "${GDB_DIR}" "${BUILD_DIR}/gdb"
 echo SUCCESS
 
