@@ -9,7 +9,8 @@ set menu_color_normal=cyan/blue
 set menu_color_highlight=white/blue
 
 menuentry "XMHF-amd64" {
-	set root='(hd0,msdos1)'		# point to file system for /
+	echo "root = $root"
+	# assume $root is already set to where GRUB is installed
 	set kernel='/boot/init-x86-amd64.bin'
 	echo "Loading ${kernel}..."
 	multiboot ${kernel} serial=115200,8n1,0x3f8

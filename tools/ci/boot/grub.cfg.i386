@@ -9,7 +9,9 @@ set menu_color_normal=cyan/blue
 set menu_color_highlight=white/blue
 
 menuentry "XMHF-i386" {
-	set root='(hd0,msdos1)'		# point to file system for /
+	echo "root = $root"
+	# assume $root is already set to where GRUB is installed
+	# set root='(hd0,msdos1)'
 	set kernel='/boot/init-x86-i386.bin'
 	echo "Loading ${kernel}..."
 	multiboot ${kernel} serial=115200,8n1,0x3f8
