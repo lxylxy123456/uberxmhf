@@ -159,10 +159,14 @@ void xmhf_runtime_entry(void){
 	xmhf_debug_init((char *)&rpb->RtmUartConfig);
 	printf("\nruntime initializing...");
 
-  	//initialize basic platform elements
+  // initialize memory management
+	xmhf_mm_init();
+	printf("\nmemory management initialized");
+
+  //initialize basic platform elements
 	xmhf_baseplatform_initialize();
 
-    //[debug] dump E820 and MP table
+  //[debug] dump E820 and MP table
  	#ifndef __XMHF_VERIFICATION__
  	printf("\nNumber of E820 entries = %u", rpb->XtVmmE820NumEntries);
 	{
@@ -200,6 +204,8 @@ void xmhf_runtime_entry(void){
 				protectedbuffer_vaddr = (hva_t)&g_rntm_dmaprot_buffer;
 				protectedbuffer_size = xmhf_dmaprot_getbuffersize(DMAPROT_PHY_ADDR_SPACE_SIZE); // ADDR_512GB
 				HALT_ON_ERRORCOND(protectedbuffer_size <= SIZE_G_RNTM_DMAPROT_BUFFER);
+
+        xmhf_iommu_init();
 
 				printf("\nRuntime: Re-initializing DMA protection (physical address space size:0x%llX)...", DMAPROT_PHY_ADDR_SPACE_SIZE);
 				if(!xmhf_dmaprot_initialize(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size)){
