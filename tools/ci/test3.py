@@ -17,12 +17,7 @@ println_lock = threading.Lock()
 def parse_args():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--subarch', required=True)
-<<<<<<< HEAD:.jenkins/test3.py
-	parser.add_argument('--xmhf-bin', required=True)
 	parser.add_argument('--qemu-image')
-=======
-	parser.add_argument('--qemu-image', required=True)
->>>>>>> xmhf64:tools/ci/test3.py
 	parser.add_argument('--qemu-image-back')
 	parser.add_argument('--smp', type=int, default=2)
 	parser.add_argument('--work-dir', required=True)
