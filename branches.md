@@ -291,8 +291,10 @@
 * Add comments for the hpt library (`bug_067`)
 * Use debugfs to speed up CI testing (`bug_069`)
 
-`18ecd868e..` (d0f2be0fb)
+`18ecd868e..` (a65ee0d63)
 * Support forwarding guest's microcode update request to hardware (`bug_067`)
+* Separate grub.py to build minimal GRUB image for running XMHF
+* Allow guest to send INIT-SIPI-SIPI to "All Excluding Self" (`bug_074`)
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output

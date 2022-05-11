@@ -224,3 +224,13 @@ v3 "10.5.4 APIC Timer".
 In git `968ebcefa`, completed set up of LAPIC timer. A problem is that LAPIC
 timer is not as accurate as PIT, but we can live with it.
 
+### APIC
+
+Found a bug in XMHF, see `bug_074`. The problem is that XMHF does not allow
+guest to send INIT-SIPI-SIPI to "All Excluding Self". However, XMHF itself
+boots APs this way.
+
+### SMP console
+
+When booting SMP LHV in XMHF, the console cannot be accessed. See `bug_075`.
+
