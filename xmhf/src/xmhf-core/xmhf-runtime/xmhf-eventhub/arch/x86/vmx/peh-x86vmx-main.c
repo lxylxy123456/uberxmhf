@@ -116,6 +116,10 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 	asm volatile ("cpuid\r\n"
           :"=a"(r->eax), "=b"(r->ebx), "=c"(r->ecx), "=d"(r->edx)
           :"a"(r->eax), "c" (r->ecx));
+	
+	// Use the registers returned by <xmhf_app_handlecpuid>
+	xmhf_app_handlecpuid(vcpu, r, old_eax);
+
 	if (old_eax == 0x1) {
 		/* Clear VMX capability */
 		r->ecx &= ~(1U << 5);
@@ -1013,44 +1017,6 @@ u32 xmhf_parteventhub_arch_x86vmx_print_guest(VCPU *vcpu, struct regs *r)
 	HALT();
 }
 
-
-
-#include <hptw.h>
-extern hptw_cpl_t vcpu_get_guest_cpl(VCPU* vcpu);
-extern int copy_from_current_guest_ring0(VCPU *vcpu, void *dst, gva_t gvaddr, size_t len);
-extern int copy_from_current_guest(VCPU * vcpu, void *dst, gva_t gvaddr, size_t len);
-extern gpa_t current_gvaddr_to_gpaddr(VCPU* vcpu, gva_t va);
-// [TODO][Ticket 206] Move debug related functions to a better place
-// Print backtrace in guest VM
-static void __print_backtrace(VCPU *vcpu,  struct regs* r)
-{
-	ulong_t *ebp, *eip;
-	ulong_t eip_v = 0, ebp_v = 0;
-
-    // ebp = (ulong_t*)r->ebp;
-    ebp = (ulong_t*)VCPU_reg_get(vcpu, r, CPU_REG_BP);
-
-	printf("Call backtrace:\n");
-
-	while (ebp != NULL) 
-	{
-		eip = ebp + 1;
-
-		copy_from_current_guest(vcpu, &eip_v, (gva_t)eip, sizeof(ulong_t));
-		if(eip_v < 0x1000)
-			//We possibly trace to the VK return address to the hypervisor
-			break;
-		
-		printf("[<%lx>]\n", eip_v);
-
-		copy_from_current_guest(vcpu, &ebp_v, (gva_t)ebp, sizeof(ulong_t));
-		ebp = (ulong_t*)(ebp_v);	
-	}
-}
-
-
-
-
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 #ifdef __OPTIMIZE_NESTED_VIRT__
@@ -1160,21 +1126,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 						(unsigned long)vcpu->vmcs.info_vmexit_interrupt_information);
 					printf("\nerrorcode=0x%08lx",
 						(unsigned long)vcpu->vmcs.info_vmexit_interrupt_error_code);
-					printf("\nguest_cpl=%u", vcpu_get_guest_cpl(vcpu));
-					{
-						hpt_pa_t rip_gpaddr;
-
-						unsigned char inst[9] = {0};
-						unsigned long rip = vcpu->vmcs.guest_RIP;
-						uint32_t len = vcpu->vmcs.info_vmexit_instruction_length;
-
-						rip_gpaddr = current_gvaddr_to_gpaddr(vcpu, (hpt_va_t)rip);
-						copy_from_current_guest_ring0(vcpu, inst, rip, len);
-
-						printf("[Superymk] <xmhf_parteventhub_arch_x86vmx_intercept_handler> rip:0x%lX, rip_gpaddr:0x%lX, Length:%d, Instruction:0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\n", 
-							rip, rip_gpaddr, len, inst[0], inst[1], inst[2], inst[3], inst[4], inst[5], inst[6], inst[7], inst[8]);
-						__print_backtrace(vcpu, r);
-					}
 
 					xmhf_parteventhub_arch_x86vmx_print_guest(vcpu, r);
 					HALT();
