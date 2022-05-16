@@ -369,7 +369,8 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 		case MSR_IA32_PAT: /* fallthrough */
 		case MSR_K6_STAR: {
 			u32 found = 0;
-			for (u32 i = 0; i < vcpu->vmcs.control_VM_entry_MSR_load_count; i++) {
+            u32 i = 0;
+			for (i = 0; i < vcpu->vmcs.control_VM_entry_MSR_load_count; i++) {
 				msr_entry_t *entry = &((msr_entry_t *)vcpu->vmx_vaddr_msr_area_guest)[i];
 				if (entry->index == r->ecx) {
 					entry->data = write_data;
@@ -504,7 +505,8 @@ static void _vmx_handle_intercept_rdmsr(VCPU *vcpu, struct regs *r){
 		case MSR_IA32_PAT: /* fallthrough */
 		case MSR_K6_STAR: {
 			u32 found = 0;
-			for (u32 i = 0; i < vcpu->vmcs.control_VM_exit_MSR_store_count; i++) {
+            u32 i = 0;
+			for (i = 0; i < vcpu->vmcs.control_VM_exit_MSR_store_count; i++) {
 				msr_entry_t *entry = &((msr_entry_t *)vcpu->vmx_vaddr_msr_area_guest)[i];
 				if (entry->index == r->ecx) {
 					read_result = entry->data;

@@ -152,7 +152,7 @@
 
 /* Check whether x's type satisfies prefix pf ("" or "PA_") */
 #define _PAGE_TYPE_CHECK(x, pf) \
-    ({ _Static_assert(sizeof(x) == sizeof(pf##PAGE_SIZE_4K)); (x); })
+    ({ _Static_assert(sizeof(x) == sizeof(pf##PAGE_SIZE_4K), "type size mismatch!"); (x); })
 
 /* Align address up */
 
