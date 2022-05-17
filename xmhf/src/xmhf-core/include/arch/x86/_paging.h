@@ -67,6 +67,9 @@
     #error "Unsupported Arch"
 #endif
 
+#define ADDR64_PAGE_MASK_4K     0xFFFFFFFFFFFFF000ULL
+#define ADDR64_PAGE_OFFSET_4K     0xFFFULL
+
 // page sizes
 #define PAGE_SHIFT_4K   12
 #define PAGE_SHIFT_2M   21
