@@ -188,12 +188,12 @@ static bool __x86vmx_bind_cet(DEVICEDESC* device, iommu_pt_t pt_id, spa_t iommu_
     if(g_vtd_cap.sagaw & 0x4)
     {
         // Preferred to use 4-level PT
-        *(value + 1) = (uint64_t)0x0000000000000002ULL | (((uint64_t)pt_id & 0xFFFF) << 8); //domain:<pt_id>, aw=48 bits, 4 level pt
+        *(value + 1) = (uint64_t)0x0000000000000002ULL | (((uint64_t)pt_id & 0xFFFFULL) << 8); //domain:<pt_id>, aw=48 bits, 4 level pt
     }
     else if(g_vtd_cap.sagaw & 0x2)
     {
         // If no 4-level PT, then try 3-level PT
-        *(value + 1) = (uint64_t)0x0000000000000001ULL | (((uint64_t)pt_id & 0xFFFF) << 8); //domain:<pt_id>, aw=39 bits, 3 level pt
+        *(value + 1) = (uint64_t)0x0000000000000001ULL | (((uint64_t)pt_id & 0xFFFFULL) << 8); //domain:<pt_id>, aw=39 bits, 3 level pt
     }
     else
     {

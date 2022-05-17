@@ -1091,9 +1091,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		break;
 
 		case VMX_VMEXIT_INIT:{
-			printf("\n***** VMEXIT_INIT xmhf_app_handleshutdown\n");
-			xmhf_app_handleshutdown(vcpu, r);
-			printf("\nCPU(0x%02x): Fatal, xmhf_app_handleshutdown returned. Halting!", vcpu->id);
+			printf("\n***** VMEXIT_INIT xmhf_runtime_shutdown\n");
+			xmhf_runtime_shutdown(vcpu, r);
+			printf("\nCPU(0x%02x): Fatal, xmhf_runtime_shutdown returned. Halting!", vcpu->id);
 			HALT();
 		}
 		break;
@@ -1230,8 +1230,8 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 
 			if(reason == TASK_SWITCH_GATE && type == INTR_TYPE_NMI){
 				printf("\nCPU(0x%02x): NMI received (MP guest shutdown?)", vcpu->id);
-					xmhf_app_handleshutdown(vcpu, r);
-				printf("\nCPU(0x%02x): warning, xmhf_app_handleshutdown returned!", vcpu->id);
+					xmhf_runtime_shutdown(vcpu, r);
+				printf("\nCPU(0x%02x): warning, xmhf_runtime_shutdown returned!", vcpu->id);
 				printf("\nCPU(0x%02x): HALTING!", vcpu->id);
 				HALT();
 			}else{

@@ -312,3 +312,17 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
   printf("\nCPU(0x%02x): FATAL, should not be here. HALTING!", vcpu->id);
   HALT();
 }
+
+void xmhf_runtime_shutdown(VCPU *vcpu, struct regs *r)
+{
+  xmhf_app_handleshutdown(vcpu, r);
+
+  // Finalize sub-systems
+#if defined (__DMAP__)
+  xmhf_iommu_fini();
+#endif // __DMAP__
+  xmhf_mm_fini();
+
+  // Reboot
+  xmhf_baseplatform_reboot(vcpu);
+}
