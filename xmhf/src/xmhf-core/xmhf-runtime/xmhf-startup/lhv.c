@@ -3,15 +3,6 @@
 
 void lhv_main(VCPU *vcpu)
 {
-	volatile char *a = ((volatile char *) 0xB8000) + vcpu->idx * 2;
-	while (1) {
-		a[0]++;
-		asm volatile("mov $0x17, %%ecx; rdmsr" : : : "%eax", "%ecx", "%edx");
-	}
-}
-
-void lhv_main_2(VCPU *vcpu)
-{
 	console_vc_t vc;
 	console_get_vc(&vc, vcpu->idx);
 	console_clear(&vc);
