@@ -53,6 +53,7 @@
 
 //initialize SMP
 void xmhf_baseplatform_smpinitialize(void){
+	asm volatile("xor %%al,%%al; 1: test %%al,%%al; jz 1b;" ::: "%eax", "cc");
 	xmhf_baseplatform_arch_smpinitialize();
 }
 

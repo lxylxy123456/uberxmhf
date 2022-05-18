@@ -135,7 +135,6 @@ void xmhf_baseplatform_arch_x86vmx_allocandsetupvcpus(u32 cpu_vendor){
 
 //wake up application processors (cores) in the system
 void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void){
-	asm volatile("xor %%al,%%al; 1: test %%al,%%al; jz 1b;" ::: "%eax", "cc");
 	//step-1: setup AP boot-strap code at in the desired physical memory location
 	//note that we need an address < 1MB since the APs are woken up in real-mode
 	//we choose 0x10000 physical or 0x1000:0x0000 logical
