@@ -983,9 +983,11 @@ void cstartup(multiboot_info_t *mbi){
     //setup vcpus
     setupvcpus(cpu_vendor, midtable, midtable_numentries);
 
+#ifdef DUPLICATE_INIT_SIPI_SIPI
     //wakeup all APs
     if(midtable_numentries > 1)
         wakeupAPs();
+#endif /* DUPLICATE_INIT_SIPI_SIPI */
 
     //fall through and enter mp_cstartup via init_core_lowlevel_setup
     init_core_lowlevel_setup();
@@ -1025,10 +1027,12 @@ void svm_clear_microcode(VCPU *vcpu){
 }
 
 
+#ifdef DUPLICATE_INIT_SIPI_SIPI
 u32 cpus_active=0; //number of CPUs that are awake, should be equal to
 //midtable_numentries -1 if all went well with the
 //MP startup protocol
 u32 lock_cpus_active=1; //spinlock to access the above
+#endif /* DUPLICATE_INIT_SIPI_SIPI */
 
 
 //------------------------------------------------------------------------------
@@ -1055,6 +1059,7 @@ void mp_cstartup (VCPU *vcpu){
 
         printf("\nBSP(0x%02x): Rallying APs...", vcpu->id);
 
+#ifdef DUPLICATE_INIT_SIPI_SIPI
         //increment a CPU to account for the BSP
         spin_lock(&lock_cpus_active);
         cpus_active++;
@@ -1063,6 +1068,7 @@ void mp_cstartup (VCPU *vcpu){
         //wait for cpus_active to become midtable_numentries -1 to indicate
         //that all APs have been successfully started
         while(cpus_active < midtable_numentries);
+#endif /* DUPLICATE_INIT_SIPI_SIPI */
 
 
         //put all APs in INIT state
@@ -1081,10 +1087,12 @@ void mp_cstartup (VCPU *vcpu){
             printf("\nAP(0x%02x): Microcode clear.", vcpu->id);
         }
 
+#ifdef DUPLICATE_INIT_SIPI_SIPI
         //update the AP startup counter
         spin_lock(&lock_cpus_active);
         cpus_active++;
         spin_unlock(&lock_cpus_active);
+#endif /* DUPLICATE_INIT_SIPI_SIPI */
 
         printf("\nAP(0x%02x): Waiting for DRTM establishment...", vcpu->id);
 
