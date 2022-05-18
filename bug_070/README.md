@@ -233,4 +233,7 @@ boots APs this way.
 ### SMP console
 
 When booting SMP LHV in XMHF, the console cannot be accessed. See `bug_075`.
+This is a limitation of XMHF, and is worked around by changing LHV.
 
+### TODO
+TODO

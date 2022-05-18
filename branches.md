@@ -354,4 +354,5 @@ Windows
 * x86 XMHF does not support x86 PAE and x64 guests (see `bug_028`)
 * x86 Windows XP SP3 has strange VMCALL, workaround is `0d7e0599d` (`bug_029`)
 * UEFI is not supported
+* XMHF does not support guest OS performing INIT-SIPI-SIPI trice (`bug_075`)
 

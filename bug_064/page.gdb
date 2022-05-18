@@ -61,6 +61,7 @@ define walk_pt
       if !($lmv & 0x100)
         print "PAE paging"
         set $p1 = $c3 & ~0x1f & ~(1ULL << 63) | ((($a >> 30) & 0x1f) << 3)
+        set $e1 = (*(u64*)$p1)
         walk_pt_pdpte
         print /x $ans
       else
