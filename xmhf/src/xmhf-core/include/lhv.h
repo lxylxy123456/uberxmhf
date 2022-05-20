@@ -3,6 +3,8 @@
 #ifndef _LHV_H_
 #define _LHV_H_
 
+#include <lhv-vmcs.h>
+
 #ifndef __ASSEMBLY__
 
 typedef struct {
@@ -41,6 +43,10 @@ void vmentry_error(ulong_t is_resume, ulong_t valid);
 void vmexit_asm(void);				/* Called by hardware only */
 void vmlaunch_asm(struct regs *r);	/* Never returns */
 void vmresume_asm(struct regs *r);	/* Never returns */
+
+/* lhv-vmcs.c */
+void vmcs_vmwrite(VCPU *vcpu, ulong_t encoding, ulong_t value);
+ulong_t vmcs_vmread(VCPU *vcpu, ulong_t encoding);
 
 /* LAPIC */
 #define LAPIC_DEFAULT_BASE    0xfee00000

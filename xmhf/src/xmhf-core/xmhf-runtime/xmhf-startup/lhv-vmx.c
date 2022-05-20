@@ -9,8 +9,28 @@ __attribute__(( section(".bss.palign_data") ));
 static u8 all_vmcs[MAX_VCPU_ENTRIES][MAX_GUESTS][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 
+extern u32 x_gdt_start[];
+
 static void lhv_vmx_vmcs_init(VCPU *vcpu)
 {
+	// From vmx_initunrestrictedguestVMCS
+	// TODO: vmcs_vmwrite();
+	vmcs_vmwrite(vcpu, VMCS_host_CR0, read_cr0());
+	vmcs_vmwrite(vcpu, VMCS_host_CR4, read_cr4());
+	vmcs_vmwrite(vcpu, VMCS_host_CR3, read_cr3());
+	vmcs_vmwrite(vcpu, VMCS_host_CS_selector, read_segreg_cs());
+	vmcs_vmwrite(vcpu, VMCS_host_DS_selector, read_segreg_ds());
+	vmcs_vmwrite(vcpu, VMCS_host_ES_selector, read_segreg_es());
+	vmcs_vmwrite(vcpu, VMCS_host_FS_selector, read_segreg_fs());
+	vmcs_vmwrite(vcpu, VMCS_host_GS_selector, read_segreg_gs());
+	vmcs_vmwrite(vcpu, VMCS_host_SS_selector, read_segreg_ss());
+	vmcs_vmwrite(vcpu, VMCS_host_TR_selector, read_tr_sel());
+	vmcs_vmwrite(vcpu, VMCS_host_GDTR_base, (u64)(hva_t)x_gdt_start);
+	vmcs_vmwrite(vcpu, VMCS_host_IDTR_base,
+					(u64)(hva_t)xmhf_xcphandler_get_idt_start());
+	vmcs_vmwrite(vcpu, VMCS_host_TR_base, (u64)(hva_t)g_runtime_TSS);
+	vmcs_vmwrite(vcpu, VMCS_host_RIP, (u64)(hva_t)vmexit_asm);
+	// printf("\nJKL=0x%016x", vmcs_vmread(vcpu, VMCS_info_vmexit_reason));
 	HALT_ON_ERRORCOND(vcpu == NULL);
 }
 
