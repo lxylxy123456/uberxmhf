@@ -4,7 +4,8 @@
 * A lot of configurations
 * QEMU bug, not XMHF bug
 * Reproducible in `qemu-kvm-6.1.0-14.fc35.x86_64` running in Intel Core i7-4510U
-* Reproducible in SMP
+* Reproducible in QEMU 5.2.0 running in Intel Core i7-1185G7
+* Reproducible in SMP, not reproducible in UP
 * Note: this bug is found since `bug_004`
 
 ## Behavior
@@ -37,10 +38,50 @@ $
 
 ## Debugging
 
-TODO: try on later CPU
-TODO: report bug to KVM
-* <https://www.linux-kvm.org/page/Bugs>
-* <https://docs.fedoraproject.org/en-US/quick-docs/howto-file-a-bug/>
-TODO: compile upstream kernel
+### Building Linux
+
+A lot of bug reporting websites require testing against latest Linux version.
+So we should try to build Linux ourselves.
+
+Following
+<https://kernel-team.pages.debian.net/kernel-handbook/ch-common-tasks.html#s-kernel-org-package> to build Linux on Debian
+
+```sh
+apt-get install build-essential fakeroot libncurses-dev
+apt-get build-dep linux
+
+wget https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-5.17.9.tar.xz
+tar xaf linux-5.17.9.tar.xz 
+cd linux-5.17.9/
+cp /boot/config-5.10.0-14-amd64 .config
+scripts/config --disable MODULE_SIG
+scripts/config --disable DEBUG_INFO
+make nconfig
+make deb-pkg
+```
+
+However, have some problems when building, give up.
+
+Unused: building on Fedora
 * <https://docs.fedoraproject.org/en-US/quick-docs/kernel/build-custom-kernel/>
 
+### Later CPU
+
+The two bugs are also reproducible in HP 840. The advantage is that QEMU runs a
+lot faster.
+
+### Report bugs
+
+Guides
+* <https://www.linux-kvm.org/page/Bugs>
+* <https://docs.fedoraproject.org/en-US/quick-docs/howto-file-a-bug/>
+
+Reports
+* The `!env->exception_has_payload` assertion error is reported in
+  <https://bugzilla.kernel.org/show_bug.cgi?id=216002>
+* The `ret < cpu->num_ases && ret >= 0` (`bug_031`) assertion error is reported
+  in <https://bugzilla.kernel.org/show_bug.cgi?id=216003>
+
+Another bug not reported: see `bug_077`
+
+Waiting for KVM people.
