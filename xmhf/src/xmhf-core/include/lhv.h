@@ -3,6 +3,8 @@
 #ifndef _LHV_H_
 #define _LHV_H_
 
+#ifndef __ASSEMBLY__
+
 typedef struct {
 	int left;
 	int top;
@@ -33,6 +35,12 @@ void handle_keyboard_interrupt(VCPU *vcpu, int vector);
 
 /* lhv-vmx.c */
 void lhv_vmx_main(VCPU *vcpu);
+void vmentry_error(ulong_t is_resume, ulong_t valid);
+
+/* lhv-asm.S */
+void vmexit_asm(void);				/* Called by hardware only */
+void vmlaunch_asm(struct regs *r);	/* Never returns */
+void vmresume_asm(struct regs *r);	/* Never returns */
 
 /* LAPIC */
 #define LAPIC_DEFAULT_BASE    0xfee00000
@@ -52,5 +60,7 @@ static inline u32 read_lapic(u32 reg) {
 static inline void write_lapic(u32 reg, u32 val) {
 	*(volatile u32 *)(uintptr_t)(LAPIC_DEFAULT_BASE + reg) = val;
 }
+
+#endif /* !__ASSEMBLY__ */
 
 #endif /* _LHV_H_ */

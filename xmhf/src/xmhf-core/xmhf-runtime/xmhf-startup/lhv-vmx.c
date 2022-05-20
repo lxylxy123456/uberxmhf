@@ -57,5 +57,25 @@ void lhv_vmx_main(VCPU *vcpu)
 		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
 	}
 
-	printf("\nCPU(0x%02x): Not implemented", vcpu->id);
+	// TODO: modify VMCS
+
+	asm volatile ("cli");	// TODO: tmp
+
+	/* VMLAUNCH */
+	{
+		struct regs r;
+		memset(&r, 0, sizeof(r));
+		vmlaunch_asm(&r);
+	}
+
+	HALT_ON_ERRORCOND(0 && "vmlaunch_asm() should never return");
+}
+
+void vmentry_error(ulong_t is_resume, ulong_t valid)
+{
+	VCPU *vcpu = _svm_and_vmx_getvcpu();
+	printf("\nCPU(0x%02x): is_resume = %ld, valid = %ld", vcpu->id,
+			is_resume, valid);
+	HALT_ON_ERRORCOND(is_resume && valid && 0);
+	HALT_ON_ERRORCOND(0);
 }
