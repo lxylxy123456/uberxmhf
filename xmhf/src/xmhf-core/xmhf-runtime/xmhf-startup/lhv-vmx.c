@@ -59,7 +59,7 @@ void lhv_vmx_main(VCPU *vcpu)
 
 	// TODO: modify VMCS
 
-	asm volatile ("cli");	// TODO: tmp
+//	asm volatile ("cli");	// TODO: tmp
 
 	/* VMLAUNCH */
 	{
