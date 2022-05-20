@@ -31,6 +31,9 @@ void pic_init(void);
 /* lhv-keyboard.c */
 void handle_keyboard_interrupt(VCPU *vcpu, int vector);
 
+/* lhv-vmx.c */
+void lhv_vmx_main(VCPU *vcpu);
+
 /* LAPIC */
 #define LAPIC_DEFAULT_BASE    0xfee00000
 #define IOAPIC_DEFAULT_BASE   0xfec00000

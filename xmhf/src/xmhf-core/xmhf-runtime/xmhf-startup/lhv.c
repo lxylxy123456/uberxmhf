@@ -29,6 +29,9 @@ void lhv_main(VCPU *vcpu)
 		set_eflags(a);
 	}
 
+	/* Start VT related things */
+	lhv_vmx_main(vcpu);
+
 	HALT();
 }
 
