@@ -14,7 +14,7 @@ extern u32 x_gdt_start[];
 static void lhv_vmx_vmcs_init(VCPU *vcpu)
 {
 	// From vmx_initunrestrictedguestVMCS
-	// TODO: vmcs_vmwrite();
+
 	vmcs_vmwrite(vcpu, VMCS_host_CR0, read_cr0());
 	vmcs_vmwrite(vcpu, VMCS_host_CR4, read_cr4());
 	vmcs_vmwrite(vcpu, VMCS_host_CR3, read_cr3());
@@ -31,7 +31,164 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_host_TR_base, (u64)(hva_t)g_runtime_TSS);
 	vmcs_vmwrite(vcpu, VMCS_host_RIP, (u64)(hva_t)vmexit_asm);
 	// printf("\nJKL=0x%016x", vmcs_vmread(vcpu, VMCS_info_vmexit_reason));
-	HALT_ON_ERRORCOND(vcpu == NULL);
+
+	//store vcpu at TOS
+#ifdef __AMD64__
+	vcpu->rsp = vcpu->rsp - sizeof(hva_t);
+	*(hva_t *)vcpu->rsp = (hva_t)vcpu;
+	vmcs_vmwrite(vcpu, VMCS_host_RSP, (u64)vcpu->rsp);
+#elif defined(__I386__)
+	vcpu->esp = vcpu->esp - sizeof(hva_t);
+	*(hva_t *)vcpu->esp = (hva_t)vcpu;
+	vmcs_vmwrite(vcpu, VMCS_host_RSP, (u64)vcpu->esp);
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+
+	vmcs_vmwrite(vcpu, VMCS_host_SYSENTER_CS, rdmsr64(IA32_SYSENTER_CS_MSR));
+	vmcs_vmwrite(vcpu, VMCS_host_SYSENTER_ESP, rdmsr64(IA32_SYSENTER_ESP_MSR));
+	vmcs_vmwrite(vcpu, VMCS_host_SYSENTER_EIP, rdmsr64(IA32_SYSENTER_EIP_MSR));
+	vmcs_vmwrite(vcpu, VMCS_host_FS_base, rdmsr64(IA32_MSR_FS_BASE));
+	vmcs_vmwrite(vcpu, VMCS_host_GS_base, rdmsr64(IA32_MSR_GS_BASE));
+
+	//setup default VMX controls
+	vmcs_vmwrite(vcpu, VMCS_control_VMX_pin_based,
+				vcpu->vmx_msrs[INDEX_IA32_VMX_PINBASED_CTLS_MSR]);
+	//activate secondary processor controls
+	vmcs_vmwrite(vcpu, VMCS_control_VMX_cpu_based,
+				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS_MSR] | (1 << 31));
+	vmcs_vmwrite(vcpu, VMCS_control_VM_exit_controls,
+				vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR]);
+	vmcs_vmwrite(vcpu, VMCS_control_VM_entry_controls,
+				vcpu->vmx_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR]);
+	//enable unrestricted guest
+	vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based,
+				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR] | (1 << 7));
+
+#ifdef __AMD64__
+	/*
+	 * For amd64, set the Host address-space size (bit 9) in
+	 * control_VM_exit_controls. First check whether setting this bit is
+	 * allowed through bit (9 + 32) in the MSR.
+	 */
+	HALT_ON_ERRORCOND(vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR] & (1UL << (9 + 32)));
+	{
+		u64 control_VM_exit_controls = vmcs_vmread(vcpu, VMCS_control_VM_exit_controls);
+		control_VM_exit_controls |= (1UL << 9);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_controls, control_VM_exit_controls);
+	}
+#elif !defined(__I386__)
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) */
+
+	//Critical MSR load/store
+	vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
+	vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 0);
+	vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 0);
+
+	vmcs_vmwrite(vcpu, VMCS_control_pagefault_errorcode_mask, 0);
+	vmcs_vmwrite(vcpu, VMCS_control_pagefault_errorcode_match, 0);
+	vmcs_vmwrite(vcpu, VMCS_control_exception_bitmap, 0);
+	vmcs_vmwrite(vcpu, VMCS_control_CR3_target_count, 0);
+
+	//setup guest state
+	//CR0, real-mode, PE and PG bits cleared, set ET bit
+	{
+		ulong_t cr0 = vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED0_MSR];
+		cr0 &= ~(CR0_PE);
+		cr0 &= ~(CR0_PG);
+		cr0 |= CR0_ET;
+		vmcs_vmwrite(vcpu, VMCS_guest_CR0, cr0);
+	}
+	//CR4, required bits set (usually VMX enabled bit)
+	vmcs_vmwrite(vcpu, VMCS_guest_CR4, vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED0_MSR]);
+	//CR3 set to 0, does not matter
+	vmcs_vmwrite(vcpu, VMCS_guest_CR3, 0);	// TODO
+	//IDTR
+	vmcs_vmwrite(vcpu, VMCS_guest_IDTR_base, 0);	// TODO
+	if (vcpu->isbsp) {
+		vmcs_vmwrite(vcpu, VMCS_guest_IDTR_limit, 0x3ff);	// TODO
+	} else {
+		vmcs_vmwrite(vcpu, VMCS_guest_IDTR_limit, 0xffff);	// TODO
+	}
+	vmcs_vmwrite(vcpu, VMCS_guest_GDTR_base, 0);	// TODO
+	if (vcpu->isbsp) {
+		vmcs_vmwrite(vcpu, VMCS_guest_GDTR_limit, 0x0);	// TODO
+	} else {
+		vmcs_vmwrite(vcpu, VMCS_guest_GDTR_limit, 0xffff);	// TODO
+	}
+	//LDTR, unusable
+	vmcs_vmwrite(vcpu, VMCS_guest_LDTR_base, 0);
+	if (vcpu->isbsp) {
+		vmcs_vmwrite(vcpu, VMCS_guest_LDTR_limit, 0x0);
+	} else {
+		vmcs_vmwrite(vcpu, VMCS_guest_LDTR_limit, 0xffff);
+	}
+	vmcs_vmwrite(vcpu, VMCS_guest_LDTR_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_LDTR_access_rights, 0x10000);
+	// TR, should be usable for VMX to work, but not used by guest
+	vmcs_vmwrite(vcpu, VMCS_guest_TR_base, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_TR_limit, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_TR_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_TR_access_rights, 0x8b);
+	//DR7
+	vmcs_vmwrite(vcpu, VMCS_guest_DR7, 0x400);
+	//RSP
+	vmcs_vmwrite(vcpu, VMCS_guest_RSP, 0x0);
+	//RIP
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_selector, 0);	// TODO
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_base, 0);	// TODO
+	vmcs_vmwrite(vcpu, VMCS_guest_RIP, 0);	// TODO
+	vmcs_vmwrite(vcpu, VMCS_guest_RFLAGS, (1 << 1));	// TODO
+	//CS, DS, ES, FS, GS and SS segments	// TODO
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_limit, 0xFFFF);
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0x93);
+	vmcs_vmwrite(vcpu, VMCS_guest_DS_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_DS_base, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_DS_limit, 0xFFFF);
+	vmcs_vmwrite(vcpu, VMCS_guest_DS_access_rights, 0x93);
+	vmcs_vmwrite(vcpu, VMCS_guest_ES_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_ES_base, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_ES_limit, 0xFFFF);
+	vmcs_vmwrite(vcpu, VMCS_guest_ES_access_rights, 0x93);
+	vmcs_vmwrite(vcpu, VMCS_guest_FS_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_FS_base, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_FS_limit, 0xFFFF);
+	vmcs_vmwrite(vcpu, VMCS_guest_FS_access_rights, 0x93);
+	vmcs_vmwrite(vcpu, VMCS_guest_GS_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_GS_base, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_GS_limit, 0xFFFF);
+	vmcs_vmwrite(vcpu, VMCS_guest_GS_access_rights, 0x93);
+	vmcs_vmwrite(vcpu, VMCS_guest_SS_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_SS_base, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_SS_limit, 0xFFFF);
+	vmcs_vmwrite(vcpu, VMCS_guest_SS_access_rights, 0x93);
+
+	//setup VMCS link pointer
+#ifdef __AMD64__
+	vmcs_vmwrite(vcpu, VMCS_guest_VMCS_link_pointer, (u64)0xFFFFFFFFFFFFFFFFULL);
+#elif defined(__I386__)
+	vmcs_vmwrite(vcpu, VMCS_guest_VMCS_link_pointer_full, 0xFFFFFFFFUL);
+	vmcs_vmwrite(vcpu, VMCS_guest_VMCS_link_pointer_high, 0xFFFFFFFFUL);
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+
+	//trap access to CR0 fixed 1-bits
+	{
+		ulong_t cr0_mask = vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED0_MSR];
+		cr0_mask &= ~(CR0_PE);
+		cr0_mask &= ~(CR0_PG);
+		cr0_mask |= CR0_CD;
+		cr0_mask |= CR0_NW;
+		vmcs_vmwrite(vcpu, VMCS_control_CR0_mask, cr0_mask);
+	}
+	vmcs_vmwrite(vcpu, VMCS_control_CR0_shadow, CR0_ET);
+
+	//trap access to CR4 fixed bits (this includes the VMXE bit)
+	vmcs_vmwrite(vcpu, VMCS_control_CR4_mask,
+				vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED0_MSR]);
+	vmcs_vmwrite(vcpu, VMCS_control_CR0_shadow, 0);
 }
 
 void lhv_vmx_main(VCPU *vcpu)
