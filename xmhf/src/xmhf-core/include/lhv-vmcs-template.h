@@ -1,6 +1,7 @@
 #ifndef _LHV_VMCS_H_
 #define _LHV_VMCS_H_
 
+    DECLARE_FIELD(0x4400, info_vminstr_error)
     DECLARE_FIELD(0x4402, info_vmexit_reason)
     DECLARE_FIELD(0x4404, info_vmexit_interrupt_information)
     DECLARE_FIELD(0x4406, info_vmexit_interrupt_error_code)

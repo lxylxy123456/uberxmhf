@@ -14,6 +14,7 @@ for i in a:
 		print(i)
 */
 
+    #define VMCS_info_vminstr_error 0x4400
     #define VMCS_info_vmexit_reason 0x4402
     #define VMCS_info_vmexit_interrupt_information 0x4404
     #define VMCS_info_vmexit_interrupt_error_code 0x4406

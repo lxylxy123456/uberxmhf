@@ -30,7 +30,6 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 					(u64)(hva_t)xmhf_xcphandler_get_idt_start());
 	vmcs_vmwrite(vcpu, VMCS_host_TR_base, (u64)(hva_t)g_runtime_TSS);
 	vmcs_vmwrite(vcpu, VMCS_host_RIP, (u64)(hva_t)vmexit_asm);
-	// printf("\nJKL=0x%016x", vmcs_vmread(vcpu, VMCS_info_vmexit_reason));
 
 	//store vcpu at TOS
 #ifdef __AMD64__
@@ -274,8 +273,9 @@ void lhv_vmx_main(VCPU *vcpu)
 void vmentry_error(ulong_t is_resume, ulong_t valid)
 {
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
-	printf("\nCPU(0x%02x): is_resume = %ld, valid = %ld", vcpu->id,
-			is_resume, valid);
+	ulong_t vminstr_error = vmcs_vmread(vcpu, VMCS_info_vminstr_error);
+	printf("\nCPU(0x%02x): is_resume = %ld, valid = %ld, err = %ld",
+			vcpu->id, is_resume, valid, vminstr_error);
 	HALT_ON_ERRORCOND(is_resume && valid && 0);
 	HALT_ON_ERRORCOND(0);
 }
