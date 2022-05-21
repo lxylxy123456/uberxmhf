@@ -216,6 +216,8 @@ python3 ../xmhf64/.jenkins/test3.py \
 	--subarch i386 --xmhf-bin . --work-dir /tmp/xmhf-grub-i386
 ```
 
+In the future this becomes `tools/ci/grub.py`
+
 ### LAPIC timer
 
 15410's `p3/410kern/smp/smp4.pdf` is very helpful. APIC is documented in Intel
@@ -235,5 +237,8 @@ boots APs this way.
 When booting SMP LHV in XMHF, the console cannot be accessed. See `bug_075`.
 This is a limitation of XMHF, and is worked around by changing LHV.
 
-### TODO
+### VMXON
+
+We follow "NewBluePill 深入理解硬件虚拟机"'s logic. See `lhv_vmx_main()`.
+
 TODO
