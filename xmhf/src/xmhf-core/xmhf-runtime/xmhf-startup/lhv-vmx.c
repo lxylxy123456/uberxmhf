@@ -273,6 +273,7 @@ void lhv_vmx_main(VCPU *vcpu)
 void vmentry_error(ulong_t is_resume, ulong_t valid)
 {
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
+	/* 29.4 VM INSTRUCTION ERROR NUMBERS */
 	ulong_t vminstr_error = vmcs_vmread(vcpu, VMCS_info_vminstr_error);
 	printf("\nCPU(0x%02x): is_resume = %ld, valid = %ld, err = %ld",
 			vcpu->id, is_resume, valid, vminstr_error);
