@@ -238,6 +238,7 @@ typedef struct _vcpu {
 
   void *vmxon_region;
   void *my_vmcs;
+  void *my_stack;
 } VCPU;
 
 #define SIZE_STRUCT_VCPU    (sizeof(struct _vcpu))
