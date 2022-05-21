@@ -51,6 +51,9 @@ void vmcs_dump_quiet(VCPU *vcpu);
 void vmcs_dump(VCPU *vcpu);
 void vmcs_load(VCPU *vcpu);
 
+/* lhv-guest-asm.S */
+void lhv_guest_entry(void);
+
 /* LAPIC */
 #define LAPIC_DEFAULT_BASE    0xfee00000
 #define IOAPIC_DEFAULT_BASE   0xfec00000
