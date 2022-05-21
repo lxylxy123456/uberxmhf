@@ -4,6 +4,7 @@
 # source files
 AS_SOURCES =
 AS_SOURCES += lhv-asm.S
+AS_SOURCES += lhv-guest-asm.S
 
 C_SOURCES =  runtime.c
 C_SOURCES += rntm-data.c

@@ -104,6 +104,7 @@ OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-keyboard.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-vmx.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-asm.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-vmcs.o
+OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-guest-asm.o
 
 
 # separate from OBJECTS_PRECOMPILED because needs to come after libs on link line
