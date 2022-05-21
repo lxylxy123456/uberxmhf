@@ -261,10 +261,11 @@ void lhv_vmx_main(VCPU *vcpu)
 	vmcs_dump_quiet(vcpu);
 
 	// TODO
+	printf("\nINDEX_IA32_VMX_PROCBASED_CTLS2_MSR 0x%016llx", (u64) vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
 vcpu->vmcs.control_vpid=0x00000001;
-vcpu->vmcs.control_VMX_pin_based=0x0000003e;
-vcpu->vmcs.control_VMX_cpu_based=0x86006172;
-vcpu->vmcs.control_VMX_seccpu_based=0x000010aa;
+vcpu->vmcs.control_VMX_pin_based=0x00000016;
+vcpu->vmcs.control_VMX_cpu_based=0x8401e172;
+vcpu->vmcs.control_VMX_seccpu_based=0x00000082;
 vcpu->vmcs.control_EPT_pointer=0x000000001869501e;
 vcpu->vmcs.host_CR0=0x0000000080000035;
 vcpu->vmcs.host_CR4=0x0000000000042030;
