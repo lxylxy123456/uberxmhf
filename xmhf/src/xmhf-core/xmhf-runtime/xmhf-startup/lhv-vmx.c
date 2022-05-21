@@ -96,71 +96,60 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	//CR0, real-mode, PE and PG bits cleared, set ET bit
 	{
 		ulong_t cr0 = vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED0_MSR];
-		cr0 &= ~(CR0_PE);
-		cr0 &= ~(CR0_PG);
 		cr0 |= CR0_ET;
 		vmcs_vmwrite(vcpu, VMCS_guest_CR0, cr0);
 	}
 	//CR4, required bits set (usually VMX enabled bit)
 	vmcs_vmwrite(vcpu, VMCS_guest_CR4, vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED0_MSR]);
 	//CR3 set to 0, does not matter
-	vmcs_vmwrite(vcpu, VMCS_guest_CR3, 0);	// TODO
+	vmcs_vmwrite(vcpu, VMCS_guest_CR3, read_cr3());
 	//IDTR
-	vmcs_vmwrite(vcpu, VMCS_guest_IDTR_base, 0);	// TODO
-	if (vcpu->isbsp) {
-		vmcs_vmwrite(vcpu, VMCS_guest_IDTR_limit, 0x3ff);	// TODO
-	} else {
-		vmcs_vmwrite(vcpu, VMCS_guest_IDTR_limit, 0xffff);	// TODO
-	}
-	vmcs_vmwrite(vcpu, VMCS_guest_GDTR_base, 0);	// TODO
-	if (vcpu->isbsp) {
-		vmcs_vmwrite(vcpu, VMCS_guest_GDTR_limit, 0x0);	// TODO
-	} else {
-		vmcs_vmwrite(vcpu, VMCS_guest_GDTR_limit, 0xffff);	// TODO
-	}
+	vmcs_vmwrite(vcpu, VMCS_guest_IDTR_base,
+				vmcs_vmread(vcpu, VMCS_host_IDTR_base));
+	vmcs_vmwrite(vcpu, VMCS_guest_IDTR_limit, 0xffff);
+	//GDTR
+	vmcs_vmwrite(vcpu, VMCS_guest_GDTR_base,
+				vmcs_vmread(vcpu, VMCS_host_GDTR_base));
+	vmcs_vmwrite(vcpu, VMCS_guest_GDTR_limit, 0xffff);
 	//LDTR, unusable
 	vmcs_vmwrite(vcpu, VMCS_guest_LDTR_base, 0);
-	if (vcpu->isbsp) {
-		vmcs_vmwrite(vcpu, VMCS_guest_LDTR_limit, 0x0);
-	} else {
-		vmcs_vmwrite(vcpu, VMCS_guest_LDTR_limit, 0xffff);
-	}
+	vmcs_vmwrite(vcpu, VMCS_guest_LDTR_limit, 0x0);
 	vmcs_vmwrite(vcpu, VMCS_guest_LDTR_selector, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_LDTR_access_rights, 0x10000);
 	// TR, should be usable for VMX to work, but not used by guest
-	vmcs_vmwrite(vcpu, VMCS_guest_TR_base, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_TR_base, 0);	// TODO
 	vmcs_vmwrite(vcpu, VMCS_guest_TR_limit, 0);
-	vmcs_vmwrite(vcpu, VMCS_guest_TR_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_TR_selector, __TRSEL);
 	vmcs_vmwrite(vcpu, VMCS_guest_TR_access_rights, 0x8b);
 	//DR7
 	vmcs_vmwrite(vcpu, VMCS_guest_DR7, 0x400);
 	//RSP
 	vmcs_vmwrite(vcpu, VMCS_guest_RSP, 0x0);
 	//RIP
-	vmcs_vmwrite(vcpu, VMCS_guest_CS_selector, 0);	// TODO
-	vmcs_vmwrite(vcpu, VMCS_guest_CS_base, 0);	// TODO
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_selector, __CS);
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_base, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_RIP, 0);	// TODO
 	vmcs_vmwrite(vcpu, VMCS_guest_RFLAGS, (1 << 1));	// TODO
 	//CS, DS, ES, FS, GS and SS segments	// TODO
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_limit, 0xFFFF);
-	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0x93);
-	vmcs_vmwrite(vcpu, VMCS_guest_DS_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0x9b);
+	vmcs_vmwrite(vcpu, VMCS_guest_DS_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_DS_base, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_DS_limit, 0xFFFF);
 	vmcs_vmwrite(vcpu, VMCS_guest_DS_access_rights, 0x93);
-	vmcs_vmwrite(vcpu, VMCS_guest_ES_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_ES_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_ES_base, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_ES_limit, 0xFFFF);
 	vmcs_vmwrite(vcpu, VMCS_guest_ES_access_rights, 0x93);
-	vmcs_vmwrite(vcpu, VMCS_guest_FS_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_FS_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_FS_base, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_FS_limit, 0xFFFF);
 	vmcs_vmwrite(vcpu, VMCS_guest_FS_access_rights, 0x93);
-	vmcs_vmwrite(vcpu, VMCS_guest_GS_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_GS_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_GS_base, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_GS_limit, 0xFFFF);
 	vmcs_vmwrite(vcpu, VMCS_guest_GS_access_rights, 0x93);
-	vmcs_vmwrite(vcpu, VMCS_guest_SS_selector, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_SS_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_SS_base, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_SS_limit, 0xFFFF);
 	vmcs_vmwrite(vcpu, VMCS_guest_SS_access_rights, 0x93);
@@ -275,6 +264,8 @@ void lhv_vmx_main(VCPU *vcpu)
 
 void vmexit_handler(VCPU *vcpu, struct regs *r)
 {
+	ulong_t vmexit_reason = vmcs_vmread(vcpu, VMCS_info_vmexit_reason);
+	printf("\nCPU(0x%02x): vmexit_reason = 0x%lx", vcpu->id, vmexit_reason);
 	printf("\nCPU(0x%02x): r->eax = 0x%x", vcpu->id, r->eax);
 	printf("\nCPU(0x%02x): r->ebx = 0x%x", vcpu->id, r->ebx);
 	printf("\nCPU(0x%02x): r->ecx = 0x%x", vcpu->id, r->ecx);
