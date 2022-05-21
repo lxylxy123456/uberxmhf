@@ -274,6 +274,19 @@ void lhv_vmx_main(VCPU *vcpu)
 	HALT_ON_ERRORCOND(0 && "vmlaunch_asm() should never return");
 }
 
+void vmexit_handler(VCPU *vcpu, struct regs *r)
+{
+	printf("\nCPU(0x%02x): r->eax = 0x%x", vcpu->id, r->eax);
+	printf("\nCPU(0x%02x): r->ebx = 0x%x", vcpu->id, r->ebx);
+	printf("\nCPU(0x%02x): r->ecx = 0x%x", vcpu->id, r->ecx);
+	printf("\nCPU(0x%02x): r->edx = 0x%x", vcpu->id, r->edx);
+	printf("\nCPU(0x%02x): r->esi = 0x%x", vcpu->id, r->esi);
+	printf("\nCPU(0x%02x): r->edi = 0x%x", vcpu->id, r->edi);
+	printf("\nCPU(0x%02x): r->esp = 0x%x", vcpu->id, r->esp);
+	printf("\nCPU(0x%02x): r->ebp = 0x%x", vcpu->id, r->ebp);
+	HALT_ON_ERRORCOND(0);
+}
+
 void vmentry_error(ulong_t is_resume, ulong_t valid)
 {
 	VCPU *vcpu = _svm_and_vmx_getvcpu();

@@ -6,7 +6,36 @@
 .global vmresume_asm
 
 vmexit_asm:
-1:	jmp 1b
+#ifdef __XMHF_AMD64__
+	pushq	%r15
+	pushq	%r14
+	pushq	%r13
+	pushq	%r12
+	pushq	%r11
+	pushq	%r10
+	pushq	%r9
+	pushq	%r8
+	pushq	%rax
+	pushq	%rcx
+	pushq	%rdx
+	pushq	%rbx
+	pushq	%rsp
+	pushq	%rbp
+	pushq	%rsi
+	pushq	%rdi
+	movq	128(%rsp), %rdi
+	movq	%rsp, %rsi
+#elif defined(__I386__)
+	pushal
+	movl	32(%esp), %esi
+	movl	%esp, %eax
+	pushl	%eax
+	pushl	%esi
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* __XMHF_AMD64__ */
+	call	vmexit_handler
+1:	jmp 1b				/* Should never return */
 
 .altmacro
 .macro vmentry_asm_template inst_name inst_num
