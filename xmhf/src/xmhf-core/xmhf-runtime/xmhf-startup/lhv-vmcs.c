@@ -6,7 +6,7 @@
 void vmcs_vmwrite(VCPU *vcpu, ulong_t encoding, ulong_t value)
 {
 	(void) vcpu;
-	printf("\nCPU(0x%02x): vmwrite(0x%04lx, 0x%08lx)", vcpu->id, encoding, value);
+	// printf("\nCPU(0x%02x): vmwrite(0x%04lx, 0x%08lx)", vcpu->id, encoding, value);
 	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
 }
 
@@ -15,11 +15,11 @@ ulong_t vmcs_vmread(VCPU *vcpu, ulong_t encoding)
 	unsigned long value;
 	(void) vcpu;
 	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
-	printf("\nCPU(0x%02x): 0x%08lx = vmread(0x%04lx)", vcpu->id, value, encoding);
+	// printf("\nCPU(0x%02x): 0x%08lx = vmread(0x%04lx)", vcpu->id, value, encoding);
 	return value;
 }
 
-void vmcs_dump_quiet(VCPU *vcpu)
+void vmcs_dump(VCPU *vcpu, int verbose)
 {
 	(void) vcpu;
 	#define DECLARE_FIELD(encoding, name)								\
@@ -27,19 +27,9 @@ void vmcs_dump_quiet(VCPU *vcpu)
 			unsigned long value;										\
 			HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));			\
 			vcpu->vmcs.name = value;									\
-		} while (0);
-	#include <lhv-vmcs-template.h>
-	#undef DECLARE_FIELD
-}
-
-void vmcs_dump(VCPU *vcpu)
-{
-	(void) vcpu;
-	#define DECLARE_FIELD(encoding, name)								\
-		do {															\
-			unsigned long value;										\
-			HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));			\
-			vcpu->vmcs.name = value;									\
+			if (!verbose) {												\
+				break;													\
+			}															\
 			if (sizeof(vcpu->vmcs.name) == 4) {							\
 				printf("\nCPU(0x%02x): vcpu->vmcs." #name "=0x%08lx",	\
 						vcpu->id, vcpu->vmcs.name);						\
