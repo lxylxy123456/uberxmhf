@@ -683,11 +683,19 @@ struct _vmx_event_injection {
 } __attribute__ ((packed));
 
 //VMX functions
-static inline void __vmx_vmxon(u64 vmxonRegion){
-  __asm__("vmxon %0\n\t"
-	  : //no outputs
-	  : "m"(vmxonRegion)
-	  : "cc");
+static inline u32 __vmx_vmxon(u64 vmxonRegion){
+  u32 status;
+  __asm__("vmxon %1			\r\n"
+	   	"jbe	1f    		\r\n"
+      "movl $1, %%eax \r\n"
+      "jmp  2f  \r\n"
+      "1: movl $0, %%eax \r\n"
+      "2: movl %%eax, %0 \r\n"
+    : "=m" (status)
+    : "m"(vmxonRegion)
+    : "%eax", "cc"
+  );
+  return status;
 }
 
 static inline u32 __vmx_vmwrite(unsigned long encoding, unsigned long value){

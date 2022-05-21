@@ -22,11 +22,11 @@ void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
     // sh "./tools/ci/download.sh cache ${qemu_image_back}"
     sh "rm -rf tmp qemu"
     sh "mkdir tmp qemu"
-    sh "ln -s ${PWD}/cache/${qemu_image_back} qemu"
-    sh """
-        qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
-                        -F qcow2 ${PWD}/qemu/${qemu_image}
-    """
+    // sh "ln -s ${PWD}/cache/${qemu_image_back} qemu"
+    // sh """
+    //     qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
+    //                     -F qcow2 ${PWD}/qemu/${qemu_image}
+    // """
     sh """
         python3 -u ./tools/ci/grub.py \
             --subarch ${subarch} \
