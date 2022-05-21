@@ -15,6 +15,8 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 {
 	// From vmx_initunrestrictedguestVMCS
 
+	write_cr0(read_cr0() | CR0_NE);
+
 	vmcs_vmwrite(vcpu, VMCS_host_CR0, read_cr0());
 	vmcs_vmwrite(vcpu, VMCS_host_CR4, read_cr4());
 	vmcs_vmwrite(vcpu, VMCS_host_CR3, read_cr3());
@@ -258,14 +260,7 @@ void lhv_vmx_main(VCPU *vcpu)
 	/* Modify VMCS */
 	lhv_vmx_vmcs_init(vcpu);
 
-	vmcs_dump_quiet(vcpu);
-
-	// TODO
-	printf("\nINDEX_IA32_VMX_PROCBASED_CTLS2_MSR 0x%016llx", (u64) vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
-vcpu->vmcs.host_CR0=0x0000000080000035;
-	vmcs_load(vcpu);
-
-	vmcs_dump_quiet(vcpu);
+	vmcs_dump(vcpu);
 
 //	asm volatile ("cli");	// TODO: tmp
 
