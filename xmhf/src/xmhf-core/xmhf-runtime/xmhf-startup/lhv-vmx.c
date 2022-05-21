@@ -58,29 +58,27 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	//activate secondary processor controls
 	vmcs_vmwrite(vcpu, VMCS_control_VMX_cpu_based,
 				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS_MSR] | (1 << 31));
-	vmcs_vmwrite(vcpu, VMCS_control_VM_exit_controls,
-				vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR]);
-	vmcs_vmwrite(vcpu, VMCS_control_VM_entry_controls,
-				vcpu->vmx_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR]);
-	//TODO: enable unrestricted guest using ` | (1 << 7)`
-	vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based,
-				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
-
-#ifdef __AMD64__
-	/*
-	 * For amd64, set the Host address-space size (bit 9) in
-	 * control_VM_exit_controls. First check whether setting this bit is
-	 * allowed through bit (9 + 32) in the MSR.
-	 */
-	HALT_ON_ERRORCOND(vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR] & (1UL << (9 + 32)));
 	{
-		u64 control_VM_exit_controls = vmcs_vmread(vcpu, VMCS_control_VM_exit_controls);
-		control_VM_exit_controls |= (1UL << 9);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_controls, control_VM_exit_controls);
-	}
+		u32 vmexit_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR];
+#ifdef __AMD64__
+		vmexit_ctls |= (1UL << 9);
 #elif !defined(__I386__)
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) */
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_controls, vmexit_ctls);
+	}
+	{
+		u32 vmentry_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR];
+#ifdef __AMD64__
+		vmentry_ctls |= (1UL << 9);
+#elif !defined(__I386__)
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) */
+		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_controls, vmentry_ctls);
+	}
+	//TODO: enable unrestricted guest using ` | (1 << 7)`
+	vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based,
+				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
 
 	//Critical MSR load/store
 	vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
