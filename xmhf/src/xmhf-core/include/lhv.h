@@ -47,6 +47,8 @@ void vmresume_asm(struct regs *r);	/* Never returns */
 /* lhv-vmcs.c */
 void vmcs_vmwrite(VCPU *vcpu, ulong_t encoding, ulong_t value);
 ulong_t vmcs_vmread(VCPU *vcpu, ulong_t encoding);
+void vmcs_dump(VCPU *vcpu);
+void vmcs_load(VCPU *vcpu);
 
 /* LAPIC */
 #define LAPIC_DEFAULT_BASE    0xfee00000

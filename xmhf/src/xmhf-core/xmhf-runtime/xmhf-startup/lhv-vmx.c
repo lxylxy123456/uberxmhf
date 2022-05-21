@@ -255,8 +255,9 @@ void lhv_vmx_main(VCPU *vcpu)
 		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
 	}
 
-	// TODO: modify VMCS
+	/* Modify VMCS */
 	lhv_vmx_vmcs_init(vcpu);
+	vmcs_dump(vcpu);
 
 //	asm volatile ("cli");	// TODO: tmp
 

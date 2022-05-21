@@ -1,6 +1,3 @@
-#ifndef _LHV_VMCS_H_
-#define _LHV_VMCS_H_
-
     DECLARE_FIELD(0x4400, info_vminstr_error)
     DECLARE_FIELD(0x4402, info_vmexit_reason)
     DECLARE_FIELD(0x4404, info_vmexit_interrupt_information)
@@ -216,5 +213,3 @@
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
-
-#endif /* _LHV_VMCS_H_ */
