@@ -252,7 +252,7 @@ void lhv_vmx_main(VCPU *vcpu)
 
 	/* Modify VMCS */
 	lhv_vmx_vmcs_init(vcpu);
-	vmcs_dump(vcpu);
+	vmcs_dump(vcpu, 0);
 
 //	asm volatile ("cli");	// TODO: tmp
 
@@ -271,7 +271,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	ulong_t vmexit_reason = vmcs_vmread(vcpu, VMCS_info_vmexit_reason);
 	printf("\nCPU(0x%02x): vmexit_reason = 0x%lx", vcpu->id, vmexit_reason);
 	printf("\nCPU(0x%02x): r->eax = 0x%x", vcpu->id, r->eax);
-	vmcs_dump(vcpu);
+	vmcs_dump(vcpu, 0);
 	HALT_ON_ERRORCOND(0);
 }
 
