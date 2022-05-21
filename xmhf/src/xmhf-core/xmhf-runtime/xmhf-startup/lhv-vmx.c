@@ -15,6 +15,8 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 {
 	// From vmx_initunrestrictedguestVMCS
 
+	write_cr0(read_cr0() | CR0_NE);
+
 	vmcs_vmwrite(vcpu, VMCS_host_CR0, read_cr0());
 	vmcs_vmwrite(vcpu, VMCS_host_CR4, read_cr4());
 	vmcs_vmwrite(vcpu, VMCS_host_CR3, read_cr3());
@@ -60,9 +62,9 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 				vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR]);
 	vmcs_vmwrite(vcpu, VMCS_control_VM_entry_controls,
 				vcpu->vmx_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR]);
-	//enable unrestricted guest
+	//TODO: enable unrestricted guest using ` | (1 << 7)`
 	vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based,
-				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR] | (1 << 7));
+				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
 
 #ifdef __AMD64__
 	/*
