@@ -258,6 +258,8 @@ void lhv_vmx_main(VCPU *vcpu)
 	/* Modify VMCS */
 	lhv_vmx_vmcs_init(vcpu);
 
+	vmcs_dump_quiet(vcpu);
+
 	// TODO
 vcpu->vmcs.control_vpid=0x00000001;
 vcpu->vmcs.control_VMX_pin_based=0x0000003e;
@@ -282,21 +284,12 @@ vcpu->vmcs.control_virtual_APIC_page_address=0x0000000000000000;
 vcpu->vmcs.control_EPT_pointer=0x000000001869501e;
 vcpu->vmcs.host_CR0=0x0000000080000035;
 vcpu->vmcs.host_CR4=0x0000000000042030;
-vcpu->vmcs.host_FS_base=0x0000000000000000;
-vcpu->vmcs.host_GS_base=0x0000000000000000;
 vcpu->vmcs.host_TR_base=0x00000000102450c0;
-vcpu->vmcs.host_GDTR_base=0x0000000010246730;
-vcpu->vmcs.host_IDTR_base=0x0000000010242140;
 vcpu->vmcs.host_SYSENTER_ESP=0x0000000000000000;
 vcpu->vmcs.host_SYSENTER_EIP=0x0000000000000000;
-vcpu->vmcs.host_RSP=0x000000001d03dffc;
-vcpu->vmcs.host_RIP=0x00000000102053a3;
-vcpu->vmcs.host_CS_selector=0x00000008;
-vcpu->vmcs.host_SS_selector=0x00000010;
-vcpu->vmcs.host_TR_selector=0x00000018;
 	vmcs_load(vcpu);
 
-	vmcs_dump(vcpu);
+	vmcs_dump_quiet(vcpu);
 
 //	asm volatile ("cli");	// TODO: tmp
 
