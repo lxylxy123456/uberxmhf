@@ -304,6 +304,12 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 			break;
 		}
+	case VMX_VMEXIT_VMCALL:
+		{
+			asm volatile ("sti; hlt; cli;");
+			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+			break;
+		}
 	default:
 		{
 			printf("\nCPU(0x%02x): vmexit: 0x%lx", vcpu->id, vmexit_reason);

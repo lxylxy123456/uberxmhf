@@ -3,9 +3,11 @@
 
 void lhv_guest_main(ulong_t cpu_id)
 {
+	(void) cpu_id;
 	asm volatile ("sti");
 	while (1) {
-		HALT();
+		asm volatile ("hlt");
+		asm volatile ("vmcall");
 	}
 }
 
@@ -23,9 +25,9 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 		handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector);
 		break;
 	default:
-		while (1) {
-			printf("\nGuest: unknown interrupt / exception!");
-		}
+//		while (1) {
+//			printf("\nGuest: unknown interrupt / exception!");
+//		}
 		break;
 	}
 }
