@@ -343,7 +343,9 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 	u64 write_data = ((u64)r->edx << 32) | (u64)r->eax;
 
-	//printf("\nCPU(0x%02x): WRMSR 0x%08x 0x%08x%08x @ %p", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
+	if (r->ecx >= 0x800 && r->ecx < 0x900) {
+		printf("\nCPU(0x%02x): WRMSR 0x%08x 0x%08x%08x @ %p", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
+	}
 
 	switch(r->ecx){
 		case IA32_SYSENTER_CS_MSR:
@@ -435,6 +437,8 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 #endif /* __UPDATE_INTEL_UCODE__ */
 			break;
 		case IA32_X2APIC_ICR:
+			printf("\nCPU(0x%02x): x2APIC ICR write: 0x%08x 0x%08x",
+					vcpu->id, r->edx, r->eax);
 			if (xmhf_smpguest_arch_x86vmx_eventhandler_x2apic_icrwrite(vcpu, r) == 0) {
 				/* Forward to physical APIC */
 				asm volatile ("wrmsr\r\n"
@@ -477,8 +481,6 @@ wrmsr_inject_gp:
 static void _vmx_handle_intercept_rdmsr(VCPU *vcpu, struct regs *r){
 	/* After switch statement, will assign this value to r->eax and r->edx */
 	u64 read_result = 0;
-
-	//printf("\nCPU(0x%02x): RDMSR 0x%08x @ %p", vcpu->id, r->ecx, vcpu->vmcs.guest_RIP);
 
 	switch(r->ecx){
 		case IA32_SYSENTER_CS_MSR:
@@ -583,6 +585,9 @@ static void _vmx_handle_intercept_rdmsr(VCPU *vcpu, struct regs *r){
 	//printf("\nCPU(0x%02x): RDMSR (0x%08x)=0x%08x%08x", vcpu->id, r->ecx, r->edx, r->eax);
 
 no_assign_read_result:
+	if (r->ecx >= 0x800 && r->ecx < 0x900) {
+		printf("\nCPU(0x%02x): RDMSR 0x%08x 0x%08x%08x @ %p", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
+	}
 	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 	return;
 
