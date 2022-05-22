@@ -231,8 +231,8 @@ typedef struct _vcpu {
   u32 vmx_guest_unrestricted;   //this is 1 if the CPU VMX implementation supports unrestricted guest execution
   struct _vmx_vmcsfields vmcs;   //the VMCS fields
 
-  int lhv_lapic_x;
-  int lhv_pit_x;
+  int lhv_lapic_x[2];
+  int lhv_pit_x[2];
   u64 lapic_time;
   u64 pit_time;
 
