@@ -141,7 +141,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	//CS, DS, ES, FS, GS and SS segments
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_limit, 0xffffffff);
 #ifdef __AMD64__
-	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0xa09b);	// TODO
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0xa09b);
 #elif defined(__I386__)
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0xc09b);
 #else /* !defined(__I386__) && !defined(__AMD64__) */
