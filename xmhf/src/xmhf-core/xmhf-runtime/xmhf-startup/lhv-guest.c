@@ -5,10 +5,7 @@ void lhv_guest_main(ulong_t cpu_id)
 {
 	asm volatile ("sti");
 	while (1) {
-		asm volatile ("cli");
-		(void) cpu_id;
-//		printf("%d", cpu_id);
-		asm volatile ("sti");
+		HALT();
 	}
 }
 
