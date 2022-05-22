@@ -15,6 +15,7 @@ C_SOURCES += lhv-pic.c
 C_SOURCES += lhv-keyboard.c
 C_SOURCES += lhv-vmx.c
 C_SOURCES += lhv-vmcs.c
+C_SOURCES += lhv-guest.c
 
 C_SOURCES += ./arch/x86/rntm-x86-data.c
 

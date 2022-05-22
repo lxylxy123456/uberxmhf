@@ -9,6 +9,9 @@ __attribute__(( section(".bss.palign_data") ));
 static u8 all_vmcs[MAX_VCPU_ENTRIES][MAX_GUESTS][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 
+static u8 all_guest_stack[MAX_VCPU_ENTRIES][MAX_GUESTS][PAGE_SIZE_4K]
+__attribute__(( section(".bss.palign_data") ));
+
 extern u32 x_gdt_start[];
 
 static void lhv_vmx_vmcs_init(VCPU *vcpu)
@@ -58,29 +61,27 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	//activate secondary processor controls
 	vmcs_vmwrite(vcpu, VMCS_control_VMX_cpu_based,
 				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS_MSR] | (1 << 31));
-	vmcs_vmwrite(vcpu, VMCS_control_VM_exit_controls,
-				vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR]);
-	vmcs_vmwrite(vcpu, VMCS_control_VM_entry_controls,
-				vcpu->vmx_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR]);
-	//TODO: enable unrestricted guest using ` | (1 << 7)`
-	vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based,
-				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
-
-#ifdef __AMD64__
-	/*
-	 * For amd64, set the Host address-space size (bit 9) in
-	 * control_VM_exit_controls. First check whether setting this bit is
-	 * allowed through bit (9 + 32) in the MSR.
-	 */
-	HALT_ON_ERRORCOND(vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR] & (1UL << (9 + 32)));
 	{
-		u64 control_VM_exit_controls = vmcs_vmread(vcpu, VMCS_control_VM_exit_controls);
-		control_VM_exit_controls |= (1UL << 9);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_controls, control_VM_exit_controls);
-	}
+		u32 vmexit_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR];
+#ifdef __AMD64__
+		vmexit_ctls |= (1UL << 9);
 #elif !defined(__I386__)
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) */
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_controls, vmexit_ctls);
+	}
+	{
+		u32 vmentry_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR];
+#ifdef __AMD64__
+		vmentry_ctls |= (1UL << 9);
+#elif !defined(__I386__)
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) */
+		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_controls, vmentry_ctls);
+	}
+	//TODO: enable unrestricted guest using ` | (1 << 7)`
+	vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based,
+				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
 
 	//Critical MSR load/store
 	vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
@@ -128,35 +129,44 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	//DR7
 	vmcs_vmwrite(vcpu, VMCS_guest_DR7, 0x400);
 	//RSP
-	vmcs_vmwrite(vcpu, VMCS_guest_RSP, 0x0);
+	{
+		vcpu->my_stack = all_guest_stack[vcpu->idx][0];
+		vmcs_vmwrite(vcpu, VMCS_guest_RSP, (u64)(ulong_t)vcpu->my_stack);
+	}
 	//RIP
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_selector, __CS);
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_base, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_RIP, (u64)(ulong_t)lhv_guest_entry);
 	vmcs_vmwrite(vcpu, VMCS_guest_RFLAGS, (1 << 1));	// TODO
 	//CS, DS, ES, FS, GS and SS segments
-	vmcs_vmwrite(vcpu, VMCS_guest_CS_limit, 0xFFFF);
-	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0x9b);
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_limit, 0xffffffff);
+#ifdef __AMD64__
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0xa09b);
+#elif defined(__I386__)
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0xc09b);
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
 	vmcs_vmwrite(vcpu, VMCS_guest_DS_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_DS_base, 0);
-	vmcs_vmwrite(vcpu, VMCS_guest_DS_limit, 0xFFFF);
-	vmcs_vmwrite(vcpu, VMCS_guest_DS_access_rights, 0x93);
+	vmcs_vmwrite(vcpu, VMCS_guest_DS_limit, 0xffffffff);
+	vmcs_vmwrite(vcpu, VMCS_guest_DS_access_rights, 0xc093);
 	vmcs_vmwrite(vcpu, VMCS_guest_ES_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_ES_base, 0);
-	vmcs_vmwrite(vcpu, VMCS_guest_ES_limit, 0xFFFF);
-	vmcs_vmwrite(vcpu, VMCS_guest_ES_access_rights, 0x93);
+	vmcs_vmwrite(vcpu, VMCS_guest_ES_limit, 0xffffffff);
+	vmcs_vmwrite(vcpu, VMCS_guest_ES_access_rights, 0xc093);
 	vmcs_vmwrite(vcpu, VMCS_guest_FS_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_FS_base, 0);
-	vmcs_vmwrite(vcpu, VMCS_guest_FS_limit, 0xFFFF);
-	vmcs_vmwrite(vcpu, VMCS_guest_FS_access_rights, 0x93);
+	vmcs_vmwrite(vcpu, VMCS_guest_FS_limit, 0xffffffff);
+	vmcs_vmwrite(vcpu, VMCS_guest_FS_access_rights, 0xc093);
 	vmcs_vmwrite(vcpu, VMCS_guest_GS_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_GS_base, 0);
-	vmcs_vmwrite(vcpu, VMCS_guest_GS_limit, 0xFFFF);
-	vmcs_vmwrite(vcpu, VMCS_guest_GS_access_rights, 0x93);
+	vmcs_vmwrite(vcpu, VMCS_guest_GS_limit, 0xffffffff);
+	vmcs_vmwrite(vcpu, VMCS_guest_GS_access_rights, 0xc093);
 	vmcs_vmwrite(vcpu, VMCS_guest_SS_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_SS_base, 0);
-	vmcs_vmwrite(vcpu, VMCS_guest_SS_limit, 0xFFFF);
-	vmcs_vmwrite(vcpu, VMCS_guest_SS_access_rights, 0x93);
+	vmcs_vmwrite(vcpu, VMCS_guest_SS_limit, 0xffffffff);
+	vmcs_vmwrite(vcpu, VMCS_guest_SS_access_rights, 0xc093);
 
 	//setup VMCS link pointer
 #ifdef __AMD64__
@@ -260,6 +270,7 @@ void lhv_vmx_main(VCPU *vcpu)
 	{
 		struct regs r;
 		memset(&r, 0, sizeof(r));
+		r.edi = vcpu->id;
 		vmlaunch_asm(&r);
 	}
 
@@ -269,10 +280,13 @@ void lhv_vmx_main(VCPU *vcpu)
 void vmexit_handler(VCPU *vcpu, struct regs *r)
 {
 	ulong_t vmexit_reason = vmcs_vmread(vcpu, VMCS_info_vmexit_reason);
+	ulong_t guest_rip = vmcs_vmread(vcpu, VMCS_guest_RIP);
 	printf("\nCPU(0x%02x): vmexit_reason = 0x%lx", vcpu->id, vmexit_reason);
 	printf("\nCPU(0x%02x): r->eax = 0x%x", vcpu->id, r->eax);
+	printf("\nCPU(0x%02x): rip = 0x%x", vcpu->id, guest_rip);
 	vmcs_dump(vcpu, 0);
 	HALT_ON_ERRORCOND(0);
+	vmresume_asm(r);
 }
 
 void vmentry_error(ulong_t is_resume, ulong_t valid)
