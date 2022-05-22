@@ -52,6 +52,7 @@ void vmcs_load(VCPU *vcpu);
 
 /* lhv-guest-asm.S */
 void lhv_guest_entry(void);
+void lhv_guest_xcphandler(uintptr_t vector, struct regs *r);
 
 /* LAPIC */
 #define LAPIC_DEFAULT_BASE    0xfee00000

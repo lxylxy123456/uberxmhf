@@ -281,11 +281,39 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 {
 	ulong_t vmexit_reason = vmcs_vmread(vcpu, VMCS_info_vmexit_reason);
 	ulong_t guest_rip = vmcs_vmread(vcpu, VMCS_guest_RIP);
-	printf("\nCPU(0x%02x): vmexit_reason = 0x%lx", vcpu->id, vmexit_reason);
-	printf("\nCPU(0x%02x): r->eax = 0x%x", vcpu->id, r->eax);
-	printf("\nCPU(0x%02x): rip = 0x%x", vcpu->id, guest_rip);
-	vmcs_dump(vcpu, 0);
-	HALT_ON_ERRORCOND(0);
+	ulong_t inst_len = vmcs_vmread(vcpu, VMCS_info_vmexit_instruction_length);
+	switch (vmexit_reason) {
+	case VMX_VMEXIT_CPUID:
+		{
+			u32 old_eax = r->eax;
+			asm volatile ("cpuid\r\n"
+				  :"=a"(r->eax), "=b"(r->ebx), "=c"(r->ecx), "=d"(r->edx)
+				  :"a"(r->eax), "c" (r->ecx));
+			if (old_eax == 0x1) {
+				/* Clear VMX capability */
+				r->ecx &= ~(1U << 5);
+			}
+			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+			break;
+		}
+	case VMX_VMEXIT_RDMSR:
+		{
+			asm volatile ("rdmsr\r\n"
+				  :"=a"(r->eax), "=d"(r->edx)
+				  :"c" (r->ecx));
+			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+			break;
+		}
+	default:
+		{
+			printf("\nCPU(0x%02x): vmexit: 0x%lx", vcpu->id, vmexit_reason);
+			printf("\nCPU(0x%02x): r->eax = 0x%x", vcpu->id, r->eax);
+			printf("\nCPU(0x%02x): rip = 0x%x", vcpu->id, guest_rip);
+			vmcs_dump(vcpu, 0);
+			HALT_ON_ERRORCOND(0);
+			break;
+		}
+	}
 	vmresume_asm(r);
 }
 

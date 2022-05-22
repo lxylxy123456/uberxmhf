@@ -50,6 +50,7 @@
  */
 
 #include <xmhf.h>
+#include <lhv.h>
 
 
 //initialize EMHF core exception handlers
@@ -66,5 +67,11 @@ u8 * xmhf_xcphandler_get_idt_start(void){
 
 //EMHF exception handler hub
 void xmhf_xcphandler_hub(uintptr_t vector, struct regs *r){
-	xmhf_xcphandler_arch_hub(vector, r);
+	u32 eax, ebx, ecx, edx;
+	cpuid(1, &eax, &ebx, &ecx, &edx);
+	if (ecx & (1U << 5)) {
+		xmhf_xcphandler_arch_hub(vector, r);
+	} else {
+		lhv_guest_xcphandler(vector, r);
+	}
 }
