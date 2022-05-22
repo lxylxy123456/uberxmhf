@@ -301,6 +301,11 @@
 * `0d7e0599d`: Handle VMCALL `KVM_HC_VAPIC_POLL_IRQ` (run WinXP SP3 on QEMU)
 * `fded7ace5`: Add monitor trap and breakpoint support
 
+### `lhv`: light weight hypervisor
+
+`a2d7c7abe..14b8c6c19`
+* Write light weight hypervisor for nested virtualization dev (`bug_070`)
+
 ### TODO
 * Review unaligned structs caused by `__attribute__((packed))`
 * Decide a coding format.

@@ -10,8 +10,8 @@ define walk_pt_pde
     print "Page size = 4M"
     set $ans = $e2 & ~0x3fffff | $a & 0x3fffff
   else
-    set $p3 = $e2 & ~0xfff | ((($a >> 12) & 0x3ff) << 3)
-    set $e3 = (*(u64*)$p3)
+    set $p3 = $e2 & ~0xfff | ((($a >> 12) & 0x3ff) << 2)
+    set $e3 = (*(u32*)$p3)
     walk_pt_pte
   end
 end
@@ -53,8 +53,8 @@ define walk_pt
   else
     if !($c4 & 0x20)
       print "32-bit paging (not well tested yet)"
-      set $p2 = $c3 & ~0xfff  | ((($a >> 22) & 0x3ff) << 3)
-      set $e2 = (*(u64*)$p2)
+      set $p2 = $c3 & ~0xfff  | ((($a >> 22) & 0x3ff) << 2)
+      set $e2 = (*(u32*)$p2)
       walk_pt_pde
       print /x $ans
     else

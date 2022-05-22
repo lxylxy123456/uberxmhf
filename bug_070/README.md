@@ -241,4 +241,36 @@ This is a limitation of XMHF, and is worked around by changing LHV.
 
 We follow "NewBluePill 深入理解硬件虚拟机"'s logic. See `lhv_vmx_main()`.
 
-TODO
+### VMLAUNCH failure
+
+In git `3927c1b50`, we see that some VMCS control fields are incorrect, causing
+VMLAUNCH to error. The error message is
+```
+...
+CPU(0x00): vcpu->vmcs.guest_IA32_DEBUGCTL_high=0x00000000
+CPU(0x00): 0x00000007 = vmread(0x4400)
+CPU(0x00): is_resume = 0, valid = 1, err = 7
+Fatal: Halting! Condition 'is_resume && valid && 0' failed, line 401, file lhv-vmx.c
+```
+
+We use `grep 'CPU.0x00' bug_062/results/20220402233915_03` to dump VMCS of a
+CPU that is known to be good. Then we can compare the two VMCS's and debug.
+In git `01b197571..43b3bc58c`, branch `lhv-dev`.
+
+Git `43b3bc58c..8b911422a` performs the debugging in `lhv-dev`. The result is
+cherry-picked to `3927c1b50..8e07bfc2f`.
+
+At this point, we see that the CPU stucks at `vmexit_asm()`. This is a good
+sign. It tells us that at least VMLAUNCH succeeds.
+
+At git `c2803c726`, the guest state checks are good. Now guest crashes due to
+triple fault.
+
+Then fixed some bugs and supported interrupts. Git `14b8c6c19`. I think it is a
+good time to start writing XMHF's nested virtualization.
+
+# Fix
+
+`a2d7c7abe..14b8c6c19`
+* Write light weight hypervisor for nested virtualization development
+
