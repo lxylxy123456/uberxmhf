@@ -140,7 +140,13 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_guest_RFLAGS, (1 << 1));	// TODO
 	//CS, DS, ES, FS, GS and SS segments
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_limit, 0xffffffff);
+#ifdef __AMD64__
+	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0xa09b);	// TODO
+#elif defined(__I386__)
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0xc09b);
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
 	vmcs_vmwrite(vcpu, VMCS_guest_DS_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_DS_base, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_DS_limit, 0xffffffff);
@@ -264,6 +270,7 @@ void lhv_vmx_main(VCPU *vcpu)
 	{
 		struct regs r;
 		memset(&r, 0, sizeof(r));
+		r.edi = vcpu->id;
 		vmlaunch_asm(&r);
 	}
 
