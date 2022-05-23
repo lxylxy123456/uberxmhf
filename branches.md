@@ -291,10 +291,14 @@
 * Add comments for the hpt library (`bug_067`)
 * Use debugfs to speed up CI testing (`bug_069`)
 
-`18ecd868e..` (a65ee0d63)
+`18ecd868e..78b56c9ca`
 * Support forwarding guest's microcode update request to hardware (`bug_067`)
 * Separate grub.py to build minimal GRUB image for running XMHF
 * Allow guest to send INIT-SIPI-SIPI to "All Excluding Self" (`bug_074`)
+* When x2APIC, do not poll on ICR "Delivery Status"
+* Add documentation for CI (`bug_078`)
+* Support Jenkins CI in Debian 11 (`bug_078`)
+* Remove x2APIC from CI (`bug_078`)
 
 ### `xmhf64-dev`: development workarounds
 * `59b3fd053`: Quiet TrustVisor output
@@ -360,4 +364,5 @@ Windows
 * x86 Windows XP SP3 has strange VMCALL, workaround is `0d7e0599d` (`bug_029`)
 * UEFI is not supported
 * XMHF does not support guest OS performing INIT-SIPI-SIPI trice (`bug_075`)
+* x2apic is not stable, possible KVM bug (`bug_078`)
 
