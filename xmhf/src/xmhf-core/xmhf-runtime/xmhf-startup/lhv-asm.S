@@ -7,14 +7,6 @@
 
 vmexit_asm:
 #ifdef __XMHF_AMD64__
-	pushq	%r15
-	pushq	%r14
-	pushq	%r13
-	pushq	%r12
-	pushq	%r11
-	pushq	%r10
-	pushq	%r9
-	pushq	%r8
 	pushq	%rax
 	pushq	%rcx
 	pushq	%rdx
@@ -23,6 +15,14 @@ vmexit_asm:
 	pushq	%rbp
 	pushq	%rsi
 	pushq	%rdi
+	pushq	%r8
+	pushq	%r9
+	pushq	%r10
+	pushq	%r11
+	pushq	%r12
+	pushq	%r13
+	pushq	%r14
+	pushq	%r15
 	movq	128(%rsp), %rdi
 	movq	%rsp, %rsi
 #elif defined(__I386__)
@@ -42,6 +42,14 @@ vmexit_asm:
 
 inst_name&_asm:
 #ifdef __XMHF_AMD64__
+	popq	%r15
+	popq	%r14
+	popq	%r13
+	popq	%r12
+	popq	%r11
+	popq	%r10
+	popq	%r9
+	popq	%r8
 	movq	%rdi, %rsp
 	popq	%rdi
 	popq	%rsi
@@ -51,14 +59,6 @@ inst_name&_asm:
 	popq	%rdx
 	popq	%rcx
 	popq	%rax
-	popq	%r8
-	popq	%r9
-	popq	%r10
-	popq	%r11
-	popq	%r12
-	popq	%r13
-	popq	%r14
-	popq	%r15
 #elif defined(__I386__)
 	movl	4(%esp), %esp
 	popal
