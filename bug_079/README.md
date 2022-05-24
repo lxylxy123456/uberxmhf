@@ -38,9 +38,67 @@ $2 = 0x62e148ac
 (gdb) 
 ```
 
-TODO: Use `_vmx_decode_reg()` to convert from integer to register
+Decoding the instruction information manually
+```
+0b0110 0010 1110 0001 0100 1000 1010 1100
+                                       ^^ Scaling = 1 (0)
+                                 ^^^ ^^   Undefined
+                             ^^ ^         Address size = 32-bit (1)
+                            ^             0
+                       ^^^ ^              Undefined
+                   ^^ ^                   Segment register = SS (2)
+              ^^ ^^                       Index register = R8 (8)
+             ^                            Index register is invalid
+        ^^^ ^                             Base register = RBP (5)
+       ^                                  Base register is valid
+  ^^^^                                    Undefined
+```
 
-TODO (optional): change `struct regs` to match Intel's order in table 26-13
+Another example: using x64 LHV and x64 XMHF
+```
+(gdb) x/i vcpu->vmcs.guest_RIP
+   0x8207a1a:	vmxon  -0x18(%rbp)
+(gdb) p/x vcpu->vmcs.info_vmx_instruction_information
+$1 = 0x62e1492c
+(gdb) p/x vcpu->vmcs.info_vmexit_instruction_length 
+$2 = 0x5
+(gdb) x/5b vcpu->vmcs.guest_RIP
+0x8207a1a:	0xf3	0x0f	0xc7	0x75	0xe8
+(gdb) p/x vcpu->vmcs.info_exit_qualification
+$3 = 0xffffffffffffffe8
+(gdb) 
+```
+
+```
+0b0110 0010 1110 0001 0100 1001 0010 1100
+                                       ^^ Scaling = 1 (0)
+                                 ^^^ ^^   Undefined
+                             ^^ ^         Address size = 64-bit (2)
+                            ^             0
+                       ^^^ ^              Undefined
+                   ^^ ^                   Segment register = SS (2)
+              ^^ ^^                       Index register = R8 (8)
+             ^                            Index register is invalid
+        ^^^ ^                             Base register = RBP (5)
+       ^                                  Base register is valid
+  ^^^^                                    Undefined
+```
+
+The displacement is stored in exit qualification:
+> For INVEPT, INVPCID, INVVPID, LGDT, LIDT, LLDT, LTR, SGDT, SIDT, SLDT, STR,
+> VMCLEAR, VMPTRLD, VMPTRST, VMREAD, VMWRITE, VMXON, XRSTORS, and XSAVES, the
+> exit qualification receives the value of the instruction’s displacement
+> field, which is sign-extended to 64 bits if necessary (32 bits on processors
+> that do not support Intel 64 architecture). If the instruction has no
+> displacement (for example, has a register operand), zero is stored into the
+> exit qualification.
+
+Git `c5ed37782` implements decoding the information from VMCS to an address in
+guest. Now we need to access this memory in the guest. Microcode update already
+has such code. We need to extract a module from here.
+
+As a side project, in git `78b56c9ca..123ee41f6` (branch `xmhf64`) changed
+`struct regs` to match Intel's order in table 26-13
 * In `_processor.h`: `struct regs`
 * In `xmhf-baseplatform-arch-x86.h`: `enum CPU_Reg_Sel`
 * In `peh-x86-amd64vmx-entry.S`: asm instructions for VMEXIT and VMRESUME
@@ -49,7 +107,7 @@ TODO (optional): change `struct regs` to match Intel's order in table 26-13
 * In `xcph-stubs-amd64.S`: for exception handling
 * The list above can be constructed by simply searching for `r13` in git
 
-TODO
+TODO: extract code that walks guest page table
 
 ## Fix
 
