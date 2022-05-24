@@ -42,6 +42,7 @@ vmexit_asm:
 
 inst_name&_asm:
 #ifdef __XMHF_AMD64__
+	movq	%rdi, %rsp
 	popq	%r15
 	popq	%r14
 	popq	%r13
@@ -50,7 +51,6 @@ inst_name&_asm:
 	popq	%r10
 	popq	%r9
 	popq	%r8
-	movq	%rdi, %rsp
 	popq	%rdi
 	popq	%rsi
 	popq	%rbp
