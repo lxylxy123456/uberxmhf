@@ -107,7 +107,25 @@ As a side project, in git `78b56c9ca..123ee41f6` (branch `xmhf64`) changed
 * In `xcph-stubs-amd64.S`: for exception handling
 * The list above can be constructed by simply searching for `r13` in git
 
-TODO: extract code that walks guest page table
+In `123ee41f6..173be4f5b`, extracted guest virtual memory accessing code from
+ucode. The new file is called `peh-x86vmx-guestmem.c`.
+
+### Possible KVM VMXON bug
+
+When executing VMXON, if LHV does not set CR0.NE, KVM will not error. However,
+according to Intel documentation, I think KVM should inject `#GP(0)` to guest.
+Note: CR0 fixed MSRs are 0x80000021 0xffffffff.
+
+For example, XMHF git `156c56e47`, LHV git `fb3ab6524`, KVM + LHV succeeds, but
+KVM + XMHF + LHV errors (detects invalid CR0 when VMXON). This is fixed in LHV
+git `342f0d7ac`.
+
+By digging into `bug_070`'s notes, we can see that the error happened at
+VMLAUNCH instead.
+
+### Continue working on VMXON intercept
+
+TODO
 
 ## Fix
 
