@@ -17,9 +17,6 @@ extern u32 x_gdt_start[];
 static void lhv_vmx_vmcs_init(VCPU *vcpu)
 {
 	// From vmx_initunrestrictedguestVMCS
-
-	write_cr0(read_cr0() | CR0_NE);
-
 	vmcs_vmwrite(vcpu, VMCS_host_CR0, read_cr0());
 	vmcs_vmwrite(vcpu, VMCS_host_CR4, read_cr4());
 	vmcs_vmwrite(vcpu, VMCS_host_CR3, read_cr3());
@@ -232,6 +229,8 @@ void lhv_vmx_main(VCPU *vcpu)
 		vcpu->vmxon_region = (void *) all_vmxon_region[vcpu->idx];
 		*((u32 *) vcpu->vmxon_region) = vmcs_revision_identifier;
 	}
+
+	write_cr0(read_cr0() | CR0_NE);
 
 	/* Set CR4.VMXE (22.7 ENABLING AND ENTERING VMX OPERATION) */
 	{
