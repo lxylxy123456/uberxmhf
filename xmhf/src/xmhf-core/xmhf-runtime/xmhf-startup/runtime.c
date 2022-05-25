@@ -213,7 +213,7 @@ void xmhf_runtime_entry(void){
 					HALT();
 				}
 
-				//protect SL and runtime memory regions
+				// Protect SL and runtime memory regions
 				xmhf_dmaprot_protect(rpb->XtVmmRuntimePhysBase - PAGE_SIZE_2M, rpb->XtVmmRuntimeSize+PAGE_SIZE_2M);
 				printf("\nRuntime: Protected SL+Runtime (%08lx-%08x) from DMA.", rpb->XtVmmRuntimePhysBase - PAGE_SIZE_2M, rpb->XtVmmRuntimePhysBase+rpb->XtVmmRuntimeSize);
 
@@ -222,6 +222,8 @@ void xmhf_runtime_entry(void){
 					printf("\nRuntime: Unable to enable DMA protection. HALT!");
 					HALT();
 				}
+
+                xmhf_dmaprot_invalidate_cache();
 		}
 
 #else //!__DMAP__

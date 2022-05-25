@@ -625,9 +625,6 @@ void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size)
         pt[ptindex] &= ~((u64)VTD_READ | (u64)VTD_WRITE);
     }
 #endif
-
-    // flush the caches
-    _vtd_invalidatecaches();
 }
 
 // DMA unprotect a given region of memory

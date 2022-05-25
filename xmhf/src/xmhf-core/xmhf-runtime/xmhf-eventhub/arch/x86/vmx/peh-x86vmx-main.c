@@ -1164,7 +1164,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				vcpu->vmcs.control_VM_entry_interruption_information = NMI_VECTOR |
 					INTR_TYPE_NMI |
 					INTR_INFO_VALID_MASK;
-				printf("\nCPU(0x%02x): inject NMI", vcpu->id);
+				//printf("\nCPU(0x%02x): inject NMI", vcpu->id);
 			}
 		}
 		break;
