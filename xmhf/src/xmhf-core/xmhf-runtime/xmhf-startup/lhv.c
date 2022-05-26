@@ -4,7 +4,7 @@
 void lhv_main(VCPU *vcpu)
 {
 	console_vc_t vc;
-	console_get_vc(&vc, vcpu->idx);
+	console_get_vc(&vc, vcpu->idx, 0);
 	console_clear(&vc);
 	if (vcpu->isbsp) {
 		console_cursor_clear();

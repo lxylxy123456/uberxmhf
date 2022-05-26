@@ -9,6 +9,8 @@
 #define CONSOLE_WIDTH 80
 #define CONSOLE_HEIGHT 25
 
+#define CONSOLE_MAX_CPU 8
+
 void console_cursor_clear(void)
 {
 	outb(CRTC_CURSOR_LSB_IDX, CRTC_IDX_REG);
@@ -52,13 +54,15 @@ void console_put_char(console_vc_t *vc, int x, int y, char c)
 	p[0] = c;
 }
 
-void console_get_vc(console_vc_t *vc, int num)
+void console_get_vc(console_vc_t *vc, int num, int guest)
 {
-	HALT_ON_ERRORCOND(0 <= num && num < 4);
-	vc->left = (CONSOLE_WIDTH / 2) * (num % 2);
-	vc->top = (CONSOLE_HEIGHT / 2) * (num / 2);
+	HALT_ON_ERRORCOND(0 <= num && num < CONSOLE_MAX_CPU);
+	HALT_ON_ERRORCOND(0 <= guest && guest < 2);
+	vc->left = (CONSOLE_WIDTH / 2) * guest;
+	vc->top = (CONSOLE_HEIGHT / CONSOLE_MAX_CPU) * num;
 	vc->width = (CONSOLE_WIDTH / 2);
-	vc->height = (CONSOLE_HEIGHT / 2);
-	vc->color = (char) (num + 2);
+	vc->height = (CONSOLE_HEIGHT / CONSOLE_MAX_CPU);
+	/* Use 9 - 15 */
+	vc->color = (char) ((1 + num * 2 + guest) % 7 + 9);
 }
 
