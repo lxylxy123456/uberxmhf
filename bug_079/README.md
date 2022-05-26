@@ -123,7 +123,18 @@ git `342f0d7ac`.
 By digging into `bug_070`'s notes, we can see that the error happened at
 VMLAUNCH instead.
 
+In lhv git `75ad1f001`, change LHV so that it can run on VGA guest. Confirmed
+on Touch that KVM is buggy. The expected behavior is to raise `#GP(0)`.
+
+Bug reported: <https://bugzilla.kernel.org/show_bug.cgi?id=216033>
+
 ### Continue working on VMXON intercept
+
+Looks like "current-VMCS pointer" being invalid means it to be
+`FFFFFFFF_FFFFFFFFH`. This is not very clear in Intel's documentation. The best
+quote I can find is
+> If the operand is the current-VMCS pointer, then that pointer is made invalid
+> (set to FFFFFFFF_FFFFFFFFH).
 
 TODO
 

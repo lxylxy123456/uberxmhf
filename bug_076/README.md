@@ -81,6 +81,8 @@ Reports
   <https://bugzilla.kernel.org/show_bug.cgi?id=216002>
 * The `ret < cpu->num_ases && ret >= 0` (`bug_031`) assertion error is reported
   in <https://bugzilla.kernel.org/show_bug.cgi?id=216003>
+* VMXON does not check CR0 (`bug_079`) is reported in
+  <https://bugzilla.kernel.org/show_bug.cgi?id=216033>
 
 Another bug not reported: see `bug_077`
 
