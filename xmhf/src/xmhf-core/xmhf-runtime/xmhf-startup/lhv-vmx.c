@@ -251,6 +251,10 @@ void lhv_vmx_main(VCPU *vcpu)
 	printf("\nCR0 fixed0 = 0x%016llx", vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED0_MSR]);
 	printf("\nCR0 fixed1 = 0x%016llx", vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED1_MSR]);
 
+	for (int i = 0; i < 300; i++) {
+		xmhf_baseplatform_arch_x86_udelay(10000);
+	}
+
 	/* VMXON */
 	{
 		HALT_ON_ERRORCOND(__vmx_vmxon(hva2spa(vcpu->vmxon_region)));
