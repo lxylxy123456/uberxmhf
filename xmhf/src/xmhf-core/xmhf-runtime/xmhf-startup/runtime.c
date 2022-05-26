@@ -150,10 +150,6 @@ extern u32 x_gdt_start[];
 void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 	HALT_ON_ERRORCOND(isEarlyInit);
 
-	if (vcpu->id) {
-		HALT();
-	}
-
 	// Set TR, from _vmx_initVT()
 	{
 		hva_t gdtstart = (hva_t)&x_gdt_start;

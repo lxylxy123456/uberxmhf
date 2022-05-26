@@ -17,9 +17,6 @@ extern u32 x_gdt_start[];
 static void lhv_vmx_vmcs_init(VCPU *vcpu)
 {
 	// From vmx_initunrestrictedguestVMCS
-
-	write_cr0(read_cr0() | CR0_NE);
-
 	vmcs_vmwrite(vcpu, VMCS_host_CR0, read_cr0());
 	vmcs_vmwrite(vcpu, VMCS_host_CR4, read_cr4());
 	vmcs_vmwrite(vcpu, VMCS_host_CR3, read_cr3());
@@ -233,6 +230,8 @@ void lhv_vmx_main(VCPU *vcpu)
 		*((u32 *) vcpu->vmxon_region) = vmcs_revision_identifier;
 	}
 
+	write_cr0(read_cr0() | CR0_NE);
+
 	/* Set CR4.VMXE (22.7 ENABLING AND ENTERING VMX OPERATION) */
 	{
 		ulong_t cr4 = read_cr4();
@@ -247,21 +246,10 @@ void lhv_vmx_main(VCPU *vcpu)
 		HALT_ON_ERRORCOND(vcpu->vmx_msr_efcr & 4);
 	}
 
-	printf("\nCR0        = 0x%016llx", read_cr0());
-	printf("\nCR0 fixed0 = 0x%016llx", vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED0_MSR]);
-	printf("\nCR0 fixed1 = 0x%016llx", vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED1_MSR]);
-
-	for (int i = 0; i < 300; i++) {
-		xmhf_baseplatform_arch_x86_udelay(10000);
-	}
-
 	/* VMXON */
 	{
 		HALT_ON_ERRORCOND(__vmx_vmxon(hva2spa(vcpu->vmxon_region)));
 	}
-
-	printf("\nVMXON succeeds");
-	HALT();
 
 	/* VMCLEAR, VMPTRLD */
 	{
