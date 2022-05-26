@@ -247,10 +247,17 @@ void lhv_vmx_main(VCPU *vcpu)
 		HALT_ON_ERRORCOND(vcpu->vmx_msr_efcr & 4);
 	}
 
+	printf("\nCR0        = 0x%016llx", read_cr0());
+	printf("\nCR0 fixed0 = 0x%016llx", vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED0_MSR]);
+	printf("\nCR0 fixed1 = 0x%016llx", vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED1_MSR]);
+
 	/* VMXON */
 	{
 		HALT_ON_ERRORCOND(__vmx_vmxon(hva2spa(vcpu->vmxon_region)));
 	}
+
+	printf("\nVMXON succeeds");
+	HALT();
 
 	/* VMCLEAR, VMPTRLD */
 	{
