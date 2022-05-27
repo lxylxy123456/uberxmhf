@@ -136,7 +136,28 @@ quote I can find is
 > If the operand is the current-VMCS pointer, then that pointer is made invalid
 > (set to FFFFFFFF_FFFFFFFFH).
 
-TODO
+In `bb283aba2`, basically finished VMXON.
+
+We see that in some conditions, VMX instructions should result in `#UD`. We
+see whether they can be categorized into one function.
+
+```
+INVEPT		IF (not in VMX operation) or (CR0.PE = 0) or (RFLAGS.VM = 1) or (IA32_EFER.LMA = 1 and CS.L = 0)
+INVVPID		IF (not in VMX operation) or (CR0.PE = 0) or (RFLAGS.VM = 1) or (IA32_EFER.LMA = 1 and CS.L = 0)
+VMCLEAR		IF (register operand) or (not in VMX operation) or (CR0.PE = 0) or (RFLAGS.VM = 1) or (IA32_EFER.LMA = 1 and CS.L = 0)
+VMLAUNCH	IF (not in VMX operation) or (CR0.PE = 0) or (RFLAGS.VM = 1) or (IA32_EFER.LMA = 1 and CS.L = 0)
+VMPTRLD		IF (register operand) or (not in VMX operation) or (CR0.PE = 0) or (RFLAGS.VM = 1) or (IA32_EFER.LMA = 1 and CS.L = 0)
+VMPTRST		IF (register operand) or (not in VMX operation) or (CR0.PE = 0) or (RFLAGS.VM = 1) or (IA32_EFER.LMA = 1 and CS.L = 0)
+VMREAD		IF (not in VMX operation) or (CR0.PE = 0) or (RFLAGS.VM = 1) or (IA32_EFER.LMA = 1 and CS.L = 0)
+VMWRITE		IF (not in VMX operation) or (CR0.PE = 0) or (RFLAGS.VM = 1) or (IA32_EFER.LMA = 1 and CS.L = 0)
+VMXOFF		IF (not in VMX operation) or (CR0.PE = 0) or (RFLAGS.VM = 1) or (IA32_EFER.LMA = 1 and CS.L = 0)
+VMXON		IF (register operand) or (CR0.PE = 0) or (CR4.VMXE = 0) or (RFLAGS.VM = 1) or (IA32_EFER.LMA = 1 and CS.L = 0)
+```
+
+`_vmx_nested_check_ud()` is written to reduce the checking code.
+
+TODO: how is launch state of a VMCS tracked in hardware
+	TODO: if VMCLEAR too many VMCS, what will happen? Try in LHV
 
 ## Fix
 
