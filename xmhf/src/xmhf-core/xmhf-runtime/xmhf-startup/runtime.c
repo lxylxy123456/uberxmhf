@@ -66,9 +66,11 @@ void xmhf_runtime_entry(void){
 	xmhf_debug_init((char *)&rpb->RtmUartConfig);
 	printf("\nruntime initializing...");
 
+	/*
   // initialize memory management
 	xmhf_mm_init();
 	printf("\nmemory management initialized");
+	*/
 
   //initialize basic platform elements
 	xmhf_baseplatform_initialize();
@@ -290,7 +292,9 @@ void xmhf_runtime_shutdown(VCPU *vcpu, struct regs *r)
 #if defined (__DMAP__)
   xmhf_iommu_fini();
 #endif // __DMAP__
+  /*
   xmhf_mm_fini();
+  */
 
   // Reboot
   xmhf_baseplatform_reboot(vcpu);
