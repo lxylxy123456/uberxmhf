@@ -156,8 +156,32 @@ VMXON		IF (register operand) or (CR0.PE = 0) or (CR4.VMXE = 0) or (RFLAGS.VM = 1
 
 `_vmx_nested_check_ud()` is written to reduce the checking code.
 
-TODO: how is launch state of a VMCS tracked in hardware
-	TODO: if VMCLEAR too many VMCS, what will happen? Try in LHV
+### Tracking all VMCS
+
+The next question is, does KVM track each page that is VMCLEAR'ed?
+`172562fdf..85a505928` tests it. By looking at guest memory usage, looks like
+for each VMCS, 4K more memory is used (for storing the first 4 bytes). However,
+it is likely that the extra information goes to kernel memory.
+
+To investigate further, there are 2 ways
+1. Debug KVM
+2. Find a way to compute free kernel memory, compute difference
+
+From Intel v3 "23.11.1 Software Use of Virtual-Machine Control Structures", it
+looks like a good hypervisor should VMCLEAR all active VMCS's before recycling
+the memory for VMCS. So our hypervisor should be able to track all active
+VMCS's. However, if a hypervisor executes VMXOFF with active VMCS's, it is
+arguably still following the spec.
+
+Another way is to use O(1) extra memory. This should be possible. However,
+later we may need to cache VMCS (similar to caching EPT) to be efficient.
+
+Things to be tracked for a VMCS (see "Figure 23-1. States of VMCS X")
+* launch state (clear / launched)
+* active / inactive
+* current / not current
+
+TODO
 
 ## Fix
 

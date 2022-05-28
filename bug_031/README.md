@@ -948,3 +948,7 @@ After `bug_036` fixed: I think `bug_036` is a related bug. However when testing
 now I cannot reproduce `bug_031`. Maybe related to QEMU update? Currently
 QEMU version is 6.1.0, XMHF commit is `5324ae8e8`
 
+At `bug_077`: the bug re-appears, with a different behavior
+(`KVM_GET_PIT2 failed: Input/output error`). Maybe Linux / KVM version is more
+interesting. Currently `5.17.8-200.fc35.x86_64`.
+

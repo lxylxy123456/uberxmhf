@@ -339,7 +339,25 @@ time make deb-pkg -j `nproc`
 ```
 
 The compilation takes a lot of time and storage space. It took 50 mins and 24G
-on HP 840.
+on HP 840. After compiling, `../linux-image-5.17.9_5.17.9-1_amd64.deb` can be
+used to install the new kernel.
+
+The setup is something like
+```
+python3 -m pyftpdlib -u lxy -P $PASSWORD -i $IP -p $PORT
+# (another shell)
+cd ../..
+./bios-qemu.sh --gdb 1235 -d debian11x64-q -t -smp 1 --ssh 22 --fwd 1234 1234
+# (ssh ...)
+# Install self-compiled Linux
+cp mnt/linux/linux-image-5.17.9_5.17.9-1_amd64.deb .
+sudo apt-get install ./linux-image-5.17.9_5.17.9-1_amd64.deb
+init 6
+mkdir mnt
+curlftpfs $IP:$PORT mnt -o user=lxy:$PASSWORD
+ln -s mnt/debian11x64.qcow2 .
+mnt/bios-qemu.sh -d debian11x64.qcow2 +t --ssh 22 -smp 2 --gdb 1234
+```
 
 TODO: try to compile Linux
 TODO: maybe submit bug to KVM

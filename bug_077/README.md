@@ -62,3 +62,35 @@ Trying to not file too many bugs at the same time. See `bug_076`.
 Early phase 3 of the research is not dealing with Windows, so we ignore this
 issue for now.
 
+Later, realized that it is another form of the BIOS SMM bug. See `bug_031`. The
+workaround is to use a version of SeaBIOS compiled with SMM mode disabled.
+The `./bios-qemu.sh` option is `--win-bios`.
+
+It is time to report bug to KVM. Maybe together with `bug_031`.
+
+### Booting Windows
+
+For Windows 7 and above, can boot as a second disk
+
+```sh
+./bios-qemu.sh        -d build64 +1 -d win10x64 -t -d f -t --win-bios
+./bios-qemu.sh --qb32 -d build32 +1 -d win10x86 -t -d f -t --win-bios
+```
+
+For Windows XP, need to use another GRUB image for chainloading. The GRUB image
+can be created after git `ab7968ed8`, using command
+```sh
+python3 tools/ci/grub.py --subarch windows --work-dir . --boot-dir tools/ci/boot
+```
+
+The image is stored in this bug as `grub_windows.img`.
+
+```sh
+./bios-qemu.sh        -d build64 +1 -d grub_windows +1 -d winxpx64 -t --win-bios
+./bios-qemu.sh --qb32 -d build32 +1 -d grub_windows +1 -d winxpx86 -t --win-bios
+```
+
+### KVM bug
+
+TODO: report bug to KVM
+
