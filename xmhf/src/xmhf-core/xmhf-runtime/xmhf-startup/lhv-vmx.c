@@ -268,9 +268,9 @@ void lhv_vmx_main(VCPU *vcpu)
 					HALT_ON_ERRORCOND(* (char *) (p + j) == 0);
 				}
 				{
-					uintptr_t a = 0;
+					unsigned long a = 0;
 					__vmx_vmread(0x4002, &a);
-					HALT_ON_ERRORCOND(a == i);
+					HALT_ON_ERRORCOND(a == (unsigned long) i);
 				}
 			}
 		}
