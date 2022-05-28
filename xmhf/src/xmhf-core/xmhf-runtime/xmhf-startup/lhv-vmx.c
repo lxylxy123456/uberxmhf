@@ -251,31 +251,6 @@ void lhv_vmx_main(VCPU *vcpu)
 		HALT_ON_ERRORCOND(__vmx_vmxon(hva2spa(vcpu->vmxon_region)));
 	}
 
-	// Try VMCLEAR a lot of VMCS's
-	{
-		uintptr_t a = 0x10000000UL;
-		for (uintptr_t i = 0, p = a; p < 0x18000000UL; i++, p += 0x1000) {
-			if (i % 8 == vcpu->idx) {
-				printf("\n%d %p", vcpu->id, p);
-				HALT_ON_ERRORCOND(__vmx_vmclear(p));
-				for (int j = 0; j < 0x1000; j++) {
-					HALT_ON_ERRORCOND(* (char *) (p + j) == 0);
-				}
-				*((u32 *) p) = vmcs_revision_identifier;
-				HALT_ON_ERRORCOND(__vmx_vmptrld(p));
-				__vmx_vmwrite(0x4002, i);
-				for (int j = 4; j < 0x1000; j++) {
-					HALT_ON_ERRORCOND(* (char *) (p + j) == 0);
-				}
-				{
-					uintptr_t a = 0;
-					__vmx_vmread(0x4002, &a);
-					HALT_ON_ERRORCOND(a == i);
-				}
-			}
-		}
-	}
-
 	/* VMCLEAR, VMPTRLD */
 	{
 		vcpu->my_vmcs = all_vmcs[vcpu->idx][0];
