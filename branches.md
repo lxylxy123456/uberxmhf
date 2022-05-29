@@ -364,5 +364,5 @@ Windows
 * x86 Windows XP SP3 has strange VMCALL, workaround is `0d7e0599d` (`bug_029`)
 * UEFI is not supported
 * XMHF does not support guest OS performing INIT-SIPI-SIPI trice (`bug_075`)
-* x2apic is not stable, possible KVM bug (`bug_078`)
+* x2apic is not stable, possible KVM / hardware bug (`bug_078`)
 

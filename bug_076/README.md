@@ -87,3 +87,19 @@ Reports
 Another bug not reported: see `bug_077`
 
 Waiting for KVM people.
+
+### Tracking QEMU / KVM bugs
+
+This page will be used to track various bugs reported to QEMU / KVM
+
+* `bug_076`: assertion `!env->exception_has_payload`
+	* <https://bugzilla.kernel.org/show_bug.cgi?id=216002>
+* `bug_031`: assertion `ret < cpu->num_ases && ret >= 0`
+	* <https://bugzilla.kernel.org/show_bug.cgi?id=216003>
+* `bug_079`: VMXON does not check CR0
+	* <https://bugzilla.kernel.org/show_bug.cgi?id=216033>
+* `bug_078`: Linux stucks when using x2APIC on HP 840
+	* <https://bugzilla.kernel.org/show_bug.cgi?id=216045>
+* `bug_077`: XMHF booting Windows results in "kvm run failed Input/output error"
+	* <https://bugzilla.kernel.org/show_bug.cgi?id=216046>
+

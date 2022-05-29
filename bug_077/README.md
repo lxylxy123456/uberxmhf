@@ -92,5 +92,52 @@ The image is stored in this bug as `grub_windows.img`.
 
 ### KVM bug
 
-TODO: report bug to KVM
+We do print debugging in KVM a little bit.
+
+Recall the error message 
+
+```
+error: kvm run failed Input/output error
+
+
+EAX=00000020 EBX=0000ffff ECX=00000000 EDX=0000ffff
+ESI=00000000 EDI=00002300 EBP=00000000 ESP=00006d8c
+EFER=0000000000000000
+Code=0e 07 31 c0 b9 00 10 8d 3e 00 03 fc f3 ab 07 b8 20 00 e7 7e <cb> 0f 1f 80 00 00 00 00 6b 76 6d 20 61 50 69 43 20 00 00 00 2d 02 00 00 d9 02 00 00 00 03
+
+
+KVM_GET_PIT2 failed: Input/output error
+```
+
+The first line comes from QEMU's `kvm_cpu_exec()`. It happens when
+`run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);` returns negative value.
+
+Then some kind of register dump appears. Finally the `KVM_GET_PIT2` looks like
+unrelated to the root cause. It happens because KVM goes away, so this ioctl
+call errors.
+
+`KVM_RUN` is handled in
+<https://elixir.bootlin.com/linux/v5.18/source/virt/kvm/kvm_main.c#L3923>.
+The error happens when `r = kvm_arch_vcpu_ioctl_run(vcpu);` (line 3943) gives
+`-5`.
+
+The call stack is
+```
+QEMU: ioctl(..., KVM_RUN, ...)
+  kvm_vcpu_ioctl()
+    kvm_arch_vcpu_ioctl_run()
+      vcpu_run()
+        vcpu_enter_guest()
+          vmx_handle_exit() (static_call(kvm_x86_handle_exit))
+            __vmx_handle_exit()
+              KVM_BUG_ON(vmx->nested.nested_run_pending, vcpu->kvm)
+```
+
+Bug reported in <https://bugzilla.kernel.org/show_bug.cgi?id=216046>. KVM bugs
+will be tracked in `bug_076`.
+
+## Result
+
+Use `--win-bios` to avoid SMM mode when booting Windows. Use `grub_windows.img`
+for Windows XP. KVM bug reported.
 

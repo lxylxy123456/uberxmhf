@@ -359,9 +359,316 @@ ln -s mnt/debian11x64.qcow2 .
 mnt/bios-qemu.sh -d debian11x64.qcow2 +t --ssh 22 -smp 2 --gdb 1234
 ```
 
-TODO: try to compile Linux
-TODO: maybe submit bug to KVM
-TODO: try to reproduce this problem in lhv?
+### Debug Linux
+
+When running in nested KVM with latest Linux kernel, this bug is reproducible
+```
+HP 840 (Debian 11, 5.10.0-14-amd64)
+	KVM
+		QEMU (Debian 11, 5.17.9, nokaslr)
+			KVM
+				XMHF (amd64)
+					Debian (use x2APIC, Debian 11, 5.10.0-9-amd64, nokaslr)
+```
+
+Make sure to turn off KASLR for the virtual machines.
+
+The new GDB procedure is (for `xmhf64-dev` branch, git commit `01a4ab597`):
+
+First break at before the first hypervisor WRMSR (GDB connect to inner KVM).
+
+```
+hb *0xffffffff81062179
+c
+d
+hb *0xffffffff8106217b
+hb *xmhf_parteventhub_arch_x86vmx_intercept_handler
+si
+hb *_vmx_handle_intercept_wrmsr + 807
+c
+```
+
+Then cd to directory that compiles Linux, and connect to outer KVM's gdb
+
+```
+set pagination off
+set confirm off
+symbol-file ./debian/linux-image-dbg/usr/lib/debug/vmlinux-5.17.9
+hb kvm_lapic_reg_write
+c
+```
+
+After setting this break point, `c` in inner KVM. Unfortunately, outer KVM
+crashes with the familiar bug
+```
+qemu-system-x86_64: ../../target/i386/kvm.c:634: kvm_queue_exception: Assertion `!env->exception_has_payload' failed.
+```
+
+We probably need print debugging for KVM.
+
+### Recompile KVM
+
+Since we are only debugging KVM, we run the KVM to be debugged on the physical
+machine (no KVM nested in KVM). There are many sources online saying that it
+is possible to compile only a kernel module quickly.
+
+```sh
+tar xf /usr/src/linux-source-5.10.tar.xz
+cd linux-source-5.10/
+cp /boot/config-$(uname -r) .config
+make oldconfig
+make nconfig
+	# nothing to do
+make M=arch/x86/kvm
+```
+
+However, when running the last command, see error 
+
+```
+$ make M=arch/x86/kvm
+make[1]: *** No rule to make target 'arch/x86/kvm/../../../virt/kvm/kvm_main.o', needed by 'arch/x86/kvm/kvm.o'.  Stop.
+make: *** [Makefile:1846: arch/x86/kvm] Error 2
+$ 
+```
+
+Refs
+* <https://yoursunny.com/t/2018/one-kernel-module/>
+* <https://www.cyberciti.biz/tips/compiling-linux-kernel-module.html>
+* <https://yulistic.gitlab.io/2017/10/compiling-kernel-module-only-w/o-whole-kernel-compilation/>
+* <https://stackoverflow.com/questions/33384340/>
+
+#### Arch Linux Docs
+
+I then see <https://wiki.archlinux.org/title/Compile_kernel_module>, which
+looks more correct. Recall that `uname -r` gives `5.10.0-14-amd64`
+
+```sh
+tar xf /usr/src/linux-source-5.10.tar.xz
+cd linux-source-5.10/
+cp /boot/config-$(uname -r) .config
+make oldconfig
+make nconfig
+	# nothing to do
+make SUBLEVEL=0 EXTRAVERSION=-14-amd64 modules_prepare
+make M=arch/x86/kvm
+ls arch/x86/kvm/kvm.ko
+```
+
+To install, use
+
+```
+sudo rmmod kvm_intel
+sudo rmmod kvm
+sudo insmod arch/x86/kvm/kvm.ko
+```
+
+When install fails, maybe check version in `strings`
+```
+$ sudo insmod arch/x86/kvm/kvm.ko
+insmod: ERROR: could not insert module arch/x86/kvm/kvm.ko: Invalid module format
+$ strings /usr/lib/modules/5.10.0-14-amd64/kernel/arch/x86/kvm/kvm.ko | grep 5.10.
+5.10.0-14-amd64
+vermagic=5.10.0-14-amd64 SMP mod_unload modversions 
+$ strings arch/x86/kvm/kvm.ko | grep 5.10.
+5.10.0-14-amd64
+vermagic=5.10.113-14-amd64 SMP mod_unload modversions 
+$ 
+```
+
+However, even fixing the version string, install still fails.
+
+Asking on <https://stackoverflow.com/questions/72419524/>
+
+#### Compile first
+
+To make things easier, we compile another version of 5.17.9, but compile KVM as
+a module. Hopefully after that the `kvm_main.o` can be found easily again.
+
+Following previous process, compiled 5.17.9 again, but with KVM as a module.
+
+Install using
+
+```
+sudo apt-get install ./linux-image-5.17.9_5.17.9-1_amd64.deb
+```
+
+There are 3 files named `kvm.ko` generated in build directory
+```
+24570c3d66d1e1f261887042d07ef169  ./arch/x86/kvm/kvm.ko
+94104e41c35a12e1690388ec9e4783f0  ./debian/linux-image/lib/modules/5.17.9/kernel/arch/x86/kvm/kvm.ko
+1f3c5f9c02494e9085f9970317ffe0a5  ./debian/linux-image-dbg/usr/lib/debug/lib/modules/5.17.9/kernel/arch/x86/kvm/kvm.ko
+94104e41c35a12e1690388ec9e4783f0  /usr/lib/modules/5.17.9/kernel/arch/x86/kvm/kvm.ko
+```
+
+Now, `./arch/x86/kvm/kvm.ko` can be loaded correctly using `insmod`
+
+We can also follow the Arch Linux tutorial to build KVM quickly
+
+```sh
+cp ../../linux-5.17.9/.config .
+make oldconfig
+# The following takes < 5s
+time make modules_prepare -j `nproc`
+# The following takes 12s
+time make M=arch/x86/kvm -j `nproc`
+ls arch/x86/kvm/kvm.ko
+
+sudo rmmod kvm_intel
+sudo rmmod kvm
+sudo insmod arch/x86/kvm/kvm.ko
+sudo insmod arch/x86/kvm/kvm-intel.ko
+lsmod | grep kvm
+```
+
+For some reason, the cursor and mouse does not work in new Kernel. The keyboard
+and Internet works.
+
+### Modifying KVM source code
+
+Create git directory and create sh files
+
+```
+$ cat build.sh 
+#!/bin/bash
+set -xe
+make distclean
+cp ../../linux-5.17.9/.config .
+make oldconfig
+make modules_prepare -j `nproc`
+make M=arch/x86/kvm -j `nproc`
+ls arch/x86/kvm/kvm.ko
+$ cat install.sh 
+#!/bin/bash
+set -xe
+sudo rmmod kvm_intel
+sudo rmmod kvm
+sudo insmod arch/x86/kvm/kvm.ko
+sudo insmod arch/x86/kvm/kvm-intel.ko
+lsmod | grep kvm
+$ 
+```
+
+Add print debugging using something like
+
+```
+	printk(KERN_ERR
+			"LXY: %s:%d: %s(): hello world", __FILE__, __LINE__, __func__);
+```
+
+Can see result in `dmesg`
+
+```
+$ sudo dmesg -w | grep LXY
+[  979.615938] LXY: arch/x86/kvm/lapic.c:2788: kvm_x2apic_msr_write(): hello world
+[  979.616147] LXY: arch/x86/kvm/lapic.c:2788: kvm_x2apic_msr_write(): hello world
+[  979.616152] LXY: arch/x86/kvm/lapic.c:2788: kvm_x2apic_msr_write(): hello world
+[  979.616153] LXY: arch/x86/kvm/lapic.c:2788: kvm_x2apic_msr_write(): hello world
+[  979.616629] LXY: arch/x86/kvm/lapic.c:2788: kvm_x2apic_msr_write(): hello world
+[  979.616631] LXY: arch/x86/kvm/lapic.c:2788: kvm_x2apic_msr_write(): hello world
+[  979.616632] LXY: arch/x86/kvm/lapic.c:2788: kvm_x2apic_msr_write(): hello world
+[  979.616663] LXY: arch/x86/kvm/lapic.c:2788: kvm_x2apic_msr_write(): hello world
+[  979.621342] LXY: arch/x86/kvm/lapic.c:2788: kvm_x2apic_msr_write(): hello world
+[  979.621346] LXY: arch/x86/kvm/lapic.c:2788: kvm_x2apic_msr_write(): hello world
+^C
+$ 
+```
+
+When developing, only `make M=arch/x86/kvm -j $(nproc)` in `build.sh` need to
+be executed. Then `install.sh` should be executed.
+
+Looks like `kvm_lapic_reg_write()` is not called with `msr=APIC_EOI`.
+
+Looks like the actual call stack is
+
+```
+VMEXIT due to Virtualized EOI (45 = EXIT_REASON_EOI_INDUCED)
+	handle_apic_eoi_induced
+		kvm_apic_set_eoi_accelerated
+			trace_kvm_eoi (not interesting)
+			kvm_ioapic_send_eoi
+			kvm_make_request (likely not interesting)
+```
+
+Note that sometimes the last line of output may be lost. To prevent this, for
+each printk can replace it with printing 2 lines intead.
+
+After some debugging, become confused.
+
+```
+apic->isr_count
+apic->highest_isr_cache
+find_highest_vector(apic->regs + APIC_ISR)
+```
+
+In xmhf git `37643df66`, Linux patch `b.diff`, the output is
+
+```
+[ 4172.548263] LXY: EOI 0 Bitmap 0x1
+[ 4172.548264] LXY: EOI 1 Bitmap 0x0
+[ 4172.548264] LXY: EOI 2 Bitmap 0x0
+[ 4172.548265] LXY: EOI 3 Bitmap 0x0
+[ 4172.548265] LXY: EOI   Bitmap end
+[ 4172.550165] LXY: EOI 0 Bitmap 0x1000000000001
+[ 4172.550166] LXY: EOI 1 Bitmap 0x0
+[ 4172.550167] LXY: EOI 2 Bitmap 0x0
+[ 4172.550168] LXY: EOI 3 Bitmap 0x0
+[ 4172.550168] LXY: EOI   Bitmap end
+[ 4172.550452] LXY: <EOI ACCEL arch/x86/kvm/lapic.c:1283: kvm_apic_set_eoi_accelerated() 1 -1 48
+[ 4172.550453] LXY: <EOI ACCEL arch/x86/kvm/lapic.c:1284: kvm_apic_set_eoi_accelerated() 1 -1 48
+[ 4172.550454] LXY:   <IOAPIC EOI ACCEL arch/x86/kvm/lapic.c:1221: kvm_ioapic_send_eoi()   1 -1 48
+[ 4172.550456] LXY:   <IOAPIC EOI ACCEL arch/x86/kvm/lapic.c:1222: kvm_ioapic_send_eoi()   1 -1 48
+[ 4172.550457] LXY:   IOAPIC EOI ACCEL 3> arch/x86/kvm/lapic.c:1247: kvm_ioapic_send_eoi() 1 -1 48
+[ 4172.550458] LXY:   IOAPIC EOI ACCEL 3> arch/x86/kvm/lapic.c:1248: kvm_ioapic_send_eoi() 1 -1 48
+[ 4172.550459] LXY: EOI ACCEL> arch/x86/kvm/lapic.c:1291: kvm_apic_set_eoi_accelerated() 1 -1 48
+[ 4172.550459] LXY: EOI ACCEL> arch/x86/kvm/lapic.c:1292: kvm_apic_set_eoi_accelerated() 1 -1 48
+[ 4172.550462] LXY: <EOI ACCEL arch/x86/kvm/lapic.c:1283: kvm_apic_set_eoi_accelerated() 1 -1 -1
+[ 4172.550463] LXY: <EOI ACCEL arch/x86/kvm/lapic.c:1284: kvm_apic_set_eoi_accelerated() 1 -1 -1
+[ 4172.550463] LXY:   <IOAPIC EOI ACCEL arch/x86/kvm/lapic.c:1221: kvm_ioapic_send_eoi()   1 -1 -1
+[ 4172.550464] LXY:   <IOAPIC EOI ACCEL arch/x86/kvm/lapic.c:1222: kvm_ioapic_send_eoi()   1 -1 -1
+[ 4172.550465] LXY:   IOAPIC EOI ACCEL 3> arch/x86/kvm/lapic.c:1247: kvm_ioapic_send_eoi() 1 -1 -1
+[ 4172.550466] LXY:   IOAPIC EOI ACCEL 3> arch/x86/kvm/lapic.c:1248: kvm_ioapic_send_eoi() 1 -1 -1
+[ 4172.550466] LXY: EOI ACCEL> arch/x86/kvm/lapic.c:1291: kvm_apic_set_eoi_accelerated() 1 -1 -1
+```
+
+Looks like the hypervisor is not responsible for clearing ISR. The hardware is.
+This can be confirmed in Intel i3 "28.1.4 EOI Virtualization"
+> `VISR[Vector] := 0; (see Section 28.1.1 for definition of VISR)`
+
+We can easily confirm that when XMHF has EFLAGS.IF = 0. So we assume that maybe
+the hardware is wrong.
+
+Blockers
+* Not sure what is the expected behavior for EOI virtualization
+* Not sure whether it is a bug in Intel's CPU / KVM / XMHF
+* Cannot debug with nested KVM + GDB
+
+Future
+* If can reproduce this problem in LHV, may debug easier. Currently not
+  familiar with Linux's interrupts
+* If the `!env->exception_has_payload` problem can be fixed, may debug things
+  using GDB
+* If can debug physical CPU using Intel's tools, things may become better
+
+### Disable EOI virtualization
+
+From debugging above we suspect that the EOI virtualization path may be wrong
+(either KVM or hardware's bug). So we try to disable this code path.
+
+Accoding to Intel's manual, looks like EOI virtualization is binded to APIC
+virtualization. So we can modify KVM code to let it think that the CPU does not
+support x2APIC virtualization. The detection is done in
+`cpu_has_vmx_virtualize_x2apic_mode()`.
+
+Looks like after modifying `cpu_has_vmx_virtualize_x2apic_mode()` to always
+return 0, the problem is solved. The guest still uses x2APIC (XMHF output
+contains x2APIC, and Linux's lscpu shows the x2apic flag). So we are now very
+confident that this bug is not in XMHF.
+
+We should submit bug to KVM. We think that it is hard to reproduce this bug on
+LHV, because it has something to do with IO APIC.
+
+Submitted bug <https://bugzilla.kernel.org/show_bug.cgi?id=216045>. KVM bugs
+will be tracked in `bug_076`.
 
 ## Fix
 

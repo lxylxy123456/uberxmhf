@@ -1,0 +1,101 @@
+diff --git a/arch/x86/kvm/lapic.c b/arch/x86/kvm/lapic.c
+index 970d5c740..78e748425 100644
+--- a/arch/x86/kvm/lapic.c
++++ b/arch/x86/kvm/lapic.c
+@@ -1218,14 +1218,22 @@ static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)
+ {
+ 	int trigger_mode;
+ 
++	printk(KERN_ERR "LXY:   <IOAPIC EOI ACCEL %s:%d: %s()   %d %d %d", __FILE__, __LINE__, __func__, apic->isr_count, apic->highest_isr_cache, find_highest_vector(apic->regs + APIC_ISR));
++	printk(KERN_ERR "LXY:   <IOAPIC EOI ACCEL %s:%d: %s()   %d %d %d", __FILE__, __LINE__, __func__, apic->isr_count, apic->highest_isr_cache, find_highest_vector(apic->regs + APIC_ISR));
++
+ 	/* Eoi the ioapic only if the ioapic doesn't own the vector. */
+-	if (!kvm_ioapic_handles_vector(apic, vector))
++	if (!kvm_ioapic_handles_vector(apic, vector)) {
++		printk(KERN_ERR "LXY:   IOAPIC EOI ACCEL 1> %s:%d: %s()", __FILE__, __LINE__, __func__);
++		printk(KERN_ERR "LXY:   IOAPIC EOI ACCEL 1> %s:%d: %s()", __FILE__, __LINE__, __func__);
+ 		return;
++	}
+ 
+ 	/* Request a KVM exit to inform the userspace IOAPIC. */
+ 	if (irqchip_split(apic->vcpu->kvm)) {
+ 		apic->vcpu->arch.pending_ioapic_eoi = vector;
+ 		kvm_make_request(KVM_REQ_IOAPIC_EOI_EXIT, apic->vcpu);
++		printk(KERN_ERR "LXY:   IOAPIC EOI ACCEL 2> %s:%d: %s()", __FILE__, __LINE__, __func__);
++		printk(KERN_ERR "LXY:   IOAPIC EOI ACCEL 2> %s:%d: %s()", __FILE__, __LINE__, __func__);
+ 		return;
+ 	}
+ 
+@@ -1235,6 +1243,9 @@ static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)
+ 		trigger_mode = IOAPIC_EDGE_TRIG;
+ 
+ 	kvm_ioapic_update_eoi(apic->vcpu, vector, trigger_mode);
++
++	printk(KERN_ERR "LXY:   IOAPIC EOI ACCEL 3> %s:%d: %s() %d %d %d", __FILE__, __LINE__, __func__, apic->isr_count, apic->highest_isr_cache, find_highest_vector(apic->regs + APIC_ISR));
++	printk(KERN_ERR "LXY:   IOAPIC EOI ACCEL 3> %s:%d: %s() %d %d %d", __FILE__, __LINE__, __func__, apic->isr_count, apic->highest_isr_cache, find_highest_vector(apic->regs + APIC_ISR));
+ }
+ 
+ static int apic_set_eoi(struct kvm_lapic *apic)
+@@ -1269,11 +1280,16 @@ static int apic_set_eoi(struct kvm_lapic *apic)
+ void kvm_apic_set_eoi_accelerated(struct kvm_vcpu *vcpu, int vector)
+ {
+ 	struct kvm_lapic *apic = vcpu->arch.apic;
++	printk(KERN_ERR "LXY: <EOI ACCEL %s:%d: %s() %d %d %d", __FILE__, __LINE__, __func__, apic->isr_count, apic->highest_isr_cache, find_highest_vector(apic->regs + APIC_ISR));
++	printk(KERN_ERR "LXY: <EOI ACCEL %s:%d: %s() %d %d %d", __FILE__, __LINE__, __func__, apic->isr_count, apic->highest_isr_cache, find_highest_vector(apic->regs + APIC_ISR));
+ 
+ 	trace_kvm_eoi(apic, vector);
+ 
+ 	kvm_ioapic_send_eoi(apic, vector);
+ 	kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
++
++	printk(KERN_ERR "LXY: EOI ACCEL> %s:%d: %s() %d %d %d", __FILE__, __LINE__, __func__, apic->isr_count, apic->highest_isr_cache, find_highest_vector(apic->regs + APIC_ISR));
++	printk(KERN_ERR "LXY: EOI ACCEL> %s:%d: %s() %d %d %d", __FILE__, __LINE__, __func__, apic->isr_count, apic->highest_isr_cache, find_highest_vector(apic->regs + APIC_ISR));
+ }
+ EXPORT_SYMBOL_GPL(kvm_apic_set_eoi_accelerated);
+ 
+diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
+index 267d6dc4b..e55b914d2 100644
+--- a/arch/x86/kvm/vmx/vmx.c
++++ b/arch/x86/kvm/vmx/vmx.c
+@@ -6474,6 +6474,12 @@ static void vmx_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
+ 	if (!kvm_vcpu_apicv_active(vcpu))
+ 		return;
+ 
++	printk(KERN_ERR "LXY: EOI 0 Bitmap 0x%llx", eoi_exit_bitmap[0]);
++	printk(KERN_ERR "LXY: EOI 1 Bitmap 0x%llx", eoi_exit_bitmap[1]);
++	printk(KERN_ERR "LXY: EOI 2 Bitmap 0x%llx", eoi_exit_bitmap[2]);
++	printk(KERN_ERR "LXY: EOI 3 Bitmap 0x%llx", eoi_exit_bitmap[3]);
++	printk(KERN_ERR "LXY: EOI   Bitmap end");
++
+ 	vmcs_write64(EOI_EXIT_BITMAP0, eoi_exit_bitmap[0]);
+ 	vmcs_write64(EOI_EXIT_BITMAP1, eoi_exit_bitmap[1]);
+ 	vmcs_write64(EOI_EXIT_BITMAP2, eoi_exit_bitmap[2]);
+diff --git a/build.sh b/build.sh
+new file mode 100755
+index 000000000..dc70b2251
+--- /dev/null
++++ b/build.sh
+@@ -0,0 +1,9 @@
++#!/bin/bash
++set -xe
++make distclean
++cp ../../linux-5.17.9/.config .
++make oldconfig
++make modules_prepare -j `nproc`
++make M=arch/x86/kvm -j `nproc`
++ls arch/x86/kvm/kvm.ko
++
+diff --git a/install.sh b/install.sh
+new file mode 100755
+index 000000000..955c57dd2
+--- /dev/null
++++ b/install.sh
+@@ -0,0 +1,8 @@
++#!/bin/bash
++set -xe
++sudo rmmod kvm_intel
++sudo rmmod kvm
++sudo insmod arch/x86/kvm/kvm.ko
++sudo insmod arch/x86/kvm/kvm-intel.ko
++lsmod | grep kvm
++
