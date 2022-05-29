@@ -482,13 +482,23 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 					:"a"(r->eax), "c" (r->ecx), "d" (r->edx));
 			}
 			break;
+		case 0x80b:{
+			asm volatile ("vmcall" : : : "%rax");
+			asm volatile ("wrmsr\r\n"
+				: //no outputs
+				:"a"(r->eax), "c" (r->ecx), "d" (r->edx));
+			asm volatile ("vmcall" : : : "%rax");
+			asm volatile ("wrmsr\r\n"
+				: //no outputs
+				:"a"(r->eax), "c" (r->ecx), "d" (r->edx));
+			asm volatile ("vmcall" : : : "%rax");
+			HALT();
+			break;
+		}
 		default:{
 			asm volatile ("wrmsr\r\n"
 				: //no outputs
 				:"a"(r->eax), "c" (r->ecx), "d" (r->edx));
-//			asm volatile ("wrmsr\r\n"
-//				: //no outputs
-//				:"a"(r->eax), "c" (r->ecx), "d" (r->edx));
 			break;
 		}
 	}
