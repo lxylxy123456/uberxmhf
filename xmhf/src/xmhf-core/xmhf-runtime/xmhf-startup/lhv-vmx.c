@@ -254,7 +254,7 @@ void lhv_vmx_main(VCPU *vcpu)
 	/* VMCLEAR, VMPTRLD */
 	{
 		vcpu->my_vmcs = all_vmcs[vcpu->idx][0];
-		if ("test_vmclear" && vcpu->isbsp) {
+		if (!"test_vmclear" && vcpu->isbsp) {
 			for (u32 i = 0; i < 0x1000 / sizeof(u32); i++) {
 				((u32 *) vcpu->my_vmcs)[i] = (i << 20) | i;
 			}
@@ -262,7 +262,7 @@ void lhv_vmx_main(VCPU *vcpu)
 		HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
 		*((u32 *) vcpu->my_vmcs) = vmcs_revision_identifier;
 		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
-		if ("test_vmclear" && vcpu->isbsp) {
+		if (!"test_vmclear" && vcpu->isbsp) {
 			for (u32 i = 0; i < 0x1000 / sizeof(u32); i++) {
 				printf("\nvmcs[0x%03x] = 0x%08x", i, ((u32 *)vcpu->my_vmcs)[i]);
 			}
