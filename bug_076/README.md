@@ -88,6 +88,201 @@ Another bug not reported: see `bug_077`
 
 Waiting for KVM people.
 
+### Reposting `ret < cpu->num_ases && ret >= 0`
+
+This bug is first found in `bug_031`. I first posted this bug on KVM at
+<https://bugzilla.kernel.org/show_bug.cgi?id=216003>, but then it looks like
+this bug is in QEMU. Now before re-posting this bug, I would like to look into
+it and possibly try it on a later version of QEMU (self-compiled).
+
+We can replace `si 1000` with a while loop, and print the instructions. Here
+is the updated GDB script
+```
+set confirm off
+set pagination off
+hb *0x7c00
+c
+set $i = 0
+while $i < 1000
+    p $i
+    si
+    set $i = $i + 1
+end
+```
+
+The output is
+
+```
+0x00000000000f7d16 in ?? ()
+$770 = 770
+0x00000000000f7d1b in ?? ()
+$771 = 771
+0x00000000000f7d20 in ?? ()
+$772 = 772
+0x00000000000f7d22 in ?? ()
+$773 = 773
+```
+
+When the bug happens, the CPU is in protected mode, as `cr0 = 0x11 [ ET PE ]`.
+`EIP = 0xf7d22`. We can break at `0xf7d20`.
+
+This bug may be related the one in `bug_077`. However, I am not sure at this
+point. So still file the bug on QEMU anyway.
+
+The updated procedure to reproduce on Fedora is
+1. `qemu-system-i386 --drive media=disk,file=w.img,format=raw,index=1 -s -S -enable-kvm -display none`
+2. Use the following GDB script
+
+```
+set confirm off
+set pagination off
+hb *0x7c00
+c
+d
+hb *0xf7d20
+c
+d
+si
+si
+```
+
+Also note that the problem happens in BIOS code. So the BIOS binary should
+also be submitted to the bug. The default installation path of BIOS is
+`/usr/share/seabios/bios.bin`. When reproducing, use `-L /usr/share/seabios/`
+in QEMU command line (`-bios /usr/share/seabios/bios.bin` does not work).
+
+This bug also happens on newer QEMU versions. The difference is that the
+break point address changes, because the BIOS image is likely different.
+
+Maybe the best GDB script is still
+```
+gdb --ex 'target remote :::1234' --ex 'hb *0x7c00' --ex c --ex d --ex 'si 1000' --ex q
+```
+
+However, this GDB script does not work on QEMU 7.0.0 and Debian 11 Linux 5.17.9.
+On other combinations, it works. I guess the reason is that `si 1000` halts in
+another place due to change in behavior of KVM and QEMU. We probably need to
+still set 2 break points. But before that, we need to know the address of
+breakpoint.
+
+We use the following GDB script
+
+```
+set confirm off
+set pagination off
+hb *0x7c00
+c
+d
+set $i = 0
+while $i < 1000
+    set $i = $i + 1
+	p $i
+    x/i $eip
+    si
+end
+```
+
+On Fedora (`5.17.8-200.fc35.x86_64`, `qemu-6.1.0-14.fc35`), we get
+
+```
+0x000f7d16 in ?? ()
+$770 = 770
+=> 0xf7d16:	mov    $0x5678,%ecx
+0x000f7d1b in ?? ()
+$771 = 771
+=> 0xf7d1b:	mov    $0x7d25,%ebx
+0x000f7d20 in ?? ()
+$772 = 772
+=> 0xf7d20:	out    %al,$0xb2
+0x000f7d22 in ?? ()
+$773 = 773
+=> 0xf7d22:	pause
+```
+
+So the break point should be at `0xf7d20`.
+
+On Debian old kernel old QEMU (`5.10.0-14-amd64`, QEMU `5.2.0`), we get
+
+```
+$770 = 770
+=> 0xf7dd4:     mov    $0x5678,%ecx
+0x000f7dd9 in ?? ()
+$771 = 771
+=> 0xf7dd9:     mov    $0x7de3,%ebx
+0x000f7dde in ?? ()
+$772 = 772
+=> 0xf7dde:     out    %al,$0xb2
+0x000f7de0 in ?? ()
+$773 = 773
+=> 0xf7de0:     pause  
+```
+
+So the break point should be at `0xf7dde`. Note that `$i` is the same.
+
+On Debian old kernel new QEMU (`5.10.0-14-amd64`, QEMU `7.0.0`), we get
+
+```
+$770 = 770
+=> 0xf7d76:     mov    $0x5678,%ecx
+0x000f7d7b in ?? ()
+$771 = 771
+=> 0xf7d7b:     mov    $0x7d85,%ebx
+0x000f7d80 in ?? ()
+$772 = 772
+=> 0xf7d80:     out    %al,$0xb2
+0x000f7d82 in ?? ()
+$773 = 773
+=> 0xf7d82:     pause  
+```
+
+The break point should be `0xf7d80`. We confirm using another GDB script.
+
+```
+set confirm off
+set pagination off
+hb *0x7c00
+c
+d
+hb *0xf7d80
+c
+d
+si
+si
+```
+
+This script works. Now we reboot Debian to test the new kernel. Unfortunately,
+the bug is no longer reproducible on the new kernel with the new QEMU version.
+What is even worse is that it looks like a new bug: after some `si`
+instructions, if I put `c` to try to resume operation, the Windows error page
+never shows up.
+
+Using the GDB that contains while 1000 loop, the result is
+
+```
+$736 = 736
+=> 0x760:       and    $0x2,%al
+0x00000762 in ?? ()
+$737 = 737
+=> 0x762:       ret    
+0x000006e1 in ?? ()
+$738 = 738
+=> 0x6e1:       sti    
+0x000006e2 in ?? ()
+$739 = 739
+=> 0x6e2:       mov    $0x1acdbb00,%eax
+0x000006e5 in ?? ()
+$740 = 740
+=> 0x6e5:       int    $0x1a
+```
+
+For now I am going to report the bug with the old Linux kernel version.
+
+```
+gdb --ex 'target remote :::1234' --ex 'hb *0x7c00' --ex c --ex 'si 1000' --ex q
+```
+
+Reported as <https://gitlab.com/qemu-project/qemu/-/issues/1047>.
+
 ### Tracking QEMU / KVM bugs
 
 This page will be used to track various bugs reported to QEMU / KVM
@@ -96,8 +291,8 @@ This page will be used to track various bugs reported to QEMU / KVM
 	* <del><https://bugzilla.kernel.org/show_bug.cgi?id=216002></del>
 	* <https://gitlab.com/qemu-project/qemu/-/issues/1045>
 * `bug_031`: assertion `ret < cpu->num_ases && ret >= 0`
-	* <https://bugzilla.kernel.org/show_bug.cgi?id=216003>
-	* TODO: likely not KVM bug
+	* <del><https://bugzilla.kernel.org/show_bug.cgi?id=216003></del>
+	* <https://gitlab.com/qemu-project/qemu/-/issues/1047>
 * `bug_079`: VMXON does not check CR0
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216033>
 * `bug_078`: Linux stucks when using x2APIC on HP 840

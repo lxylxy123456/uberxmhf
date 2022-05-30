@@ -181,6 +181,92 @@ Things to be tracked for a VMCS (see "Figure 23-1. States of VMCS X")
 * active / inactive
 * current / not current
 
+### Rethinking about tracking VMCS's
+
+When we re-think about Intel's VMCS APIs, we realize that we have to track all
+VMCS's.
+
+The operations we can do on a VMCS02 are
+* VMCLEAR it
+* VMREAD on fields we know about
+* VMWRITE on fields we know about
+
+The operation we cannot do on a VMCS02 is
+* Access it using memory access (in order to copy fields we do not know)
+
+If we assume that Intel may add new fields to the VMCS, then it is not possible
+to swap VMCS to another place, or reconstruct VMCS02 from VMCS12. So when a
+VMCS12 is launched, the VMCS02 has to remain in the same memory, until the
+VMCS12 is cleared.
+
+This means that all launched VMCS12's need to be tracked.
+
+Another problem is that VMCLEAR does not need to set all bytes in a VMCS to 0.
+So suppose a guest performs
+* VMCLEAR 0x12340000
+* VMPTRLD 0x12340000
+* VMREAD 0xabcd, %eax
+
+I am not very sure whether we can simply put 0 to EAX. SDM says VMCS data has
+implementation-specific format. SDM also says "It also initializes parts of the
+VMCS region (for example, it sets the launch state of that VMCS to clear)". So
+the questions are:
+* Can we assume that VMCLEAR sets all VMCS fields to 0?
+* Can we assume that VMCLEAR sets all VMCS fields to some value?
+
+Maybe the best way for XMHF is to
+* Memset VMCS02 to 0 (prevent leaking information)
+* VMCLEAR the VMCS02
+* Translate the values from VMCS02 to VMCS12
+
+Another challenge is that hypervisors like KVM may VMCLEAR a lot of VMCS's
+during one VMXON / VMXOFF cycle. So we cannot track all VMCLEAR'd VMCS's. For
+example, we can track all VMCS's that have been written to. However, this is
+complicated.
+
+We decide to track a VMCS iff it is active. This becomes a way to decide
+whether a VMCS is active.
+
+States of a VMCS to be tracked
+* clear / launched: tracked by VMCS02
+* active / inactive: active iff in `cpu_active_vmcs12`
+* current / not current: `vmx_nested_current_vmcs_pointer` points to current
+
+In git `f52728d32`, implemented VMPTRST.
+
+### Behavior of VMCLEAR
+
+We want to know whether VMCLEAR sets all VMCS fields to 0, or some defined
+value. We test this using LHV.
+
+We perform the test in git `cad93afc5`. The result is that VMCLEAR does not
+clean most of the VMCS region. Thus, garbles in VMCS becomes visible in VMREAD.
+The test result looks like
+```
+vmcs[0x000] = 0x11e57ed0
+vmcs[0x001] = 0x00100001
+vmcs[0x002] = 0x00000000
+vmcs[0x003] = 0x00300003
+vmcs[0x004] = 0x00400004
+vmcs[0x005] = 0x00500005
+...
+vmcs[0x3fd] = 0x3fd003fd
+vmcs[0x3fe] = 0x3fe003fe
+vmcs[0x3ff] = 0x3ff003ff
+vmread(0x4400) = 0ca000ca
+vmread(0x4402) = 0cb000cb
+vmread(0x4404) = 0cc000cc
+vmread(0x4406) = 0cd000cd
+...
+vmread(0x2800) = 02c0002c
+vmread(0x2801) = 02d0002d
+vmread(0x2802) = 02e0002e
+vmread(0x2803) = 02f0002f
+```
+
+This actually provides flexibility in implementing the nested virtualization.
+We can keep our design (i.e. erase the VMCS with 0s).
+
 TODO
 
 ## Fix
