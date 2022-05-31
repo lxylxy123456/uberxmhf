@@ -267,6 +267,41 @@ vmread(0x2803) = 02f0002f
 This actually provides flexibility in implementing the nested virtualization.
 We can keep our design (i.e. erase the VMCS with 0s).
 
+I realized that some VMCS fields have incorrect size. For example, `guest_CR0`
+should be natural size, but is defined as `unsigned long long` in
+`struct _vmx_vmcsfields`.
+
+This problem is fixed in `xmhf64` branch `089e1d242..61282920f`. `vmcs_size.py`
+in this bug directory is used to check definition sizes. The changes are
+* All 16-bits fields are changed from `unsigned int` to `u16` (may break things)
+* All 32-bits fields are changed from `unsigned int` to `u32`
+* All 64-bits fields are changed from `unsigned long long` to `u64`
+* All natural width fields are changed from `unsigned long long` to `ulong_t`
+  (may break things)
+
+Git `61282920f..383b043fe` modified some of the changes from `u64` to `ulong_t`.
+
+### VMLAUNCH and VMRESUME interface
+
+We realize that we will break normal VMLAUNCH and VMRESUME call sites.
+Currently some call asm functions are not well written. For example,
+`xmhf_parteventhub_arch_x86vmx_entry()` uses `int 0x03`, but it can be replaced
+by calling another function.
+
+I recall that in 15410 / 15605, P3 says
+> We suggest that you set things up so there is only "one way back
+> to user space" (rather than having the scheduler or context switcher invoke
+> special code
+> paths to "clean up" after fork(), thread fork(), or exec()). If you can't
+> manage one
+> path, try to keep the count down to two.
+
+I think the current LHV logic is better.
+
+TODO: make `__vmx_start_hvm()` a macro, also handle VMRESUME
+TODO: have pushaq and popaq macros
+TODO: do not use debug exception when VMENTRY fails
+
 TODO
 
 ## Fix
