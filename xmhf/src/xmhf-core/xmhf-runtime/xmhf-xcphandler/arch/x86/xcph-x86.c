@@ -282,28 +282,6 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
                 printf("\n[%02x]-----end------------", vcpu->id);
             }
-
-            // Exception #BP may be caused by failed VMRESUME. Dump VMCS
-            if (vector == CPU_EXCEPTION_BP &&
-                get_cpu_vendor_or_die() == CPU_VENDOR_INTEL) {
-                HALT_ON_ERRORCOND(0);	// TODO: not implemented
-#if 0 /* __NOT_RUNNING_LHV__ */
-                xmhf_baseplatform_arch_x86vmx_getVMCS(vcpu);
-#ifdef __I386__
-                /*
-                 * For i386 XMHF, cannot run amd64 guest OS (this is a hardware
-                 * limit). Try to detect it and print a user-friendly message.
-                 */
-                if (vcpu->vmcs.control_VM_entry_controls & (1UL << 9)) {
-                    printf("\nHALT: guest OS entering long mode in i386 XMHF");
-                    HALT();
-                }
-#elif !defined(__AMD64__)
-    #error "Unsupported Arch"
-#endif /* !defined(__AMD64__) */
-                xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
-#endif
-            }
             HALT();
         }
     }
