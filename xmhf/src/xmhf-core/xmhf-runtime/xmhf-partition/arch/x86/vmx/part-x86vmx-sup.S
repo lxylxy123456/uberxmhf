@@ -63,55 +63,21 @@
     .global __vmx_start_hvm
     __vmx_start_hvm:
 
-    //save GPRs
-    pushq   %rax
-    pushq   %rcx
-    pushq   %rdx
-    pushq   %rbx
-    pushq   %rsp
-    pushq   %rbp
-    pushq   %rsi
-    pushq   %rdi
-    pushq   %r8
-    pushq   %r9
-    pushq   %r10
-    pushq   %r11
-    pushq   %r12
-    pushq   %r13
-    pushq   %r14
-    pushq   %r15
-
-    //real-mode setup just like the BIOS
-    movl $0x0, %eax
-    movl $0x0, %ebx
-    movl $0x0, %ecx
-    movq %rdi, %rdx	// First argument to this function
-    movl $0x0, %ebp
-    movl $0x0, %esi
-    movl $0x0, %edi
+    //set up registers
+#ifdef __AMD64__
+    movq    %rdi, %rsp
+    POPAQ
+#elif defined(__I386__)
+    movl    4(%esp), %esp
+    popal
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
 
     //attempt to instantiate the HVM
     vmlaunch
 
     //if we get here then some error happened during the launch
-
-    //restore stack frame for a return from this procedure
-    popq    %r15
-    popq    %r14
-    popq    %r13
-    popq    %r12
-    popq    %r11
-    popq    %r10
-    popq    %r9
-    popq    %r8
-    popq    %rdi
-    popq    %rsi
-    popq    %rbp
-    popq    %rsp
-    popq    %rbx
-    popq    %rdx
-    popq    %rcx
-    popq    %rax
 
     //there are two possible causes of failure, VMFailInvalid or
     //VMFailValid (VM instruction error field contains the error code)
@@ -119,13 +85,32 @@
     jc __vmx_start_hvm_failinvalid
 
     jnz __vmx_start_hvm_undefinedimplementation
-    movl $0x1, %eax
-    ret                 //return 1 as we have error code
+    movl    $0x1, %eax      // VMfailInvalid
+    jmp     __vmx_start_hvm_fail
 
 __vmx_start_hvm_undefinedimplementation:
-    movl $0x2, %eax     //violation of VMLAUNCH specs., handle it anyways
-    ret
+    movl    $0x2, %eax      // VMsucceed (violation of specs)
+    jmp     __vmx_start_hvm_fail
 
 __vmx_start_hvm_failinvalid:
-    xorl %eax, %eax     //return 0 as we have no error code available
-    ret
+    xorl    %eax, %eax      // VMfailValid
+    jmp     __vmx_start_hvm_fail
+
+__vmx_start_hvm_fail:
+    /*
+     * Call C function __vmx_vmentry_fail_callback() to report error to user.
+     * 1st argument is 0 for VMLAUNCH, 1 for VMRESUME.
+     * 2nd argument is 0 for VMfailValid, 1 for VMfailInvalid, 2 for VMsucceed.
+     */
+#ifdef __AMD64__
+    movl    %eax, %esi
+    movl    $0, %edi
+#elif defined(__I386__)
+    pushl   %eax
+    pushl   $0
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+    call    __vmx_vmentry_fail_callback
+1:  hlt
+    jmp     1b
