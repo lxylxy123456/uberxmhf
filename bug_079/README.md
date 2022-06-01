@@ -298,10 +298,10 @@ I recall that in 15410 / 15605, P3 says
 
 I think the current LHV logic is better.
 
-TODO: make `__vmx_start_hvm()` a macro, also handle VMRESUME
-TODO: have pushaq and popaq macros
-TODO: do not use debug exception when VMENTRY fails
+In `xmhf64` branch, `14770aafc..267313a51` updates the intercept handler logic.
 
+
+TODO: provide vmread / vmwrite for 16, 64, 32, nw
 TODO
 
 ## Fix
