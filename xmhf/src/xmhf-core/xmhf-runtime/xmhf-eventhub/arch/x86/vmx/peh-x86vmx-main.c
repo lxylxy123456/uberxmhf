@@ -688,8 +688,8 @@ static void _vmx_handle_intercept_ioportaccess(VCPU *vcpu, struct regs *r){
 
 //---CR0 access handler-------------------------------------------------
 static void vmx_handle_intercept_cr0access_ug(VCPU *vcpu, struct regs *r, u32 gpr, u32 tofrom){
-	u64 cr0_value, old_cr0;
-	u64 fixed_1_fields;
+	ulong_t cr0_value, old_cr0;
+	ulong_t fixed_1_fields;
 
 	HALT_ON_ERRORCOND(tofrom == VMX_CRX_ACCESS_TO);
 
@@ -721,7 +721,7 @@ static void vmx_handle_intercept_cr0access_ug(VCPU *vcpu, struct regs *r, u32 gp
 	 * way we do not need to calculate the VMCS fields in hypervisor.
 	 */
 	if ((old_cr0 ^ cr0_value) & CR0_PG) {
-		u64 pg_pe_mask = (CR0_PG | CR0_PE);
+		ulong_t pg_pe_mask = (CR0_PG | CR0_PE);
 		/* Make sure that CR0.PG and CR0.PE are not masked */
 		if (!(pg_pe_mask & vcpu->vmcs.control_CR0_mask)) {
 			/*
@@ -801,7 +801,7 @@ static void vmx_handle_intercept_cr0access_ug(VCPU *vcpu, struct regs *r, u32 gp
 //---CR4 access handler---------------------------------------------------------
 static void vmx_handle_intercept_cr4access_ug(VCPU *vcpu, struct regs *r, u32 gpr, u32 tofrom){
   if(tofrom == VMX_CRX_ACCESS_TO){
-	u64 cr4_proposed_value;
+	ulong_t cr4_proposed_value;
 
 	cr4_proposed_value = *((uintptr_t *)_vmx_decode_reg(gpr, vcpu, r));
 
@@ -859,20 +859,6 @@ static void _vmx_handle_intercept_xsetbv(VCPU *vcpu, struct regs *r){
 
 #ifdef __OPTIMIZE_NESTED_VIRT__
 
-#define READ_VMCS(encoding, target)								\
-	do {														\
-		unsigned long field;									\
-		HALT_ON_ERRORCOND(__vmx_vmread((encoding), &field));	\
-		target = field;											\
-	} while(0)
-
-#define WRITE_VMCS(encoding, target)							\
-	do {														\
-		unsigned long field;									\
-		field = (unsigned long) target;							\
-		HALT_ON_ERRORCOND(__vmx_vmwrite((encoding), field));	\
-	} while(0)
-
 /*
  * Optimize xmhf_parteventhub_arch_x86vmx_intercept_handler for some frequently
  * used intercepts observed in real operating systems. This reduces number of
@@ -886,7 +872,7 @@ static void _vmx_handle_intercept_xsetbv(VCPU *vcpu, struct regs *r){
  * Return 1 if optimized, or 0 if not optimized.
  */
 static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
-	READ_VMCS(0x4402, vcpu->vmcs.info_vmexit_reason);
+	vcpu->vmcs.info_vmexit_reason = __vmx_vmread32(0x4402);
 
 	switch ((u32)vcpu->vmcs.info_vmexit_reason) {
 	case VMX_VMEXIT_WRMSR:
@@ -895,69 +881,55 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		case 0x6e0:	/* IA32_TSC_DEADLINE */
 			/* fallthrough */
 		case 0x80b:	/* IA32_X2APIC_EOI */
-			READ_VMCS(0x681E, vcpu->vmcs.guest_RIP);
-			READ_VMCS(0x440C, vcpu->vmcs.info_vmexit_instruction_length);
+			vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
+			vcpu->vmcs.info_vmexit_instruction_length = __vmx_vmread32(0x440C);
 			_vmx_handle_intercept_wrmsr(vcpu, r);
-			WRITE_VMCS(0x681E, vcpu->vmcs.guest_RIP);
+			__vmx_vmwriteNW(0x681E, vcpu->vmcs.guest_RIP);
 			return 1;
 		default:
 			return 0;
 		}
 	case VMX_VMEXIT_CPUID:
 		/* Always optimize CPUID */
-		READ_VMCS(0x681E, vcpu->vmcs.guest_RIP);
-		READ_VMCS(0x440C, vcpu->vmcs.info_vmexit_instruction_length);
+		vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
+		vcpu->vmcs.info_vmexit_instruction_length = __vmx_vmread32(0x440C);
 		_vmx_handle_intercept_cpuid(vcpu, r);
-		WRITE_VMCS(0x681E, vcpu->vmcs.guest_RIP);
+		__vmx_vmwriteNW(0x681E, vcpu->vmcs.guest_RIP);
 		return 1;
 	case VMX_VMEXIT_EPT_VIOLATION: {
 		/* Optimize EPT violation due to LAPIC */
 		u64 gpa;
-		READ_VMCS(0x2400, vcpu->vmcs.guest_paddr);
+		vcpu->vmcs.guest_paddr = __vmx_vmread64(0x2400);
 		gpa = vcpu->vmcs.guest_paddr;
 		if(vcpu->isbsp && (gpa >= g_vmx_lapic_base) && (gpa < (g_vmx_lapic_base + PAGE_SIZE_4K)) ){
-			READ_VMCS(0x6400, vcpu->vmcs.info_exit_qualification);
-			READ_VMCS(0x4004, vcpu->vmcs.control_exception_bitmap);
-			READ_VMCS(0x4824, vcpu->vmcs.guest_interruptibility);
-			READ_VMCS(0x6820, vcpu->vmcs.guest_RFLAGS);
-#ifdef __I386__
-			READ_VMCS(0x201A, vcpu->vmcs.control_EPT_pointer_full);
-			READ_VMCS(0x201B, vcpu->vmcs.control_EPT_pointer_high);
-#elif defined(__AMD64__)
-			READ_VMCS(0x201A, vcpu->vmcs.control_EPT_pointer);
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+			vcpu->vmcs.info_exit_qualification = __vmx_vmreadNW(0x6400);
+			vcpu->vmcs.control_exception_bitmap = __vmx_vmread32(0x4004);
+			vcpu->vmcs.guest_interruptibility = __vmx_vmread32(0x4824);
+			vcpu->vmcs.guest_RFLAGS = __vmx_vmreadNW(0x6820);
+			vcpu->vmcs.control_EPT_pointer = __vmx_vmread64(0x201A);
 			_vmx_handle_intercept_eptviolation(vcpu, r);
-			WRITE_VMCS(0x4004, vcpu->vmcs.control_exception_bitmap);
-			WRITE_VMCS(0x4824, vcpu->vmcs.guest_interruptibility);
-			WRITE_VMCS(0x6820, vcpu->vmcs.guest_RFLAGS);
+			__vmx_vmwrite32(0x4004, vcpu->vmcs.control_exception_bitmap);
+			__vmx_vmwrite32(0x4824, vcpu->vmcs.guest_interruptibility);
+			__vmx_vmwriteNW(0x6820, vcpu->vmcs.guest_RFLAGS);
 			return 1;
 		}
 		return 0;
 	}
 	case VMX_VMEXIT_EXCEPTION:
 		/* Optimize debug exception (#DB) for LAPIC operation */
-		READ_VMCS(0x4404, vcpu->vmcs.info_vmexit_interrupt_information);
+		vcpu->vmcs.info_vmexit_interrupt_information = __vmx_vmread32(0x4404);
 		if (((u32)vcpu->vmcs.info_vmexit_interrupt_information &
 			 INTR_INFO_VECTOR_MASK) == 1) {
-			READ_VMCS(0x0802, vcpu->vmcs.guest_CS_selector);
-			READ_VMCS(0x681E, vcpu->vmcs.guest_RIP);
-			READ_VMCS(0x4004, vcpu->vmcs.control_exception_bitmap);
-			READ_VMCS(0x4824, vcpu->vmcs.guest_interruptibility);
-			READ_VMCS(0x6820, vcpu->vmcs.guest_RFLAGS);
-#ifdef __I386__
-			READ_VMCS(0x201A, vcpu->vmcs.control_EPT_pointer_full);
-			READ_VMCS(0x201B, vcpu->vmcs.control_EPT_pointer_high);
-#elif defined(__AMD64__)
-			READ_VMCS(0x201A, vcpu->vmcs.control_EPT_pointer);
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+			vcpu->vmcs.guest_CS_selector = __vmx_vmread16(0x0802);
+			vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
+			vcpu->vmcs.control_exception_bitmap = __vmx_vmread32(0x4004);
+			vcpu->vmcs.guest_interruptibility = __vmx_vmread32(0x4824);
+			vcpu->vmcs.guest_RFLAGS = __vmx_vmreadNW(0x6820);
+			vcpu->vmcs.control_EPT_pointer = __vmx_vmread64(0x201A);
 			xmhf_smpguest_arch_x86_eventhandler_dbexception(vcpu, r);
-			WRITE_VMCS(0x4004, vcpu->vmcs.control_exception_bitmap);
-			WRITE_VMCS(0x4824, vcpu->vmcs.guest_interruptibility);
-			WRITE_VMCS(0x6820, vcpu->vmcs.guest_RFLAGS);
+			__vmx_vmwrite32(0x4004, vcpu->vmcs.control_exception_bitmap);
+			__vmx_vmwrite32(0x4824, vcpu->vmcs.guest_interruptibility);
+			__vmx_vmwriteNW(0x6820, vcpu->vmcs.guest_RFLAGS);
 			return 1;
 		}
 		return 0;
@@ -965,9 +937,6 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		return 0;
 	}
 }
-
-#undef READ_VMCS
-#undef WRITE_VMCS
 
 #endif /* __OPTIMIZE_NESTED_VIRT__ */
 
@@ -1046,7 +1015,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		printf("\nCPU(0x%02x): VM-ENTRY error: reason=0x%08x, qualification=0x%016llx",
 			vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason,
 			(u64)vcpu->vmcs.info_exit_qualification);
-		xmhf_baseplatform_arch_x86vmx_dumpVMCS(vcpu);
+		xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
 		HALT();
 	}
 
