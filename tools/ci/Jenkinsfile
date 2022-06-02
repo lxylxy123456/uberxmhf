@@ -57,8 +57,6 @@ pipeline {
     stages {
         stage('Logistics') {
             steps {
-                sh "echo JKL"
-/*
                 sh "git fetch origin ${params.XMHF_BRANCH}"
                 sh "git checkout ${params.XMHF_BRANCH}"
                 sh "git pull origin ${params.XMHF_BRANCH}"
@@ -69,10 +67,8 @@ pipeline {
                     currentBuild.displayName += " ${params.XMHF_BRANCH}"
                     currentBuild.displayName += " ${cmt}"
                 }
-*/
             }
         }
-/*
         stage('Build i386') {
             steps {
                 sh "git clean -Xdf"
@@ -99,7 +95,6 @@ pipeline {
                 qemu_test "amd64", "debian11x64-j.qcow2", "debian11x64.qcow2"
             }
         }
-*/
     }
 }
 
