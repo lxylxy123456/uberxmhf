@@ -69,6 +69,7 @@ pipeline {
                 }
             }
         }
+/*
         stage('Build i386') {
             steps {
                 sh "git clean -Xdf"
@@ -95,6 +96,7 @@ pipeline {
                 qemu_test "amd64", "debian11x64-j.qcow2", "debian11x64.qcow2"
             }
         }
+*/
     }
 }
 
