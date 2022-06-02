@@ -300,8 +300,26 @@ I think the current LHV logic is better.
 
 In `xmhf64` branch, `14770aafc..267313a51` updates the intercept handler logic.
 
+### Change VMREAD and VMWRITE
 
-TODO: provide vmread / vmwrite for 16, 64, 32, nw
+In `de5e92db3..df767956d`, found a compile error that only occurs in `-O3`. The
+error happens when compiling `arch/x86/vmx/nested-x86vmx-handler.c`. The
+message is
+```
+...xmhf/src/xmhf-core/include/arch/x86/_vmx.h: Assembler messages:
+...xmhf/src/xmhf-core/include/arch/x86/_vmx.h:573: 错误：unsupported instruction `vmwrite'
+```
+
+This bug is reduced to a smaller file, see `a.c` in this bug. The bug is
+further reduced to `a1.c`.
+
+Actually this bug is in `_vmx.h`. `g` is used to specify that the operand can
+be register / memory / intermediate. However, intermediate should not be
+allowed. The correct constraint is `rm`. See:
+<https://gcc.gnu.org/onlinedocs/gcc/Simple-Constraints.html#Simple-Constraints>
+
+Fixed in `94ef38262..b71dc65f1`.
+
 TODO
 
 ## Fix
