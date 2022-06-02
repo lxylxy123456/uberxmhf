@@ -23,14 +23,7 @@ for i in a:
     #define VMCS_info_vmexit_instruction_length 0x440C
     #define VMCS_info_vmx_instruction_information 0x440E
     #define VMCS_info_exit_qualification 0x6400
-#ifdef __AMD64__
     #define VMCS_guest_paddr 0x2400
-#elif defined(__I386__)
-    #define VMCS_guest_paddr_full 0x2400
-    #define VMCS_guest_paddr_high 0x2401
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
     #define VMCS_info_guest_linear_address 0x640A
 
     // Control fields
@@ -67,56 +60,18 @@ for i in a:
     #define VMCS_control_CR3_target3 0x600E
 #endif /* !__DEBUG_QEMU__ */
     // Full 64-bit Control fields
-#ifdef __AMD64__
     #define VMCS_control_IO_BitmapA_address 0x2000
     #define VMCS_control_IO_BitmapB_address 0x2002
     #define VMCS_control_MSR_Bitmaps_address 0x2004
     #define VMCS_control_VM_exit_MSR_store_address 0x2006
     #define VMCS_control_VM_exit_MSR_load_address 0x2008
     #define VMCS_control_VM_entry_MSR_load_address 0x200A
-#elif defined(__I386__)
-    #define VMCS_control_IO_BitmapA_address_full 0x2000
-    #define VMCS_control_IO_BitmapA_address_high 0x2001
-    #define VMCS_control_IO_BitmapB_address_full 0x2002
-    #define VMCS_control_IO_BitmapB_address_high 0x2003
-    #define VMCS_control_MSR_Bitmaps_address_full 0x2004
-    #define VMCS_control_MSR_Bitmaps_address_high 0x2005
-    #define VMCS_control_VM_exit_MSR_store_address_full 0x2006
-    #define VMCS_control_VM_exit_MSR_store_address_high 0x2007
-    #define VMCS_control_VM_exit_MSR_load_address_full 0x2008
-    #define VMCS_control_VM_exit_MSR_load_address_high 0x2009
-    #define VMCS_control_VM_entry_MSR_load_address_full 0x200A
-    #define VMCS_control_VM_entry_MSR_load_address_high 0x200B
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
 #ifndef __DEBUG_QEMU__
-#ifdef __AMD64__
     #define VMCS_control_Executive_VMCS_pointer 0x200C
-#elif defined(__I386__)
-    #define VMCS_control_Executive_VMCS_pointer_full 0x200C
-    #define VMCS_control_Executive_VMCS_pointer_high 0x200D
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
 #endif /* !__DEBUG_QEMU__ */
-#ifdef __AMD64__
     #define VMCS_control_TSC_offset 0x2010
-#elif defined(__I386__)
-    #define VMCS_control_TSC_offset_full 0x2010
-    #define VMCS_control_TSC_offset_high 0x2011
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
     #if defined(__NESTED_PAGING__)
-#ifdef __AMD64__
     #define VMCS_control_EPT_pointer 0x201A
-#elif defined(__I386__)
-    #define VMCS_control_EPT_pointer_full 0x201A
-    #define VMCS_control_EPT_pointer_high 0x201B
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
     #endif
     // Host-State fields
     // Natural 64-bit Host-State fields
@@ -165,23 +120,10 @@ for i in a:
     #define VMCS_guest_SYSENTER_ESP 0x6824
     #define VMCS_guest_SYSENTER_EIP 0x6826
     #if defined(__NESTED_PAGING__)
-#ifdef __AMD64__
     #define VMCS_guest_PDPTE0 0x280A
     #define VMCS_guest_PDPTE1 0x280C
     #define VMCS_guest_PDPTE2 0x280E
     #define VMCS_guest_PDPTE3 0x2810
-#elif defined(__I386__)
-    #define VMCS_guest_PDPTE0_full 0x280A
-    #define VMCS_guest_PDPTE0_high 0x280B
-    #define VMCS_guest_PDPTE1_full 0x280C
-    #define VMCS_guest_PDPTE1_high 0x280D
-    #define VMCS_guest_PDPTE2_full 0x280E
-    #define VMCS_guest_PDPTE2_high 0x280F
-    #define VMCS_guest_PDPTE3_full 0x2810
-    #define VMCS_guest_PDPTE3_high 0x2811
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
     #endif
     // Natural 32-bit Guest-State fields
     #define VMCS_guest_ES_limit 0x4800
@@ -218,17 +160,8 @@ for i in a:
     #define VMCS_guest_LDTR_selector 0x080C
     #define VMCS_guest_TR_selector 0x080E
     // Full 64-bit Guest-State fields
-#ifdef __AMD64__
     #define VMCS_guest_VMCS_link_pointer 0x2800
     #define VMCS_guest_IA32_DEBUGCTL 0x2802
-#elif defined(__I386__)
-    #define VMCS_guest_VMCS_link_pointer_full 0x2800
-    #define VMCS_guest_VMCS_link_pointer_high 0x2801
-    #define VMCS_guest_IA32_DEBUGCTL_full 0x2802
-    #define VMCS_guest_IA32_DEBUGCTL_high 0x2803
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
 
 #endif /* _LHV_VMCS_H_ */
 

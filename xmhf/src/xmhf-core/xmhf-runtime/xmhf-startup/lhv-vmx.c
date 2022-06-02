@@ -166,14 +166,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_guest_SS_access_rights, 0xc093);
 
 	//setup VMCS link pointer
-#ifdef __AMD64__
-	vmcs_vmwrite(vcpu, VMCS_guest_VMCS_link_pointer, (u64)0xFFFFFFFFFFFFFFFFULL);
-#elif defined(__I386__)
-	vmcs_vmwrite(vcpu, VMCS_guest_VMCS_link_pointer_full, 0xFFFFFFFFUL);
-	vmcs_vmwrite(vcpu, VMCS_guest_VMCS_link_pointer_high, 0xFFFFFFFFUL);
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+	vmcs_vmwrite64(vcpu, VMCS_guest_VMCS_link_pointer, (u64)0xFFFFFFFFFFFFFFFFULL);
 
 	//trap access to CR0 fixed 1-bits
 	{
