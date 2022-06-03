@@ -235,13 +235,13 @@ typedef struct _vcpu {
 
 #define SIZE_STRUCT_VCPU    (sizeof(struct _vcpu))
 #define CPU_VENDOR (g_vcpubuffers[0].cpu_vendor)
-#endif //__ASSEMBLY__
 
+//_vmx_cap.h requires VCPU, so is placed here.
+#include "_vmx_cap.h"
 
 //----------------------------------------------------------------------
 //ARCH. BACKENDS
 //----------------------------------------------------------------------
-#ifndef __ASSEMBLY__
 //get CPU vendor
 u32 xmhf_baseplatform_arch_getcpuvendor(void);
 
@@ -448,7 +448,7 @@ static inline void VCPU_grsp_set(VCPU *vcpu, u64 val)
   }
 }
 
-static inline u64 VCPU_gcr0(VCPU *vcpu)
+static inline ulong_t VCPU_gcr0(VCPU *vcpu)
 {
   if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
     return vcpu->vmcs.guest_CR0;
@@ -460,7 +460,7 @@ static inline u64 VCPU_gcr0(VCPU *vcpu)
   }
 }
 
-static inline void VCPU_gcr0_set(VCPU *vcpu, u64 cr0)
+static inline void VCPU_gcr0_set(VCPU *vcpu, ulong_t cr0)
 {
   if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
     vcpu->vmcs.guest_CR0 = cr0;
@@ -494,7 +494,7 @@ static inline void VCPU_gcr3_set(VCPU *vcpu, u64 cr3)
   }
 }
 
-static inline u64 VCPU_gcr4(VCPU *vcpu)
+static inline ulong_t VCPU_gcr4(VCPU *vcpu)
 {
   if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
     return vcpu->vmcs.guest_CR4;
@@ -506,7 +506,7 @@ static inline u64 VCPU_gcr4(VCPU *vcpu)
   }
 }
 
-static inline void VCPU_gcr4_set(VCPU *vcpu, u64 cr4)
+static inline void VCPU_gcr4_set(VCPU *vcpu, ulong_t cr4)
 {
   if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
     vcpu->vmcs.guest_CR4 = cr4;
@@ -778,16 +778,23 @@ void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void);
 //allocate and setup VCPU structure for all the CPUs
 void xmhf_baseplatform_arch_x86vmx_allocandsetupvcpus(u32 cpu_vendor);
 
+// VMWRITE and VMREAD of different sizes
+void __vmx_vmwrite16(unsigned long encoding, u16 value);
+void __vmx_vmwrite64(unsigned long encoding, u64 value);
+void __vmx_vmwrite32(unsigned long encoding, u32 value);
+void __vmx_vmwriteNW(unsigned long encoding, ulong_t value);
+u16 __vmx_vmread16(unsigned long encoding);
+u64 __vmx_vmread64(unsigned long encoding);
+u32 __vmx_vmread32(unsigned long encoding);
+ulong_t __vmx_vmreadNW(unsigned long encoding);
+
 // routine takes vcpu vmcsfields and stores it in the CPU VMCS
 void xmhf_baseplatform_arch_x86vmx_putVMCS(VCPU *vcpu);
 
 // routine takes CPU VMCS and stores it in vcpu vmcsfields
 void xmhf_baseplatform_arch_x86vmx_getVMCS(VCPU *vcpu);
 
-//--debug: dumpVMCS dumps VMCS contents
-void xmhf_baseplatform_arch_x86vmx_dumpVMCS(VCPU *vcpu);
-
-//--debug: dump_vcpu dumps vcpu contents (more verbose than dumpVMCS)
+//--debug: dump_vcpu dumps vcpu contents (including VMCS)
 void xmhf_baseplatform_arch_x86vmx_dump_vcpu(VCPU *vcpu);
 
 //VMX specific platform reboot
