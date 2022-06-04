@@ -63,7 +63,7 @@ pipeline {
         }
         stage('Build pal demo') {
             steps {
-                pal_demo
+                pal_demo()
             }
         }
         stage('Test i386') {
