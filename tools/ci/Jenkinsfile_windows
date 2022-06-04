@@ -1,9 +1,14 @@
 properties([
     parameters([
-        string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64', description: ''),
+        //string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64', description: ''),
+        string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64-dev', description: ''),	// TODO
         string(name: 'BUILD_OPTS', defaultValue: '--no-x2apic', description: '')
     ])
 ])
+
+void pal_demo() {
+    sh "./tools/ci/build_pal_demo.sh all"
+}
 
 void qemu_test(String subarch, String qemu_image) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
@@ -54,6 +59,11 @@ pipeline {
                 // Workaround git 2.30 bug
                 sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
                 sh "./tools/ci/build.sh i386 ${params.BUILD_OPTS}"
+            }
+        }
+        stage('Build pal demo') {
+            steps {
+                pal_demo
             }
         }
         stage('Test i386') {
