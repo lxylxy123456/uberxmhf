@@ -23,6 +23,7 @@ void qemu_test(String subarch, String qemu_image) {
             --verbose \
             --boot-dir ${PWD}/tools/ci/boot
     """
+    sh "tools/ci/pal_demo_img.sh tmp/pal_demo.img"
     // TODO: generate PAL demo image
     sh """
         python3 -u ./tools/ci/test4.py \
