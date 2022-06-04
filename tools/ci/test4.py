@@ -112,6 +112,12 @@ def serial_thread(args, serial_file, serial_result):
 		println('hypercall: %d' % call_arg);
 		if call_arg == 1000700086:
 			println('OS: Windows 7 x86')
+		elif call_arg == 1000700064:
+			println('OS: Windows 7 x64')
+		elif call_arg == 1001000086:
+			println('OS: Windows 10 x86')
+		elif call_arg == 1001000064:
+			println('OS: Windows 10 x64')
 		elif call_arg == 1100000032:
 			println('32 test started')
 			started_tests.add(32)
