@@ -90,10 +90,10 @@ def serial_thread(args, serial_file, serial_result):
 		if 'e820' in i:
 			println('E820 found!')
 			break
+	aborted = False
+	started_tests = set()
+	passed_tests = set()
 	for i in gen:
-		aborted = False
-		started_tests = set()
-		passed_tests = set()
 		if 'test hypercall, ecx=' in i:
 			searched = re.search('test hypercall, ecx=(0x[0-9a-f]{8})$', i)
 			if searched:
