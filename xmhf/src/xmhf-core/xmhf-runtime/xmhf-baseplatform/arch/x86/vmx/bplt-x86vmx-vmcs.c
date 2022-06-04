@@ -52,6 +52,90 @@
 
 #include <xmhf.h>
 
+/* Write 16-bit VMCS field, never fails */
+void __vmx_vmwrite16(unsigned long encoding, u16 value) {
+	HALT_ON_ERRORCOND((encoding >> 12) == 0UL);
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
+}
+
+/* Write 64-bit VMCS field, never fails */
+void __vmx_vmwrite64(unsigned long encoding, u64 value) {
+	HALT_ON_ERRORCOND((encoding >> 12) == 2UL);
+	HALT_ON_ERRORCOND((encoding & 0x1) == 0x0);
+#ifdef __AMD64__
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
+#elif defined(__I386__)
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding + 1, value >> 32));
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+}
+
+/* Write 32-bit VMCS field, never fails */
+void __vmx_vmwrite32(unsigned long encoding, u32 value) {
+	HALT_ON_ERRORCOND((encoding >> 12) == 4UL);
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
+}
+
+/* Write natural width (NW) VMCS field, never fails */
+void __vmx_vmwriteNW(unsigned long encoding, ulong_t value) {
+	HALT_ON_ERRORCOND((encoding >> 12) == 6UL);
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
+}
+
+/* Read 16-bit VMCS field, never fails */
+u16 __vmx_vmread16(unsigned long encoding) {
+	unsigned long value;
+	HALT_ON_ERRORCOND((encoding >> 12) == 0UL);
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
+	HALT_ON_ERRORCOND(value == (unsigned long)(u16)value);
+	return value;
+}
+
+/* Read 64-bit VMCS field, never fails */
+u64 __vmx_vmread64(unsigned long encoding) {
+#ifdef __AMD64__
+	unsigned long value;
+	HALT_ON_ERRORCOND((encoding >> 12) == 2UL);
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
+	return value;
+#elif defined(__I386__)
+	union {
+		struct {
+			unsigned long low, high;
+		};
+		u64 full;
+	} ans;
+	_Static_assert(sizeof(u32) == sizeof(unsigned long), "incorrect size");
+	HALT_ON_ERRORCOND((encoding >> 12) == 2UL);
+	HALT_ON_ERRORCOND((encoding & 0x1) == 0x0);
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &ans.low));
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding + 1, &ans.high));
+	return ans.full;
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+}
+
+/* Read 32-bit VMCS field, never fails */
+u32 __vmx_vmread32(unsigned long encoding) {
+	unsigned long value;
+	HALT_ON_ERRORCOND((encoding >> 12) == 4UL);
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
+	HALT_ON_ERRORCOND(value == (unsigned long)(u32)value);
+	return value;
+}
+
+/* Read natural width (NW) VMCS field, never fails */
+ulong_t __vmx_vmreadNW(unsigned long encoding) {
+	unsigned long value;
+	HALT_ON_ERRORCOND((encoding >> 12) == 6UL);
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
+	HALT_ON_ERRORCOND(value == (unsigned long)(ulong_t)value);
+	return value;
+}
+
 static void xmhf_baseplatform_arch_x86vmx_write_field(u32 encoding, void *addr,
                                                       u32 size) {
     switch ((encoding >> 13) & 0x3) {
@@ -154,16 +238,16 @@ void xmhf_baseplatform_arch_x86vmx_dump_vcpu(VCPU *vcpu){
     u32 i = 0;
 
 #define DUMP_VCPU_PRINT_INT16(x) \
-    { _Static_assert(sizeof(x) == sizeof(u16), "incorrct size"); } \
+    { _Static_assert(sizeof(x) == sizeof(u16), "incorrect size"); } \
     printf("\nCPU(0x%02x): " #x "=0x%04x", (u32) vcpu->id, (x));
 #define DUMP_VCPU_PRINT_INT32(x) \
-    { _Static_assert(sizeof(x) == sizeof(u32), "incorrct size"); } \
+    { _Static_assert(sizeof(x) == sizeof(u32), "incorrect size"); } \
     printf("\nCPU(0x%02x): " #x "=0x%08x", vcpu->id, (x));
 #define DUMP_VCPU_PRINT_INT64(x) \
-    { _Static_assert(sizeof(x) == sizeof(u64), "incorrct size"); } \
+    { _Static_assert(sizeof(x) == sizeof(u64), "incorrect size"); } \
     printf("\nCPU(0x%02x): " #x "=0x%016lx", vcpu->id, (x));
 #define DUMP_VCPU_PRINT_INT64_INDEX(x, i) \
-    { _Static_assert(sizeof((x)[i]) == sizeof(u64), "incorrct size"); } \
+    { _Static_assert(sizeof((x)[i]) == sizeof(u64), "incorrect size"); } \
     printf("\nCPU(0x%02x): " #x "[%x]=0x%016lx", vcpu->id, (i), (x)[i]);
 #ifdef __AMD64__
 #define DUMP_VCPU_PRINT_INTNW(x) DUMP_VCPU_PRINT_INT64(x)
