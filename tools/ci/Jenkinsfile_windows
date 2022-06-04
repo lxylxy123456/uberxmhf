@@ -9,6 +9,7 @@ void qemu_test(String subarch, String qemu_image) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
     // sh "./tools/ci/download.sh cache ${qemu_image}"
     sh "rm -rf tmp"
+    sh "mkdir tmp"
     sh """
         python3 -u ./tools/ci/grub.py \
             --subarch ${subarch} \
