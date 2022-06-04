@@ -15,7 +15,7 @@ QEMU_TIMEOUT = 60
 
 def parse_args():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--subarch', required=True)
+	parser.add_argument('--subarch', required=True, help='Subarch of guest OS')
 	parser.add_argument('--qemu-image', required=True)
 	parser.add_argument('--smp', type=int, default=2)
 	parser.add_argument('--work-dir', required=True)
