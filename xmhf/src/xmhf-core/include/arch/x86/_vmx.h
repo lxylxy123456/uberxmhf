@@ -568,42 +568,10 @@ static inline u32 __vmx_vmwrite(unsigned long encoding, unsigned long value){
           "1: movl $0, %0 \r\n"
           "2: \r\n"
 	  : "=g"(status)
-	  : "r"(encoding), "g"(value)
+	  : "r"(encoding), "rm"(value)
       : "cc"
     );
 	return status;
-}
-
-/* Write 16-bit VMCS field, never fails */
-static inline void __vmx_vmwrite16(unsigned long encoding, u16 value) {
-	HALT_ON_ERRORCOND((encoding >> 12) == 0UL);
-	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
-}
-
-/* Write 64-bit VMCS field, never fails */
-static inline void __vmx_vmwrite64(unsigned long encoding, u64 value) {
-	HALT_ON_ERRORCOND((encoding >> 12) == 2UL);
-	HALT_ON_ERRORCOND((encoding & 0x1) == 0x0);
-#ifdef __AMD64__
-	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
-#elif defined(__I386__)
-	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
-	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding + 1, value >> 32));
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
-}
-
-/* Write 32-bit VMCS field, never fails */
-static inline void __vmx_vmwrite32(unsigned long encoding, u32 value) {
-	HALT_ON_ERRORCOND((encoding >> 12) == 4UL);
-	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
-}
-
-/* Write natural width (NW) VMCS field, never fails */
-static inline void __vmx_vmwriteNW(unsigned long encoding, ulong_t value) {
-	HALT_ON_ERRORCOND((encoding >> 12) == 6UL);
-	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
 }
 
 static inline u32 __vmx_vmread(unsigned long encoding, unsigned long *value){
@@ -614,61 +582,10 @@ static inline u32 __vmx_vmread(unsigned long encoding, unsigned long *value){
                        "jmp 2f \r\n"
                        "1: movl $0, %1 \r\n"
                        "2: \r\n"
-	  : "=g"(*value), "=g"(status)
+	  : "=rm"(*value), "=g"(status)
 	  : "r"(encoding)
 	  : "cc");
 	return status;
-}
-
-/* Read 16-bit VMCS field, never fails */
-static inline u16 __vmx_vmread16(unsigned long encoding) {
-	unsigned long value;
-	HALT_ON_ERRORCOND((encoding >> 12) == 0UL);
-	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
-	HALT_ON_ERRORCOND(value == (unsigned long)(u16)value);
-	return value;
-}
-
-static inline u64 __vmx_vmread64(unsigned long encoding) {
-#ifdef __AMD64__
-	unsigned long value;
-	HALT_ON_ERRORCOND((encoding >> 12) == 2UL);
-	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
-	return value;
-#elif defined(__I386__)
-	union {
-		struct {
-			unsigned long low, high;
-		};
-		u64 full;
-	} ans;
-	_Static_assert(sizeof(u32) == sizeof(unsigned long));
-	HALT_ON_ERRORCOND((encoding >> 12) == 2UL);
-	HALT_ON_ERRORCOND((encoding & 0x1) == 0x0);
-	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &ans.low));
-	HALT_ON_ERRORCOND(__vmx_vmread(encoding + 1, &ans.high));
-	return ans.full;
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
-}
-
-/* Read 32-bit VMCS field, never fails */
-static inline u32 __vmx_vmread32(unsigned long encoding) {
-	unsigned long value;
-	HALT_ON_ERRORCOND((encoding >> 12) == 4UL);
-	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
-	HALT_ON_ERRORCOND(value == (unsigned long)(u32)value);
-	return value;
-}
-
-/* Read natural width (NW) VMCS field, never fails */
-static inline ulong_t __vmx_vmreadNW(unsigned long encoding) {
-	unsigned long value;
-	HALT_ON_ERRORCOND((encoding >> 12) == 6UL);
-	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
-	HALT_ON_ERRORCOND(value == (unsigned long)(ulong_t)value);
-	return value;
 }
 
 static inline u32 __vmx_vmclear(u64 vmcs){
