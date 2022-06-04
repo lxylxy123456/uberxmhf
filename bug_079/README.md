@@ -320,6 +320,41 @@ allowed. The correct constraint is `rm`. See:
 
 Fixed in `94ef38262..b71dc65f1`.
 
+### How VMX responds to invalid physical addresses
+
+For example, the first 64-bit field is `control_IO_BitmapA_address`. The VM
+enter documentation says that VM entry control field check fails if this
+address is not page aligned or set unsupported bits in physical address.
+However, we want to know what happens if it points to invalid memory (e.g.
+not reported by E820).
+
+If we set `vcpu->vmcs.control_IO_BitmapA_address` to invalid address, running
+XMHF and LHV results in
+
+```
+TV[3]:appmain.c:tv_app_handleintercept_portaccess:710: CPU(0x00): Port access intercept feature unimplemented. Halting!
+TV[0]:appmain.c:tv_app_handleintercept_portaccess:711: CPU(0x00): portnum=0x000003cc, access_type=0x00000001, access_size=0x00000000
+```
+
+It looks like reading this memory does not result in exceptions.
+
+From <https://stackoverflow.com/questions/56763862/>, it looks like the
+hardware may hide the error by ignoring writes and returning 1s or 0s to reads.
+For our nested virtualization, I think we just need to halt when incorrect
+memory is specified.
+
+### Possible security problem in `spa2hva()`
+
+In i386 XMHF, spa is 64-bits, but hva is 32-bits. The current implementation
+of `spa2hva()` will map 0x000000010000abcd and 0x0000abcd to 0x0000abcd. This
+may lead to security problems.
+
+To solve this problem, recall that i386 XMHF does not support address > 4G. So
+we simply make sure that the upper 32-bits are 0. This problem is fixed in
+git `f9667b40e`.
+
+It is possible 
+
 TODO
 
 ## Fix
