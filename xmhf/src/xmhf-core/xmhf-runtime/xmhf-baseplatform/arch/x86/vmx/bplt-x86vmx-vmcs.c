@@ -136,6 +136,7 @@ ulong_t __vmx_vmreadNW(unsigned long encoding) {
 	return value;
 }
 
+#if 0 /* __NOT_RUNNING_LHV__ */
 static void xmhf_baseplatform_arch_x86vmx_write_field(u32 encoding, void *addr,
                                                       u32 size) {
     switch ((encoding >> 13) & 0x3) {
@@ -441,3 +442,4 @@ void xmhf_baseplatform_arch_x86vmx_dump_vcpu(VCPU *vcpu){
 #undef DUMP_VCPU_PRINT_INTNW
 
 }
+#endif

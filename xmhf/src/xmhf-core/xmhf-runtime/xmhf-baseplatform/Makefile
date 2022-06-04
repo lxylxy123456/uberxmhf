@@ -22,7 +22,7 @@ C_SOURCES += ./arch/x86/bplt-x86-cpu.c
 
 C_SOURCES += ./arch/x86/vmx/bplt-x86vmx.c
 C_SOURCES += ./arch/x86/vmx/bplt-x86vmx-data.c
-#C_SOURCES += ./arch/x86/vmx/bplt-x86vmx-vmcs.c
+C_SOURCES += ./arch/x86/vmx/bplt-x86vmx-vmcs.c
 C_SOURCES += ./arch/x86/vmx/bplt-x86vmx-smp.c
 ifeq ($(DRT), y)
 #C_SOURCES += ./arch/x86/vmx/bplt-x86vmx-mtrrs.c
