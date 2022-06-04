@@ -48,7 +48,7 @@ def spawn_qemu(args, xmhf_img, windows_image, serial_file):
 	windows_grub_img = os.path.join(args.windows_dir, 'grub_windows.img')
 	pal_demo_img = os.path.join(args.work_dir, 'pal_demo.img')
 	qemu_args = [
-		'qemu-system-x86_64', '-m', '512M',
+		'qemu-system-x86_64', '-m', '1024M',
 		'--drive', 'media=disk,file=%s,format=raw,index=0' % xmhf_img,
 		'--drive', 'media=disk,file=%s,format=raw,index=1' % windows_grub_img,
 		'--drive', 'media=disk,file=%s,format=qcow2,index=2' % windows_image,
