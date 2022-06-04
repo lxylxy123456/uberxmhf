@@ -57,7 +57,7 @@ pipeline {
         }
         stage('Test i386') {
             steps {
-                qemu_test "i386", "debian11x86-j.qcow2", "debian11x86.qcow2"
+                qemu_test "i386", "win7x86.qcow2"
             }
         }
         /*
