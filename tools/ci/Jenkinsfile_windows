@@ -1,3 +1,7 @@
+/*
+ * Extra installations: sudo apt-get install gcc-mingw-w64 zip mtools
+ */
+
 properties([
     parameters([
         //string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64', description: ''),
@@ -24,7 +28,6 @@ void qemu_test(String subarch, String qemu_image) {
             --boot-dir ${PWD}/tools/ci/boot
     """
     sh "tools/ci/pal_demo_img.sh tmp/pal_demo.img"
-    // TODO: generate PAL demo image
     sh """
         python3 -u ./tools/ci/test4.py \
             --subarch ${subarch} \
