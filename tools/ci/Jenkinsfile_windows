@@ -104,11 +104,18 @@ pipeline {
             }
         }
         */
+        stage('Test amd64 Windows 8.1 on amd64 XMHF') {
+            steps {
+                qemu_test "amd64", "amd64", "win81x64-j.qcow2"
+            }
+        }
+        /*
         stage('Test amd64 Windows 10 on amd64 XMHF') {
             steps {
                 qemu_test "amd64", "amd64", "win10x64-j.qcow2"
             }
         }
+        */
     }
 }
 
