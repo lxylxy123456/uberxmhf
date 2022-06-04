@@ -11,7 +11,7 @@ SERIAL_WAITING = 0
 SERIAL_PASS = 1
 SERIAL_FAIL = 2
 
-QEMU_TIMEOUT = 60
+QEMU_TIMEOUT = 120
 
 def parse_args():
 	parser = argparse.ArgumentParser()
