@@ -94,59 +94,70 @@ def serial_thread(args, serial_file, serial_result):
 	started_tests = set()
 	passed_tests = set()
 	for i in gen:
+		call_arg = -1
+		call_arg_found = False
 		if 'test hypercall, ecx=' in i:
 			searched = re.search('test hypercall, ecx=(0x[0-9a-f]{8})$', i)
 			if searched:
 				call_arg = int(searched.groups()[0], 16);
-				println('hypercall: %d' % call_arg);
-				if call_arg == 1000700086:
-					println('OS: Windows 7 x86')
-				elif call_arg == 1100000032:
-					println('32 test started')
-					started_tests.add(32)
-				elif call_arg == 1100000064:
-					println('64 test started')
-					started_tests.add(64)
-				elif call_arg == 1200000032:
-					println('32 test failed')
-					aborted = True
-				elif call_arg == 1200000064:
-					println('64 test failed')
-					aborted = True
-				elif call_arg == 1300000032:
-					println('32 test passed')
-					passed_tests.add(32)
-				elif call_arg == 1300000064:
-					println('64 test passed')
-					passed_tests.add(64)
-				elif call_arg == 1444444444:
-					println('Something failed')
-					aborted = True
-				elif call_arg == 1555555555:
-					expected_tests = None
-					if args.subarch == 'i386':
-						expected_tests = {32}
-					elif args.subarch == 'amd64':
-						expected_tests = {32, 64}
-					else:
-						raise ValueError
-					result = SERIAL_FAIL
-					println('passed_tests   =', passed_tests)
-					println('started_tests  =', started_tests)
-					println('expected_tests =', expected_tests)
-					if (passed_tests == started_tests and
-						passed_tests == expected_tests and not aborted):
-						result = SERIAL_PASS
-					with serial_result[0]:
-						serial_result[1] = result
-						break
-				else:
-					println('Unknown call_arg: %d' % call_arg)
-					aborted = True
-				if aborted:
-					with serial_result[0]:
-						serial_result[1] = SERIAL_FAIL
-						break
+				call_arg_found = True
+		if 'test hypercall, rcx=' in i and not call_arg_found:
+			searched = re.search('test hypercall, rcx=(0x[0-9a-f]{16})$', i)
+			if searched:
+				call_arg = int(searched.groups()[0], 16);
+				call_arg_found = True
+		if not call_arg_found:
+			continue
+		# Process call_arg
+		println('hypercall: %d' % call_arg);
+		if call_arg == 1000700086:
+			println('OS: Windows 7 x86')
+		elif call_arg == 1100000032:
+			println('32 test started')
+			started_tests.add(32)
+		elif call_arg == 1100000064:
+			println('64 test started')
+			started_tests.add(64)
+		elif call_arg == 1200000032:
+			println('32 test failed')
+			aborted = True
+		elif call_arg == 1200000064:
+			println('64 test failed')
+			aborted = True
+		elif call_arg == 1300000032:
+			println('32 test passed')
+			passed_tests.add(32)
+		elif call_arg == 1300000064:
+			println('64 test passed')
+			passed_tests.add(64)
+		elif call_arg == 1444444444:
+			println('Something failed')
+			aborted = True
+		elif call_arg == 1555555555:
+			expected_tests = None
+			if args.subarch == 'i386':
+				expected_tests = {32}
+			elif args.subarch == 'amd64':
+				expected_tests = {32, 64}
+			else:
+				raise ValueError
+			result = SERIAL_FAIL
+			println('passed_tests   =', passed_tests)
+			println('started_tests  =', started_tests)
+			println('expected_tests =', expected_tests)
+			if (passed_tests == started_tests and
+				passed_tests == expected_tests and not aborted):
+				result = SERIAL_PASS
+			with serial_result[0]:
+				serial_result[1] = result
+				break
+		else:
+			println('Unknown call_arg: %d' % call_arg)
+			aborted = True
+		if aborted:
+			with serial_result[0]:
+				serial_result[1] = SERIAL_FAIL
+				break
 	for i in gen:
 		pass
 
@@ -179,7 +190,7 @@ def main():
 			return 0
 		elif serial_result[1] == SERIAL_WAITING:
 			println('TEST TIME OUT')
-			return 0
+			return 1
 
 	println('TEST FAILED')
 	return 1
