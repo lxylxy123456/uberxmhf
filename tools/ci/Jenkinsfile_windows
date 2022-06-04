@@ -14,7 +14,7 @@ void pal_demo() {
     sh "./tools/ci/build_pal_demo.sh all"
 }
 
-void qemu_test(String subarch, String qemu_image) {
+void qemu_test(String subarch, String guest_subarch, String qemu_image) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
     // sh "./tools/ci/download.sh cache ${qemu_image}"
     sh "rm -rf tmp"
@@ -30,7 +30,7 @@ void qemu_test(String subarch, String qemu_image) {
     sh "tools/ci/pal_demo_img.sh tmp/pal_demo.img"
     sh """
         python3 -u ./tools/ci/test4.py \
-            --subarch ${subarch} \
+            --guest-subarch ${guest_subarch} \
             --qemu-image ${PWD}/cache/${qemu_image} \
             --work-dir ${PWD}/tmp/ \
             --no-display \
@@ -68,7 +68,7 @@ pipeline {
         }
         stage('Test i386 Windows 7 on i386 XMHF') {
             steps {
-                qemu_test "i386", "win7x86-j.qcow2"
+                qemu_test "i386", "i386", "win7x86-j.qcow2"
             }
         }
         stage('Build amd64') {
@@ -82,12 +82,12 @@ pipeline {
         }
         stage('Test i386 Windows 7 on amd64 XMHF') {
             steps {
-                qemu_test "i386", "win7x86-j.qcow2"
+                qemu_test "amd64", "i386", "win7x86-j.qcow2"
             }
         }
         stage('Test amd64 Windows 7 on amd64 XMHF') {
             steps {
-                qemu_test "amd64", "win7x64-j.qcow2"
+                qemu_test "amd64", "amd64", "win7x64-j.qcow2"
             }
         }
     }

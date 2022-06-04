@@ -15,7 +15,8 @@ QEMU_TIMEOUT = 60
 
 def parse_args():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--subarch', required=True, help='Subarch of guest OS')
+	parser.add_argument('--guest-subarch', required=True,
+						help='Subarch of guest OS')
 	parser.add_argument('--qemu-image', required=True)
 	parser.add_argument('--smp', type=int, default=2)
 	parser.add_argument('--work-dir', required=True)
@@ -141,9 +142,9 @@ def serial_thread(args, serial_file, serial_result):
 			aborted = True
 		elif call_arg == 1555555555:
 			expected_tests = None
-			if args.subarch == 'i386':
+			if args.guest_subarch == 'i386':
 				expected_tests = {32}
-			elif args.subarch == 'amd64':
+			elif args.guest_subarch == 'amd64':
 				expected_tests = {32, 64}
 			else:
 				raise ValueError
