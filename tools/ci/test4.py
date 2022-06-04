@@ -3,9 +3,15 @@
 '''
 
 from subprocess import Popen, check_call
-import argparse, subprocess, time, os, random, socket, threading
+import argparse, subprocess, time, os, re, random, socket, threading
 
 println_lock = threading.Lock()
+
+SERIAL_WAITING = 0
+SERIAL_PASS = 1
+SERIAL_FAIL = 2
+
+QEMU_TIMEOUT = 60
 
 def parse_args():
 	parser = argparse.ArgumentParser()
@@ -19,6 +25,10 @@ def parse_args():
 	parser.add_argument('--watch-serial', action='store_true')
 	args = parser.parse_args()
 	return args
+
+def printlog(line):
+	with println_lock:
+		print(line)
 
 def println(*args):
 	with println_lock:
@@ -56,35 +66,73 @@ def spawn_qemu(args, xmhf_img, windows_image, serial_file):
 	p = Popen(qemu_args, stdin=-1, stdout=-1, **popen_stderr)
 	return p
 
+def serial_thread(args, serial_file, serial_result):
+	def gen_lines():
+		while not os.path.exists(serial_file):
+			time.sleep(0.1)
+		println('serial_file exists')
+		with open(serial_file, 'r') as f:
+			while True:
+				line = f.readline()
+				if line:
+					i = line.strip('\n')
+					if args.watch_serial:
+						printlog(i)
+					yield i
+				else:
+					time.sleep(0.1)
+	gen = gen_lines()
+	for i in gen:
+		if 'eXtensible Modular Hypervisor' in i:
+			println('Banner found!')
+	for i in gen:
+		if 'e820' in i:
+			println('E820 found!')
+	for i in gen:
+		if 'test hypercall, ecx=' in i:
+			searched = re.search('test hypercall, ecx=(0x[0-9a-f]{8})$')
+			if searched:
+				call_arg = int(searched.groups()[0], 16);
+				println('hypercall: %d', call_arg);
+				if call_arg == 5678:
+					with serial_result[0]:
+						serial_result[1] = SERIAL_PASS
+
+	# Test serial output
+#	println('Test hypercall')
+#	check_call(['grep', 'test hypercall, ecx=', serial_file])
+	0/0
+
 def main():
 	args = parse_args()
 	windows_image = link_qemu(args)
 	serial_file = os.path.join(args.work_dir, 'serial')
 	xmhf_img = os.path.join(args.work_dir, 'grub/c.img')
+	check_call(['rm', '-f', serial_file])
 	p = spawn_qemu(args, xmhf_img, windows_image, serial_file)
 
-	# Simple workaround to watch serial output
-	if args.watch_serial:
-		threading.Thread(target=os.system, args=('tail -F %s' % serial_file,),
-						daemon=True).start()
-
 	try:
-		# TODO: read and analyze serial output
-		time.sleep(60)
+		serial_result = [threading.Lock(), SERIAL_WAITING]
+		threading.Thread(target=serial_thread,
+						args=(args, serial_file, serial_result),
+						daemon=True).start()
+		for i in range(QEMU_TIMEOUT):
+			println('MET = %d' % i)
+			with serial_result[0]:
+				if serial_result[1] != SERIAL_WAITING:
+					break
+			time.sleep(1)
 	finally:
 		p.kill()
 		p.wait()
 
-	# Test serial output
-	println('Test XMHF banner in serial')
-	check_call(['grep', 'eXtensible Modular Hypervisor', serial_file])
-	println('Test E820 in serial')
-	check_call(['grep', 'e820', serial_file])
-	println('Test hypercall')
-	check_call(['grep', 'test hypercall, ecx=', serial_file])
+	with serial_result[0]:
+		if serial_result[1] == SERIAL_PASS:
+			println('TEST PASSED')
+			return 0
 
-	println('TEST PASSED')
-	return 0
+	println('TEST FAILED')
+	return 1
 
 if __name__ == '__main__':
 	exit(main())
