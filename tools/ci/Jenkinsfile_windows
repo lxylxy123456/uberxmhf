@@ -14,7 +14,8 @@ void pal_demo() {
     sh "./tools/ci/build_pal_demo.sh all"
 }
 
-void qemu_test(String subarch, String guest_subarch, String qemu_image) {
+void qemu_test(String subarch, String guest_subarch, String qemu_image,
+                String timeout, String memory) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
     // sh "./tools/ci/download.sh cache ${qemu_image}"
     sh "rm -rf tmp"
@@ -33,6 +34,8 @@ void qemu_test(String subarch, String guest_subarch, String qemu_image) {
             --guest-subarch ${guest_subarch} \
             --qemu-image ${PWD}/cache/${qemu_image} \
             --work-dir ${PWD}/tmp/ \
+            --qemu-timeout ${timeout} \
+            --memory ${memory} \
             --no-display \
             --verbose \
             --watch-serial
@@ -57,7 +60,6 @@ pipeline {
                 }
             }
         }
-        /*
         stage('Build i386') {
             steps {
                 sh "git clean -Xdf"
@@ -69,15 +71,14 @@ pipeline {
         }
         stage('Test i386 Windows 7 on i386 XMHF') {
             steps {
-                qemu_test "i386", "i386", "win7x86-j.qcow2"
+                qemu_test "i386", "i386", "win7x86-j.qcow2", "60", "512M"
             }
         }
         stage('Test i386 Windows 10 on i386 XMHF') {
             steps {
-                qemu_test "i386", "i386", "win10x86-j.qcow2"
+                qemu_test "i386", "i386", "win10x86-j.qcow2", "120", "1024M"
             }
         }
-        */
         stage('Build amd64') {
             steps {
                 sh "git clean -Xdf"
@@ -89,27 +90,27 @@ pipeline {
         }
         stage('Test i386 Windows 7 on amd64 XMHF') {
             steps {
-                qemu_test "amd64", "i386", "win7x86-j.qcow2"
+                qemu_test "amd64", "i386", "win7x86-j.qcow2", "60", "512M"
             }
         }
         stage('Test amd64 Windows 7 on amd64 XMHF') {
             steps {
-                qemu_test "amd64", "amd64", "win7x64-j.qcow2"
+                qemu_test "amd64", "amd64", "win7x64-j.qcow2", "120", "512M"
             }
         }
         stage('Test amd64 Windows 8.1 on amd64 XMHF') {
             steps {
-                qemu_test "amd64", "amd64", "win81x64-j.qcow2"
+                qemu_test "amd64", "amd64", "win81x64-j.qcow2", "200", "1024M"
             }
         }
         stage('Test i386 Windows 10 on amd64 XMHF') {
             steps {
-                qemu_test "amd64", "i386", "win10x86-j.qcow2"
+                qemu_test "amd64", "i386", "win10x86-j.qcow2", "120", "1024M"
             }
         }
         stage('Test amd64 Windows 10 on amd64 XMHF') {
             steps {
-                qemu_test "amd64", "amd64", "win10x64-j.qcow2"
+                qemu_test "amd64", "amd64", "win10x64-j.qcow2", "300", "1024M"
             }
         }
     }

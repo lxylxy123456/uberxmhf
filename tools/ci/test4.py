@@ -11,8 +11,6 @@ SERIAL_WAITING = 0
 SERIAL_PASS = 1
 SERIAL_FAIL = 2
 
-QEMU_TIMEOUT = 120
-
 def parse_args():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--guest-subarch', required=True,
@@ -24,6 +22,8 @@ def parse_args():
 	parser.add_argument('--no-display', action='store_true')
 	parser.add_argument('--verbose', action='store_true')
 	parser.add_argument('--watch-serial', action='store_true')
+	parser.add_argument('--memory', default='1024M')
+	parser.add_argument('--qemu-timeout', type=int, default=200)
 	args = parser.parse_args()
 	return args
 
@@ -48,7 +48,7 @@ def spawn_qemu(args, xmhf_img, windows_image, serial_file):
 	windows_grub_img = os.path.join(args.windows_dir, 'grub_windows.img')
 	pal_demo_img = os.path.join(args.work_dir, 'pal_demo.img')
 	qemu_args = [
-		'qemu-system-x86_64', '-m', '1024M',
+		'qemu-system-x86_64', '-m', args.memory,
 		'--drive', 'media=disk,file=%s,format=raw,index=0' % xmhf_img,
 		'--drive', 'media=disk,file=%s,format=raw,index=1' % windows_grub_img,
 		'--drive', 'media=disk,file=%s,format=qcow2,index=2' % windows_image,
@@ -183,7 +183,7 @@ def main():
 		threading.Thread(target=serial_thread,
 						args=(args, serial_file, serial_result),
 						daemon=True).start()
-		for i in range(QEMU_TIMEOUT):
+		for i in range(args.qemu_timeout):
 			println('MET = %d' % i)
 			with serial_result[0]:
 				if serial_result[1] != SERIAL_WAITING:
