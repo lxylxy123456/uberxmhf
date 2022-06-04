@@ -66,7 +66,7 @@ pipeline {
                 pal_demo()
             }
         }
-        stage('Test i386 Windows 7 on i386') {
+        stage('Test i386 Windows 7 on i386 XMHF') {
             steps {
                 qemu_test "i386", "win7x86-j.qcow2"
             }
@@ -80,14 +80,12 @@ pipeline {
                 pal_demo()
             }
         }
-/*
-        stage('Test i386 Windows 7 on i386') {
+        stage('Test i386 Windows 7 on amd64 XMHF') {
             steps {
                 qemu_test "i386", "win7x86-j.qcow2"
             }
         }
-*/
-        stage('Test amd64 Windows 7 on amd64') {
+        stage('Test amd64 Windows 7 on amd64 XMHF') {
             steps {
                 qemu_test "amd64", "win7x64-j.qcow2"
             }
