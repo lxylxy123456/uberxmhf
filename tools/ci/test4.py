@@ -80,6 +80,8 @@ def main():
 	check_call(['grep', 'eXtensible Modular Hypervisor', serial_file])
 	println('Test E820 in serial')
 	check_call(['grep', 'e820', serial_file])
+	println('Test hypercall')
+	check_call(['grep', 'test hypercall, ecx=', serial_file])
 
 	println('TEST PASSED')
 	return 0
