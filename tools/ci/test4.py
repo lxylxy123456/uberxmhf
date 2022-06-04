@@ -95,7 +95,7 @@ def serial_thread(args, serial_file, serial_result):
 		started_tests = set()
 		passed_tests = set()
 		if 'test hypercall, ecx=' in i:
-			searched = re.search('test hypercall, ecx=(0x[0-9a-f]{8})$')
+			searched = re.search('test hypercall, ecx=(0x[0-9a-f]{8})$', i)
 			if searched:
 				call_arg = int(searched.groups()[0], 16);
 				println('hypercall: %d', call_arg);
