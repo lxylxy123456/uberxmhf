@@ -85,18 +85,63 @@ def serial_thread(args, serial_file, serial_result):
 	for i in gen:
 		if 'eXtensible Modular Hypervisor' in i:
 			println('Banner found!')
+			break
 	for i in gen:
 		if 'e820' in i:
 			println('E820 found!')
+			break
 	for i in gen:
+		aborted = False
+		started_tests = set()
+		passed_tests = set()
 		if 'test hypercall, ecx=' in i:
 			searched = re.search('test hypercall, ecx=(0x[0-9a-f]{8})$')
 			if searched:
 				call_arg = int(searched.groups()[0], 16);
 				println('hypercall: %d', call_arg);
-				if call_arg == 5678:
+				if call_arg == 1000700086:
+					println('OS: Windows 7 x86')
+				elif call_arg == 1100000032:
+					println('32 test started')
+					started_tests.add(32)
+				elif call_arg == 1100000064:
+					println('64 test started')
+					started_tests.add(64)
+				elif call_arg == 1200000032:
+					println('32 test failed')
+					aborted = True
+				elif call_arg == 1200000064:
+					println('64 test failed')
+					aborted = True
+				elif call_arg == 1300000032:
+					println('32 test passed')
+					passed_tests.add(32)
+				elif call_arg == 1300000064:
+					println('64 test passed')
+					passed_tests.add(64)
+				elif call_arg == 1444444444:
+					println('Something failed')
+					aborted = True
+				elif call_arg == 1555555555:
+					expected_tests = None
+					if args.subarch == 'i386':
+						expected_tests = {32}
+					elif args.subarch == 'amd64':
+						expected_tests = {32, 64}
+					else:
+						raise ValueError
+					result = SERIAL_FAIL
+					if (passed_tests == started_tests and
+						passed_tests == expected_tests and not aborted):
+						result = SERIAL_PASS
 					with serial_result[0]:
-						serial_result[1] = SERIAL_PASS
+						serial_result[1] = result
+				else:
+					println('Unknown call_arg: %d' % call_arg)
+					aborted = True
+				if aborted:
+					with serial_result[0]:
+						serial_result[1] = SERIAL_FAIL
 
 	# Test serial output
 #	println('Test hypercall')
@@ -129,6 +174,9 @@ def main():
 	with serial_result[0]:
 		if serial_result[1] == SERIAL_PASS:
 			println('TEST PASSED')
+			return 0
+		elif serial_result[1] == SERIAL_WAITING:
+			println('TEST TIME OUT')
 			return 0
 
 	println('TEST FAILED')
