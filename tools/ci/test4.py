@@ -98,7 +98,7 @@ def serial_thread(args, serial_file, serial_result):
 			searched = re.search('test hypercall, ecx=(0x[0-9a-f]{8})$', i)
 			if searched:
 				call_arg = int(searched.groups()[0], 16);
-				println('hypercall: %d', call_arg);
+				println('hypercall: %d' % call_arg);
 				if call_arg == 1000700086:
 					println('OS: Windows 7 x86')
 				elif call_arg == 1100000032:
@@ -131,22 +131,24 @@ def serial_thread(args, serial_file, serial_result):
 					else:
 						raise ValueError
 					result = SERIAL_FAIL
+					println('passed_tests   =', passed_tests)
+					println('started_tests  =', started_tests)
+					println('expected_tests =', expected_tests)
 					if (passed_tests == started_tests and
 						passed_tests == expected_tests and not aborted):
 						result = SERIAL_PASS
 					with serial_result[0]:
 						serial_result[1] = result
+						break
 				else:
 					println('Unknown call_arg: %d' % call_arg)
 					aborted = True
 				if aborted:
 					with serial_result[0]:
 						serial_result[1] = SERIAL_FAIL
-
-	# Test serial output
-#	println('Test hypercall')
-#	check_call(['grep', 'test hypercall, ecx=', serial_file])
-	0/0
+						break
+	for i in gen:
+		pass
 
 def main():
 	args = parse_args()
