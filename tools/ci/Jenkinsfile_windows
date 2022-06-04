@@ -66,7 +66,6 @@ pipeline {
                 pal_demo()
             }
         }
-        /*
         stage('Test i386 Windows 7 on i386 XMHF') {
             steps {
                 qemu_test "i386", "i386", "win7x86-j.qcow2"
@@ -77,7 +76,6 @@ pipeline {
                 qemu_test "i386", "i386", "win10x86-j.qcow2"
             }
         }
-        */
         stage('Build amd64') {
             steps {
                 sh "git clean -Xdf"
@@ -98,18 +96,16 @@ pipeline {
                 qemu_test "amd64", "amd64", "win7x64-j.qcow2"
             }
         }
-        stage('Test i386 Windows 10 on amd64 XMHF') {
-            steps {
-                qemu_test "amd64", "i386", "win10x86-j.qcow2"
-            }
-        }
-        */
         stage('Test amd64 Windows 8.1 on amd64 XMHF') {
             steps {
                 qemu_test "amd64", "amd64", "win81x64-j.qcow2"
             }
         }
-        /*
+        stage('Test i386 Windows 10 on amd64 XMHF') {
+            steps {
+                qemu_test "amd64", "i386", "win10x86-j.qcow2"
+            }
+        }
         stage('Test amd64 Windows 10 on amd64 XMHF') {
             steps {
                 qemu_test "amd64", "amd64", "win10x64-j.qcow2"
