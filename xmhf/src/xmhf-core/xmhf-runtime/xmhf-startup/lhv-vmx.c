@@ -198,8 +198,6 @@ void lhv_vmx_main(VCPU *vcpu)
 		for(i = 0; i < IA32_VMX_MSRCOUNT; i++) {
 			vcpu->vmx_msrs[i] = rdmsr64(IA32_VMX_BASIC_MSR + i);
 		}
-		vcpu->vmx_msr_efer = rdmsr64(MSR_EFER);
-		vcpu->vmx_msr_efcr = rdmsr64(MSR_EFCR);
 		if((u32)((u64)vcpu->vmx_msrs[IA32_VMX_MSRCOUNT-1] >> 32) & 0x80) {
 			vcpu->vmx_guest_unrestricted = 1;
 		} else {
@@ -234,9 +232,10 @@ void lhv_vmx_main(VCPU *vcpu)
 
 	/* Check IA32_FEATURE_CONTROL (22.7 ENABLING AND ENTERING VMX OPERATION) */
 	{
-		printf("\nrdmsr64(MSR_EFCR) = 0x%016x", vcpu->vmx_msr_efcr);
-		HALT_ON_ERRORCOND(vcpu->vmx_msr_efcr & 1);
-		HALT_ON_ERRORCOND(vcpu->vmx_msr_efcr & 4);
+		u64 vmx_msr_efcr = rdmsr64(MSR_EFCR);
+		printf("\nrdmsr64(MSR_EFCR) = 0x%016x", vmx_msr_efcr);
+		HALT_ON_ERRORCOND(vmx_msr_efcr & 1);
+		HALT_ON_ERRORCOND(vmx_msr_efcr & 4);
 	}
 
 	/* VMXON */
