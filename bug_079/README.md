@@ -353,7 +353,42 @@ To solve this problem, recall that i386 XMHF does not support address > 4G. So
 we simply make sure that the upper 32-bits are 0. This problem is fixed in
 git `f9667b40e`.
 
-It is possible 
+<del>It may be possible to exploit this problem, given that PAE mode paging can
+work in i386 XMHF. The idea is that XMHF will read incorrect values of guest
+physical memory. However, this is compilcated to reproduce, so we ignore it
+for now.</del>
+
+I think it is more likely not possible to exploit this problem, because the EPT
+disables all guest physical memory > 4G.
+
+### QEMU / KVM VMCS fields
+
+As discovered a long time ago, QEMU does not support some VMCS fields. The
+workaround was using configuration option / macro `__DEBUG_QEMU__` to skip
+accessing these fields.
+
+However, I think accorting to Intel SDM, the way to test whether a VMCS field
+exists is by reading appendix B. The footnotes indicate when a field becomes
+nonexistent.
+
+For example, "Executive-VMCS pointer" (encoding 0000200CH) should always exist,
+but on QEMU reading it results in error.
+
+The list of VMCS fields defined is in Linux's `arch/x86/kvm/vmx/vmcs12.h`.
+Note that VMCS field encodings are defined in `arch/x86/include/asm/vmx.h`.
+However, it is somewhat difficult to find a mapping from Intel's names to KVM's
+names.
+
+Another example is CR3-target. In "23.6.7 CR3-Target Controls", Intel SDM says
+> The VM-execution control fields include a set of 4 CR3-target values and a
+> CR3-target count.
+
+So my understanding is that even though CR3-Target Controls may be limited to
+0 using `IA32_VMX_MISC`, there should still be 4 fields of CR3-target values.
+These fields will always be ignored though.
+
+Should report bug to KVM. See `__DEBUG_QEMU__` in `nested-x86vmx-handler.c`.
+(TODO: report bug to KVM)
 
 TODO
 

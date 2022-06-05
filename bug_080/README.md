@@ -69,3 +69,69 @@ stuck at activate Windows etc.
 Looks like we can use task scheduler. Schedule a task to run at computer
 startup, with or without user logged in. This method succeeds in Windows 7.
 
+* Windows 7 complete instructions
+	1. Windows + R, `taskschd.msc`
+	2. New folder in Task Scheduler Library
+	3. In new folder, Action -> Create Task
+		* Run whether user is logged in or not
+		* Run with highest privileges
+		* Triggers: At startup
+		* Actions: Start a program, `F:\win7x86.bat`
+* Windows 8.1: working
+* Windows 10: working (if only 512M memory, not working)
+
+To debug, we can copy files from Jenkins directory
+
+```
+# cd to xmhf64
+mkdir -p tmp/grub
+cp /var/lib/jenkins/workspace/xmhf64-windows/tmp/pal_demo.img tmp/
+cp /var/lib/jenkins/workspace/xmhf64-windows/tmp/grub/c.img tmp/grub
+# /var/lib/jenkins/workspace/xmhf64-windows/tools/ci/windows/grub_windows.img
+# /var/lib/jenkins/workspace/xmhf64-windows/tools/ci/windows/bios.bin
+python3 -u ./tools/ci/test4.py \
+	--guest-subarch amd64 \
+	--qemu-image /var/lib/jenkins/workspace/xmhf64-windows/cache/win10x64-j.qcow2 \
+	--work-dir tmp/ \
+	--no-display --verbose --watch-serial
+
+```
+
+However, before we have a chance to debug, we realized that providing more
+memory likely solves the problem.
+
+### Time statistics
+
+* i386 XMHF
+	* i386 Windows 7:    16  16  16
+	* i386 Windows 10:   58  56  56
+* amd64 XMHF
+	* i386 Windows 7:    16  17  19
+	* amd64 Windows 7:   48  51  51
+	* amd64 Windows 8.1: 116 112 74
+	* i386 Windows 10:   59  57  62
+	* amd64 Windows 10:  216 251 236
+
+### Windows XP
+
+When setting up for Windows XP SP3, see error
+> The new task has been created, but may not run because the account
+> information could not be set. The specific error is: 0x80070005: Access is
+> denied.
+
+We are not going to solve this for now.
+
+### Squashing changes
+
+* `xmhf64-dev` before changes: `8630c2519`
+* `xmhf64-dev` after changes: `9781c8c67`
+* Display changes to be squashed: `git diff cb871f15f..9781c8c67`
+* `xmhf64` commit about the changes: `cb871f15f..c447283b9`
+
+## Fix
+
+`4ed89c9c8..c447283b9`
+* Update CI docs
+* Make `pal_demo` compilable on Fedora
+* Write Jenkins CI for Windows 7 and higher
+
