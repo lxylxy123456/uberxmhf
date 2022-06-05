@@ -203,7 +203,8 @@ void lhv_vmx_main(VCPU *vcpu)
 		} else {
 			vcpu->vmx_guest_unrestricted = 0;
 		}
-		HALT_ON_ERRORCOND(vcpu->vmx_guest_unrestricted);
+		/* At this point LHV does not require EPT and unrestricted guest yet. */
+		// TODO: HALT_ON_ERRORCOND(vcpu->vmx_guest_unrestricted);
 	}
 
 	/* Discover support for VMX (22.6 DISCOVERING SUPPORT FOR VMX) */
