@@ -388,7 +388,17 @@ So my understanding is that even though CR3-Target Controls may be limited to
 These fields will always be ignored though.
 
 Should report bug to KVM. See `__DEBUG_QEMU__` in `nested-x86vmx-handler.c`.
-(TODO: report bug to KVM)
+
+### First nested VMLAUNCH try
+
+The vmcs12 translation is done at around git `c623fa411`. Now we call VMLAUNCH,
+but receive an error.
+
+The problem is that EPT is enabled, but the EPT pointer is set to 0. Worked
+around in git `c4afaf4d8`.
+
+TODO: report bug to KVM
+TODO: be able to dump VMCS when failure
 
 TODO
 
