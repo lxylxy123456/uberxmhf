@@ -19,16 +19,19 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	{
 		unsigned long value;
 		unsigned long encodings[] = {
-			0x6402,
-			0x6404,
-			0x6406,
-			0x6408,
+			0x2000,
+			0x200C,
+			0x4000,
+			0x4828,
+			0x6000,
 			0x6008,
 			0x600A,
 			0x600C,
 			0x600E,
-			0x200C,
-			0x4828,
+			0x6402,
+			0x6404,
+			0x6406,
+			0x6408,
 		};
 		for (u32 i = 0; i < sizeof(encodings) / sizeof(encodings[0]); i++) {
 			if (__vmx_vmread(encodings[i], &value)) {
