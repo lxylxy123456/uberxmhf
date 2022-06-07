@@ -102,8 +102,8 @@ static void calibrate_timer(VCPU *vcpu) {
 	 */
 	u64 cal_1 = (l_tot - LAPIC_PERIOD) / p_t;
 	u64 cal_2 = l_tot / p_t;
-	//printf("\n%lld %lld 0x%08llx 0x%08llx 0x%08llx - 0x%08llx %d",
-	printf("\n%lld\t%lld\t%lld\t%lld\t%lld\t%lld\t%d",
+	//printf("%lld %lld 0x%08llx 0x%08llx 0x%08llx - 0x%08llx %d\n",
+	printf("%lld\t%lld\t%lld\t%lld\t%lld\t%lld\t%d\n",
 			p_t, l_t, l_quo, l_tot, cal_1, cal_2, rtc_get_sec_of_day());
 }
 
