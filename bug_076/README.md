@@ -299,4 +299,6 @@ This page will be used to track various bugs reported to QEMU / KVM
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216045>
 * `bug_077`: XMHF booting Windows results in "kvm run failed Input/output error"
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216046>
+* `bug_079`: 10 VMCS fields not supported
+	* <https://bugzilla.kernel.org/show_bug.cgi?id=216091>
 

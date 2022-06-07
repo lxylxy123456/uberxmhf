@@ -389,6 +389,10 @@ These fields will always be ignored though.
 
 Should report bug to KVM. See `__DEBUG_QEMU__` in `nested-x86vmx-handler.c`.
 
+Bug reported in <https://bugzilla.kernel.org/show_bug.cgi?id=216091>. KVM Bugs
+are tracked in `bug_076`. 2 temporary commits are made in branch `lhv-dev` to
+showcase this bug: `41991a8eb..f779b4f5d`.
+
 ### First nested VMLAUNCH try
 
 The vmcs12 translation is done at around git `c623fa411`. Now we call VMLAUNCH,
@@ -397,9 +401,10 @@ but receive an error.
 The problem is that EPT is enabled, but the EPT pointer is set to 0. Worked
 around in git `c4afaf4d8`.
 
-TODO: report bug to KVM
-TODO: be able to dump VMCS when failure
+In `f7b8d3b9f`, looks like when EPT and unrestricted guest are enabled, the
+nested guest triple faults immediately after VMENTRY.
 
+TODO: triple fault in guest
 TODO
 
 ## Fix
