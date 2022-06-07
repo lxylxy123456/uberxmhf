@@ -16,6 +16,31 @@ extern u32 x_gdt_start[];
 
 static void lhv_vmx_vmcs_init(VCPU *vcpu)
 {
+	{
+		unsigned long value;
+		unsigned long encodings[] = {
+			0x6402,
+			0x6404,
+			0x6406,
+			0x6408,
+			0x6008,
+			0x600A,
+			0x600C,
+			0x600E,
+			0x200C,
+			0x4828,
+		};
+		for (u32 i = 0; i < sizeof(encodings) / sizeof(encodings[0]); i++) {
+			if (__vmx_vmread(encodings[i], &value)) {
+				printf("\nVMREAD of 0x%04x gives 0x%08lx", encodings[i], value);
+			} else {
+				HALT_ON_ERRORCOND(__vmx_vmread(0x4400, &value));
+				printf("\nVMREAD of 0x%04x fails (0x%x)", encodings[i], value);
+			}
+		}
+		HALT();
+	}
+
 	// From vmx_initunrestrictedguestVMCS
 	vmcs_vmwrite(vcpu, VMCS_host_CR0, read_cr0());
 	vmcs_vmwrite(vcpu, VMCS_host_CR4, read_cr4());
