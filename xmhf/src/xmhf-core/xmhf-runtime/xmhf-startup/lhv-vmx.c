@@ -166,14 +166,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_guest_SS_access_rights, 0xc093);
 
 	//setup VMCS link pointer
-#ifdef __AMD64__
-	vmcs_vmwrite(vcpu, VMCS_guest_VMCS_link_pointer, (u64)0xFFFFFFFFFFFFFFFFULL);
-#elif defined(__I386__)
-	vmcs_vmwrite(vcpu, VMCS_guest_VMCS_link_pointer_full, 0xFFFFFFFFUL);
-	vmcs_vmwrite(vcpu, VMCS_guest_VMCS_link_pointer_high, 0xFFFFFFFFUL);
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+	vmcs_vmwrite64(vcpu, VMCS_guest_VMCS_link_pointer, (u64)0xFFFFFFFFFFFFFFFFULL);
 
 	//trap access to CR0 fixed 1-bits
 	{
@@ -205,14 +198,13 @@ void lhv_vmx_main(VCPU *vcpu)
 		for(i = 0; i < IA32_VMX_MSRCOUNT; i++) {
 			vcpu->vmx_msrs[i] = rdmsr64(IA32_VMX_BASIC_MSR + i);
 		}
-		vcpu->vmx_msr_efer = rdmsr64(MSR_EFER);
-		vcpu->vmx_msr_efcr = rdmsr64(MSR_EFCR);
-		if((u32)((u64)vcpu->vmx_msrs[IA32_VMX_MSRCOUNT-1] >> 32) & 0x80) {
+		if (_vmx_has_unrestricted_guest(vcpu)) {
 			vcpu->vmx_guest_unrestricted = 1;
 		} else {
 			vcpu->vmx_guest_unrestricted = 0;
 		}
-		HALT_ON_ERRORCOND(vcpu->vmx_guest_unrestricted);
+		/* At this point LHV does not require EPT and unrestricted guest yet. */
+		// TODO: HALT_ON_ERRORCOND(vcpu->vmx_guest_unrestricted);
 	}
 
 	/* Discover support for VMX (22.6 DISCOVERING SUPPORT FOR VMX) */
@@ -241,9 +233,10 @@ void lhv_vmx_main(VCPU *vcpu)
 
 	/* Check IA32_FEATURE_CONTROL (22.7 ENABLING AND ENTERING VMX OPERATION) */
 	{
-		printf("\nrdmsr64(MSR_EFCR) = 0x%016x", vcpu->vmx_msr_efcr);
-		HALT_ON_ERRORCOND(vcpu->vmx_msr_efcr & 1);
-		HALT_ON_ERRORCOND(vcpu->vmx_msr_efcr & 4);
+		u64 vmx_msr_efcr = rdmsr64(MSR_EFCR);
+		printf("\nrdmsr64(MSR_EFCR) = 0x%016x", vmx_msr_efcr);
+		HALT_ON_ERRORCOND(vmx_msr_efcr & 1);
+		HALT_ON_ERRORCOND(vmx_msr_efcr & 4);
 	}
 
 	/* VMXON */
@@ -254,9 +247,26 @@ void lhv_vmx_main(VCPU *vcpu)
 	/* VMCLEAR, VMPTRLD */
 	{
 		vcpu->my_vmcs = all_vmcs[vcpu->idx][0];
+		if (!"test_vmclear" && vcpu->isbsp) {
+			for (u32 i = 0; i < 0x1000 / sizeof(u32); i++) {
+				((u32 *) vcpu->my_vmcs)[i] = (i << 20) | i;
+			}
+		}
 		HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
 		*((u32 *) vcpu->my_vmcs) = vmcs_revision_identifier;
 		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
+		if (!"test_vmclear" && vcpu->isbsp) {
+			for (u32 i = 0; i < 0x1000 / sizeof(u32); i++) {
+				printf("\nvmcs[0x%03x] = 0x%08x", i, ((u32 *)vcpu->my_vmcs)[i]);
+			}
+#define DECLARE_FIELD(encoding, name)							\
+			{													\
+				printf("\nvmread(0x%04x) = %08lx", encoding,	\
+						vmcs_vmread(vcpu, encoding));			\
+			}
+#include <lhv-vmcs-template.h>
+#undef DECLARE_FIELD
+		}
 	}
 
 	/* Modify VMCS */

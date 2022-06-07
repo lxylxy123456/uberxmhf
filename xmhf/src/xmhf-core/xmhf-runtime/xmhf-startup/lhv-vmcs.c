@@ -10,6 +10,12 @@ void vmcs_vmwrite(VCPU *vcpu, ulong_t encoding, ulong_t value)
 	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
 }
 
+void vmcs_vmwrite64(VCPU *vcpu, ulong_t encoding, u64 value)
+{
+	(void) vcpu;
+	__vmx_vmwrite64(encoding, value);
+}
+
 ulong_t vmcs_vmread(VCPU *vcpu, ulong_t encoding)
 {
 	unsigned long value;
@@ -17,6 +23,12 @@ ulong_t vmcs_vmread(VCPU *vcpu, ulong_t encoding)
 	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
 	// printf("\nCPU(0x%02x): 0x%08lx = vmread(0x%04lx)", vcpu->id, value, encoding);
 	return value;
+}
+
+u64 vmcs_vmread64(VCPU *vcpu, ulong_t encoding)
+{
+	(void) vcpu;
+	return __vmx_vmread64(encoding);
 }
 
 void vmcs_dump(VCPU *vcpu, int verbose)
