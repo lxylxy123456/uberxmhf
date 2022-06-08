@@ -3,6 +3,9 @@
 
 void lhv_guest_main(ulong_t cpu_id)
 {
+	while (1) {
+		asm volatile ("hlt");
+	}
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	console_vc_t vc;
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
