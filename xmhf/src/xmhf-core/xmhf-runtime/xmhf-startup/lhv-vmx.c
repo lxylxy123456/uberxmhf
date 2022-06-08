@@ -234,7 +234,7 @@ void lhv_vmx_main(VCPU *vcpu)
 	/* Check IA32_FEATURE_CONTROL (22.7 ENABLING AND ENTERING VMX OPERATION) */
 	{
 		u64 vmx_msr_efcr = rdmsr64(MSR_EFCR);
-		printf("\nrdmsr64(MSR_EFCR) = 0x%016x", vmx_msr_efcr);
+		printf("rdmsr64(MSR_EFCR) = 0x%016x\n", vmx_msr_efcr);
 		HALT_ON_ERRORCOND(vmx_msr_efcr & 1);
 		HALT_ON_ERRORCOND(vmx_msr_efcr & 4);
 	}
@@ -257,11 +257,11 @@ void lhv_vmx_main(VCPU *vcpu)
 		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
 		if (!"test_vmclear" && vcpu->isbsp) {
 			for (u32 i = 0; i < 0x1000 / sizeof(u32); i++) {
-				printf("\nvmcs[0x%03x] = 0x%08x", i, ((u32 *)vcpu->my_vmcs)[i]);
+				printf("vmcs[0x%03x] = 0x%08x\n", i, ((u32 *)vcpu->my_vmcs)[i]);
 			}
 #define DECLARE_FIELD(encoding, name)							\
 			{													\
-				printf("\nvmread(0x%04x) = %08lx", encoding,	\
+				printf("vmread(0x%04x) = %08lx\n", encoding,	\
 						vmcs_vmread(vcpu, encoding));			\
 			}
 #include <lhv-vmcs-template.h>
@@ -321,9 +321,9 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		}
 	default:
 		{
-			printf("\nCPU(0x%02x): vmexit: 0x%lx", vcpu->id, vmexit_reason);
-			printf("\nCPU(0x%02x): r->eax = 0x%x", vcpu->id, r->eax);
-			printf("\nCPU(0x%02x): rip = 0x%x", vcpu->id, guest_rip);
+			printf("CPU(0x%02x): vmexit: 0x%lx\n", vcpu->id, vmexit_reason);
+			printf("CPU(0x%02x): r->eax = 0x%x\n", vcpu->id, r->eax);
+			printf("CPU(0x%02x): rip = 0x%x\n", vcpu->id, guest_rip);
 			vmcs_dump(vcpu, 0);
 			HALT_ON_ERRORCOND(0);
 			break;
@@ -337,7 +337,7 @@ void vmentry_error(ulong_t is_resume, ulong_t valid)
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	/* 29.4 VM INSTRUCTION ERROR NUMBERS */
 	ulong_t vminstr_error = vmcs_vmread(vcpu, VMCS_info_vminstr_error);
-	printf("\nCPU(0x%02x): is_resume = %ld, valid = %ld, err = %ld",
+	printf("CPU(0x%02x): is_resume = %ld, valid = %ld, err = %ld\n",
 			vcpu->id, is_resume, valid, vminstr_error);
 	HALT_ON_ERRORCOND(is_resume && valid && 0);
 	HALT_ON_ERRORCOND(0);

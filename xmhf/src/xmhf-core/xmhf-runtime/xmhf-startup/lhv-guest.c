@@ -36,7 +36,7 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 		break;
 	default:
 //		while (1) {
-//			printf("\nGuest: unknown interrupt / exception!");
+//			printf("Guest: unknown interrupt / exception!\n");
 //		}
 		break;
 	}
