@@ -295,6 +295,9 @@ This page will be used to track various bugs reported to QEMU / KVM
 	* <https://gitlab.com/qemu-project/qemu/-/issues/1047>
 * `bug_079`: VMXON does not check CR0
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216033>
+	* Fix sent by email, from Sean Christopherson <seanjc@google.com>, title
+	  "[PATCH v5 03/15] KVM: nVMX: Inject #UD if VMXON is attempted with
+	   incompatible CR0/CR4", time Tue,  7 Jun 2022 21:35:52 +0000
 * `bug_078`: Linux stucks when using x2APIC on HP 840
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216045>
 * `bug_077`: XMHF booting Windows results in "kvm run failed Input/output error"

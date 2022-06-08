@@ -401,10 +401,35 @@ but receive an error.
 The problem is that EPT is enabled, but the EPT pointer is set to 0. Worked
 around in git `c4afaf4d8`.
 
+### Guest triple fault
+
 In `f7b8d3b9f`, looks like when EPT and unrestricted guest are enabled, the
 nested guest triple faults immediately after VMENTRY.
 
-TODO: triple fault in guest
+To debug this, first make LHV simple. In lhv git `542c1685f`, interrupts are
+turned off and the guest will execute a few instructions and stuck
+in `lhv_guest_main()`.
+```
+   0x820b61f <lhv_guest_main>:	push   %ebp
+   0x820b620 <lhv_guest_main+1>:	mov    %esp,%ebp
+   0x820b622 <lhv_guest_main+3>:	hlt
+=> 0x820b623 <lhv_guest_main+4>:	jmp    0x820b622 <lhv_guest_main+3>
+```
+
+In XMHF git `08aa77081`, we show that simply modifying the guest hypervisor's
+VMCS's guest RIP will success. A vmcs dump is in git `13e507ec9`, serial
+`20220607213734`.
+
+We dump the triple fault case. Git `245f64454`, serial `20220607213959`.
+There are no major changes before and after the failed VMLAUNCH.
+
+Actually, we realize that the problem disappears when unrestricted guest is
+not set. So the problem is not related to EPT. LHV is not running the guest
+in unrestricted guest, so we do not solve this problem for now (need to at
+least wait until LHV supports EPT, then LHV supports unrestricted guest).
+
+Temporary commits are pushed to branch `xmhf64-nest-dev`.
+
 TODO
 
 ## Fix
