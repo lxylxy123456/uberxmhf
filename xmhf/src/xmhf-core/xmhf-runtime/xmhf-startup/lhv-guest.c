@@ -3,11 +3,6 @@
 
 void lhv_guest_main(ulong_t cpu_id)
 {
-	while (1) {
-		asm volatile ("hlt");
-		(void) cpu_id;
-	}
-/*
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	console_vc_t vc;
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
@@ -24,7 +19,6 @@ void lhv_guest_main(ulong_t cpu_id)
 		asm volatile ("hlt");
 		asm volatile ("vmcall");
 	}
-*/
 }
 
 void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
