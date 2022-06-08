@@ -403,6 +403,7 @@ static u32 _vmx_vmentry(VCPU *vcpu, vmcs12_info_t *vmcs12_info, struct regs *r)
 		__vmx_vmwriteNW(0x681E, vmcs12_info->vmcs12_value.guest_RIP);
 		vcpu->vmx_nested_is_vmx_root_operation = 0;
 		vmcs12_info->launched = 1;
+		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS.");
 		__vmx_vmentry_vmresume(r);
 		HALT_ON_ERRORCOND(0);
 	}
