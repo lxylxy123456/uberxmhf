@@ -397,7 +397,7 @@ static u32 _vmx_vmentry(VCPU *vcpu, vmcs12_info_t *vmcs12_info, struct regs *r)
 	guestmem_init(vcpu, &ctx_pair);
 	/* TODO: Check settings of VMX controls and host-state area */
 
-	if (1) {	// TODO
+	if (0) {	// TODO
 		printf("vmcs12_info->vmcs12_value.guest_RIP, 0x%08x\n",
 				vmcs12_info->vmcs12_value.guest_RIP);
 		__vmx_vmwriteNW(0x681E, vmcs12_info->vmcs12_value.guest_RIP);
@@ -864,6 +864,7 @@ static u32 _vmx_vmentry(VCPU *vcpu, vmcs12_info_t *vmcs12_info, struct regs *r)
 		__vmx_vmentry_vmresume(r);
 	} else {
 		vmcs12_info->launched = 1;
+		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS.");
 		__vmx_vmentry_vmlaunch(r);
 	}
 
