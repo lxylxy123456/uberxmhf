@@ -81,18 +81,27 @@
 #define VM_CR_SVME_DISABLE 4
 
 // VMX capabilities MSR
-#define IA32_VMX_BASIC_MSR            0x480
-#define IA32_VMX_PINBASED_CTLS_MSR    0x481
-#define IA32_VMX_PROCBASED_CTLS_MSR   0x482
-#define IA32_VMX_EXIT_CTLS_MSR        0x483
-#define IA32_VMX_ENTRY_CTLS_MSR       0x484
-#define IA32_VMX_MISC_MSR       	    0x485
-#define IA32_VMX_CR0_FIXED0_MSR       0x486
-#define IA32_VMX_CR0_FIXED1_MSR       0x487
-#define IA32_VMX_CR4_FIXED0_MSR       0x488
-#define IA32_VMX_CR4_FIXED1_MSR       0x489
-#define IA32_VMX_VMCS_ENUM_MSR        0x48A
-#define IA32_VMX_PROCBASED_CTLS2_MSR  0x48B
+#define IA32_VMX_BASIC_MSR                0x480
+#define IA32_VMX_PINBASED_CTLS_MSR        0x481
+#define IA32_VMX_PROCBASED_CTLS_MSR       0x482
+#define IA32_VMX_EXIT_CTLS_MSR            0x483
+#define IA32_VMX_ENTRY_CTLS_MSR           0x484
+#define IA32_VMX_MISC_MSR                 0x485
+#define IA32_VMX_CR0_FIXED0_MSR           0x486
+#define IA32_VMX_CR0_FIXED1_MSR           0x487
+#define IA32_VMX_CR4_FIXED0_MSR           0x488
+#define IA32_VMX_CR4_FIXED1_MSR           0x489
+#define IA32_VMX_VMCS_ENUM_MSR            0x48A
+#define IA32_VMX_PROCBASED_CTLS2_MSR      0x48B
+#define IA32_VMX_EPT_VPID_CAP_MSR         0x48C
+#define IA32_VMX_TRUE_PINBASED_CTLS_MSR   0x48D
+#define IA32_VMX_TRUE_PROCBASED_CTLS_MSR  0x48E
+#define IA32_VMX_TRUE_EXIT_CTLS_MSR       0x48F
+#define IA32_VMX_TRUE_ENTRY_CTLS_MSR      0x490
+// TODO: SDM says IA32_VMX_VMFUNC_MSR exists if
+// (CPUID.01H:ECX.[5] = 1 && IA32_VMX_BASIC[55]). However, looks like this may
+// not be the case for some CPUs. So not supporting this register for now.
+//#define IA32_VMX_VMFUNC_MSR               0x491
 
 //sysenter/sysexit MSRs
 #define IA32_SYSENTER_CS_MSR	         0x174
