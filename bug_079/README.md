@@ -430,6 +430,27 @@ least wait until LHV supports EPT, then LHV supports unrestricted guest).
 
 Temporary commits are pushed to branch `xmhf64-nest-dev`.
 
+Later, realized that the problem is a typo in the source code. Should be
+```c
+		val |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
+		val |= (1U << VMX_SECPROCBASED_UNRESTRICTED_GUEST);
+```
+
+However, I wrote
+```c
+		val |= VMX_SECPROCBASED_ENABLE_EPT;
+		val |= VMX_SECPROCBASED_UNRESTRICTED_GUEST;
+```
+
+This typo causes the following fields to be set:
+* Virtualize APIC accesses
+* Enable EPT
+* Descriptor-table exiting
+
+So the strange behavior can be explained.
+
+Fixed the typo in git `acbe39164`.
+
 TODO
 
 ## Fix
