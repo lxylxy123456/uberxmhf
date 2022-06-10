@@ -102,10 +102,61 @@ As a workaround, we just need to remove support for MSR 0x491. See git
 To debug this problem, use git `5067ce7ec` in `xmhf64-dev` branch. This should
 print a lot of useful information.
 
-TODO
+The output is
+
+```
+CPU(0x00): RDMSR(0x00000480) = 0x00da04000000000f
+CPU(0x00): RDMSR(0x00000481) = 0x0000007f00000016
+CPU(0x00): RDMSR(0x00000482) = 0xfff9fffe0401e172
+CPU(0x00): RDMSR(0x00000483) = 0x007fffff00036dff
+CPU(0x00): RDMSR(0x00000484) = 0x0000ffff000011ff
+CPU(0x00): RDMSR(0x00000485) = 0x00000000000401e7
+CPU(0x00): RDMSR(0x00000486) = 0x0000000080000021
+CPU(0x00): RDMSR(0x00000487) = 0x00000000ffffffff
+CPU(0x00): RDMSR(0x00000488) = 0x0000000000002000
+CPU(0x00): RDMSR(0x00000489) = 0x00000000000267ff
+CPU(0x00): RDMSR(0x0000048a) = 0x000000000000002a
+CPU(0x00): RDMSR(0x0000048b) = 0x000000ff00000000
+CPU(0x00): RDMSR(0x0000048c) = 0x00000f0106114141
+CPU(0x00): RDMSR(0x0000048d) = 0x0000007f00000016
+CPU(0x00): RDMSR(0x0000048e) = 0xfff9fffe04006172
+CPU(0x00): RDMSR(0x0000048f) = 0x007fffff00036dfb
+CPU(0x00): RDMSR(0x00000490) = 0x0000ffff000011fb
+CPU(0x00): RDMSR(0x00000491) = unavailable
+CPU(0x00): RDMSR(0x00000492) = unavailable
+CPU(0x00): RDMSR(0x00000493) = unavailable
+```
+
+Looks like this is the SDM's fault. On the CPU, there is
+`CPUID.01H:ECX.[5] = 1 && IA32_VMX_BASIC[55]`, but MSR 491H does not exist.
+
+If this problem is fixed in the future, need to consider reverting `f326512f4`.
+
+### SDM typo
+
+Looks like this is really a typo in Intel. Intel v3 "A.11 VM FUNCTIONS" says
+> The `IA32_VMX_VMFUNC` MSR exists only on processors that support the 1-setting
+> of the "activate secondary
+> controls" VM-execution control (only if bit 63 of the
+> `IA32_VMX_PROCBASED_CTLS` MSR is 1) and the 1-setting of
+> the "enable VM functions" secondary processor-based VM-execution control
+> (only if bit 45 of the `IA32_VMX_PROCBASED_CTLS2` MSR is 1).
+
+However, Intel v4 says
+> `If( CPUID.01H:ECX.[5] = 1 && IA32_VMX_BASIC[55] )`
+
+The correct comment is
+`If( CPUID.01H:ECX.[5] = 1 && IA32_VMX_PROCBASED_CTLS[63] && IA32_VMX_PROCBASED_CTLS2[45] )`
+
+Reported in
+<https://community.intel.com/t5/Processors/Typo-in-SDM-volume-4/m-p/1391506>
+
+In `f326512f4..f24d67709`, reverted the previous workaround and added support
+back.
 
 ## Fix
 
-`195973e9a..f326512f4`
-* Temporarily drop support for IA32_VMX_VMFUNC_MSR due to regression
+`195973e9a..f24d67709`
+* Temporarily drop support for `IA32_VMX_VMFUNC_MSR` due to regression
+* Correct check for support for `IA32_VMX_VMFUNC_MSR`
 

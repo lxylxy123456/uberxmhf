@@ -451,6 +451,38 @@ So the strange behavior can be explained.
 
 Fixed the typo in git `acbe39164`.
 
+### Managing controls
+
+We use a custom structure to manage VMX capabilities and control bits. See
+`_vmx_ctls.h` at commit `e203d3120` in branch `xmhf64`. This file is generated
+mostly by scripts.
+
+* `cap.txt` is most of `_vmx_cap.h` (removed by commit `e203d3120`).
+* `cap.py` parses `cap.txt` and saves the result to `cap.csv`.
+* `ctl.py` reads `cap.csv` and generates the content for `_vmx_ctls.h`.
+
+The other code need to be changed. e.g.
+```diff
+-               if (_vmx_has_unrestricted_guest(vcpu))
++               if (_vmx_hasctl_unrestricted_guest(&vcpu->vmx_caps))
+```
+
+This can be done using script
+```py
+import re
+while True:
+	try:
+		line = input()
+	except EOFError:
+		break
+	if '_vmx_has_' in line:
+		matched = re.fullmatch('(.*)_vmx_has_(\w+)\(vcpu\)(.*)', line)
+		pre, name, post = matched.groups()
+		print('%s_vmx_hasctl_%s(&vcpu->vmx_caps)%s' % (pre, name, post))
+	else:
+		print(line)
+```
+
 TODO
 
 ## Fix
