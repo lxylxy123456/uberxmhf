@@ -67,6 +67,7 @@
 #include "_acpi.h"			//ACPI glue
 #include "_svm_eap.h"		//SVM DMA protection
 #include "_vmx_eap.h"		//VMX DMA protection
+#include "_vmx_ctls.h"		//VMX control bits
 
 
 //SMP configuration table signatures on x86 platforms
@@ -150,21 +151,27 @@ struct _guestmtrrmsrs {
 
 //---platform
 //VMX MSR indices for the vcpu structure
-#define INDEX_IA32_VMX_BASIC_MSR            0x0
-#define INDEX_IA32_VMX_PINBASED_CTLS_MSR    0x1
-#define INDEX_IA32_VMX_PROCBASED_CTLS_MSR   0x2
-#define INDEX_IA32_VMX_EXIT_CTLS_MSR        0x3
-#define INDEX_IA32_VMX_ENTRY_CTLS_MSR       0x4
-#define INDEX_IA32_VMX_MISC_MSR             0x5
-#define INDEX_IA32_VMX_CR0_FIXED0_MSR       0x6
-#define INDEX_IA32_VMX_CR0_FIXED1_MSR       0x7
-#define INDEX_IA32_VMX_CR4_FIXED0_MSR       0x8
-#define INDEX_IA32_VMX_CR4_FIXED1_MSR       0x9
-#define INDEX_IA32_VMX_VMCS_ENUM_MSR        0xA
-#define INDEX_IA32_VMX_PROCBASED_CTLS2_MSR  0xB
+#define INDEX_IA32_VMX_BASIC_MSR                0x0
+#define INDEX_IA32_VMX_PINBASED_CTLS_MSR        0x1
+#define INDEX_IA32_VMX_PROCBASED_CTLS_MSR       0x2
+#define INDEX_IA32_VMX_EXIT_CTLS_MSR            0x3
+#define INDEX_IA32_VMX_ENTRY_CTLS_MSR           0x4
+#define INDEX_IA32_VMX_MISC_MSR                 0x5
+#define INDEX_IA32_VMX_CR0_FIXED0_MSR           0x6
+#define INDEX_IA32_VMX_CR0_FIXED1_MSR           0x7
+#define INDEX_IA32_VMX_CR4_FIXED0_MSR           0x8
+#define INDEX_IA32_VMX_CR4_FIXED1_MSR           0x9
+#define INDEX_IA32_VMX_VMCS_ENUM_MSR            0xA
+#define INDEX_IA32_VMX_PROCBASED_CTLS2_MSR      0xB
+#define INDEX_IA32_VMX_EPT_VPID_CAP_MSR         0xC
+#define INDEX_IA32_VMX_TRUE_PINBASED_CTLS_MSR   0xD
+#define INDEX_IA32_VMX_TRUE_PROCBASED_CTLS_MSR  0xE
+#define INDEX_IA32_VMX_TRUE_EXIT_CTLS_MSR       0xF
+#define INDEX_IA32_VMX_TRUE_ENTRY_CTLS_MSR      0x10
+#define INDEX_IA32_VMX_VMFUNC_MSR               0x11
 
 //---platform
-#define IA32_VMX_MSRCOUNT                   12
+#define IA32_VMX_MSRCOUNT                       18
 
 #ifndef __ASSEMBLY__
 //the vcpu structure which holds the current state of a core
@@ -200,8 +207,12 @@ typedef struct _vcpu {
 
   //VMX specific fields
   u64 vmx_msrs[IA32_VMX_MSRCOUNT];  //VMX msr values
-  u64 vmx_msr_efer;
-  u64 vmx_msr_efcr;
+  u64 vmx_pinbased_ctls;          //IA32_VMX_PINBASED_CTLS or IA32_VMX_TRUE_...
+  u64 vmx_procbased_ctls;         //IA32_VMX_PROCBASED_CTLS or IA32_VMX_TRUE_...
+  u64 vmx_exit_ctls;              //IA32_VMX_EXIT_CTLS or IA32_VMX_TRUE_...
+  u64 vmx_entry_ctls;             //IA32_VMX_ENTRY_CTLS or IA32_VMX_TRUE_...
+  vmx_ctls_t vmx_caps;            //VMX controls that are supported by hardware
+
   hva_t vmx_vmxonregion_vaddr;    //virtual address of the vmxon region
   hva_t vmx_vmcs_vaddr;           //virtual address of the VMCS region
 
@@ -226,8 +237,6 @@ typedef struct _vcpu {
   u32 vmx_guest_inject_nmi;     //asynchronously inject NMI to guest
 
   //guest state fields
-  u32 vmx_guest_currentstate;   //current operating mode of guest
-  u32 vmx_guest_nextstate;      //next operating mode of guest
   u32 vmx_guest_unrestricted;   //this is 1 if the CPU VMX implementation supports unrestricted guest execution
   struct _vmx_vmcsfields vmcs;   //the VMCS fields
 
@@ -235,9 +244,6 @@ typedef struct _vcpu {
 
 #define SIZE_STRUCT_VCPU    (sizeof(struct _vcpu))
 #define CPU_VENDOR (g_vcpubuffers[0].cpu_vendor)
-
-//_vmx_cap.h requires VCPU, so is placed here.
-#include "_vmx_cap.h"
 
 //----------------------------------------------------------------------
 //ARCH. BACKENDS

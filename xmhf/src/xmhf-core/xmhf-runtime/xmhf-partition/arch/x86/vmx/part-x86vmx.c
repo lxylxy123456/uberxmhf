@@ -115,7 +115,7 @@ static void _vmx_initVT(VCPU *vcpu){
   {
     #ifndef __XMHF_VERIFICATION__
     if (get_cpu_vendor_or_die() != CPU_VENDOR_INTEL) {
-      printf("\nCPU(0x%02x) is not an Intel CPU. Halting!", vcpu->id);
+      printf("CPU(0x%02x) is not an Intel CPU. Halting!\n", vcpu->id);
       HALT();
     }
     #endif
@@ -142,20 +142,42 @@ static void _vmx_initVT(VCPU *vcpu){
     #else
     for(i=0; i < 1; i++){
     #endif
+        /* Note: was "i <= INDEX_IA32_VMX_VMFUNC_MSR" */
+        if (i >= INDEX_IA32_VMX_TRUE_PINBASED_CTLS_MSR &&
+            i <= IA32_VMX_TRUE_ENTRY_CTLS_MSR &&
+            !(vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR] & (1ULL << 55))) {
+            continue;
+        }
+        if (i == INDEX_IA32_VMX_VMFUNC_MSR &&
+            !(vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR] &
+              (1ULL << VMX_SECPROCBASED_ENABLE_VM_FUNCTIONS))) {
+            continue;
+        }
         vcpu->vmx_msrs[i] = rdmsr64(IA32_VMX_BASIC_MSR + i);
     }
 
-    vcpu->vmx_msr_efer = rdmsr64(MSR_EFER);
-    vcpu->vmx_msr_efcr = rdmsr64(MSR_EFCR);
+    if (vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR] & (1ULL << 55)) {
+        vcpu->vmx_pinbased_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_TRUE_PINBASED_CTLS_MSR];
+        vcpu->vmx_procbased_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_TRUE_PROCBASED_CTLS_MSR];
+        vcpu->vmx_exit_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_TRUE_EXIT_CTLS_MSR];
+        vcpu->vmx_entry_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_TRUE_ENTRY_CTLS_MSR];
+    } else {
+        vcpu->vmx_pinbased_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_PINBASED_CTLS_MSR];
+        vcpu->vmx_procbased_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS_MSR];
+        vcpu->vmx_exit_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR];
+        vcpu->vmx_entry_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR];
+    }
 
-    //[debug: dump contents of MSRs]
-    //for(i=0; i < IA32_VMX_MSRCOUNT; i++)
-    //  printf("\nCPU(0x%02x): VMX MSR 0x%08x = 0x%08x%08x", vcpu->id, IA32_VMX_BASIC_MSR+i,
-    //      (u32)((u64)vcpu->vmx_msrs[i] >> 32), (u32)vcpu->vmx_msrs[i]);
+    vcpu->vmx_caps.pinbased_ctls = (vcpu->vmx_pinbased_ctls >> 32);
+    vcpu->vmx_caps.procbased_ctls = (vcpu->vmx_procbased_ctls >> 32);
+    vcpu->vmx_caps.procbased_ctls2 =
+        (vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR] >> 32);
+    vcpu->vmx_caps.exit_ctls = (vcpu->vmx_exit_ctls >> 32);
+    vcpu->vmx_caps.entry_ctls = (vcpu->vmx_entry_ctls >> 32);
 
 		//check if VMX supports unrestricted guest, if so we don't need the
 		//v86 monitor and the associated state transition handling
-		if( (u32)((u64)vcpu->vmx_msrs[IA32_VMX_MSRCOUNT-1] >> 32) & 0x80 )
+		if (_vmx_hasctl_unrestricted_guest(&vcpu->vmx_caps))
 			vcpu->vmx_guest_unrestricted = 1;
 		else
 			vcpu->vmx_guest_unrestricted = 0;
@@ -167,13 +189,7 @@ static void _vmx_initVT(VCPU *vcpu){
 		#endif
 
 		if(vcpu->vmx_guest_unrestricted)
-			printf("\nCPU(0x%02x): UNRESTRICTED-GUEST supported.", vcpu->id);
-
-		printf("\nCPU(0x%02x): MSR_EFER=0x%08x%08x", vcpu->id, (u32)((u64)vcpu->vmx_msr_efer >> 32),
-          (u32)vcpu->vmx_msr_efer);
-    printf("\nCPU(0x%02x): MSR_EFCR=0x%08x%08x", vcpu->id, (u32)((u64)vcpu->vmx_msr_efcr >> 32),
-          (u32)vcpu->vmx_msr_efcr);
-
+			printf("CPU(0x%02x): UNRESTRICTED-GUEST supported.\n", vcpu->id);
   }
 
   //step-4: enable VMX by setting CR4
@@ -190,7 +206,7 @@ static void _vmx_initVT(VCPU *vcpu){
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
 	#endif
-  printf("\nCPU(0x%02x): enabled VMX", vcpu->id);
+  printf("CPU(0x%02x): enabled VMX\n", vcpu->id);
 
 	  //step-5:enter VMX root operation using VMXON
 	  {
@@ -234,11 +250,11 @@ static void _vmx_initVT(VCPU *vcpu){
 			#endif
 
 	    if(!retval){
-	      printf("\nCPU(0x%02x): Fatal, unable to enter VMX root operation", vcpu->id);
+	      printf("CPU(0x%02x): Fatal, unable to enter VMX root operation\n", vcpu->id);
 	      HALT();
 	    }
 
-	    printf("\nCPU(0x%02x): Entered VMX root operation", vcpu->id);
+	    printf("CPU(0x%02x): Entered VMX root operation\n", vcpu->id);
 	  }
 
 }
@@ -255,7 +271,7 @@ static void	_vmx_int15_initializehook(VCPU *vcpu){
 		/* 32-bit CS:IP for IVT INT 15 handler */
 		volatile u16 *ivt_int15 = (volatile u16 *)(0x54);
 
-		printf("\nCPU(0x%02x): original INT 15h handler at 0x%04x:0x%04x", vcpu->id,
+		printf("CPU(0x%02x): original INT 15h handler at 0x%04x:0x%04x\n", vcpu->id,
 			ivt_int15[1], ivt_int15[0]);
 
 		//we need 8 bytes (4 for the VMCALL followed by IRET and 4 for the
@@ -276,20 +292,6 @@ static void	_vmx_int15_initializehook(VCPU *vcpu){
 		ivt_int15[0]=0x00AC;
 		ivt_int15[1]=0x0040;
 	}
-}
-
-/* Return nonzero if this CPU supports INVPCID according to CPUID */
-static uint32_t _vmx_check_invpcid_support(void) {
-	uintptr_t eax, ebx, ecx, edx;
-	cpuid(0x7U, &eax, &ebx, &ecx, &edx);
-	return ebx & (1U << 10);
-}
-
-/* Return nonzero if this CPU supports RDTSCP according to CPUID */
-static uint32_t _vmx_check_rdtscp_support(void) {
-	uintptr_t eax, ebx, ecx, edx;
-	cpuid(0x80000001U, &eax, &ebx, &ecx, &edx);
-	return edx & (1U << 27);
 }
 
 //--initunrestrictedguestVMCS: initializes VMCS for unrestricted guest ---------
@@ -350,19 +352,19 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 #endif
 
 	//setup default VMX controls
-	vcpu->vmcs.control_VMX_pin_based = vcpu->vmx_msrs[INDEX_IA32_VMX_PINBASED_CTLS_MSR];
-	vcpu->vmcs.control_VMX_cpu_based = vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS_MSR];
-	vcpu->vmcs.control_VM_exit_controls = vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR];
-	vcpu->vmcs.control_VM_entry_controls = vcpu->vmx_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR];
+	vcpu->vmcs.control_VMX_pin_based = vcpu->vmx_pinbased_ctls;
+	vcpu->vmcs.control_VMX_cpu_based = vcpu->vmx_procbased_ctls;
+	vcpu->vmcs.control_VM_exit_controls = vcpu->vmx_exit_ctls;
+	vcpu->vmcs.control_VM_entry_controls = vcpu->vmx_entry_ctls;
 
 #ifdef __AMD64__
 	/*
 	 * For amd64, set the Host address-space size (bit 9) in
 	 * control_VM_exit_controls. First check whether setting this bit is
-	 * allowed through bit (9 + 32) in the MSR.
+	 * allowed.
 	 */
-	HALT_ON_ERRORCOND(vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR] & (1UL << (9 + 32)));
-	vcpu->vmcs.control_VM_exit_controls |= (1UL << 9);
+	HALT_ON_ERRORCOND(_vmx_hasctl_vmexit_host_address_space_size(&vcpu->vmx_caps));
+	vcpu->vmcs.control_VM_exit_controls |= (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE);
 #elif !defined(__I386__)
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) */
@@ -376,7 +378,7 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
         u64 addr = hva2spa( ((void*)vcpu->vmx_vaddr_iobitmap + PAGE_SIZE_4K) );
 	    vcpu->vmcs.control_IO_BitmapB_address = addr;
     }
-	vcpu->vmcs.control_VMX_cpu_based |= (1 << 25); //enable use IO Bitmaps
+	vcpu->vmcs.control_VMX_cpu_based |= (1U << VMX_PROCBASED_USE_IO_BITMAPS);
 
 	//Critical MSR load/store
 	{
@@ -479,7 +481,7 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	vcpu->vmcs.guest_RSP = 0x0;
 	//RIP
 	if(vcpu->isbsp){
-		printf("\nBSP(0x%02x): copying boot-module to boot guest", vcpu->id);
+		printf("BSP(0x%02x): copying boot-module to boot guest\n", vcpu->id);
 		#ifndef __XMHF_VERIFICATION__
 		memcpy((void *)__GUESTOSBOOTMODULE_BASE, (void *)rpb->XtGuestOSBootModuleBase, rpb->XtGuestOSBootModuleSize);
 		#endif
@@ -526,27 +528,27 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 
 	//activate secondary processor controls
 	vcpu->vmcs.control_VMX_seccpu_based = vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR];
-	vcpu->vmcs.control_VMX_cpu_based |= (1 << 31); //activate secondary processor controls
+	vcpu->vmcs.control_VMX_cpu_based |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
 
 	//setup unrestricted guest
-	vcpu->vmcs.control_VMX_seccpu_based |= (1 << 7); //enable unrestricted guest
+	vcpu->vmcs.control_VMX_seccpu_based |= (1U << VMX_SECPROCBASED_UNRESTRICTED_GUEST);
 
 	//allow INVPCID (used by Debian 11)
-	if (_vmx_check_invpcid_support()) {
-		vcpu->vmcs.control_VMX_seccpu_based |= (1 << 12); //enable INVPCID
+	if (_vmx_hasctl_enable_invpcid(&vcpu->vmx_caps)) {
+		vcpu->vmcs.control_VMX_seccpu_based |= (1U << VMX_SECPROCBASED_ENABLE_INVPCID);
 	}
 
 	//allow RDTSCP (used by Debian 11)
-	if (_vmx_check_rdtscp_support()) {
-		vcpu->vmcs.control_VMX_seccpu_based |= (1 << 3); //enable RDTSCP
+	if (_vmx_hasctl_enable_rdtscp(&vcpu->vmx_caps)) {
+		vcpu->vmcs.control_VMX_seccpu_based |= (1U << VMX_SECPROCBASED_ENABLE_RDTSCP);
 	}
 
 	//setup VMCS link pointer
 	vcpu->vmcs.guest_VMCS_link_pointer = (u64)0xFFFFFFFFFFFFFFFFULL;
 
 	//setup NMI intercept for core-quiescing
-	vcpu->vmcs.control_VMX_pin_based |= (1 << 3);	//intercept NMIs
-	vcpu->vmcs.control_VMX_pin_based |= (1 << 5);	//enable virtual NMIs
+	vcpu->vmcs.control_VMX_pin_based |= (1U << VMX_BINBASED_NMI_EXITING);
+	vcpu->vmcs.control_VMX_pin_based |= (1U << VMX_BINBASED_VIRTUAL_NMIS);
 	vcpu->vmx_guest_inject_nmi = 0;
 
 	//trap access to CR0 fixed 1-bits
@@ -587,10 +589,10 @@ static void _vmx_initVMCS(VCPU *vcpu){
 static void _vmx_start_hvm(VCPU *vcpu, u32 vmcs_phys_addr){
   //clear VMCS
   if(!__vmx_vmclear((u64)vmcs_phys_addr)){
-    printf("\nCPU(0x%02x): VMCLEAR failed, HALT!", vcpu->id);
+    printf("CPU(0x%02x): VMCLEAR failed, HALT!\n", vcpu->id);
     HALT();
   }
-  printf("\nCPU(0x%02x): VMCLEAR success.", vcpu->id);
+  printf("CPU(0x%02x): VMCLEAR success.\n", vcpu->id);
 
 
   //set VMCS revision id
@@ -598,14 +600,14 @@ static void _vmx_start_hvm(VCPU *vcpu, u32 vmcs_phys_addr){
 
   //load VMPTR
   if(!__vmx_vmptrld((u64)vmcs_phys_addr)){
-    printf("\nCPU(0x%02x): VMPTRLD failed, HALT!", vcpu->id);
+    printf("CPU(0x%02x): VMPTRLD failed, HALT!\n", vcpu->id);
     HALT();
   }
-  printf("\nCPU(0x%02x): VMPTRLD success.", vcpu->id);
+  printf("CPU(0x%02x): VMPTRLD success.\n", vcpu->id);
 
   //put VMCS to CPU
   xmhf_baseplatform_arch_x86vmx_putVMCS(vcpu);
-  printf("\nCPU(0x%02x): VMWRITEs success.", vcpu->id);
+  printf("CPU(0x%02x): VMWRITEs success.\n", vcpu->id);
   HALT_ON_ERRORCOND( vcpu->vmcs.guest_VMCS_link_pointer == 0xFFFFFFFFFFFFFFFFULL );
 
   {
@@ -643,7 +645,7 @@ void xmhf_partition_arch_x86vmx_initializemonitor(VCPU *vcpu){
 	//INT 15h E820 hook enablement for VMX unrestricted guest mode
 	//note: this only happens for the BSP
 	if(vcpu->isbsp){
-		printf("\nCPU(0x%02x, BSP): initializing INT 15 hook for UG mode...", vcpu->id);
+		printf("CPU(0x%02x, BSP): initializing INT 15 hook for UG mode...\n", vcpu->id);
 		_vmx_int15_initializehook(vcpu);
 	}
 
@@ -691,23 +693,23 @@ void __vmx_vmentry_fail_callback(ulong_t is_resume, ulong_t valid)
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	switch (valid) {
 	case 0:
-		printf("\nCPU(0x%02x): %s error: VMCS pointer invalid? HALT!",
+		printf("CPU(0x%02x): %s error: VMCS pointer invalid? HALT!\n",
 				vcpu->id, inst_name);
 		break;
 	case 1:
 		{
 			unsigned long code;
 			HALT_ON_ERRORCOND(__vmx_vmread(0x4400, &code));
-			printf("\nCPU(0x%02x): %s error; code=0x%lx.", vcpu->id, inst_name,
+			printf("CPU(0x%02x): %s error; code=0x%lx.\n", vcpu->id, inst_name,
 					code);
 		}
 		xmhf_baseplatform_arch_x86vmx_getVMCS(vcpu);
 		xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
-		printf("\nCPU(0x%02x): HALT!", vcpu->id);
+		printf("CPU(0x%02x): HALT!\n", vcpu->id);
 		break;
 	default:
-		printf("\nCPU(0x%02x): %s error: neither VMfailInvalid nor VMfailValid?"
-				" HALT!", vcpu->id, inst_name);
+		printf("CPU(0x%02x): %s error: neither VMfailInvalid nor VMfailValid?"
+				" HALT!\n", vcpu->id, inst_name);
 		break;
 	}
 	HALT();
