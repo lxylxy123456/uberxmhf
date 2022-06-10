@@ -73,6 +73,14 @@ void xmhf_smpguest_arch_endquiesce(VCPU *vcpu);
 //note: returns 0xFFFFFFFF if there is no mapping
 u8 * xmhf_smpguest_arch_walk_pagetables(VCPU *vcpu, u32 vaddr);
 
+// Inject NMI to the guest <vcpu> immediately.
+// [NOTE] This function does not check if the guest is in its NMI handler or not.
+void xmhf_smpguest_arch_inject_nmi_now(VCPU *vcpu);
+
+// Inject NMI to the guest <vcpu> when the guest is ready to receive it; i.e., must not in NMI handler.
+// [NOTE] This function uses the NMI window VMExit to check if guest is ready to receive the NMI.
+void xmhf_smpguest_arch_inject_nmi(VCPU *vcpu);
+
 
 
 //----------------------------------------------------------------------
@@ -107,6 +115,14 @@ u32 xmhf_smpguest_arch_x86vmx_eventhandler_hwpgtblviolation(VCPU *vcpu, u32 padd
 void xmhf_smpguest_arch_x86vmx_unblock_nmi(void);
 void xmhf_smpguest_arch_x86vmx_quiesce(VCPU *vcpu);
 void xmhf_smpguest_arch_x86vmx_endquiesce(VCPU *vcpu);
+
+// Inject NMI to the guest <vcpu> immediately.
+// [NOTE] This function does not check if the guest is in its NMI handler or not.
+void xmhf_smpguest_arch_x86vmx_inject_nmi_now(VCPU* vcpu);
+
+// Inject NMI to the guest <vcpu> when the guest is ready to receive it; i.e., must not in NMI handler.
+// [NOTE] This function uses the NMI window VMExit to check if guest is ready to receive the NMI.
+void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU* vcpu);
 
 
 //perform required setup after a guest awakens a new CPU

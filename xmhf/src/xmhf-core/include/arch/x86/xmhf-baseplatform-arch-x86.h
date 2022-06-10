@@ -174,6 +174,14 @@ struct _guestmtrrmsrs {
 #define IA32_VMX_MSRCOUNT                       18
 
 #ifndef __ASSEMBLY__
+union
+{
+    u32 guest_nmi_enable:1,     //If true, then the mHV can inject NMI to the current guest.
+        guest_nmi_pending:1,    //If true, then there is a pending NMI happened after the current guest disable NMI.
+        __reserved1:30;
+    u32 val;
+} GUEST_NMI;
+
 //the vcpu structure which holds the current state of a core
 typedef struct _vcpu {
   //common fields
@@ -234,7 +242,8 @@ typedef struct _vcpu {
   //guest MTRR shadow MSRs
   struct _guestmtrrmsrs vmx_guestmtrrmsrs;
 
-  u32 vmx_guest_inject_nmi;     //asynchronously inject NMI to guest
+  bool vmx_guest_start_inject_nmi;     //if true, then the mHV starts the procedure to inject NMI to guest asynchronously
+  GUEST_NMI vmx_guest_nmi_cfg;     //if true, then the mHV can inject NMI to the current guest
 
   //guest state fields
   u32 vmx_guest_unrestricted;   //this is 1 if the CPU VMX implementation supports unrestricted guest execution

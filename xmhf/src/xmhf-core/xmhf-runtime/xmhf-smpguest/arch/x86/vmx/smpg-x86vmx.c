@@ -642,8 +642,8 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		//printf("CPU(0x%02x): EOQ received, resuming...\n", vcpu->id);
 
     // Flush EPT TLB, if instructed so
-    if(g_vmx_flush_all_tlb_signal)
-      xmhf_memprot_flushmappings_localtlb(vcpu);
+        if(g_vmx_flush_all_tlb_signal)
+            xmhf_memprot_flushmappings_localtlb(vcpu);
 
 		spin_lock(&g_vmx_lock_quiesce_resume_counter);
 		g_vmx_quiesce_resume_counter++;
@@ -658,7 +658,7 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
         // "vcpu->vmcs.control_VMX_cpu_based" in order to be notified when the guest is ready to receive the next NMI. 
         // Thus, "vcpu->vmcs.control_VMX_cpu_based" can be seen as a NMI pending bit of the current guest.
 
-        // [NOTE] Updating "vcpu->vmcs.control_VMX_cpu_based" here without "vcpu->vmx_guest_inject_nmi = 1" cannot 
+        // [NOTE] Updating "vcpu->vmcs.control_VMX_cpu_based" here without "vcpu->vmx_guest_start_inject_nmi = 1" cannot 
         // guarantee control_VMX_cpu_based is written. This is because VMexit handlers have 
         // xmhf_baseplatform_arch_x86vmx_getVMCS and xmhf_baseplatform_arch_x86vmx_putVMCS or similar pair of VMCS 
         // backup/restore operations, and they form race conditions with any "vcpu->vmcs.control_VMX_cpu_based" writing
@@ -685,19 +685,19 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * xmhf_baseplatform_arch_x86vmx_putVMCS().
 		 *
 		 * To solve the problem, this function also sets
-		 * vcpu->vmx_guest_inject_nmi. After step 5,
+		 * vcpu->vmx_guest_start_inject_nmi. After step 5,
 		 * xmhf_baseplatform_arch_x86vmx_putVMCS() checks whether
-		 * vcpu->vmx_guest_inject_nmi is set. If so, it will perform another
+		 * vcpu->vmx_guest_start_inject_nmi is set. If so, it will perform another
 		 * VMWRITE.
 		 *
 		 * So the updated logic of intercept handlers become
-		 * 1. vcpu->vmx_guest_inject_nmi = 0
+		 * 1. vcpu->vmx_guest_start_inject_nmi = false
 		 * 2. var temp = VMREAD("control_VMX_cpu_based")
 		 * 3. vcpu->vmcs.control_VMX_cpu_based = temp
 		 * 4. Update vcpu->vmcs.control_VMX_cpu_based
 		 * 5. temp = vcpu->vmcs.control_VMX_cpu_based
 		 * 6. VMWRITE("control_VMX_cpu_based", temp)
-		 * 7. if (vcpu->vmx_guest_inject_nmi) {
+		 * 7. if (vcpu->vmx_guest_start_inject_nmi) {
 		 * 8.     var temp2 = VMREAD("control_VMX_cpu_based")
 		 * 9.     set bit 22 of temp2
 		 * 10.    VMWRITE("control_VMX_cpu_based", temp2)
@@ -707,14 +707,14 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * 1. var temp = VMREAD("control_VMX_cpu_based")
 		 * 2. set bit 22 of temp
 		 * 3. VMWRITE("control_VMX_cpu_based", temp)
-		 * 4. vcpu->vmx_guest_inject_nmi = 1
+		 * 4. vcpu->vmx_guest_start_inject_nmi = true
 		 *
 		 * Consider different places this function interleaves with the
 		 * intercept handler:
 		 * a. before step 2: VMREAD at step 2 gets updated value, good
 		 * b. between 2 - 6: VMREAD at step 2 gets old value, this function
 		 *    writes new value, then overwritten by VMWRITE at step 6. But the
-		 *    vmx_guest_inject_nmi flag bit will cause the intercept handler to
+		 *    vmx_guest_start_inject_nmi flag bit will cause the intercept handler to
 		 *    set the bit in VMCS correctly.
 		 * c. between 6 - 7: this function will read the new value, good.
 		 *    then step 7 will set bit 22 again, but it does not affect
@@ -722,14 +722,27 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * d. after step 7: the bit 22 will finally be set, and the change to
 		 *    the VMCS field made by the intercept handle is always preserved.
 		 */
-		//printf("CPU(0x%02x): Regular NMI, injecting back to guest...\n", vcpu->id);
-		// TODO: if hypapp has multiple VMCS, need to select which one to inject
-		/* Cannot be u32 in amd64, because VMREAD writes 64-bits */
-		unsigned long __control_VMX_cpu_based;
-		HALT_ON_ERRORCOND(__vmx_vmread(0x4002, &__control_VMX_cpu_based));
-		__control_VMX_cpu_based |= (1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
-		HALT_ON_ERRORCOND(__vmx_vmwrite(0x4002, __control_VMX_cpu_based));
-		vcpu->vmx_guest_inject_nmi = 1;
+		
+
+        // If the current guest accepts NMI, then the mHV prepares NMI injection
+        if(vcpu->vmx_guest_nmi_cfg.guest_nmi_enable)
+        {
+            //printf("CPU(0x%02x): Regular NMI, injecting back to guest...\n", vcpu->id);
+            // TODO: if hypapp has multiple VMCS, need to select which one to inject
+            /* Cannot be u32 in amd64, because VMREAD writes 64-bits */
+            unsigned long __control_VMX_cpu_based;
+            HALT_ON_ERRORCOND(__vmx_vmread(0x4002, &__control_VMX_cpu_based));
+            __control_VMX_cpu_based |= (1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+            HALT_ON_ERRORCOND(__vmx_vmwrite(0x4002, __control_VMX_cpu_based));
+            
+            vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = true; // Set the pending bit in <vcpu->vmx_guest_nmi_cfg.guest_nmi_pending>
+		    vcpu->vmx_guest_start_inject_nmi = true;
+        }
+        else
+        {
+            vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = true; // Set the pending bit in <vcpu->vmx_guest_nmi_cfg.guest_nmi_pending>
+            vcpu->vmx_guest_start_inject_nmi = false;
+        }
 	}
 
 	/* Unblock NMI in hypervisor */
@@ -833,4 +846,32 @@ u8 * xmhf_smpguest_arch_x86vmx_walk_pagetables(VCPU *vcpu, u32 vaddr){
 
     return (u8 *)(uintptr_t)paddr;
   }
+}
+
+// Inject NMI to the guest <vcpu> immediately.
+// [NOTE] This function does not check if the guest is in its NMI handler or not.
+void xmhf_smpguest_arch_x86vmx_inject_nmi_now(VCPU* vcpu)
+{
+    vcpu->vmcs.control_VM_entry_exception_errorcode = 0;
+    vcpu->vmcs.control_VM_entry_interruption_information = NMI_VECTOR |
+        INTR_TYPE_NMI |
+        INTR_INFO_VALID_MASK;
+
+    // Clear <vcpu->vmx_guest_nmi_cfg.guest_nmi_pending>, because the mHV injects the NMI to the current guest immediately.
+    vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = false;
+
+    printf("CPU(0x%02x): inject NMI\n", vcpu->id);
+}
+
+// Inject NMI to the guest <vcpu> when the guest is ready to receive it; i.e., must not in NMI handler.
+// [NOTE] This function uses the NMI window VMExit to check if guest is ready to receive the NMI.
+void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU* vcpu)
+{
+    unsigned long __control_VMX_cpu_based;
+    HALT_ON_ERRORCOND(__vmx_vmread(0x4002, &__control_VMX_cpu_based));
+    __control_VMX_cpu_based |= (1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+    HALT_ON_ERRORCOND(__vmx_vmwrite(0x4002, __control_VMX_cpu_based));
+
+    vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = true; // Set the pending bit in <vcpu->vmx_guest_nmi_cfg.guest_nmi_pending>
+	vcpu->vmx_guest_start_inject_nmi = true;
 }
