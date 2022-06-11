@@ -174,7 +174,7 @@ struct _guestmtrrmsrs {
 #define IA32_VMX_MSRCOUNT                       18
 
 #ifndef __ASSEMBLY__
-union
+typedef union
 {
     u32 guest_nmi_enable:1,     //If true, then the mHV can inject NMI to the current guest.
         guest_nmi_pending:1,    //If true, then there is a pending NMI happened after the current guest disable NMI.
