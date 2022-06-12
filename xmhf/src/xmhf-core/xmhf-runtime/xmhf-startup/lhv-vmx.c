@@ -198,7 +198,7 @@ void lhv_vmx_main(VCPU *vcpu)
 		for(i = 0; i < IA32_VMX_MSRCOUNT; i++) {
 			vcpu->vmx_msrs[i] = rdmsr64(IA32_VMX_BASIC_MSR + i);
 		}
-		if (_vmx_has_unrestricted_guest(vcpu)) {
+		if (_vmx_hasctl_unrestricted_guest(&vcpu->vmx_caps)) {
 			vcpu->vmx_guest_unrestricted = 1;
 		} else {
 			vcpu->vmx_guest_unrestricted = 0;
