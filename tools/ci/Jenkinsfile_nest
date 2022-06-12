@@ -32,7 +32,7 @@ void qemu_test(String subarch, String lhv_subarch) {
     """
     sh """
         python3 -u ./tools/ci/test5.py \
-            --lhv-image ${PWD}/lhv/tmp/c.img \
+            --lhv-image ${PWD}/lhv/tmp/grub/c.img \
             --work-dir ${PWD}/tmp/ \
             --no-display \
             --verbose \
