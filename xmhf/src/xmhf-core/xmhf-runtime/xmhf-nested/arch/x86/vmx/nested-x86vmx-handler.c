@@ -359,19 +359,6 @@ static u32 _vmx_vmentry(VCPU *vcpu, vmcs12_info_t *vmcs12_info, struct regs *r)
 
 	// TODO: for host-state fields, update vmcs of guest hv.
 
-	if (1) {	// TODO
-		printf("vmcs12_info->vmcs12_value.guest_RIP, 0x%08x\n",
-				vmcs12_info->vmcs12_value.guest_RIP);
-		__vmx_vmwriteNW(0x681E, vmcs12_info->vmcs12_value.guest_RIP);
-		vcpu->vmx_nested_is_vmx_root_operation = 0;
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "old.");
-		if (0) {
-			vmcs12_info->launched = 1;
-			__vmx_vmentry_vmresume(r);
-			HALT_ON_ERRORCOND(0);
-		}
-	}
-
 	/* Translate VMCS12 to VMCS02 */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
 	result = xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(vcpu, &vmcs12_info->vmcs12_value);
@@ -384,10 +371,6 @@ static u32 _vmx_vmentry(VCPU *vcpu, vmcs12_info_t *vmcs12_info, struct regs *r)
 
 	/* From now on, cannot fail */
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
-
-	if (1) {	// TODO
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "new.");
-	}
 
 	if (vmcs12_info->launched) {
 		__vmx_vmentry_vmresume(r);
