@@ -385,11 +385,6 @@ static u32 _vmx_vmentry(VCPU *vcpu, vmcs12_info_t *vmcs12_info, struct regs *r)
 	/* From now on, cannot fail */
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
 
-	__vmx_vmwrite64(0x280a, 0x0000000008b5b001ULL);
-	__vmx_vmwrite64(0x280c, 0x0000000008b5c001ULL);
-	__vmx_vmwrite64(0x280e, 0x0000000008b5d001ULL);
-	__vmx_vmwrite64(0x2810, 0x0000000008b5e001ULL);
-
 	if (1) {	// TODO
 		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "new.");
 	}
