@@ -357,8 +357,6 @@ static u32 _vmx_vmentry(VCPU *vcpu, vmcs12_info_t *vmcs12_info, struct regs *r)
 		* "Activate tertiary controls" not supported
 	 */
 
-	// TODO: for host-state fields, update vmcs of guest hv.
-
 	/* Translate VMCS12 to VMCS02 */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
 	result = xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(vcpu, &vmcs12_info->vmcs12_value);
@@ -368,6 +366,8 @@ static u32 _vmx_vmentry(VCPU *vcpu, vmcs12_info_t *vmcs12_info, struct regs *r)
 		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void*)vcpu->vmx_vmcs_vaddr)));
 		return result;
 	}
+
+	printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
 
 	/* From now on, cannot fail */
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
@@ -542,13 +542,19 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU *vcpu)
 	}
 }
 
+/* Handle VMEXIT from nested guest */
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU *vcpu, struct regs *r)
 {
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
-	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "Nested VMEXIT: ");
 	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, &vmcs12_info->vmcs12_value);
-	(void) r;
-	HALT_ON_ERRORCOND(0 && "TODO frontier");
+	printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
+			vmcs12_info->vmcs12_value.info_vmexit_reason);
+	/* Prepare VMRESUME to guest hypervisor */
+	HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void*)vcpu->vmx_vmcs_vaddr)));
+	xmhf_baseplatform_arch_x86vmx_putVMCS(vcpu);
+	// TODO: handle vcpu->vmx_guest_inject_nmi?
+	vcpu->vmx_nested_is_vmx_root_operation = 1;
+	__vmx_vmentry_vmresume(r);
 }
 
 // TODO: also need to virtualize VMCALL
@@ -710,7 +716,7 @@ void xmhf_nested_arch_x86vmx_handle_vmread(VCPU *vcpu, struct regs *r)
 				ulong_t value = xmhf_nested_arch_x86vmx_vmcs_read
 					(&vmcs12_info->vmcs12_value, offset, size);
 				if (value_mem_reg) {
-					*(ulong_t *)pvalue = value;
+					memcpy((void *) pvalue, &value, size);
 				} else {
 					guestmem_hptw_ctx_pair_t ctx_pair;
 					guestmem_init(vcpu, &ctx_pair);
@@ -757,9 +763,9 @@ void xmhf_nested_arch_x86vmx_handle_vmwrite(VCPU *vcpu, struct regs *r)
 			} else {
 				/* Note: Currently does not support VMCS shadowing */
 				vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
-				ulong_t value;
+				ulong_t value = 0;
 				if (value_mem_reg) {
-					value = *(ulong_t *)pvalue;
+					memcpy(&value, (void *) pvalue, size);
 				} else {
 					guestmem_hptw_ctx_pair_t ctx_pair;
 					guestmem_init(vcpu, &ctx_pair);

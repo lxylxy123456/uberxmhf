@@ -109,7 +109,6 @@ ulong_t xmhf_nested_arch_x86vmx_vmcs_read(struct nested_vmcs12 *vmcs12,
 	switch (offset) {
 #define DECLARE_FIELD_16(encoding, name, ...) \
 	case offsetof(struct nested_vmcs12, name): \
-		HALT_ON_ERRORCOND(size >= sizeof(u16)); \
 		return (ulong_t) vmcs12->name;
 #define DECLARE_FIELD_64(encoding, name, ...) \
 	case offsetof(struct nested_vmcs12, name): \
@@ -124,11 +123,9 @@ ulong_t xmhf_nested_arch_x86vmx_vmcs_read(struct nested_vmcs12 *vmcs12,
 		return (ulong_t) ((u32 *)(void *)&vmcs12->name)[1];
 #define DECLARE_FIELD_32(encoding, name, ...) \
 	case offsetof(struct nested_vmcs12, name): \
-		HALT_ON_ERRORCOND(size >= sizeof(u32)); \
 		return (ulong_t) vmcs12->name;
 #define DECLARE_FIELD_NW(encoding, name, ...) \
 	case offsetof(struct nested_vmcs12, name): \
-		HALT_ON_ERRORCOND(size >= sizeof(ulong_t)); \
 		return (ulong_t) vmcs12->name;
 #include "nested-x86vmx-vmcs12-fields.h"
 	default:
@@ -158,7 +155,6 @@ void xmhf_nested_arch_x86vmx_vmcs_write(struct nested_vmcs12 *vmcs12,
 		DECLARE_FIELD_16_RO(encoding, name)
 #define DECLARE_FIELD_16_RW(encoding, name, ...) \
 	case offsetof(struct nested_vmcs12, name): \
-		HALT_ON_ERRORCOND(size >= sizeof(u16)); \
 		vmcs12->name = (u16) value; \
 		break;
 #define DECLARE_FIELD_64_RW(encoding, name, ...) \
@@ -176,12 +172,10 @@ void xmhf_nested_arch_x86vmx_vmcs_write(struct nested_vmcs12 *vmcs12,
 		break;
 #define DECLARE_FIELD_32_RW(encoding, name, ...) \
 	case offsetof(struct nested_vmcs12, name): \
-		HALT_ON_ERRORCOND(size >= sizeof(u32)); \
 		vmcs12->name = (u32) value; \
 		break;
 #define DECLARE_FIELD_NW_RW(encoding, name, ...) \
 	case offsetof(struct nested_vmcs12, name): \
-		HALT_ON_ERRORCOND(size >= sizeof(ulong_t)); \
 		vmcs12->name = (ulong_t) value; \
 		break;
 #include "nested-x86vmx-vmcs12-fields.h"
@@ -569,6 +563,21 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU *vcpu,
 	}
 	{
 		u32 val = vmcs12->control_VM_exit_controls;
+		/* Check the "IA-32e mode guest" bit of the guest hypervisor */
+		if (val & (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE)) {
+			HALT_ON_ERRORCOND(VCPU_g64(vcpu));
+		} else {
+			HALT_ON_ERRORCOND(!VCPU_g64(vcpu));
+		}
+		/*
+		 * The "IA-32e mode guest" bit need to match XMHF. A mismatch can only
+		 * happen when amd64 XMHF runs i386 guest hypervisor.
+		 */
+#ifdef __AMD64__
+		val |= (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE);
+#elif !defined(__I386__)
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) */
 		__vmx_vmwrite32(0x400C, val);
 	}
 	{
@@ -633,7 +642,7 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU *vcpu,
  */
 void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU *vcpu,
 												struct nested_vmcs12 *vmcs12)
-{	// TODO
+{
 	vmx_ctls_t ctls;
 	HALT_ON_ERRORCOND(_vmcs12_get_ctls(vcpu, vmcs12, &ctls) == 0);
 
@@ -827,6 +836,14 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU *vcpu,
 	}
 	{
 		vmcs12->control_VM_exit_controls = __vmx_vmread32(0x400C);
+		/* Set the "IA-32e mode guest" bit of the guest hypervisor */
+		if (VCPU_g64(vcpu)) {
+			vmcs12->control_VM_exit_controls |=
+				(1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE);
+		} else {
+			vmcs12->control_VM_exit_controls &=
+				~(1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE);
+		}
 	}
 	{
 		vmcs12->control_VM_exit_MSR_store_count = __vmx_vmread32(0x400E);
