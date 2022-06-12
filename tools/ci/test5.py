@@ -35,13 +35,11 @@ def println(*args):
 		print('{', *args, '}')
 
 def spawn_qemu(args, xmhf_img, serial_file):
-	bios_bin = os.path.join(args.windows_dir, 'bios.bin')
 	pal_demo_img = os.path.join(args.work_dir, 'pal_demo.img')
 	qemu_args = [
 		'qemu-system-x86_64', '-m', args.memory,
 		'--drive', 'media=disk,file=%s,format=raw,index=0' % xmhf_img,
 		'--drive', 'media=disk,file=%s,format=raw,index=1' % args.lhv_image,
-		'--bios', bios_bin,
 		'-smp', str(args.smp), '-cpu', 'Haswell,vmx=yes', '--enable-kvm',
 		'-serial', 'file:%s' % serial_file,
 	]
@@ -90,7 +88,6 @@ def serial_thread(args, serial_file, serial_result):
 				with serial_result[0]:
 					serial_result[1] = SERIAL_PASS
 					break
-		print(vmentry_count, vmexit_count)
 		matched = re.fullmatch('CPU\((0x[0-9a-f]+)\): nested vmexit \d+', i)
 		if matched:
 			vmexit_count[matched.groups()[0]] += 1

@@ -22,14 +22,16 @@ void qemu_test(String subarch, String lhv_subarch) {
             --verbose \
             --boot-dir ${PWD}/tools/ci/boot
     """
-    sh """
-        python3 -u ./tools/ci/grub.py \
-            --subarch ${lhv_subarch} \
-            --xmhf-bin ${PWD}/lhv/ \
-            --work-dir ${PWD}/lhv/tmp/ \
-            --verbose \
-            --boot-dir ${PWD}/tools/ci/boot
-    """
+    dir ("lhv") {
+        sh """
+            python3 -u ./tools/ci/grub.py \
+                --subarch ${lhv_subarch} \
+                --xmhf-bin ${PWD}/ \
+                --work-dir ${PWD}/tmp/ \
+                --verbose \
+                --boot-dir ${PWD}/tools/ci/boot
+        """
+    }
     sh """
         python3 -u ./tools/ci/test5.py \
             --lhv-image ${PWD}/lhv/tmp/grub/c.img \
