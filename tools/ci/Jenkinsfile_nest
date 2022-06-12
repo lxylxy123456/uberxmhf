@@ -98,7 +98,7 @@ pipeline {
         }
         stage('Test i386 LHV on amd64 XMHF') {
             steps {
-                qemu_test "i386", "i386"
+                qemu_test "amd64", "i386"
             }
         }
         stage('Build amd64 LHV') {
@@ -113,7 +113,7 @@ pipeline {
         }
         stage('Test amd64 LHV on amd64 XMHF') {
             steps {
-                qemu_test "amd64", "i386"
+                qemu_test "amd64", "amd64"
             }
         }
     }
