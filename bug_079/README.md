@@ -406,7 +406,8 @@ around in git `c4afaf4d8`.
 In `f7b8d3b9f`, looks like when EPT and unrestricted guest are enabled, the
 nested guest triple faults immediately after VMENTRY.
 
-To debug this, first make LHV simple. In lhv git `542c1685f`, interrupts are
+To debug this, first make LHV simple. In git branch `lhv-dev` commit
+`a192d2dc0`, interrupts are
 turned off and the guest will execute a few instructions and stuck
 in `lhv_guest_main()`.
 ```
@@ -482,6 +483,111 @@ while True:
 	else:
 		print(line)
 ```
+
+Note: later I realized that there is a simple way, since Python's re supports
+things like `re.sub('(?P<a>[a-z]+)12', '\g<a>', 'asdf12')`.
+
+A similar thing can also be done using `sed`. For example we want to replace
+`_vmx_hasctl_*(&vcpu->vmx_caps)` with `_vmx_hasctl_*(&ctls)`,
+then we can use
+```sh
+sed -i -E 's/(_vmx_hasctl_.+)\(&vcpu->vmx_caps\)/\1(\&ctls)/' ...
+```
+
+### Reducing code using macros
+
+In `a61888225..602c3dc38`, changed `nested-x86vmx-vmcs12-fields.h` to generate
+VMCS12 and VMCS02 translation code automatically.
+
+### Guest triple fault 2
+
+However, after changing I realized that LHV in XMHF results in triple fault.
+We can bisect.
+
+The bisect is good when `Nested VMEXIT: info_vmexit_reason` shows `0x1f`. Bad
+if it shows `0x2`.
+
+```
+* 602c3dc38 Move SYSENTER_CS to nested-...	bad
+* 84f5350df Rename host_IA32_SYSENTER_C...	
+* f9056a088 Use nested-x86vmx-vmcs12-gu...	
+* 01942b974 Add comments to nested-x86v...	
+* 7ae10b0ee Add manual processing code ...	
+* dd2dfebf8 Support FIELD_PROP_ID_GUEST...	
+* 8827a656e Modify nested-x86vmx-vmcs12...	
+* 54b55dd29 Add FIELD_PROP_{GUEST,HOST,...	
+* a61888225 Always enable secondary CPU...	 bad
+* 6c72e8726 Fix indent
+* 4d0f83bee Remove "check whether guest...
+* 82e3eb1b4 Skip copying fields the gue...
+* 824c310ed Use local ctls in vmcs12_to...
+* b3d9bf421 Follow struct vmx_ctls's in...	  bad
+* d824adb33 Merge branch 'xmhf64' into ...
+* bd3af6ce2 Handle VMCS12 host -> VMCS0...
+* 2a6c16336 Complete xmhf_nested_arch_x...
+* 3997ad609 Complete 32-bit fields
+* acbe39164 Translate on 32-bit contorl...	    bad
+* 53d027111 Complete 64-bit fields			      good
+* 06139a195 Write 64-Bit control fields		     good
+* ec91fffcf Writing xmhf_nested_arch_x8...
+* 6ccdce5f2 Temporarily remove IA32_VMX...	   good
+* 46d7c20aa Merge branch 'xmhf64' into ...
+```
+
+After bisecting, the problem happens when enabling EPT at commit `acbe39164`.
+```
+val |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
+```
+
+An invalid workaround is to disable EPT. Then the nested guest can execute some
+instructions and VMEXIT at RDMSR.
+
+We can say that fix in `### Guest triple fault` did not work. We thought that
+removing unrestricted guest would solve the problem, but actually we removed
+EPT. Now we still need to enable EPT.
+
+The debug process should be similar. We can still use lhv-dev `a192d2dc0` to
+distinct between success and failure.
+
+The previous commits in `xmhf64-nest-dev` are in `bd05cdb69..245f64454`. This
+logic is restored in `8bbde53ad..38459633b`. The idea is that if we use the L1
+guest's VMCS and only change the RIP, everything succeeds. We print L1's VMCS
+as "old" and VMCS02 as "new". Then we can manipulate fields. e.g. use bash
+script
+```sh
+diff <(grep 'old\.' /tmp/amt | sed 's/old.//') <(grep 'new\.' /tmp/amt | sed 's/new.//')
+```
+
+Looks like the triple fault happens because the hypervisor needs to manually
+calculate guest PDPTEs. Idea demo in `xmhf64-nest-dev` branch commit
+`38459633b..09f3df557`. Fixed in git `602c3dc38..280bb32dc`.
+
+I found that this bug is also in xmhf64 branch. In the code below, the last
+argument to `guestmem_copy_gp2h()` should be 32, not 8.
+```
+782  		if (pae) {
+783  			guestmem_hptw_ctx_pair_t ctx_pair;
+784  			u64 pdptes[4];
+785  			u64 addr = vcpu->vmcs.guest_CR3 & ~0x1FUL;
+786  			guestmem_init(vcpu, &ctx_pair);
+787  			guestmem_copy_gp2h(&ctx_pair, 0, pdptes, addr, 8);
+788  			vcpu->vmcs.guest_PDPTE0 = pdptes[0];
+789  			vcpu->vmcs.guest_PDPTE1 = pdptes[1];
+790  			vcpu->vmcs.guest_PDPTE2 = pdptes[2];
+791  			vcpu->vmcs.guest_PDPTE3 = pdptes[3];
+792  		}
+```
+
+This bug is fixed in `xmhf64` commit `d2daaeaf9`.
+
+Then fixed some bugs, especially in i386 LHV in amd64 XMHF.
+
+At commit `0a5ddcdfd`, basically can run lhv well.
+
+### CI for nested virtualization
+
+In `0a5ddcdfd..aab1b5643`, added Jenkins CI scripts to test nested
+virtualization.
 
 TODO
 
