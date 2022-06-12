@@ -15,7 +15,7 @@ SERIAL_FAIL = 2
 def parse_args():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--lhv-image', required=True)
-	parser.add_argument('--smp', type=int, default=2)
+	parser.add_argument('--smp', type=int, default=4)
 	parser.add_argument('--work-dir', required=True)
 	parser.add_argument('--windows-dir', default='tools/ci/windows/')
 	parser.add_argument('--no-display', action='store_true')
