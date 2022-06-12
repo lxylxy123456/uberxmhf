@@ -4,7 +4,7 @@
 
 properties([
     parameters([
-        string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64'),
+        string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64-nest-dev'),
         string(name: 'LHV_BRANCH', defaultValue: 'lhv'),
         string(name: 'BUILD_OPTS', defaultValue: '--no-x2apic')
     ])
