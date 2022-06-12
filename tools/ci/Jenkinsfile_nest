@@ -23,13 +23,14 @@ void qemu_test(String subarch, String lhv_subarch) {
             --boot-dir ${PWD}/tools/ci/boot
     """
     dir ("lhv") {
+        LHV_PWD = sh(returnStdout: true, script: 'pwd').trim()
         sh """
             python3 -u ./tools/ci/grub.py \
                 --subarch ${lhv_subarch} \
-                --xmhf-bin ${PWD}/ \
-                --work-dir ${PWD}/tmp/ \
+                --xmhf-bin ${LHV_PWD}/ \
+                --work-dir ${LHV_PWD}/tmp/ \
                 --verbose \
-                --boot-dir ${PWD}/tools/ci/boot
+                --boot-dir ${LHV_PWD}/tools/ci/boot
         """
     }
     sh """
