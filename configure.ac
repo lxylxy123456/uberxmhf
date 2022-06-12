@@ -176,6 +176,14 @@ AC_ARG_WITH([opt],
                 , [with_opt=])
 OPT_FLAGS=$[]with_opt
 
+# select lhv options
+AC_SUBST([LHV_OPT])
+AC_ARG_WITH([lhv_opt],
+        AS_HELP_STRING([--with-lhv-opt=@<:@LHV_OPT@:>@],
+                [select lhv options]),
+                , [with_lhv_opt=0])
+LHV_OPT=$[]with_lhv_opt
+
 # libbaremetal source directory
 AC_SUBST([LIBBAREMETAL_SRC])
 AC_ARG_WITH([libbaremetalsrc],

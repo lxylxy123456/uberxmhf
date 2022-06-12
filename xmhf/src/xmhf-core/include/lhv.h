@@ -15,6 +15,12 @@ typedef struct {
 	char color;
 } console_vc_t;
 
+/* __LHV_OPT__ */
+
+#define LHV_USE_MSR_LOAD			0x0000000000000001ULL
+#define LHV_USE_EPT					0x0000000000000002ULL
+#define LHV_USE_UNRESTRICTED_GUEST	0x0000000000000004ULL
+
 /* xcph-x86.c */
 VCPU *_svm_and_vmx_getvcpu(void);
 

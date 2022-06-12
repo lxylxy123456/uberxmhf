@@ -81,9 +81,15 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
 
 	//Critical MSR load/store
-	vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
-	vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 0);
-	vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 0);
+	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 1);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 1);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 1);
+	} else {
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 0);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 0);
+	}
 
 	vmcs_vmwrite(vcpu, VMCS_control_pagefault_errorcode_mask, 0);
 	vmcs_vmwrite(vcpu, VMCS_control_pagefault_errorcode_match, 0);
