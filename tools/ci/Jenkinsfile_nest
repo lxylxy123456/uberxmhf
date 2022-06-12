@@ -16,7 +16,6 @@ void qemu_test(String subarch, String lhv_subarch) {
     sh "mkdir tmp lhv/tmp"
     sh """
         python3 -u ./tools/ci/grub.py \
-            --subarch ${subarch} \
             --xmhf-bin ${PWD}/ \
             --work-dir ${PWD}/tmp/ \
             --verbose \
