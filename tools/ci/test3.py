@@ -229,8 +229,8 @@ def main():
 		return 1
 
 	# Test serial output
-	println('Test XMHF banner in serial')
-	check_call(['grep', 'eXtensible Modular Hypervisor', serial_file])
+	println('Test LHV banner in serial')
+	check_call(['grep', 'Lightweight Hypervisor', serial_file])
 	println('Test APs')
 	check_call(['grep', 'APs all awake', serial_file])
 

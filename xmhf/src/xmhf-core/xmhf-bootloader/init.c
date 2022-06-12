@@ -854,7 +854,7 @@ void cstartup(multiboot_info_t *mbi){
     mods_count = mbi->mods_count;
 
 	//welcome banner
-	printf("eXtensible Modular Hypervisor Framework (XMHF) %s\n", ___XMHF_BUILD_VERSION___);
+	printf("Lightweight Hypervisor (LHV) %s\n", ___XMHF_BUILD_VERSION___);
 	printf("Build revision: %s\n", ___XMHF_BUILD_REVISION___);
 #ifdef __XMHF_AMD64__
 	printf("Subarch: amd64\n\n");
