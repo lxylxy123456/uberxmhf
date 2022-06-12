@@ -44,53 +44,59 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-// nested-x86vmx-vmcs12.h
-// Handle VMCS in the guest
+// nested-x86vmx-vmcs12-guesthost.h
+// Enumerate through VMCS guest state and host state field pairs
 // author: Eric Li (xiaoyili@andrew.cmu.edu)
 
-#ifndef _NESTED_X86VMX_VMCS12_H_
-#define _NESTED_X86VMX_VMCS12_H_
-
 /*
- * Rules:
- * * Exactly one bit should be set in mask 0xf
- * * At most one bit should be set in mask 0xf0
- * * 0x20 can only be set for 64-bit fields
- * TODO: FIELD_PROP_ID_HOST cannot be supported
+ * Macros are defined as DECLARE_FIELDPAIR_<size>
+ * size is 16, 64, 32, or NW (natural width).
+ * The arguments are:
+ * * guest_encoding: field encoding used in VMRAED and VMWRITE for guest
+ * * host_encoding: field encoding used in VMRAED and VMWRITE for host
+ * * name: guest_<name> and host_<name> are the name of the field in struct
+ *         nested_vmcs12
  */
-#define FIELD_PROP_GUEST	0x00000001	/* Guest field */
-#define FIELD_PROP_HOST		0x00000002	/* Host field */
-#define FIELD_PROP_CTRL		0x00000004	/* Control field */
-#define FIELD_PROP_RO		0x00000008	/* Read-only field */
-#define FIELD_PROP_ID_GUEST	0x00000010	/* VMCS12 value = VMCS02 value = any */
-#define FIELD_PROP_GPADDR	0x00000020	/* VMCS12 value = VMCS02 value = gpa */
-#define FIELD_PROP_ID_HOST	0x00000040	/* VMCS12 value = VMCS01 value */
 
-struct nested_vmcs12 {
-#define DECLARE_FIELD_16(encoding, name, ...) \
-	u16 name;
-#define DECLARE_FIELD_64(encoding, name, ...) \
-	u64 name;
-#define DECLARE_FIELD_32(encoding, name, ...) \
-	u32 name;
-#define DECLARE_FIELD_NW(encoding, name, ...) \
-	ulong_t name;
-#include "nested-x86vmx-vmcs12-fields.h"
-};
+#ifndef DECLARE_FIELDPAIR_16
+#define DECLARE_FIELDPAIR_16(...)
+#endif
 
-size_t xmhf_nested_arch_x86vmx_vmcs_field_find(ulong_t encoding);
-int xmhf_nested_arch_x86vmx_vmcs_writable(size_t offset);
-ulong_t xmhf_nested_arch_x86vmx_vmcs_read(struct nested_vmcs12 *vmcs12,
-											size_t offset, size_t size);
-void xmhf_nested_arch_x86vmx_vmcs_write(struct nested_vmcs12 *vmcs12,
-										size_t offset, ulong_t value,
-										size_t size);
-void xmhf_nested_arch_x86vmx_vmcs_dump(VCPU *vcpu, struct nested_vmcs12 *vmcs12,
-										char *prefix);
-void xmhf_nested_arch_x86vmx_vmread_all(VCPU *vcpu, char *prefix);
-u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU *vcpu,
-											struct nested_vmcs12 *vmcs12);
-void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU *vcpu,
-												struct nested_vmcs12 *vmcs12);
+#ifndef DECLARE_FIELDPAIR_64
+#define DECLARE_FIELDPAIR_64(...)
+#endif
 
-#endif /* _NESTED_X86VMX_VMCS12_H_ */
+#ifndef DECLARE_FIELDPAIR_32
+#define DECLARE_FIELDPAIR_32(...)
+#endif
+
+#ifndef DECLARE_FIELDPAIR_NW
+#define DECLARE_FIELDPAIR_NW(...)
+#endif
+
+DECLARE_FIELDPAIR_16(0x0800, 0x0C00, ES_selector)
+DECLARE_FIELDPAIR_16(0x0802, 0x0C02, CS_selector)
+DECLARE_FIELDPAIR_16(0x0804, 0x0C04, SS_selector)
+DECLARE_FIELDPAIR_16(0x0806, 0x0C06, DS_selector)
+DECLARE_FIELDPAIR_16(0x0808, 0x0C08, FS_selector)
+DECLARE_FIELDPAIR_16(0x080A, 0x0C0A, GS_selector)
+DECLARE_FIELDPAIR_16(0x080E, 0x0C0C, TR_selector)
+DECLARE_FIELDPAIR_32(0x482A, 0x4C00, SYSENTER_CS)
+DECLARE_FIELDPAIR_NW(0x6800, 0x6C00, CR0)
+DECLARE_FIELDPAIR_NW(0x6802, 0x6C02, CR3)
+DECLARE_FIELDPAIR_NW(0x6804, 0x6C04, CR4)
+DECLARE_FIELDPAIR_NW(0x680E, 0x6C06, FS_base)
+DECLARE_FIELDPAIR_NW(0x6810, 0x6C08, GS_base)
+DECLARE_FIELDPAIR_NW(0x6814, 0x6C0A, TR_base)
+DECLARE_FIELDPAIR_NW(0x6816, 0x6C0C, GDTR_base)
+DECLARE_FIELDPAIR_NW(0x6818, 0x6C0E, IDTR_base)
+DECLARE_FIELDPAIR_NW(0x6824, 0x6C10, SYSENTER_ESP)
+DECLARE_FIELDPAIR_NW(0x6826, 0x6C12, SYSENTER_EIP)
+DECLARE_FIELDPAIR_NW(0x681C, 0x6C14, RSP)
+DECLARE_FIELDPAIR_NW(0x681E, 0x6C16, RIP)
+
+#undef DECLARE_FIELDPAIR_16
+#undef DECLARE_FIELDPAIR_64
+#undef DECLARE_FIELDPAIR_32
+#undef DECLARE_FIELDPAIR_NW
+
