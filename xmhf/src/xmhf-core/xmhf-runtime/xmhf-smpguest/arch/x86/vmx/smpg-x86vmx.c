@@ -736,7 +736,7 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
             HALT_ON_ERRORCOND(__vmx_vmwrite(0x4002, __control_VMX_cpu_based));
             
             vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = true; // Set the pending bit in <vcpu->vmx_guest_nmi_cfg.guest_nmi_pending>
-		    vcpu->vmx_guest_start_inject_nmi = true;
+		        vcpu->vmx_guest_start_inject_nmi = true;
         }
         else
         {
@@ -873,5 +873,5 @@ void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU* vcpu)
     HALT_ON_ERRORCOND(__vmx_vmwrite(0x4002, __control_VMX_cpu_based));
 
     vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = true; // Set the pending bit in <vcpu->vmx_guest_nmi_cfg.guest_nmi_pending>
-	vcpu->vmx_guest_start_inject_nmi = true;
+	  vcpu->vmx_guest_start_inject_nmi = true;
 }
