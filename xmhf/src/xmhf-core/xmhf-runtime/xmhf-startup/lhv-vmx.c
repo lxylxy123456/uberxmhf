@@ -13,11 +13,11 @@ __attribute__(( section(".bss.palign_data") ));
 static u8 all_guest_stack[MAX_VCPU_ENTRIES][MAX_GUESTS][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 
-static msr_entry_t vmexit_msrstore_entries[MAX_GUESTS][MAX_MSR_LS]
+static msr_entry_t vmexit_msrstore_entries[MAX_VCPU_ENTRIES][MAX_GUESTS][MAX_MSR_LS]
 __attribute__((aligned(16)));
-static msr_entry_t vmexit_msrload_entries[MAX_GUESTS][MAX_MSR_LS]
+static msr_entry_t vmexit_msrload_entries[MAX_VCPU_ENTRIES][MAX_GUESTS][MAX_MSR_LS]
 __attribute__((aligned(16)));
-static msr_entry_t vmentry_msrload_entries[MAX_GUESTS][MAX_MSR_LS]
+static msr_entry_t vmentry_msrload_entries[MAX_VCPU_ENTRIES][MAX_GUESTS][MAX_MSR_LS]
 __attribute__((aligned(16)));
 
 extern u32 x_gdt_start[];
@@ -93,18 +93,20 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 1);
 		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 1);
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 1);
-		vcpu->my_vmexit_msrstore = vmexit_msrstore_entries[vcpu->idx];
-		vcpu->my_vmexit_msrload = vmexit_msrload_entries[vcpu->idx];
-		vcpu->my_vmentry_msrload = vmentry_msrload_entries[vcpu->idx];
+		vcpu->my_vmexit_msrstore = vmexit_msrstore_entries[0][vcpu->idx];
+		vcpu->my_vmexit_msrload = vmexit_msrload_entries[0][vcpu->idx];
+		vcpu->my_vmentry_msrload = vmentry_msrload_entries[0][vcpu->idx];
 		vmcs_vmwrite64(vcpu, VMCS_control_VM_exit_MSR_store_address, 
 						hva2spa(vcpu->my_vmexit_msrstore));
 		vmcs_vmwrite64(vcpu, VMCS_control_VM_exit_MSR_load_address, 
 						hva2spa(vcpu->my_vmexit_msrload));
 		vmcs_vmwrite64(vcpu, VMCS_control_VM_entry_MSR_load_address, 
 						hva2spa(vcpu->my_vmentry_msrload));
-		printf("MTRR 0x%016llx\n", rdmsr64(0xfeU));
-		for (u32 i = 0x200; i < 0x210; i++) {
-			printf("MTRR 0x%08x 0x%016llx\n", i, rdmsr64(i));
+		if (0) {
+			printf("MTRR 0x%016llx\n", rdmsr64(0xfeU));
+			for (u32 i = 0x200; i < 0x210; i++) {
+				printf("MTRR 0x%08x 0x%016llx\n", i, rdmsr64(i));
+			}
 		}
 		HALT_ON_ERRORCOND((rdmsr64(0xfeU) & 0xff) > 6);
 		wrmsr64(0x20aU, 0x00000000aaaaa000ULL);
@@ -116,6 +118,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 		vcpu->my_vmexit_msrload[0].data = 0x00000000bbbbb000ULL;
 		vcpu->my_vmentry_msrload[0].index = 0x20cU;
 		vcpu->my_vmentry_msrload[0].data = 0x00000000ccccc000ULL;
+		printf("CPU(0x%02x): configured load/store MSR\n", vcpu->id);
 	} else {
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
 		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 0);
@@ -271,7 +274,7 @@ void lhv_vmx_main(VCPU *vcpu)
 	/* Check IA32_FEATURE_CONTROL (22.7 ENABLING AND ENTERING VMX OPERATION) */
 	{
 		u64 vmx_msr_efcr = rdmsr64(MSR_EFCR);
-		printf("rdmsr64(MSR_EFCR) = 0x%016x\n", vmx_msr_efcr);
+		// printf("rdmsr64(MSR_EFCR) = 0x%016x\n", vmx_msr_efcr);
 		HALT_ON_ERRORCOND(vmx_msr_efcr & 1);
 		HALT_ON_ERRORCOND(vmx_msr_efcr & 4);
 	}
