@@ -582,17 +582,17 @@ This bug is fixed in `xmhf64` commit `d2daaeaf9`.
 
 Then fixed some bugs, especially in i386 LHV in amd64 XMHF.
 
-At commit `0a5ddcdfd`, basically can run lhv well.
+At commit `0a5ddcdfd`, basically can run lhv (git `792b7e16d`) well.
 
 ### CI for nested virtualization
 
 In `0a5ddcdfd..aab1b5643`, added Jenkins CI scripts to test nested
 virtualization.
 
-TODO
-
 ## Fix
 
-`78b56c9ca..` (96f0022ac)
+`78b56c9ca..aab1b5643`
 * Add nested virtualization configuration option
+* Support nested virtualization for guest hv that does not use EPT
+* Support simple CI for nested virtualization
 
