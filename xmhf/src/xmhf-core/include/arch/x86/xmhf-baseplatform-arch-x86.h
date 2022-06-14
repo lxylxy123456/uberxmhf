@@ -176,8 +176,8 @@ struct _guestmtrrmsrs {
 #ifndef __ASSEMBLY__
 
 typedef struct {
-    bool guest_nmi_enable,  //If true, then the mHV can inject NMI to the current guest.
-    bool guest_nmi_pending, //If true, then there is a pending NMI happened after the current guest disable NMI.
+    bool guest_nmi_enable;  //If true, then the mHV can inject NMI to the current guest.
+    bool guest_nmi_pending; //If true, then there is a pending NMI happened after the current guest disable NMI.
 } guest_nmi_t;
 
 //the vcpu structure which holds the current state of a core
