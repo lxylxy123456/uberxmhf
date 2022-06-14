@@ -240,7 +240,10 @@ typedef struct _vcpu {
   //guest MTRR shadow MSRs
   struct _guestmtrrmsrs vmx_guestmtrrmsrs;
 
-  bool vmx_guest_start_inject_nmi;     //if true, then the mHV starts the procedure to inject NMI to guest asynchronously
+  bool vmx_guest_start_inject_nmi;      //if true, then the mHV starts the procedure to inject NMI to guest asynchronously
+                                        //[NOTE] DO NOT attempt to move this field into <vmx_guest_nmi_cfg>. This field
+                                        //is for solving the potential race condition of injecting NMI, not for any 
+                                        //meaningful configuration/status of guest NMI acceptance.
   guest_nmi_t vmx_guest_nmi_cfg;     //if true, then the mHV can inject NMI to the current guest
 
   //guest state fields

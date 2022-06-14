@@ -79,13 +79,19 @@ void xmhf_smpguest_initialize(VCPU *vcpu);
 //note: returns 0xFFFFFFFF if there is no mapping
 u8 * xmhf_smpguest_walk_pagetables(VCPU *vcpu, u32 vaddr);
 
-// Inject NMI to the guest <vcpu> immediately.
-// [NOTE] This function does not check if the guest is in its NMI handler or not.
-void xmhf_smpguest_inject_nmi_now(VCPU *vcpu);
-
 // Inject NMI to the guest <vcpu> when the guest is ready to receive it; i.e., must not in NMI handler.
 // [NOTE] This function uses the NMI window VMExit to check if guest is ready to receive the NMI.
 void xmhf_smpguest_inject_nmi(VCPU *vcpu);
+
+// Disable NMI delivery to the current guest <vcpu> for any NMIs happened after this function finishes.
+// [NOTE] Why "try_disable" instead of "disable"? If an NMI happens inside this function right before setting enable flag
+// to be false, then this function does not cancel the delivery of that NMI. In other words, the current guest will 
+// receive an NMI right after mHV invoking this function and resuming guest's execution.
+// [NOTE] After disabling NMI, mHV will record ONE pending NMI to be injected. mHV drops subsequent NMIs of the current
+// guest until the guest re-enables NMI and accepts the previous NMI.
+void xmhf_smpguest_nmi_try_disable(VCPU *vcpu);
+
+void xmhf_smpguest_nmi_enable(VCPU *vcpu);
 
 #endif	//__ASSEMBLY__
 

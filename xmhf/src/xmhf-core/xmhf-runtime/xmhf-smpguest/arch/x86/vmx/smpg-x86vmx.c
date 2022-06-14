@@ -873,5 +873,27 @@ void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU* vcpu)
     HALT_ON_ERRORCOND(__vmx_vmwrite(0x4002, __control_VMX_cpu_based));
 
     vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = true; // Set the pending bit in <vcpu->vmx_guest_nmi_cfg.guest_nmi_pending>
-	  vcpu->vmx_guest_start_inject_nmi = true;
+	vcpu->vmx_guest_start_inject_nmi = true;
+}
+
+// Disable NMI delivery to the current guest <vcpu> for any NMIs happened after this function finishes.
+// [NOTE] Why "try_disable" instead of "disable"? If an NMI happens inside this function right before setting enable flag
+// to be false, then this function does not cancel the delivery of that NMI. In other words, the current guest will 
+// receive an NMI right after mHV invoking this function and resuming guest's execution.
+// [NOTE] After disabling NMI, mHV will record ONE pending NMI to be injected. mHV drops subsequent NMIs of the current
+// guest until the guest re-enables NMI and accepts the previous NMI.
+void xmhf_smpguest_arch_x86vmx_nmi_try_disable(VCPU* vcpu)
+{
+    vcpu->vmx_guest_nmi_cfg.guest_nmi_enable = false;
+}
+
+void xmhf_smpguest_arch_x86vmx_nmi_enable(VCPU* vcpu)
+{
+    vcpu->vmx_guest_nmi_cfg.guest_nmi_enable = true;
+
+    // If there is NMI pending, then the mHV must inject it to the current guest.
+    if(vcpu->vmx_guest_nmi_cfg.guest_nmi_pending)
+    {
+        xmhf_smpguest_inject_nmi(vcpu);
+    }
 }
