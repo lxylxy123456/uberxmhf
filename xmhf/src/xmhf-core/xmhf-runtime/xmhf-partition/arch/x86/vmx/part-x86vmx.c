@@ -552,7 +552,6 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	vcpu->vmx_guest_start_inject_nmi = false;
     vcpu->vmx_guest_nmi_cfg.guest_nmi_enable = true; // rich OS accepts NMI
     vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = false;
-    vcpu->vmx_guest_nmi_cfg.__reserved1 = 0;
 
 	//trap access to CR0 fixed 1-bits
 	// Make sure to change vmx_handle_intercept_cr0access_ug() if changing
