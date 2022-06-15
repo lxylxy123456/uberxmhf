@@ -196,8 +196,7 @@ void xmhf_smpguest_arch_endquiesce(VCPU *vcpu){
 void xmhf_smpguest_arch_inject_nmi(VCPU *vcpu){
 	HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_AMD || vcpu->cpu_vendor == CPU_VENDOR_INTEL);
 	if(vcpu->cpu_vendor == CPU_VENDOR_AMD){
-        HALT_ON_ERRORCOND(false);
-		return;
+        HALT_ON_ERRORCOND(false);	// not implemented
 	}else{	//CPU_VENDOR_INTEL
 		xmhf_smpguest_arch_x86vmx_inject_nmi(vcpu);
 	}
@@ -212,8 +211,7 @@ void xmhf_smpguest_arch_inject_nmi(VCPU *vcpu){
 void xmhf_smpguest_arch_nmi_try_disable(VCPU *vcpu){
 	HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_AMD || vcpu->cpu_vendor == CPU_VENDOR_INTEL);
 	if(vcpu->cpu_vendor == CPU_VENDOR_AMD){
-        HALT_ON_ERRORCOND(false);
-		return;
+        HALT_ON_ERRORCOND(false);	// not implemented
 	}else{	//CPU_VENDOR_INTEL
 		xmhf_smpguest_arch_x86vmx_nmi_try_disable(vcpu);
 	}
@@ -222,8 +220,7 @@ void xmhf_smpguest_arch_nmi_try_disable(VCPU *vcpu){
 void xmhf_smpguest_arch_nmi_enable(VCPU *vcpu){
 	HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_AMD || vcpu->cpu_vendor == CPU_VENDOR_INTEL);
 	if(vcpu->cpu_vendor == CPU_VENDOR_AMD){
-        HALT_ON_ERRORCOND(false);
-		return;
+        HALT_ON_ERRORCOND(false);	// not implemented
 	}else{	//CPU_VENDOR_INTEL
 		xmhf_smpguest_arch_x86vmx_nmi_enable(vcpu);
 	}
