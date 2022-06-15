@@ -159,3 +159,9 @@ inject_nmi() {
 }
 ```
 
+We also update the names
+* `vmx_guest_start_inject_nmi -> vmx_guest_vmcs_nmi_window_set`
+* `vmx_guest_cancel_inject_nmi -> vmx_guest_vmcs_nmi_window_clear`
+* `guest_nmi_enable -> guest_nmi_block`
+* `guest_nmi_pending -> guest_nmi_pending`
+
