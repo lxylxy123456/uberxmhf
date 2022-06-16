@@ -224,6 +224,30 @@ inject_nmi() {
 }
 ```
 
+This is implemented in `7518bc1d1..8fd163a89`.
 
-TODO: is `xmhf_smpguest_arch_x86vmx_unblock_nmi()` called at the right place?
+### Review call to `xmhf_smpguest_arch_x86vmx_unblock_nmi()`
+
+We wonder whether `xmhf_smpguest_arch_x86vmx_unblock_nmi()` is called at the
+right place?
+
+In `5067ce7ec..713a3899e`, set up an experiment to test.
+
+The serial output when I enter `nmi` in QEMU monitor is:
+```
+[iret][peh]CPU(0x00): inject NMI
+```
+
+This is correct. When NMI hits the guest OS (will print `[peh]`), NMI will be
+blocked during VMEXIT. However, VMENTRY will not execute IRET, so we need to
+execute IRET manually (will print `[iret]`).
+
+When NMI hits hypervisor (will print `[xcph]`), the exception handler will
+return with IRET, so we do not need to execute IRET manually (will print
+`[no iret]`).
+
+## Fix
+
+`7518bc1d1..8fd163a89`
+* Implement NMI virtualization that supports blocking and unblocking NMI
 
