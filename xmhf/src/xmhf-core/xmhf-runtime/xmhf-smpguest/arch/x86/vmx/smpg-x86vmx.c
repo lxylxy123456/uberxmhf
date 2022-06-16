@@ -931,11 +931,9 @@ void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU *vcpu)
 {
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = true;
 	if (!vcpu->vmx_guest_nmi_cfg.guest_nmi_block) {
-		/* Cannot be u32, because VMREAD writes 64-bits in amd64 */
-		unsigned long __control_VMX_cpu_based;
-		HALT_ON_ERRORCOND(__vmx_vmread(0x4002, &__control_VMX_cpu_based));
+		u32 __control_VMX_cpu_based = __vmx_vmread32(0x4002);
 		__control_VMX_cpu_based |= (1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
-		HALT_ON_ERRORCOND(__vmx_vmwrite(0x4002, __control_VMX_cpu_based));
+		__vmx_vmwrite32(0x4002, __control_VMX_cpu_based);
 		vcpu->vmx_guest_vmcs_nmi_window_set = true;
 	}
 }
@@ -978,11 +976,9 @@ void xmhf_smpguest_arch_x86vmx_nmi_unblock(VCPU *vcpu)
 
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_block = false;
 	if (vcpu->vmx_guest_nmi_cfg.guest_nmi_pending) {
-		/* Cannot be u32, because VMREAD writes 64-bits in amd64 */
-		unsigned long __control_VMX_cpu_based;
-		HALT_ON_ERRORCOND(__vmx_vmread(0x4002, &__control_VMX_cpu_based));
+		u32 __control_VMX_cpu_based = __vmx_vmread32(0x4002);
 		__control_VMX_cpu_based |= (1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
-		HALT_ON_ERRORCOND(__vmx_vmwrite(0x4002, __control_VMX_cpu_based));
+		__vmx_vmwrite32(0x4002, __control_VMX_cpu_based);
 		vcpu->vmx_guest_vmcs_nmi_window_set = true;
 	}
 }
