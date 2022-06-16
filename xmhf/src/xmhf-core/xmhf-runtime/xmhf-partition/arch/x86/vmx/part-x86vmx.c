@@ -137,19 +137,6 @@ static void _vmx_initVT(VCPU *vcpu){
   //into vcpu
   {
     u32 i;
-
-	for (i = 0; i < 20; i++) {
-		struct regs r;
-		r.ecx = IA32_VMX_BASIC_MSR + i;
-		if (rdmsr_safe(&r)) {
-			/* Error */
-			printf("CPU(0x%02x): RDMSR(0x%08x) = unavailable\n", vcpu->id, r.ecx);
-		} else {
-			/* Success */
-			printf("CPU(0x%02x): RDMSR(0x%08x) = 0x%08x%08x\n", vcpu->id, r.ecx, r.edx, r.eax);
-		}
-	}
-
     #ifndef __XMHF_VERIFICATION__
     for(i=0; i < IA32_VMX_MSRCOUNT; i++){
     #else
@@ -158,18 +145,9 @@ static void _vmx_initVT(VCPU *vcpu){
         if (i >= INDEX_IA32_VMX_TRUE_PINBASED_CTLS_MSR &&
             i <= INDEX_IA32_VMX_VMFUNC_MSR &&
             !(vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR] & (1ULL << 55))) {
-            printf("CPU(0x%02x): Skipping MSR #0x%x\n", i);
             continue;
         }
-    	printf("CPU(0x%02x): vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR] = 0x%016llx\n",
-    			vcpu->id, vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR]);
-    	printf("CPU(0x%02x): bit 55                                   = 0x%016llx\n",
-    			vcpu->id, (u64) (vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR] & (1ULL << 55)));
-        printf("CPU(0x%02x): Reading MSR #0x%x 0x%08x\n", vcpu->id,
-        		i, IA32_VMX_BASIC_MSR + i);
         vcpu->vmx_msrs[i] = rdmsr64(IA32_VMX_BASIC_MSR + i);
-        printf("CPU(0x%02x): MSR value for #0x%x is 0x%016llx\n", vcpu->id,
-        		i, vcpu->vmx_msrs[i]);
     }
 
     if (vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR] & (1ULL << 55)) {
