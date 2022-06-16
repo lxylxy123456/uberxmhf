@@ -165,3 +165,65 @@ We also update the names
 * `guest_nmi_enable -> guest_nmi_block`
 * `guest_nmi_pending -> guest_nmi_pending`
 
+### Finalize
+
+```c
+var vmx_guest_vmcs_nmi_window_set;	/* Ideally the same as VMCS.nmi-window, but needed to prevent race condition */
+var vmx_guest_vmcs_nmi_window_clear;	/* nmi_block is called, clear VMCS.nmi-window */
+var vmx_guest_nmi_blocking_modified;	/* either nmi_block or nmi_unblock is called, used to catch calling both / calling multiple times */
+var guest_nmi_block;	/* NMI is not blocked by software */
+var guest_nmi_pending;	/* NMI pending, regardless of software NMI blocking */
+
+peh() {
+	vmx_guest_vmcs_nmi_window_set = 0
+	vmx_guest_vmcs_nmi_window_clear = 0;
+	vmx_guest_nmi_blocking_modified = 0;
+	if (exit_reason == nmi-windowing-exit) {
+		VMCS.nmi-window = 0;
+		inject NMI to guest;
+		guest_nmi_pending = 0
+	} else if (nmi_block) {
+		assert(!vmx_guest_nmi_blocking_modified);
+		vmx_guest_nmi_blocking_modified = 1;
+		guest_nmi_block = 1;
+		vmx_guest_vmcs_nmi_window_clear = 1;
+	} else if (nmi_unblock) {
+		assert(!vmx_guest_nmi_blocking_modified);
+		vmx_guest_nmi_blocking_modified = 1;
+		guest_nmi_block = 0;
+		if (guest_nmi_pending) {
+			VMCS.nmi-window = 1;
+			guest_nmi_pending = 1;
+			vmx_guest_vmcs_nmi_window_set = 1;
+		}
+	} else {
+		...
+	}
+	if (vmx_guest_vmcs_nmi_window_set) {
+		VMCS.nmi-window = 1;
+	}
+	if (vmx_guest_vmcs_nmi_window_clear) {
+		VMCS.nmi-window = 0;
+	}
+}
+
+nmi_handler() {
+	if (quiesce) {
+		...
+	} else {
+		inject_nmi();
+	}
+}
+
+inject_nmi() {
+	guest_nmi_pending = 1;
+	if (!guest_nmi_block) {
+		VMCS.nmi-window = 1;
+		vmx_guest_vmcs_nmi_window_set = 1;
+	} /* no else */
+}
+```
+
+
+TODO: is `xmhf_smpguest_arch_x86vmx_unblock_nmi()` called at the right place?
+
