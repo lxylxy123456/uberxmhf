@@ -735,6 +735,9 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 	/* Unblock NMI in hypervisor */
 	if (from_guest) {
 		xmhf_smpguest_arch_x86vmx_unblock_nmi();
+		printf("[iret]");
+	} else {
+		printf("[no iret]");
 	}
 }
 
