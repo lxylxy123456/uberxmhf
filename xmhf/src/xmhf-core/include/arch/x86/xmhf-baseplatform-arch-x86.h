@@ -250,12 +250,16 @@ typedef struct _vcpu {
    * Whether the NMI handling logic wants to set VMCS NMI window bit.
    * This field is used to solve race condition in accessing VMCS.
    * This field has lower precedence than vmx_guest_vmcs_nmi_window_clear.
+   * See xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception() for details
+   * about these variables and the choice of precedence.
    */
   bool vmx_guest_vmcs_nmi_window_set;
   /*
    * Whether the NMI handling logic wants to clear VMCS NMI window bit.
    * This field is used to solve race condition in accessing VMCS.
    * This field has higher precedence than vmx_guest_vmcs_nmi_window_set.
+   * See xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception() for details
+   * about these variables and the choice of precedence.
    */
   bool vmx_guest_vmcs_nmi_window_clear;
   /*

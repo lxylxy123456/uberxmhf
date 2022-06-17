@@ -205,9 +205,10 @@ void xmhf_smpguest_arch_inject_nmi(VCPU *vcpu)
 }
 
 // Block NMIs using software
-// This function must be called in intercept handlers. Especially, this
-// function cannot be called in NMI exception handler. Each intercept handler
-// can only have one call of this function or the unblock function.
+// This function must be called in intercept handlers (a.k.a. VMEXIT handlers).
+// Especially, this function cannot be called in NMI interrupt handler. Each
+// intercept handler can only have one call of this function or the unblock
+// function.
 void xmhf_smpguest_arch_nmi_block(VCPU *vcpu)
 {
 	HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_AMD || vcpu->cpu_vendor == CPU_VENDOR_INTEL);
@@ -219,9 +220,10 @@ void xmhf_smpguest_arch_nmi_block(VCPU *vcpu)
 }
 
 // Unblock NMIs using software
-// This function must be called in intercept handlers. Especially, this
-// function cannot be called in NMI exception handler. Each intercept handler
-// can only have one call of this function or the block function.
+// This function must be called in intercept handlers (a.k.a. VMEXIT handlers).
+// Especially, this function cannot be called in NMI interrupt handler. Each
+// intercept handler can only have one call of this function or the block
+// function.
 void xmhf_smpguest_arch_nmi_unblock(VCPU *vcpu)
 {
 	HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_AMD || vcpu->cpu_vendor == CPU_VENDOR_INTEL);

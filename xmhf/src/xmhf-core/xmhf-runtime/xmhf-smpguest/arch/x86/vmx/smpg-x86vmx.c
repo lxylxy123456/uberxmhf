@@ -582,7 +582,7 @@ void xmhf_smpguest_arch_x86vmx_endquiesce(VCPU *vcpu){
 
         /*
          * g_vmx_quiesce=0 must be before g_vmx_quiesce_resume_signal=1,
-         * otherwise if another CPU enters NMI exception handler again,
+         * otherwise if another CPU enters NMI interrupt handler again,
          * a deadlock may occur.
          */
         g_vmx_quiesce=0;  // we are out of quiesce at this point
@@ -680,9 +680,9 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * denote that the NMI interrupt handler has visited and wants to set
 		 * the "NMI-window exiting" bit (22nd bit in control_VMX_cpu_based).
 		 * This variable is called vmx_guest_vmcs_nmi_window_set. Before the
-		 * intercept handler returns, it checks vmx_guest_vmcs_nmi_window_set.
-		 * If the variable is true, the "NMI-window exiting" bit in VMCS is
-		 * set.
+		 * intercept handler (a.k.a. VMEXIT handler) returns, it checks
+		 * vmx_guest_vmcs_nmi_window_set. If the variable is true, the
+		 * "NMI-window exiting" bit in VMCS is set.
 		 *
 		 * Also note that vcpu->vmcs.control_VMX_cpu_based does not access
 		 * the real VMCS in hardware. The real VMCS can only be accessed
@@ -694,9 +694,10 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * [Detailed explanation for the second problem follows]
 		 *
 		 * We want to set vcpu->vmcs.control_VMX_cpu_based, but we may be in an
-		 * NMI interrupt handler that is interrupting an intercept handler, and
-		 * the intercept handler accesses vcpu->vmcs.control_VMX_cpu_based.
-		 * This can easily cause race conditions.
+		 * NMI interrupt handler that is interrupting an intercept handler
+		 * (a.k.a. VMEXIT handler), and the intercept handler accesses
+		 * vcpu->vmcs.control_VMX_cpu_based. This can easily cause race
+		 * conditions.
 		 *
 		 * We observe that the NMI interrupt handler is only interested in
 		 * setting the 22nd bit of VCPU's control_VMX_cpu_based.
@@ -713,13 +714,15 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * A3 is body of the intercept handler. Step A4 and A5 are in
 		 * xmhf_baseplatform_arch_x86vmx_putVMCS().
 		 *
-		 * To solve the problem, the NMI exception handler updates the VMCS and
+		 * To solve the problem, the NMI interrupt handler updates the VMCS and
 		 * also sets vcpu->vmx_guest_vmcs_nmi_window_set. After step A5, the
 		 * intercept handler checks whether vcpu->vmx_guest_vmcs_nmi_window_set
 		 * is set. If so, it will perform another VMWRITE to set the
 		 * corresponding bit in VMCS.
 		 *
-		 * So the updated logic of intercept handlers become
+		 * So the updated logic of intercept handlers (a.k.a. VMEXIT handlers)
+		 * become
+		 *
 		 * B1. vcpu->vmx_guest_vmcs_nmi_window_set = 0
 		 * B2. var temp = VMREAD("control_VMX_cpu_based")   // was A1
 		 * B3. vcpu->vmcs.control_VMX_cpu_based = temp      // was A2
@@ -739,7 +742,8 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * C4. vcpu->vmx_guest_vmcs_nmi_window_set = 1
 		 *
 		 * Consider different places C1 - C4 interleaves with the
-		 * intercept handler:
+		 * intercept handler (a.k.a. VMEXIT handler):
+		 *
 		 * a. before step B2: VMREAD at B2 gets updated value, good
 		 * b. between B2 - B6: VMREAD at step B2 gets old value, C1 - C4
 		 *    writes new value, then overwritten by VMWRITE at step B6. But the
@@ -759,7 +763,7 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * body of intercept handlers, and at most once during each intercept.
 		 * We also update vcpu with a few more variables.
 		 *
-		 * The pseudo code for intercept handler is
+		 * The pseudo code for intercept handler (a.k.a. VMEXIT handler) is
 		 *
 		 * D1. xmhf_parteventhub_arch_x86vmx_intercept_handler() {
 		 * D2.     vcpu->vmx_guest_vmcs_nmi_window_set = 0
@@ -771,12 +775,12 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * D8.         vcpu->vmcs.control_VMX_cpu_based.bit-22 = 0;
 		 * D9.         inject NMI to guest;
 		 * D10.        vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = 0
-		 * D11.    } else if (nmi_block is called) {
+		 * D11.    } else if (nmi_block is called) { // e.g. due to hypercall
 		 * D12.        assert(!vcpu->vmx_guest_nmi_blocking_modified);
 		 * D13.        vcpu->vmx_guest_nmi_blocking_modified = 1;
 		 * D14.        vcpu->vmx_guest_nmi_cfg.guest_nmi_block = 1;
 		 * D15.        vcpu->vmx_guest_vmcs_nmi_window_clear = 1;
-		 * D16.    } else if (nmi_unblock is called) {
+		 * D16.    } else if (nmi_unblock is called) { // e.g. due to hypercall
 		 * D17.        assert(!vcpu->vmx_guest_nmi_blocking_modified);
 		 * D18.        vcpu->vmx_guest_nmi_blocking_modified = 1;
 		 * D19.        vcpu->vmx_guest_nmi_cfg.guest_nmi_block = 0;
@@ -939,9 +943,10 @@ void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU *vcpu)
 }
 
 // Block NMIs using software
-// This function must be called in intercept handlers. Especially, this
-// function cannot be called in NMI exception handler. Each intercept handler
-// can only have one call of this function or the unblock function.
+// This function must be called in intercept handlers (a.k.a. VMEXIT handlers).
+// Especially, this function cannot be called in NMI interrupt handler. Each
+// intercept handler can only have one call of this function or the unblock
+// function.
 void xmhf_smpguest_arch_x86vmx_nmi_block(VCPU *vcpu)
 {
 	if (vcpu->vmx_guest_nmi_blocking_modified) {
@@ -959,9 +964,10 @@ void xmhf_smpguest_arch_x86vmx_nmi_block(VCPU *vcpu)
 }
 
 // Unblock NMIs using software
-// This function must be called in intercept handlers. Especially, this
-// function cannot be called in NMI exception handler. Each intercept handler
-// can only have one call of this function or the block function.
+// This function must be called in intercept handlers (a.k.a. VMEXIT handlers).
+// Especially, this function cannot be called in NMI interrupt handler. Each
+// intercept handler can only have one call of this function or the block
+// function.
 void xmhf_smpguest_arch_x86vmx_nmi_unblock(VCPU *vcpu)
 {
 	if (vcpu->vmx_guest_nmi_blocking_modified) {

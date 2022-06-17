@@ -85,15 +85,17 @@ u8 * xmhf_smpguest_walk_pagetables(VCPU *vcpu, u32 vaddr);
 void xmhf_smpguest_inject_nmi(VCPU *vcpu);
 
 // Block NMIs using software
-// This function must be called in intercept handlers. Especially, this
-// function cannot be called in NMI exception handler. Each intercept handler
-// can only have one call of this function or the unblock function.
+// This function must be called in intercept handlers (a.k.a. VMEXIT handlers).
+// Especially, this function cannot be called in NMI interrupt handler. Each
+// intercept handler can only have one call of this function or the unblock
+// function.
 void xmhf_smpguest_nmi_block(VCPU *vcpu);
 
 // Unblock NMIs using software
-// This function must be called in intercept handlers. Especially, this
-// function cannot be called in NMI exception handler. Each intercept handler
-// can only have one call of this function or the block function.
+// This function must be called in intercept handlers (a.k.a. VMEXIT handlers).
+// Especially, this function cannot be called in NMI interrupt handler. Each
+// intercept handler can only have one call of this function or the block
+// function.
 void xmhf_smpguest_nmi_unblock(VCPU *vcpu);
 
 
