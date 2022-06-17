@@ -206,7 +206,7 @@ void xmhf_smpguest_arch_inject_nmi(VCPU *vcpu)
 
 // Block NMIs using software
 // This function must be called in intercept handlers (a.k.a. VMEXIT handlers).
-// Especially, this function cannot be called in XMHF's NMI interrupt handler.
+// Especially, this function cannot be called in mHV's NMI interrupt handler.
 // Each intercept handler can only have one call of this function or the unblock
 // function.
 void xmhf_smpguest_arch_nmi_block(VCPU *vcpu)
@@ -221,7 +221,7 @@ void xmhf_smpguest_arch_nmi_block(VCPU *vcpu)
 
 // Unblock NMIs using software
 // This function must be called in intercept handlers (a.k.a. VMEXIT handlers).
-// Especially, this function cannot be called in XMHF's NMI interrupt handler.
+// Especially, this function cannot be called in mHV's NMI interrupt handler.
 // Each intercept handler can only have one call of this function or the block
 // function.
 void xmhf_smpguest_arch_nmi_unblock(VCPU *vcpu)
