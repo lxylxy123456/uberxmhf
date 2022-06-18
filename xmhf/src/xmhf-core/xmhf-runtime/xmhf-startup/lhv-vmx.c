@@ -91,15 +91,15 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	//Critical MSR load/store
 	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 1);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 1);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 1);
+//		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 1);
+//		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 1);
 		vcpu->my_vmexit_msrstore = vmexit_msrstore_entries[0][vcpu->idx];
 		vcpu->my_vmexit_msrload = vmexit_msrload_entries[0][vcpu->idx];
 		vcpu->my_vmentry_msrload = vmentry_msrload_entries[0][vcpu->idx];
 		vmcs_vmwrite64(vcpu, VMCS_control_VM_exit_MSR_store_address, 
 						hva2spa(vcpu->my_vmexit_msrstore));
-		vmcs_vmwrite64(vcpu, VMCS_control_VM_exit_MSR_load_address, 
-						hva2spa(vcpu->my_vmexit_msrload));
+//		vmcs_vmwrite64(vcpu, VMCS_control_VM_exit_MSR_load_address, 
+//						hva2spa(vcpu->my_vmexit_msrload));
 		vmcs_vmwrite64(vcpu, VMCS_control_VM_entry_MSR_load_address, 
 						hva2spa(vcpu->my_vmentry_msrload));
 		if (0) {
@@ -333,8 +333,8 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	ulong_t inst_len = vmcs_vmread(vcpu, VMCS_info_vmexit_instruction_length);
 	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
 		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[0].data == 0x00000000aaaaa000ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x20bU) == 0x00000000bbbbb000ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x20cU) == 0x00000000ccccc000ULL);
+//		HALT_ON_ERRORCOND(rdmsr64(0x20bU) == 0x00000000bbbbb000ULL);
+//		HALT_ON_ERRORCOND(rdmsr64(0x20cU) == 0x00000000ccccc000ULL);
 	}
 	switch (vmexit_reason) {
 	case VMX_VMEXIT_CPUID:
