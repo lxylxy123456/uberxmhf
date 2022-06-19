@@ -331,8 +331,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	ulong_t vmexit_reason = vmcs_vmread(vcpu, VMCS_info_vmexit_reason);
 	ulong_t guest_rip = vmcs_vmread(vcpu, VMCS_guest_RIP);
 	ulong_t inst_len = vmcs_vmread(vcpu, VMCS_info_vmexit_instruction_length);
-	vcpu = _svm_and_vmx_getvcpu();
-	HALT_ON_ERRORCOND(vcpu != 0);
+	HALT_ON_ERRORCOND(vcpu == _svm_and_vmx_getvcpu());
 	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
 		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[0].data == 0x00000000aaaaa000ULL);
 		HALT_ON_ERRORCOND(rdmsr64(0x20bU) == 0x00000000bbbbb000ULL);
