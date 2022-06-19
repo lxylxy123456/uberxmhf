@@ -4,6 +4,8 @@
 .global lhv_guest_entry
 
 lhv_guest_entry:
+	vmcall
+
 #ifdef __I386__
 	push	%edi
 #elif !defined(__AMD64__)
