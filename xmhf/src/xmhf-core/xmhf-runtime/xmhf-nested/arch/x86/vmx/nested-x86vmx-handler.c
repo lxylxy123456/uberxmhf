@@ -48,6 +48,7 @@
 // Intercept handlers for nested virtualization
 // author: Eric Li (xiaoyili@andrew.cmu.edu)
 #include <xmhf.h>
+#include "nested-x86vmx-handler.h"
 #include "nested-x86vmx-vmcs12.h"
 #include "nested-x86vmx-vminsterr.h"
 
@@ -69,66 +70,55 @@
  */
 union _vmx_decode_vm_inst_info {
 	struct {
-		u32 scaling: 2;
-		u32 undefined2: 1;
-		u32 reg1: 4;			/* Undefined in Table 26-13. */
-		u32 address_size: 3;
-		u32 mem_reg: 1;			/* Cleared to 0 in Table 26-13. */
-		u32 undefined14_11: 4;
-		u32 segment_register: 3;
-		u32 index_reg: 4;
-		u32 index_reg_invalid: 1;
-		u32 base_reg: 4;
-		u32 base_reg_invalid: 1;
-		u32 reg2: 4;			/* Undefined in Table 26-13. */
+		u32 scaling:2;
+		u32 undefined2:1;
+		u32 reg1:4;				/* Undefined in Table 26-13. */
+		u32 address_size:3;
+		u32 mem_reg:1;			/* Cleared to 0 in Table 26-13. */
+		u32 undefined14_11:4;
+		u32 segment_register:3;
+		u32 index_reg:4;
+		u32 index_reg_invalid:1;
+		u32 base_reg:4;
+		u32 base_reg_invalid:1;
+		u32 reg2:4;				/* Undefined in Table 26-13. */
 	};
 	u32 raw;
 };
-
-/* Format of an active VMCS12 tracked by a CPU */
-typedef struct vmcs12_info {
-	/*
-	 * Pointer to VMCS12 in guest.
-	 *
-	 * When a VMCS is invalid, this field is CUR_VMCS_PTR_INVALID, and all
-	 * other fields are undefined.
-	 */
-	gpa_t vmcs12_ptr;
-	/* Pointer to VMCS02 in host */
-	spa_t vmcs02_ptr;
-	/* Whether this VMCS has launched */
-	int launched;
-	/* Content of VMCS12, stored in XMHF's format */
-	struct nested_vmcs12 vmcs12_value;
-} vmcs12_info_t;
 
 /* A blank page in memory for VMCLEAR */
 static u8 blank_page[PAGE_SIZE_4K] __attribute__((section(".bss.palign_data")));
 
 /* Track all active VMCS12's in each CPU */
 static vmcs12_info_t
-cpu_active_vmcs12[MAX_VCPU_ENTRIES][VMX_NESTED_MAX_ACTIVE_VMCS];
+	cpu_active_vmcs12[MAX_VCPU_ENTRIES][VMX_NESTED_MAX_ACTIVE_VMCS];
 
 /* The VMCS02's in each CPU */
 static u8 cpu_vmcs02[MAX_VCPU_ENTRIES][VMX_NESTED_MAX_ACTIVE_VMCS][PAGE_SIZE_4K]
-__attribute__((section(".bss.palign_data")));
+	__attribute__((section(".bss.palign_data")));
 
 /*
  * Given a segment index, return the segment offset
  * TODO: do we need to check access rights?
  */
-static uintptr_t _vmx_decode_seg(u32 seg, VCPU *vcpu)
+static uintptr_t _vmx_decode_seg(u32 seg, VCPU * vcpu)
 {
 	switch (seg) {
-		case 0: return vcpu->vmcs.guest_ES_base;
-		case 1: return vcpu->vmcs.guest_CS_base;
-		case 2: return vcpu->vmcs.guest_SS_base;
-		case 3: return vcpu->vmcs.guest_DS_base;
-		case 4: return vcpu->vmcs.guest_FS_base;
-		case 5: return vcpu->vmcs.guest_GS_base;
-		default:
-			HALT_ON_ERRORCOND(0 && "Unexpected segment");
-			return 0;
+	case 0:
+		return vcpu->vmcs.guest_ES_base;
+	case 1:
+		return vcpu->vmcs.guest_CS_base;
+	case 2:
+		return vcpu->vmcs.guest_SS_base;
+	case 3:
+		return vcpu->vmcs.guest_DS_base;
+	case 4:
+		return vcpu->vmcs.guest_FS_base;
+	case 5:
+		return vcpu->vmcs.guest_GS_base;
+	default:
+		HALT_ON_ERRORCOND(0 && "Unexpected segment");
+		return 0;
 	}
 }
 
@@ -136,7 +126,7 @@ static uintptr_t _vmx_decode_seg(u32 seg, VCPU *vcpu)
  * Access size bytes of memory referenced in memory operand of instruction.
  * The memory content in the guest is returned in dst.
  */
-static gva_t _vmx_decode_mem_operand(VCPU *vcpu, struct regs *r)
+static gva_t _vmx_decode_mem_operand(VCPU * vcpu, struct regs *r)
 {
 	union _vmx_decode_vm_inst_info inst_info;
 	gva_t addr;
@@ -151,19 +141,19 @@ static gva_t _vmx_decode_mem_operand(VCPU *vcpu, struct regs *r)
 		addr += *index_reg << inst_info.scaling;
 	}
 	switch (inst_info.address_size) {
-	case 0:	/* 16-bit */
+	case 0:					/* 16-bit */
 		addr &= 0xffffUL;
 		break;
-	case 1:	/* 32-bit */
+	case 1:					/* 32-bit */
 		/* This case may happen if 32-bit guest hypervisor runs in AMD64 XMHF */
 		addr &= 0xffffffffUL;
 		break;
-	case 2:	/* 64-bit */
+	case 2:					/* 64-bit */
 #ifdef __I386__
 		HALT_ON_ERRORCOND(0 && "Unexpected 64-bit address size in i386");
 #elif !defined(__AMD64__)
-    #error "Unsupported Arch"
-#endif /* __I386__ */
+#error "Unsupported Arch"
+#endif							/* __I386__ */
 		break;
 	default:
 		HALT_ON_ERRORCOND(0 && "Unexpected address size");
@@ -178,7 +168,7 @@ static gva_t _vmx_decode_mem_operand(VCPU *vcpu, struct regs *r)
  * for VMCLEAR, VMPTRLD, VMPTRST, VMXON, XRSTORS, and XSAVES in Intel's
  * System Programming Guide, Order Number 325384
  */
-static gva_t _vmx_decode_m64(VCPU *vcpu, struct regs *r)
+static gva_t _vmx_decode_m64(VCPU * vcpu, struct regs *r)
 {
 	union _vmx_decode_vm_inst_info inst_info;
 	inst_info.raw = vcpu->vmcs.info_vmx_instruction_information;
@@ -196,9 +186,10 @@ static gva_t _vmx_decode_m64(VCPU *vcpu, struct regs *r)
  * register operand, put 1 in pvalue_mem_reg and put the host virtual address
  * to ppvalue.
  */
-static size_t _vmx_decode_vmread_vmwrite(VCPU *vcpu, struct regs *r,
-										int is_vmwrite, ulong_t *pencoding,
-										uintptr_t *ppvalue, int *pvalue_mem_reg)
+static size_t _vmx_decode_vmread_vmwrite(VCPU * vcpu, struct regs *r,
+										 int is_vmwrite, ulong_t * pencoding,
+										 uintptr_t * ppvalue,
+										 int *pvalue_mem_reg)
 {
 	union _vmx_decode_vm_inst_info inst_info;
 	ulong_t *encoding;
@@ -227,7 +218,7 @@ static size_t _vmx_decode_vmread_vmwrite(VCPU *vcpu, struct regs *r,
 }
 
 /* Clear list of active VMCS12's tracked */
-static void active_vmcs12_array_init(VCPU *vcpu)
+static void active_vmcs12_array_init(VCPU * vcpu)
 {
 	int i;
 	for (i = 0; i < VMX_NESTED_MAX_ACTIVE_VMCS; i++) {
@@ -243,7 +234,7 @@ static void active_vmcs12_array_init(VCPU *vcpu)
  * A VMCS is defined to be active if this function returns non-zero.
  * When vmcs_ptr = CUR_VMCS_PTR_INVALID, a empty slot is returned.
  */
-static vmcs12_info_t *find_active_vmcs12(VCPU *vcpu, gpa_t vmcs_ptr)
+static vmcs12_info_t *find_active_vmcs12(VCPU * vcpu, gpa_t vmcs_ptr)
 {
 	int i;
 	for (i = 0; i < VMX_NESTED_MAX_ACTIVE_VMCS; i++) {
@@ -255,7 +246,7 @@ static vmcs12_info_t *find_active_vmcs12(VCPU *vcpu, gpa_t vmcs_ptr)
 }
 
 /* Add a new VMCS12 to the array of actives. Initializes underlying VMCS02 */
-static void new_active_vmcs12(VCPU *vcpu, gpa_t vmcs_ptr, u32 rev)
+static void new_active_vmcs12(VCPU * vcpu, gpa_t vmcs_ptr, u32 rev)
 {
 	vmcs12_info_t *vmcs12_info;
 	HALT_ON_ERRORCOND(vmcs_ptr != CUR_VMCS_PTR_INVALID);
@@ -265,9 +256,15 @@ static void new_active_vmcs12(VCPU *vcpu, gpa_t vmcs_ptr, u32 rev)
 	}
 	vmcs12_info->vmcs12_ptr = vmcs_ptr;
 	HALT_ON_ERRORCOND(__vmx_vmclear(vmcs12_info->vmcs02_ptr));
-	*(u32 *)spa2hva(vmcs12_info->vmcs02_ptr) = rev;
+	*(u32 *) spa2hva(vmcs12_info->vmcs02_ptr) = rev;
 	vmcs12_info->launched = 0;
 	memset(&vmcs12_info->vmcs12_value, 0, sizeof(vmcs12_info->vmcs12_value));
+	memset(&vmcs12_info->vmcs02_vmexit_msr_store_area, 0,
+		   sizeof(vmcs12_info->vmcs02_vmexit_msr_store_area));
+	memset(&vmcs12_info->vmcs02_vmexit_msr_load_area, 0,
+		   sizeof(vmcs12_info->vmcs02_vmexit_msr_load_area));
+	memset(&vmcs12_info->vmcs02_vmentry_msr_load_area, 0,
+		   sizeof(vmcs12_info->vmcs02_vmentry_msr_load_area));
 }
 
 /*
@@ -275,7 +272,7 @@ static void new_active_vmcs12(VCPU *vcpu, gpa_t vmcs_ptr, u32 rev)
  * It is illegal to call this function with a invalid current VMCS pointer.
  * This function will never return NULL.
  */
-static vmcs12_info_t *find_current_vmcs12(VCPU *vcpu)
+static vmcs12_info_t *find_current_vmcs12(VCPU * vcpu)
 {
 	vmcs12_info_t *ans;
 	gpa_t vmcs_ptr = vcpu->vmx_nested_current_vmcs_pointer;
@@ -286,12 +283,12 @@ static vmcs12_info_t *find_current_vmcs12(VCPU *vcpu)
 }
 
 /* The VMsucceed pseudo-function in SDM "29.2 CONVENTIONS" */
-static void _vmx_nested_vm_succeed(VCPU *vcpu)
+static void _vmx_nested_vm_succeed(VCPU * vcpu)
 {
 	vcpu->vmcs.guest_RFLAGS &= ~VMX_INST_RFLAGS_MASK;
 }
 
-static void _vmx_nested_vm_fail_valid(VCPU *vcpu, u32 error_number)
+static void _vmx_nested_vm_fail_valid(VCPU * vcpu, u32 error_number)
 {
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
 	vcpu->vmcs.guest_RFLAGS &= ~VMX_INST_RFLAGS_MASK;
@@ -299,13 +296,13 @@ static void _vmx_nested_vm_fail_valid(VCPU *vcpu, u32 error_number)
 	vmcs12_info->vmcs12_value.info_vminstr_error = error_number;
 }
 
-static void _vmx_nested_vm_fail_invalid(VCPU *vcpu)
+static void _vmx_nested_vm_fail_invalid(VCPU * vcpu)
 {
 	vcpu->vmcs.guest_RFLAGS &= ~VMX_INST_RFLAGS_MASK;
 	vcpu->vmcs.guest_RFLAGS |= EFLAGS_CF;
 }
 
-static void _vmx_nested_vm_fail(VCPU *vcpu, u32 error_number)
+static void _vmx_nested_vm_fail(VCPU * vcpu, u32 error_number)
 {
 	if (vcpu->vmx_nested_current_vmcs_pointer != CUR_VMCS_PTR_INVALID) {
 		_vmx_nested_vm_fail_valid(vcpu, error_number);
@@ -319,7 +316,8 @@ static void _vmx_nested_vm_fail(VCPU *vcpu, u32 error_number)
  *
  * If IA32_VMX_BASIC[48] = 1, the address is limited to 32-bits.
  */
-static u32 _vmx_check_physical_addr_width(VCPU *vcpu, u64 addr) {
+static u32 _vmx_check_physical_addr_width(VCPU * vcpu, u64 addr)
+{
 	u32 eax, ebx, ecx, edx;
 	u64 paddrmask;
 	/* Check whether CPUID 0x80000008 is supported */
@@ -341,29 +339,30 @@ static u32 _vmx_check_physical_addr_width(VCPU *vcpu, u64 addr) {
  * Perform VMENTRY. Never returns if succeed. If controls / host state check
  * fails, return error code for _vmx_nested_vm_fail().
  */
-static u32 _vmx_vmentry(VCPU *vcpu, vmcs12_info_t *vmcs12_info, struct regs *r)
+static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
+						struct regs *r)
 {
 	u32 result;
 
 	/*
-		Features notes
-		* "enable VPID" not supported (currently ignore control_vpid in VMCS12)
-		* "VMCS shadowing" not supported (logic not written)
-		* writing to VM-exit information field not supported
-		* VM exit/entry MSR load/store not supported (TODO)
-		* "Enable EPT" not supported yet
-		* "EPTP switching" not supported (the only VMFUNC in Intel SDM)
-		* "Sub-page write permissions for EPT" not supported
-		* "Activate tertiary controls" not supported
+	   Features notes
+	   * "enable VPID" not supported (currently ignore control_vpid in VMCS12)
+	   * "VMCS shadowing" not supported (logic not written)
+	   * writing to VM-exit information field not supported
+	   * VM exit/entry MSR load/store not supported (TODO)
+	   * "Enable EPT" not supported yet
+	   * "EPTP switching" not supported (the only VMFUNC in Intel SDM)
+	   * "Sub-page write permissions for EPT" not supported
+	   * "Activate tertiary controls" not supported
 	 */
 
 	/* Translate VMCS12 to VMCS02 */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
-	result = xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(vcpu, &vmcs12_info->vmcs12_value);
+	result = xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(vcpu, vmcs12_info);
 
 	/* When a problem happens, translate back to L1 guest */
 	if (result != VM_INST_SUCCESS) {
-		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void*)vcpu->vmx_vmcs_vaddr)));
+		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
 		return result;
 	}
 
@@ -390,7 +389,8 @@ static u32 _vmx_vmentry(VCPU *vcpu, vmcs12_info_t *vmcs12_info, struct regs *r)
  * For bits in CR0 that are masked, use the CR0 shadow.
  * For other bits, use guest_CR0
  */
-static u64 _vmx_guest_get_guest_cr0(VCPU *vcpu) {
+static u64 _vmx_guest_get_guest_cr0(VCPU * vcpu)
+{
 	return ((vcpu->vmcs.guest_CR0 & ~vcpu->vmcs.control_CR0_mask) |
 			(vcpu->vmcs.control_CR0_shadow & vcpu->vmcs.control_CR0_mask));
 }
@@ -402,13 +402,15 @@ static u64 _vmx_guest_get_guest_cr0(VCPU *vcpu) {
  * For bits in CR4 that are masked, use the CR4 shadow.
  * For other bits, use guest_CR4
  */
-static u64 _vmx_guest_get_guest_cr4(VCPU *vcpu) {
+static u64 _vmx_guest_get_guest_cr4(VCPU * vcpu)
+{
 	return ((vcpu->vmcs.guest_CR4 & ~vcpu->vmcs.control_CR4_mask) |
 			(vcpu->vmcs.control_CR4_shadow & vcpu->vmcs.control_CR4_mask));
 }
 
 /* Get CPL of guest */
-static u32 _vmx_guest_get_cpl(VCPU *vcpu) {
+static u32 _vmx_guest_get_cpl(VCPU * vcpu)
+{
 	return (vcpu->vmcs.guest_CS_selector & 0x3);
 }
 
@@ -426,7 +428,7 @@ static u32 _vmx_guest_get_cpl(VCPU *vcpu) {
  *
  * Return whether should inject #UD to guest
  */
-static u32 _vmx_nested_check_ud(VCPU *vcpu, int is_vmxon)
+static u32 _vmx_nested_check_ud(VCPU * vcpu, int is_vmxon)
 {
 	if ((_vmx_guest_get_guest_cr0(vcpu) & CR0_PE) == 0 ||
 		(vcpu->vmcs.guest_RFLAGS & EFLAGS_VM) ||
@@ -448,7 +450,7 @@ static u32 _vmx_nested_check_ud(VCPU *vcpu, int is_vmxon)
 /*
  * Virtualize fields in VCPU that tracks nested virtualization information
  */
-void xmhf_nested_arch_x86vmx_vcpu_init(VCPU *vcpu)
+void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 {
 	u32 i;
 	vcpu->vmx_nested_is_vmx_operation = 0;
@@ -517,7 +519,9 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU *vcpu)
 		/* "Unrestricted guest" not supported */
 		mask &= ~(1ULL << (32 + VMX_SECPROCBASED_UNRESTRICTED_GUEST));
 		/* "Sub-page write permissions for EPT" not supported */
-		mask &= ~(1ULL << (32 + VMX_SECPROCBASED_SUB_PAGE_WRITE_PERMISSIONS_FOR_EPT));
+		mask &=
+			~(1ULL <<
+			  (32 + VMX_SECPROCBASED_SUB_PAGE_WRITE_PERMISSIONS_FOR_EPT));
 		vcpu->vmx_nested_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR] &= mask;
 	}
 	/* Select IA32_VMX_* or IA32_VMX_TRUE_* in guest mode */
@@ -543,29 +547,40 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU *vcpu)
 }
 
 /* Handle VMEXIT from nested guest */
-void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU *vcpu, struct regs *r)
+void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
-	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, &vmcs12_info->vmcs12_value);
+	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
+	if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {
+		/*
+		 * TODO: Stopping here makes debugging a correct guest hypervisor
+		 * easier. The correct behavior should be injecting the VMEXIT to
+		 * guest hypervisor.
+		 */
+		HALT_ON_ERRORCOND(0 && "Debug: guest hypervisor VM-entry failure");
+	}
 	printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
-			vmcs12_info->vmcs12_value.info_vmexit_reason);
+		   vmcs12_info->vmcs12_value.info_vmexit_reason);
 	/* Prepare VMRESUME to guest hypervisor */
-	HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void*)vcpu->vmx_vmcs_vaddr)));
+	HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
 	xmhf_baseplatform_arch_x86vmx_putVMCS(vcpu);
 	// TODO: handle vcpu->vmx_guest_inject_nmi?
 	vcpu->vmx_nested_is_vmx_root_operation = 1;
 	__vmx_vmentry_vmresume(r);
 }
 
-// TODO: also need to virtualize VMCALL
-
-void xmhf_nested_arch_x86vmx_handle_vmclear(VCPU *vcpu, struct regs *r)
+void xmhf_nested_arch_x86vmx_handle_vmclear(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
-		// TODO: VMEXIT
-		HALT_ON_ERRORCOND(0 && "Not implemented");
+		/*
+		 * Guest hypervisor is likely performing nested virtualization.
+		 * This case should be handled in
+		 * xmhf_parteventhub_arch_x86vmx_intercept_handler(). So panic if we
+		 * end up here.
+		 */
+		HALT_ON_ERRORCOND(0 && "Nested vmexit should be handled elsewhere");
 	} else if (_vmx_guest_get_cpl(vcpu) > 0) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
 	} else {
@@ -594,7 +609,8 @@ void xmhf_nested_arch_x86vmx_handle_vmclear(VCPU *vcpu, struct regs *r)
 			if (vmcs12_info != NULL) {
 				vmcs12_info->vmcs12_ptr = CUR_VMCS_PTR_INVALID;
 			}
-			guestmem_copy_h2gp(&ctx_pair, 0, vmcs_ptr, blank_page, PAGE_SIZE_4K);
+			guestmem_copy_h2gp(&ctx_pair, 0, vmcs_ptr, blank_page,
+							   PAGE_SIZE_4K);
 			if (vmcs_ptr == vcpu->vmx_nested_current_vmcs_pointer) {
 				vcpu->vmx_nested_current_vmcs_pointer = CUR_VMCS_PTR_INVALID;
 			}
@@ -604,15 +620,20 @@ void xmhf_nested_arch_x86vmx_handle_vmclear(VCPU *vcpu, struct regs *r)
 	}
 }
 
-void xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(VCPU *vcpu,
-														struct regs *r,
-														int is_vmresume)
+void xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(VCPU * vcpu,
+													  struct regs *r,
+													  int is_vmresume)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
-		// TODO: VMEXIT
-		HALT_ON_ERRORCOND(0 && "Not implemented");
+		/*
+		 * Guest hypervisor is likely performing nested virtualization.
+		 * This case should be handled in
+		 * xmhf_parteventhub_arch_x86vmx_intercept_handler(). So panic if we
+		 * end up here.
+		 */
+		HALT_ON_ERRORCOND(0 && "Nested vmexit should be handled elsewhere");
 	} else if (_vmx_guest_get_cpl(vcpu) > 0) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
 	} else {
@@ -638,13 +659,18 @@ void xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(VCPU *vcpu,
 	}
 }
 
-void xmhf_nested_arch_x86vmx_handle_vmptrld(VCPU *vcpu, struct regs *r)
+void xmhf_nested_arch_x86vmx_handle_vmptrld(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
-		// TODO: VMEXIT
-		HALT_ON_ERRORCOND(0 && "Not implemented");
+		/*
+		 * Guest hypervisor is likely performing nested virtualization.
+		 * This case should be handled in
+		 * xmhf_parteventhub_arch_x86vmx_intercept_handler(). So panic if we
+		 * end up here.
+		 */
+		HALT_ON_ERRORCOND(0 && "Nested vmexit should be handled elsewhere");
 	} else if (_vmx_guest_get_cpl(vcpu) > 0) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
 	} else {
@@ -663,8 +689,7 @@ void xmhf_nested_arch_x86vmx_handle_vmptrld(VCPU *vcpu, struct regs *r)
 			u64 basic_msr = vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR];
 			guestmem_copy_gp2h(&ctx_pair, 0, &rev, vmcs_ptr, sizeof(rev));
 			/* Note: Currently does not support 1-setting of "VMCS shadowing" */
-			if ((rev & (1U << 31)) ||
-				(rev != ((u32) basic_msr & 0x7fffffffU))) {
+			if ((rev & (1U << 31)) || (rev != ((u32) basic_msr & 0x7fffffffU))) {
 				_vmx_nested_vm_fail
 					(vcpu, VM_INST_ERRNO_VMPTRLD_WITH_INCORRECT_VMCS_REV_ID);
 			} else {
@@ -680,20 +705,24 @@ void xmhf_nested_arch_x86vmx_handle_vmptrld(VCPU *vcpu, struct regs *r)
 	}
 }
 
-void xmhf_nested_arch_x86vmx_handle_vmptrst(VCPU *vcpu, struct regs *r)
+void xmhf_nested_arch_x86vmx_handle_vmptrst(VCPU * vcpu, struct regs *r)
 {
 	printf("CPU(0x%02x): %s(): r=%p\n", vcpu->id, __func__, r);
 	HALT_ON_ERRORCOND(0 && "Not implemented");
 }
 
-void xmhf_nested_arch_x86vmx_handle_vmread(VCPU *vcpu, struct regs *r)
+void xmhf_nested_arch_x86vmx_handle_vmread(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
-		/* Note: Currently does not support 1-setting of "VMCS shadowing" */
-		// TODO: VMEXIT
-		HALT_ON_ERRORCOND(0 && "Not implemented");
+		/*
+		 * Guest hypervisor is likely performing nested virtualization.
+		 * This case should be handled in
+		 * xmhf_parteventhub_arch_x86vmx_intercept_handler(). So panic if we
+		 * end up here.
+		 */
+		HALT_ON_ERRORCOND(0 && "Nested vmexit should be handled elsewhere");
 	} else if (_vmx_guest_get_cpl(vcpu) > 0) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
 	} else {
@@ -705,9 +734,9 @@ void xmhf_nested_arch_x86vmx_handle_vmread(VCPU *vcpu, struct regs *r)
 			uintptr_t pvalue;
 			int value_mem_reg;
 			size_t size = _vmx_decode_vmread_vmwrite(vcpu, r, 1, &encoding,
-													&pvalue, &value_mem_reg);
+													 &pvalue, &value_mem_reg);
 			size_t offset = xmhf_nested_arch_x86vmx_vmcs_field_find(encoding);
-			if (offset == (size_t) (-1)) {
+			if (offset == (size_t)(-1)) {
 				_vmx_nested_vm_fail_valid
 					(vcpu, VM_INST_ERRNO_VMRDWR_UNSUPP_VMCS_COMP);
 			} else {
@@ -716,7 +745,7 @@ void xmhf_nested_arch_x86vmx_handle_vmread(VCPU *vcpu, struct regs *r)
 				ulong_t value = xmhf_nested_arch_x86vmx_vmcs_read
 					(&vmcs12_info->vmcs12_value, offset, size);
 				if (value_mem_reg) {
-					memcpy((void *) pvalue, &value, size);
+					memcpy((void *)pvalue, &value, size);
 				} else {
 					guestmem_hptw_ctx_pair_t ctx_pair;
 					guestmem_init(vcpu, &ctx_pair);
@@ -729,14 +758,19 @@ void xmhf_nested_arch_x86vmx_handle_vmread(VCPU *vcpu, struct regs *r)
 	}
 }
 
-void xmhf_nested_arch_x86vmx_handle_vmwrite(VCPU *vcpu, struct regs *r)
+void xmhf_nested_arch_x86vmx_handle_vmwrite(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
 		/* Note: Currently does not support 1-setting of "VMCS shadowing" */
-		// TODO: VMEXIT
-		HALT_ON_ERRORCOND(0 && "Not implemented");
+		/*
+		 * Guest hypervisor is likely performing nested virtualization.
+		 * This case should be handled in
+		 * xmhf_parteventhub_arch_x86vmx_intercept_handler(). So panic if we
+		 * end up here.
+		 */
+		HALT_ON_ERRORCOND(0 && "Nested vmexit should be handled elsewhere");
 	} else if (_vmx_guest_get_cpl(vcpu) > 0) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
 	} else {
@@ -748,9 +782,9 @@ void xmhf_nested_arch_x86vmx_handle_vmwrite(VCPU *vcpu, struct regs *r)
 			uintptr_t pvalue;
 			int value_mem_reg;
 			size_t size = _vmx_decode_vmread_vmwrite(vcpu, r, 1, &encoding,
-													&pvalue, &value_mem_reg);
+													 &pvalue, &value_mem_reg);
 			size_t offset = xmhf_nested_arch_x86vmx_vmcs_field_find(encoding);
-			if (offset == (size_t) (-1)) {
+			if (offset == (size_t)(-1)) {
 				_vmx_nested_vm_fail_valid
 					(vcpu, VM_INST_ERRNO_VMRDWR_UNSUPP_VMCS_COMP);
 			} else if (!xmhf_nested_arch_x86vmx_vmcs_writable(offset)) {
@@ -765,14 +799,14 @@ void xmhf_nested_arch_x86vmx_handle_vmwrite(VCPU *vcpu, struct regs *r)
 				vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
 				ulong_t value = 0;
 				if (value_mem_reg) {
-					memcpy(&value, (void *) pvalue, size);
+					memcpy(&value, (void *)pvalue, size);
 				} else {
 					guestmem_hptw_ctx_pair_t ctx_pair;
 					guestmem_init(vcpu, &ctx_pair);
 					guestmem_copy_gv2h(&ctx_pair, 0, &value, pvalue, size);
 				}
 				xmhf_nested_arch_x86vmx_vmcs_write(&vmcs12_info->vmcs12_value,
-													offset, value, size);
+												   offset, value, size);
 				_vmx_nested_vm_succeed(vcpu);
 			}
 		}
@@ -780,13 +814,13 @@ void xmhf_nested_arch_x86vmx_handle_vmwrite(VCPU *vcpu, struct regs *r)
 	}
 }
 
-void xmhf_nested_arch_x86vmx_handle_vmxoff(VCPU *vcpu, struct regs *r)
+void xmhf_nested_arch_x86vmx_handle_vmxoff(VCPU * vcpu, struct regs *r)
 {
 	printf("CPU(0x%02x): %s(): r=%p\n", vcpu->id, __func__, r);
 	HALT_ON_ERRORCOND(0 && "Not implemented");
 }
 
-void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU *vcpu, struct regs *r)
+void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 1)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
@@ -811,9 +845,10 @@ void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU *vcpu, struct regs *r)
 			gpa_t vmxon_ptr;
 			guestmem_hptw_ctx_pair_t ctx_pair;
 			guestmem_init(vcpu, &ctx_pair);
-			guestmem_copy_gv2h(&ctx_pair, 0, &vmxon_ptr, addr, sizeof(vmxon_ptr));
-			if (!PA_PAGE_ALIGNED_4K(vmxon_ptr) ||
-				!_vmx_check_physical_addr_width(vcpu, vmxon_ptr)) {
+			guestmem_copy_gv2h(&ctx_pair, 0, &vmxon_ptr, addr,
+							   sizeof(vmxon_ptr));
+			if (!PA_PAGE_ALIGNED_4K(vmxon_ptr)
+				|| !_vmx_check_physical_addr_width(vcpu, vmxon_ptr)) {
 				_vmx_nested_vm_fail_invalid(vcpu);
 			} else {
 				u32 rev;
@@ -826,7 +861,8 @@ void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU *vcpu, struct regs *r)
 					vcpu->vmx_nested_is_vmx_operation = 1;
 					vcpu->vmx_nested_vmxon_pointer = vmxon_ptr;
 					vcpu->vmx_nested_is_vmx_root_operation = 1;
-					vcpu->vmx_nested_current_vmcs_pointer = CUR_VMCS_PTR_INVALID;
+					vcpu->vmx_nested_current_vmcs_pointer =
+						CUR_VMCS_PTR_INVALID;
 					active_vmcs12_array_init(vcpu);
 					_vmx_nested_vm_succeed(vcpu);
 				}
@@ -839,4 +875,3 @@ void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU *vcpu, struct regs *r)
 		HALT();
 	}
 }
-

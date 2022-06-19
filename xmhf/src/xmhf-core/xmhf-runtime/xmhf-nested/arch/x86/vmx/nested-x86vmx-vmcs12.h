@@ -51,12 +51,17 @@
 #ifndef _NESTED_X86VMX_VMCS12_H_
 #define _NESTED_X86VMX_VMCS12_H_
 
+#include "nested-x86vmx-handler.h"
+
 /*
  * Rules:
  * * Exactly one bit should be set in mask 0xf
- * * At most one bit should be set in mask 0xf0
- * * 0x20 can only be set for 64-bit fields
- * TODO: FIELD_PROP_ID_HOST cannot be supported
+ * * At most one bit should be set in mask 0x70
+ * * FIELD_PROP_GPADDR (0x20) can only be set for 64-bit fields
+ * * FIELD_PROP_SWWRONLY (0x80) can only be set when 0x10 or 0x20 is set
+ * Notes:
+ * * FIELD_PROP_ID_HOST is ignored. nested-x86vmx-vmcs12-guesthost.h is used
+ *   instead.
  */
 #define FIELD_PROP_GUEST	0x00000001	/* Guest field */
 #define FIELD_PROP_HOST		0x00000002	/* Host field */
@@ -65,6 +70,7 @@
 #define FIELD_PROP_ID_GUEST	0x00000010	/* VMCS12 value = VMCS02 value = any */
 #define FIELD_PROP_GPADDR	0x00000020	/* VMCS12 value = VMCS02 value = gpa */
 #define FIELD_PROP_ID_HOST	0x00000040	/* VMCS12 value = VMCS01 value */
+#define FIELD_PROP_SWWRONLY	0x00000080	/* Read-only by hardware */
 
 struct nested_vmcs12 {
 #define DECLARE_FIELD_16(encoding, name, ...) \
@@ -78,19 +84,46 @@ struct nested_vmcs12 {
 #include "nested-x86vmx-vmcs12-fields.h"
 };
 
+/* Format of an active VMCS12 tracked by a CPU */
+typedef struct vmcs12_info {
+	/*
+	 * Pointer to VMCS12 in guest.
+	 *
+	 * When a VMCS is invalid, this field is CUR_VMCS_PTR_INVALID, and all
+	 * other fields are undefined.
+	 */
+	gpa_t vmcs12_ptr;
+	/* Pointer to VMCS02 in host */
+	spa_t vmcs02_ptr;
+	/* Whether this VMCS has launched */
+	int launched;
+	/* Content of VMCS12, stored in XMHF's format */
+	struct nested_vmcs12 vmcs12_value;
+	/* VMEXIT MSR store area */
+	msr_entry_t vmcs02_vmexit_msr_store_area[VMX_NESTED_MAX_MSR_COUNT]
+		__attribute__((aligned(16)));
+	/* VMEXIT MSR load area */
+	msr_entry_t vmcs02_vmexit_msr_load_area[VMX_NESTED_MAX_MSR_COUNT]
+		__attribute__((aligned(16)));
+	/* VMENTRY MSR load area */
+	msr_entry_t vmcs02_vmentry_msr_load_area[VMX_NESTED_MAX_MSR_COUNT]
+		__attribute__((aligned(16)));
+} vmcs12_info_t;
+
 size_t xmhf_nested_arch_x86vmx_vmcs_field_find(ulong_t encoding);
 int xmhf_nested_arch_x86vmx_vmcs_writable(size_t offset);
 ulong_t xmhf_nested_arch_x86vmx_vmcs_read(struct nested_vmcs12 *vmcs12,
-											size_t offset, size_t size);
+										  size_t offset, size_t size);
 void xmhf_nested_arch_x86vmx_vmcs_write(struct nested_vmcs12 *vmcs12,
 										size_t offset, ulong_t value,
 										size_t size);
-void xmhf_nested_arch_x86vmx_vmcs_dump(VCPU *vcpu, struct nested_vmcs12 *vmcs12,
-										char *prefix);
-void xmhf_nested_arch_x86vmx_vmread_all(VCPU *vcpu, char *prefix);
-u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU *vcpu,
-											struct nested_vmcs12 *vmcs12);
-void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU *vcpu,
-												struct nested_vmcs12 *vmcs12);
+void xmhf_nested_arch_x86vmx_vmcs_dump(VCPU * vcpu,
+									   struct nested_vmcs12 *vmcs12,
+									   char *prefix);
+void xmhf_nested_arch_x86vmx_vmread_all(VCPU * vcpu, char *prefix);
+u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
+											 vmcs12_info_t * vmcs12_info);
+void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
+											  vmcs12_info_t * vmcs12_info);
 
-#endif /* _NESTED_X86VMX_VMCS12_H_ */
+#endif							/* _NESTED_X86VMX_VMCS12_H_ */

@@ -44,58 +44,18 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-// nested-x86vmx-vmcs12-guesthost.h
-// Enumerate through VMCS guest state and host state field pairs
+// nested-x86vmx-handler.h
+// Intercept handlers for nested virtualization
 // author: Eric Li (xiaoyili@andrew.cmu.edu)
 
+#ifndef _NESTED_X86VMX_HANDLER_H_
+#define _NESTED_X86VMX_HANDLER_H_
+
 /*
- * Macros are defined as DECLARE_FIELDPAIR_<size>
- * size is 16, 64, 32, or NW (natural width).
- * The arguments are:
- * * guest_encoding: field encoding used in VMRAED and VMWRITE for guest
- * * host_encoding: field encoding used in VMRAED and VMWRITE for host
- * * name: guest_<name> and host_<name> are the name of the field in struct
- *         nested_vmcs12
+ * Maximum number of MSRs in VMCS02's VMENTRY/VMEXIT MSR load / store. This
+ * value only needs to be larger than or equal to vmx_msr_area_msrs_count.
+ * It is not related to VMCS12's MSR load/store.
  */
+#define VMX_NESTED_MAX_MSR_COUNT 8
 
-#ifndef DECLARE_FIELDPAIR_16
-#define DECLARE_FIELDPAIR_16(...)
-#endif
-
-#ifndef DECLARE_FIELDPAIR_64
-#define DECLARE_FIELDPAIR_64(...)
-#endif
-
-#ifndef DECLARE_FIELDPAIR_32
-#define DECLARE_FIELDPAIR_32(...)
-#endif
-
-#ifndef DECLARE_FIELDPAIR_NW
-#define DECLARE_FIELDPAIR_NW(...)
-#endif
-
-DECLARE_FIELDPAIR_16(0x0800, 0x0C00, ES_selector)
-DECLARE_FIELDPAIR_16(0x0802, 0x0C02, CS_selector)
-DECLARE_FIELDPAIR_16(0x0804, 0x0C04, SS_selector)
-DECLARE_FIELDPAIR_16(0x0806, 0x0C06, DS_selector)
-DECLARE_FIELDPAIR_16(0x0808, 0x0C08, FS_selector)
-DECLARE_FIELDPAIR_16(0x080A, 0x0C0A, GS_selector)
-DECLARE_FIELDPAIR_16(0x080E, 0x0C0C, TR_selector)
-DECLARE_FIELDPAIR_32(0x482A, 0x4C00, SYSENTER_CS)
-DECLARE_FIELDPAIR_NW(0x6800, 0x6C00, CR0)
-DECLARE_FIELDPAIR_NW(0x6802, 0x6C02, CR3)
-DECLARE_FIELDPAIR_NW(0x6804, 0x6C04, CR4)
-DECLARE_FIELDPAIR_NW(0x680E, 0x6C06, FS_base)
-DECLARE_FIELDPAIR_NW(0x6810, 0x6C08, GS_base)
-DECLARE_FIELDPAIR_NW(0x6814, 0x6C0A, TR_base)
-DECLARE_FIELDPAIR_NW(0x6816, 0x6C0C, GDTR_base)
-DECLARE_FIELDPAIR_NW(0x6818, 0x6C0E, IDTR_base)
-DECLARE_FIELDPAIR_NW(0x6824, 0x6C10, SYSENTER_ESP)
-DECLARE_FIELDPAIR_NW(0x6826, 0x6C12, SYSENTER_EIP)
-DECLARE_FIELDPAIR_NW(0x681C, 0x6C14, RSP)
-DECLARE_FIELDPAIR_NW(0x681E, 0x6C16, RIP)
-
-#undef DECLARE_FIELDPAIR_16
-#undef DECLARE_FIELDPAIR_64
-#undef DECLARE_FIELDPAIR_32
-#undef DECLARE_FIELDPAIR_NW
+#endif							/* _NESTED_X86VMX_HANDLER_H_ */

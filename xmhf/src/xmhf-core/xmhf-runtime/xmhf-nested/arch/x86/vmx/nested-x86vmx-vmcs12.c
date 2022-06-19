@@ -48,6 +48,7 @@
 // Handle VMCS in the guest
 // author: Eric Li (xiaoyili@andrew.cmu.edu)
 #include <xmhf.h>
+#include "nested-x86vmx-handler.h"
 #include "nested-x86vmx-vmcs12.h"
 #include "nested-x86vmx-vminsterr.h"
 
@@ -104,7 +105,7 @@ int xmhf_nested_arch_x86vmx_vmcs_writable(size_t offset)
 }
 
 ulong_t xmhf_nested_arch_x86vmx_vmcs_read(struct nested_vmcs12 *vmcs12,
-											size_t offset, size_t size)
+										  size_t offset, size_t size)
 {
 	switch (offset) {
 #define DECLARE_FIELD_16(encoding, name, ...) \
@@ -185,8 +186,9 @@ void xmhf_nested_arch_x86vmx_vmcs_write(struct nested_vmcs12 *vmcs12,
 }
 
 /* Dump all fields in vmcs12 */
-void xmhf_nested_arch_x86vmx_vmcs_dump(VCPU *vcpu, struct nested_vmcs12 *vmcs12,
-										char *prefix)
+void xmhf_nested_arch_x86vmx_vmcs_dump(VCPU * vcpu,
+									   struct nested_vmcs12 *vmcs12,
+									   char *prefix)
 {
 #define DECLARE_FIELD_16(encoding, name, ...) \
 	printf("CPU(0x%02x): %s" #name " = 0x%04x\n", vcpu->id, prefix, \
@@ -205,14 +207,14 @@ void xmhf_nested_arch_x86vmx_vmcs_dump(VCPU *vcpu, struct nested_vmcs12 *vmcs12,
 #define DECLARE_FIELD_NW(encoding, name, ...) \
 	printf("CPU(0x%02x): %s" #name " = 0x%08lx\n", vcpu->id, prefix, \
 			vmcs12->name);
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#else							/* !defined(__I386__) && !defined(__AMD64__) */
+#error "Unsupported Arch"
+#endif							/* !defined(__I386__) && !defined(__AMD64__) */
 #include "nested-x86vmx-vmcs12-fields.h"
 }
 
 /* Dump all fields in current physical VMCS (using vmread) */
-void xmhf_nested_arch_x86vmx_vmread_all(VCPU *vcpu, char *prefix)
+void xmhf_nested_arch_x86vmx_vmread_all(VCPU * vcpu, char *prefix)
 {
 #define DECLARE_FIELD_16(encoding, name, ...) \
 	{ \
@@ -250,9 +252,9 @@ void xmhf_nested_arch_x86vmx_vmread_all(VCPU *vcpu, char *prefix)
 					vcpu->id, (u32) encoding, prefix); \
 		} \
 	}
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#else							/* !defined(__I386__) && !defined(__AMD64__) */
+#error "Unsupported Arch"
+#endif							/* !defined(__I386__) && !defined(__AMD64__) */
 #define DECLARE_FIELD_32(encoding, name, ...) \
 	{ \
 		unsigned long value; \
@@ -288,9 +290,9 @@ void xmhf_nested_arch_x86vmx_vmread_all(VCPU *vcpu, char *prefix)
 					vcpu->id, (u32) encoding, prefix); \
 		} \
 	}
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#else							/* !defined(__I386__) && !defined(__AMD64__) */
+#error "Unsupported Arch"
+#endif							/* !defined(__I386__) && !defined(__AMD64__) */
 #include "nested-x86vmx-vmcs12-fields.h"
 }
 
@@ -299,8 +301,8 @@ void xmhf_nested_arch_x86vmx_vmread_all(VCPU *vcpu, char *prefix)
  * Return an error code following VM instruction error number, or 0 when
  * success.
  */
-static u32 _vmcs12_get_ctls(VCPU *vcpu, struct nested_vmcs12 *vmcs12,
-							vmx_ctls_t *ctls)
+static u32 _vmcs12_get_ctls(VCPU * vcpu, struct nested_vmcs12 *vmcs12,
+							vmx_ctls_t * ctls)
 {
 	{
 		u32 val = vmcs12->control_VMX_pin_based;
@@ -359,9 +361,10 @@ static u32 _vmcs12_get_ctls(VCPU *vcpu, struct nested_vmcs12 *vmcs12,
  * Return an error code following VM instruction error number, or 0 when
  * success.
  */
-u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU *vcpu,
-											struct nested_vmcs12 *vmcs12)
+u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
+											 vmcs12_info_t * vmcs12_info)
 {
+	struct nested_vmcs12 *vmcs12 = &vmcs12_info->vmcs12_value;
 	vmx_ctls_t ctls;
 	guestmem_hptw_ctx_pair_t ctx_pair;
 	u32 status = _vmcs12_get_ctls(vcpu, vmcs12, &ctls);
@@ -433,31 +436,18 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU *vcpu,
 	/* 16-Bit Host-State Fields */
 
 	/* 64-Bit Control Fields */
-	{
-		gpa_t addr = vmcs12->control_VM_exit_MSR_store_address;
-		// TODO: need to multiplex MSR loading / storing, which is not implemented yet.
-		addr = guestmem_gpa2spa_page(&ctx_pair, 0);
-		__vmx_vmwrite64(0x2006, addr);
-	}
-	{
-		gpa_t addr = vmcs12->control_VM_exit_MSR_load_address;
-		// TODO: need to multiplex MSR loading / storing, which is not implemented yet.
-		addr = guestmem_gpa2spa_page(&ctx_pair, 0);
-		__vmx_vmwrite64(0x2008, addr);
-	}
-	{
-		gpa_t addr = vmcs12->control_VM_entry_MSR_load_address;
-		// TODO: need to multiplex MSR loading / storing, which is not implemented yet.
-		addr = guestmem_gpa2spa_page(&ctx_pair, 0);
-		__vmx_vmwrite64(0x200A, addr);
-	}
+	/*
+	 * control_VM_exit_MSR_store_address: see control_VM_exit_MSR_store_count
+	 * control_VM_exit_MSR_load_address: see control_VM_exit_MSR_load_count
+	 * control_VM_entry_MSR_load_address: see control_VM_entry_MSR_load_count
+	 */
 	{
 		gpa_t addr = vmcs12->control_Executive_VMCS_pointer;
 		// TODO: related to SMM, check whether this restriction makes sense
 		HALT_ON_ERRORCOND(addr == 0);
 #ifndef __DEBUG_QEMU__
 		__vmx_vmwrite64(0x200C, guestmem_gpa2spa_page(&ctx_pair, addr));
-#endif /* !__DEBUG_QEMU__ */
+#endif							/* !__DEBUG_QEMU__ */
 	}
 	{
 		// Note: "Enable EPT" not supported for the guest, but XMHF needs EPT.
@@ -510,8 +500,8 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU *vcpu,
 			pae = 0;
 		}
 #elif !defined(__I386__)
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) */
+#error "Unsupported Arch"
+#endif							/* !defined(__I386__) */
 		if (pae) {
 			/* Walk EPT and retrieve values for guest_PDPTE* */
 			u64 pdptes[4];
@@ -576,31 +566,87 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU *vcpu,
 #ifdef __AMD64__
 		val |= (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE);
 #elif !defined(__I386__)
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) */
+#error "Unsupported Arch"
+#endif							/* !defined(__I386__) */
 		__vmx_vmwrite32(0x400C, val);
 	}
 	{
-		u32 val = vmcs12->control_VM_exit_MSR_store_count;
-		/* VM exit/entry MSR load/store not supported */
-		HALT_ON_ERRORCOND(val == 0);
-		__vmx_vmwrite32(0x400E, val);
+		/* VMCS02 needs to always process the same fields as VMCS01 */
+		memcpy(vmcs12_info->vmcs02_vmexit_msr_store_area,
+			   (void *)vcpu->vmx_vaddr_msr_area_guest,
+			   vcpu->vmcs.control_VM_exit_MSR_store_count *
+			   sizeof(msr_entry_t));
+		__vmx_vmwrite32(0x400E, vcpu->vmcs.control_VM_exit_MSR_store_count);
+		__vmx_vmwrite64(0x2006,
+						hva2spa(vmcs12_info->vmcs02_vmexit_msr_store_area));
+
+		/* VMX control is not checked here; will check in VMEXIT handler */
 	}
 	{
-		u32 val = vmcs12->control_VM_exit_MSR_load_count;
-		/* VM exit/entry MSR load/store not supported */
-		HALT_ON_ERRORCOND(val == 0);
-		__vmx_vmwrite32(0x4010, val);
+		/* VMCS02 needs to always process the same fields as VMCS01 */
+		memcpy(vmcs12_info->vmcs02_vmexit_msr_load_area,
+			   (void *)vcpu->vmx_vaddr_msr_area_host,
+			   vcpu->vmcs.control_VM_exit_MSR_load_count * sizeof(msr_entry_t));
+		__vmx_vmwrite32(0x4010, vcpu->vmcs.control_VM_exit_MSR_load_count);
+		__vmx_vmwrite64(0x2008,
+						hva2spa(vmcs12_info->vmcs02_vmexit_msr_load_area));
+
+		/* VMX control is not checked here; will check in VMEXIT handler */
 	}
 	{
 		u32 val = vmcs12->control_VM_entry_controls;
 		__vmx_vmwrite32(0x4012, val);
 	}
 	{
-		u32 val = vmcs12->control_VM_entry_MSR_load_count;
-		/* VM exit/entry MSR load/store not supported */
-		HALT_ON_ERRORCOND(val == 0);
-		__vmx_vmwrite32(0x4014, val);
+		u32 i;
+		gva_t guest_addr = vmcs12->control_VM_entry_MSR_load_address;
+
+		/* VMCS02 needs to always process the same fields as VMCS01 */
+		memcpy(vmcs12_info->vmcs02_vmentry_msr_load_area,
+			   (void *)vcpu->vmx_vaddr_msr_area_guest,
+			   vcpu->vmcs.control_VM_entry_MSR_load_count *
+			   sizeof(msr_entry_t));
+		__vmx_vmwrite32(0x4014, vcpu->vmcs.control_VM_entry_MSR_load_count);
+		__vmx_vmwrite64(0x200A,
+						hva2spa(vmcs12_info->vmcs02_vmentry_msr_load_area));
+
+		/* Write the MSRs requested by guest */
+		for (i = 0; i < vmcs12->control_VM_entry_MSR_load_count; i++) {
+			msr_entry_t guest_entry;
+			guestmem_copy_gp2h(&ctx_pair, 0, &guest_entry,
+							   guest_addr + sizeof(msr_entry_t) * i,
+							   sizeof(msr_entry_t));
+			switch (guest_entry.index) {
+			case MSR_EFER:		/* fallthrough */
+			case MSR_IA32_PAT:	/* fallthrough */
+			case MSR_K6_STAR:
+				{
+					bool found = false;
+					u32 i = 0;
+					for (i = 0; i < vcpu->vmcs.control_VM_entry_MSR_load_count;
+						 i++) {
+						msr_entry_t *entry =
+							&vmcs12_info->vmcs02_vmentry_msr_load_area[i];
+						if (entry->index == guest_entry.index) {
+							entry->data = guest_entry.data;
+							found = true;
+							break;
+						}
+					}
+					HALT_ON_ERRORCOND(found);
+				}
+				break;
+			default:
+				if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr
+					(vcpu, guest_entry.index, guest_entry.data)) {
+					/*
+					 * Likely need to fail VMENTRY, but need to double check.
+					 */
+					HALT_ON_ERRORCOND(0 && "WRMSR fail, what should I do?");
+				}
+				break;
+			}
+		}
 	}
 	if (1) {
 		/* TODO: ignoring _vmx_hasctl_activate_secondary_controls(&ctls) */
@@ -640,37 +686,54 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU *vcpu,
 /*
  * Translate VMCS02 (already loaded as current VMCS) to VMCS12 (vmcs12)
  */
-void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU *vcpu,
-												struct nested_vmcs12 *vmcs12)
+void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
+											  vmcs12_info_t * vmcs12_info)
 {
+	struct nested_vmcs12 *vmcs12 = &vmcs12_info->vmcs12_value;
 	vmx_ctls_t ctls;
+	guestmem_hptw_ctx_pair_t ctx_pair;
 	HALT_ON_ERRORCOND(_vmcs12_get_ctls(vcpu, vmcs12, &ctls) == 0);
+	guestmem_init(vcpu, &ctx_pair);
 
 #define FIELD_CTLS_ARG (&ctls)
 #define DECLARE_FIELD_16(encoding, name, prop, exist, ...) \
 	if (exist) { \
 		if (prop & FIELD_PROP_ID_GUEST) { \
-			vmcs12->name = __vmx_vmread16(encoding); \
+			if (prop & FIELD_PROP_SWWRONLY) { \
+				HALT_ON_ERRORCOND(vmcs12->name == __vmx_vmread16(encoding)); \
+			} else { \
+				vmcs12->name = __vmx_vmread16(encoding); \
+			} \
 		} \
 	}
 #define DECLARE_FIELD_64(encoding, name, prop, exist, ...) \
 	if (exist) { \
-		if (prop & FIELD_PROP_ID_GUEST) { \
-			vmcs12->name = __vmx_vmread64(encoding); \
-		} else if (prop & FIELD_PROP_GPADDR) { \
-			vmcs12->name = __vmx_vmread64(encoding); \
+		if ((prop & FIELD_PROP_ID_GUEST) || (prop & FIELD_PROP_GPADDR)) { \
+			if (prop & FIELD_PROP_SWWRONLY) { \
+				HALT_ON_ERRORCOND(vmcs12->name == __vmx_vmread64(encoding)); \
+			} else { \
+				vmcs12->name = __vmx_vmread64(encoding); \
+			} \
 		} \
 	}
 #define DECLARE_FIELD_32(encoding, name, prop, exist, ...) \
 	if (exist) { \
 		if (prop & FIELD_PROP_ID_GUEST) { \
-			vmcs12->name = __vmx_vmread32(encoding); \
+			if (prop & FIELD_PROP_SWWRONLY) { \
+				HALT_ON_ERRORCOND(vmcs12->name == __vmx_vmread32(encoding)); \
+			} else { \
+				vmcs12->name = __vmx_vmread32(encoding); \
+			} \
 		} \
 	}
 #define DECLARE_FIELD_NW(encoding, name, prop, exist, ...) \
 	if (exist) { \
 		if (prop & FIELD_PROP_ID_GUEST) { \
-			vmcs12->name = __vmx_vmreadNW(encoding); \
+			if (prop & FIELD_PROP_SWWRONLY) { \
+				HALT_ON_ERRORCOND(vmcs12->name == __vmx_vmreadNW(encoding)); \
+			} else { \
+				vmcs12->name = __vmx_vmreadNW(encoding); \
+			} \
 		} \
 	}
 #include "nested-x86vmx-vmcs12-fields.h"
@@ -719,26 +782,16 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU *vcpu,
 	}
 
 	/* 64-Bit Control Fields */
-	{
-		// TODO: need to multiplex MSR loading / storing, which is not implemented yet.
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2006) == 0);
-		// vmcs12->control_VM_exit_MSR_store_address = ...
-	}
-	{
-		// TODO: need to multiplex MSR loading / storing, which is not implemented yet.
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2008) == 0);
-		// vmcs12->control_VM_exit_MSR_load_address = ...;
-	}
-	{
-		// TODO: need to multiplex MSR loading / storing, which is not implemented yet.
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x200A) == 0);
-		// vmcs12->control_VM_entry_MSR_load_address = ...;
-	}
+	/*
+	 * control_VM_exit_MSR_store_address: see control_VM_exit_MSR_store_count
+	 * control_VM_exit_MSR_load_address: see control_VM_exit_MSR_load_count
+	 * control_VM_entry_MSR_load_address: see control_VM_entry_MSR_load_count
+	 */
 	{
 		// TODO: related to SMM, check whether this restriction makes sense
 #ifndef __DEBUG_QEMU__
 		HALT_ON_ERRORCOND(__vmx_vmread64(0x200C) == 0);
-#endif /* !__DEBUG_QEMU__ */
+#endif							/* !__DEBUG_QEMU__ */
 		// vmcs12->control_Executive_VMCS_pointer = ...;
 	}
 	if (1) {
@@ -791,7 +844,7 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU *vcpu,
 			cpuid(0xA, &eax, &ebx, &ecx, &edx);
 			if (eax & 0xffU) {
 				HALT_ON_ERRORCOND(__vmx_vmread64(0x2C04) ==
-									rdmsr64(IA32_PERF_GLOBAL_CTRL));
+								  rdmsr64(IA32_PERF_GLOBAL_CTRL));
 			}
 		}
 	}
@@ -826,9 +879,9 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU *vcpu,
 	}
 	{
 		u32 val = __vmx_vmread32(0x4002);
-		HALT_ON_ERRORCOND(val == (
-			vmcs12->control_VMX_cpu_based |
-			(1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS)));
+		HALT_ON_ERRORCOND(val == (vmcs12->control_VMX_cpu_based |
+								  (1U <<
+								   VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS)));
 	}
 	{
 		// TODO: in the future, need to merge with host's exception bitmap
@@ -846,16 +899,114 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU *vcpu,
 		}
 	}
 	{
-		vmcs12->control_VM_exit_MSR_store_count = __vmx_vmread32(0x400E);
+		u32 i;
+		gva_t guest_addr = vmcs12->control_VM_exit_MSR_store_address;
+
+		/* VMCS02 needs to always process the same fields as VMCS01 */
+		HALT_ON_ERRORCOND(vcpu->vmcs.control_VM_exit_MSR_store_count ==
+						  __vmx_vmread32(0x400E));
+		HALT_ON_ERRORCOND(hva2spa(vmcs12_info->vmcs02_vmexit_msr_store_area) ==
+						  __vmx_vmread64(0x2006));
+
+		/* Read MSRs and write to guest */
+		for (i = 0; i < vmcs12->control_VM_exit_MSR_store_count; i++) {
+			msr_entry_t guest_entry;
+			guestmem_copy_gp2h(&ctx_pair, 0, &guest_entry,
+							   guest_addr + sizeof(msr_entry_t) * i,
+							   sizeof(msr_entry_t));
+			switch (guest_entry.index) {
+			case MSR_EFER:		/* fallthrough */
+			case MSR_IA32_PAT:	/* fallthrough */
+			case MSR_K6_STAR:
+				{
+					bool found = false;
+					u32 i = 0;
+					for (i = 0; i < vcpu->vmcs.control_VM_entry_MSR_load_count;
+						 i++) {
+						msr_entry_t *entry =
+							&vmcs12_info->vmcs02_vmexit_msr_store_area[i];
+						if (entry->index == guest_entry.index) {
+							guest_entry.data = entry->data;
+							found = true;
+							break;
+						}
+					}
+					HALT_ON_ERRORCOND(found);
+				}
+				break;
+			default:
+				if (xmhf_parteventhub_arch_x86vmx_handle_rdmsr
+					(vcpu, guest_entry.index, &guest_entry.data)) {
+					/*
+					 * Likely need to fail VMEXIT, but need to double check.
+					 */
+					HALT_ON_ERRORCOND(0 && "RDMSR fail, what should I do?");
+				}
+				break;
+			}
+			guestmem_copy_h2gp(&ctx_pair, 0,
+							   guest_addr + sizeof(msr_entry_t) * i,
+							   &guest_entry, sizeof(msr_entry_t));
+		}
 	}
 	{
-		vmcs12->control_VM_exit_MSR_load_count = __vmx_vmread32(0x4010);
+		u32 i;
+		gva_t guest_addr = vmcs12->control_VM_exit_MSR_load_address;
+
+		/* VMCS02 needs to always process the same fields as VMCS01 */
+		HALT_ON_ERRORCOND(vcpu->vmcs.control_VM_exit_MSR_load_count ==
+						  __vmx_vmread32(0x400E));
+		HALT_ON_ERRORCOND(hva2spa(vmcs12_info->vmcs02_vmexit_msr_load_area) ==
+						  __vmx_vmread64(0x2008));
+
+		/* Write MSRs as requested by guest */
+		for (i = 0; i < vmcs12->control_VM_exit_MSR_load_count; i++) {
+			msr_entry_t guest_entry;
+			guestmem_copy_gp2h(&ctx_pair, 0, &guest_entry,
+							   guest_addr + sizeof(msr_entry_t) * i,
+							   sizeof(msr_entry_t));
+			switch (guest_entry.index) {
+			case MSR_EFER:		/* fallthrough */
+			case MSR_IA32_PAT:	/* fallthrough */
+			case MSR_K6_STAR:
+				{
+					bool found = false;
+					u32 i = 0;
+					msr_entry_t *base =
+						(msr_entry_t *) vcpu->vmx_vaddr_msr_area_guest;
+					for (i = 0; i < vcpu->vmcs.control_VM_entry_MSR_load_count;
+						 i++) {
+						msr_entry_t *entry = &base[i];
+						if (entry->index == guest_entry.index) {
+							entry->data = guest_entry.data;
+							found = true;
+							break;
+						}
+					}
+					HALT_ON_ERRORCOND(found);
+				}
+				break;
+			default:
+				if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr
+					(vcpu, guest_entry.index, guest_entry.data)) {
+					/*
+					 * Likely need to fail VMEXIT, but need to double check.
+					 */
+					HALT_ON_ERRORCOND(0 && "WRMSR fail, what should I do?");
+				}
+				break;
+			}
+		}
 	}
 	{
 		vmcs12->control_VM_entry_controls = __vmx_vmread32(0x4012);
 	}
 	{
-		vmcs12->control_VM_entry_MSR_load_count = __vmx_vmread32(0x4014);
+		/* VMCS02 needs to always process the same fields as VMCS01 */
+		HALT_ON_ERRORCOND(vcpu->vmcs.control_VM_entry_MSR_load_count ==
+						  __vmx_vmread32(0x4014));
+		HALT_ON_ERRORCOND(hva2spa(vmcs12_info->vmcs02_vmentry_msr_load_area) ==
+						  __vmx_vmread64(0x200A));
 	}
 	if (1) {
 		/* TODO: ignoring _vmx_hasctl_activate_secondary_controls(&ctls) */
