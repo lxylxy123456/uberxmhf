@@ -619,12 +619,17 @@ void xmhf_smpguest_arch_x86vmx_endquiesce(VCPU *vcpu){
 
 }
 
+u32 nmi_log_ptr[2];
+u8 nmi_log[2][10000];
+
 //quiescing handler for #NMI (non-maskable interrupt) exception event
 //note: we are in atomic processsing mode for this "vcpu"
 // from_guest: 1 if NMI originated from the HVM (i.e. caller is intercept handler),
 // otherwise 0 (within the hypervisor, i.e. caller is exception handler)
 void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs *r, u32 from_guest){
 	(void)r;
+
+	nmi_log[vcpu->idx][nmi_log_ptr[vcpu->idx]++] = from_guest ? 2 : 1;
 
   // The function handles NMI as follows:
   // (1) If XMHF on core i requests quiesce and the current core is not quiesced yet, XMHF must quiesce the current core

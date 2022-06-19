@@ -360,6 +360,28 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
 	result = xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(vcpu, vmcs12_info);
 
+#if 0
+	// printf("CPU(0x%02x): _vmx_vmentry done\n", vcpu->id);
+	for (int i = 0; 0; i++) {
+		static int j;
+		//xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+		//xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+		xmhf_memprot_arch_x86vmx_mtrr_write(vcpu, IA32_MTRR_PHYSBASE6, 0xaaaaa000);
+		while (1) {
+			u64 *a;
+			j++;
+			j %= 0x4000;
+			a = (u64 *) (vcpu->esp - j);
+			if ((*a) % 23 == 14) {
+				break;
+			}
+		}
+		if (i % 100 == 0) {
+			printf("CPU(0x%02x): BBBB %d\n", vcpu->id, j);
+		}
+	}
+#endif
+
 	/* When a problem happens, translate back to L1 guest */
 	if (result != VM_INST_SUCCESS) {
 		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));

@@ -432,8 +432,8 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 	{
 		u64 oldval;
 		HALT_ON_ERRORCOND(xmhf_memprot_arch_x86vmx_mtrr_read(vcpu, msr, &oldval) == 0);
-//		printf("CPU(0x%02x): WRMSR (MTRR) 0x%08x 0x%016llx (old = 0x%016llx)\n",
-//				vcpu->id, msr, val, oldval);
+		printf("CPU(0x%02x): WRMSR (MTRR) 0x%08x 0x%016llx (old = 0x%016llx)\n",
+				vcpu->id, msr, val, oldval);
 	}
 	/* Check whether hypapp allows modifying MTRR */
 	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
