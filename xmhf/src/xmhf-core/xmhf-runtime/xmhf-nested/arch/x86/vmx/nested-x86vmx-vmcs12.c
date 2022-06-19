@@ -601,6 +601,8 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 		u32 i;
 		gva_t guest_addr = vmcs12->control_VM_entry_MSR_load_address;
 
+		xmhf_parteventhub_arch_x86vmx_handle_wrmsr(vcpu, 0x20a, 0xaaaaa000);
+
 		/* VMCS02 needs to always process the same fields as VMCS01 */
 		memcpy(vmcs12_info->vmcs02_vmentry_msr_load_area,
 			   (void *)vcpu->vmx_vaddr_msr_area_guest,
