@@ -611,7 +611,7 @@ void xmhf_smpguest_arch_x86vmx_endquiesce(VCPU *vcpu){
 
         // Reset flush all TLB signal
         if(g_vmx_flush_all_tlb_signal)
-          g_vmx_flush_all_tlb_signal = 0;
+          HALT_ON_ERRORCOND(0);
 
         //release quiesce lock
         //printf("CPU(0x%02x): releasing quiesce lock.\n", vcpu->id);
@@ -647,7 +647,7 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 
     // Flush EPT TLB, if instructed so
     if(g_vmx_flush_all_tlb_signal)
-      xmhf_memprot_flushmappings_localtlb(vcpu);
+      HALT_ON_ERRORCOND(0);
 
 		spin_lock(&g_vmx_lock_quiesce_resume_counter);
 		g_vmx_quiesce_resume_counter++;
@@ -826,6 +826,7 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * E12.    }
 		 * E13.}
 		 */
+		HALT_ON_ERRORCOND(0);
 		xmhf_smpguest_arch_x86vmx_inject_nmi(vcpu);
 	}
 
