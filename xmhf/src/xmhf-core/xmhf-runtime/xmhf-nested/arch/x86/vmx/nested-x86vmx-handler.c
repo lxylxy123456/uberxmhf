@@ -568,6 +568,10 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 	}
 }
 
+extern void *emhfc_putchar_linelock_arg;
+extern void emhfc_putchar_linelock(void *arg);
+extern void emhfc_putchar_lineunlock(void *arg);
+
 /* Handle VMEXIT from nested guest */
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
@@ -585,6 +589,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		(vmcs12_info->vmcs12_value.info_vmexit_interrupt_information &
 		 INTR_INFO_VECTOR_MASK) == 0x02) {
 		// TODO: not implemented
+		emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
 		HALT_ON_ERRORCOND(0 && "Nested guest NMI handling not implemented");
 	}
 	printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
