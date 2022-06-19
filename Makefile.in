@@ -48,6 +48,7 @@ export XMHF_TARGET_ARCH := @TARGET_ARCH@
 export TARGET_SUBARCH := @TARGET_SUBARCH@
 export AMD64_MAX_PHYS_ADDR := @AMD64_MAX_PHYS_ADDR@
 export OPT_FLAGS := @OPT_FLAGS@
+export LHV_OPT := @LHV_OPT@
 export HIDE_X2APIC := @HIDE_X2APIC@
 export OPTIMIZE_NESTED_VIRT := @OPTIMIZE_NESTED_VIRT@
 export UPDATE_INTEL_UCODE := @UPDATE_INTEL_UCODE@
@@ -179,6 +180,8 @@ CFLAGS += -fno-pie -fno-pic -mno-red-zone
 
 # Compiler optimization (-O1, -O3, ...)
 CFLAGS += $(OPT_FLAGS)
+
+CFLAGS += -D__LHV_OPT__=$(LHV_OPT)
 
 CFLAGS += $(ADDL_INCLUDES)
 VFLAGS = $(ADDL_INCLUDES)

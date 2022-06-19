@@ -9,6 +9,7 @@
 #   --app APP: set hypapp, default is "hypapps/trustvisor" (--with-approot)
 #   --mem MEM: if amd64, set physical memory, default is 0x140000000 (5GiB)
 #   --no-x2apic: hide x2APIC to workaround a bug (--enable-hide-x2apic)
+#   --lhv-opt OPT: modify __LHV_OPT__ (u64) (--with-lhv-opt)
 #   release: equivalent to --drt --dmap --no-dbg (For GitHub actions)
 #   debug: ignored (For GitHub actions)
 #   O0: ignored (For GitHub actions)
@@ -36,6 +37,7 @@ DRY_RUN="n"
 CIRCLE_CI="n"
 NO_X2APIC="n"
 OPT=""
+LHV_OPT="0"
 
 # Determine LINUX_BASE (may not be 100% correct all the time)
 if [ -f "/etc/debian_version" ]; then
@@ -94,6 +96,10 @@ while [ "$#" -gt 0 ]; do
 			;;
 		--mem)
 			AMD64MEM="$2"
+			shift
+			;;
+		--lhv-opt)
+			LHV_OPT="$2"
 			shift
 			;;
 		--no-x2apic)
@@ -182,6 +188,8 @@ fi
 if [ "$CIRCLE_CI" == "y" ]; then
 	CONF+=("--enable-optimize-nested-virt")
 fi
+
+CONF+=("--with-lhv-opt=$LHV_OPT")
 
 # Output configure arguments, if `-n`
 if [ "$DRY_RUN" == "y" ]; then
