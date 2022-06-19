@@ -25,12 +25,24 @@ vmexit_asm:
 	pushq	%r15
 	movq	128(%rsp), %rdi
 	movq	%rsp, %rsi
+
+	/* Optional code to check EFLAGS */
+	pushfq
+	popq	%rax
+9:	cmpq	$2, %rax
+	jne		9b
 #elif defined(__I386__)
 	pushal
 	movl	32(%esp), %esi
 	movl	%esp, %eax
 	pushl	%eax
 	pushl	%esi
+
+	/* Optional code to check EFLAGS */
+	pushfl
+	popl	%eax
+9:	cmpl	$2, %eax
+	jne		9b
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* __XMHF_AMD64__ */
