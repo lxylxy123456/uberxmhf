@@ -538,6 +538,9 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 	/* 32-Bit Control Fields */
 	{
 		u32 val = vmcs12->control_VMX_pin_based;
+		/* Enable NMI exiting because needed by quiesce */
+		val |= (1U << VMX_BINBASED_NMI_EXITING);
+		val |= (1U << VMX_BINBASED_VIRTUAL_NMIS);
 		__vmx_vmwrite32(0x4000, val);
 	}
 	{
