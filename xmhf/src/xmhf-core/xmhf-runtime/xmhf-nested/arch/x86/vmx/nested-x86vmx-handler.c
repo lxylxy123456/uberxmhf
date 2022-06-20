@@ -545,6 +545,8 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 	}
 }
 
+extern u32 global_bad;
+
 /* Handle VMEXIT from nested guest */
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
@@ -567,6 +569,8 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			 * This is the rare case where we have L2 -> L0 -> L2. Usually it
 			 * is L2 -> L0 -> L1.
 			 */
+			global_bad = 1;
+			HALT_ON_ERRORCOND(0);
 			__vmx_vmentry_vmresume(r);
 		} else {
 			/* Need to check guest's setting about virtual NMI etc */

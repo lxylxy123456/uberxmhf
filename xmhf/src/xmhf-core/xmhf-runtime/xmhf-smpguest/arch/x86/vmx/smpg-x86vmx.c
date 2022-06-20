@@ -619,6 +619,8 @@ void xmhf_smpguest_arch_x86vmx_endquiesce(VCPU *vcpu){
 
 }
 
+u32 global_bad = 0;
+
 /*
  * Check whether an NMI received by the CPU is for quiesce.
  *
@@ -849,6 +851,8 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * E12.    }
 		 * E13.}
 		 */
+		global_bad = 1;
+		HALT_ON_ERRORCOND(0);
 		xmhf_smpguest_arch_x86vmx_inject_nmi(vcpu);
 	}
 
