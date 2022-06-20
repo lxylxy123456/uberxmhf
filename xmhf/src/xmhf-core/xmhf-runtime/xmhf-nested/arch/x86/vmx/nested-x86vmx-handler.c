@@ -359,10 +359,10 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 
 	/* Translate VMCS12 to VMCS02 */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
-	if (cpu1202_done[vcpu->idx]) {
+	if (cpu1202_done[vcpu->idx]++) {
 		if (vcpu->id != 0) {
 			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
-			printf("In quiesce\n");
+			printf("In quiesce %d\n", cpu1202_done[vcpu->idx]);
 			xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 		}
 	} else {
@@ -373,7 +373,6 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 			HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
 			return result;
 		}
-		cpu1202_done[vcpu->idx]++;
 	}
 
 	printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
@@ -573,13 +572,12 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
 	xmhf_smpguest_arch_x86vmx_unblock_nmi();	// TODO: hacking fix
-	if (cpu0212_done[vcpu->idx]) {
+	if (cpu0212_done[vcpu->idx]++) {
 		if (vcpu->id == 0) {
-			printf("hello!\n");
+			printf("hello! %d\n", cpu0212_done[vcpu->idx]);
 		}
 	} else {
 		xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
-		cpu0212_done[vcpu->idx] = 1;
 	}
 #ifdef SKIP_NESTED_GUEST
 	vmcs12_info->vmcs12_value.info_vmexit_reason = VMX_VMEXIT_VMCALL;
