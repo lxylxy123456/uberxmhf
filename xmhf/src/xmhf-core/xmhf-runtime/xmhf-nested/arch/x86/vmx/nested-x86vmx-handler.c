@@ -850,7 +850,6 @@ u32 cpu0212_done[2];
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
 	u32 tmp;
-	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
 
 	HALT_ON_ERRORCOND(__vmx_vmread16(0x0000) == 0x0000); /* control_vpid */
 	HALT_ON_ERRORCOND(__vmx_vmread16(0x0002) == 0x0000); /* control_post_interrupt_notification_vec */
@@ -1003,47 +1002,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			printf("hello! %d\n", cpu0212_done[vcpu->idx]);
 		}
 	} else {
-		xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
 		HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
 	}
-#ifdef SKIP_NESTED_GUEST
-	vmcs12_info->vmcs12_value.info_vmexit_reason = VMX_VMEXIT_VMCALL;
-	vmcs12_info->vmcs12_value.info_vmexit_instruction_length = 3;
-#endif
-	if (vmcs12_info->vmcs12_value.info_vmexit_reason != VMX_VMEXIT_VMCALL) {
-		global_bad = 1;
-	}
-	HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.info_vmexit_reason == VMX_VMEXIT_VMCALL);
-	HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.info_vmexit_instruction_length == 3);
-	if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {
-		/*
-		 * TODO: Stopping here makes debugging a correct guest hypervisor
-		 * easier. The correct behavior should be injecting the VMEXIT to
-		 * guest hypervisor.
-		 */
-		HALT_ON_ERRORCOND(0 && "Debug: guest hypervisor VM-entry failure");
-	}
-	if (vmcs12_info->vmcs12_value.info_vmexit_reason == VMX_VMEXIT_EXCEPTION &&
-		(vmcs12_info->vmcs12_value.info_vmexit_interrupt_information &
-		 INTR_INFO_VECTOR_MASK) == 0x02) {
-		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu, 3) == 1) {
-			xmhf_smpguest_arch_x86vmx_unblock_nmi();
-			/*
-			 * This is the rare case where we have L2 -> L0 -> L2. Usually it
-			 * is L2 -> L0 -> L1.
-			 */
-			global_bad = 2;
-			HALT_ON_ERRORCOND(0);
-			__vmx_vmentry_vmresume(r);
-		} else {
-			/* Need to check guest's setting about virtual NMI etc */
-			HALT_ON_ERRORCOND(0 && "Nested guest NMI handling not implemented");
-			/* You probably want the following */
-			xmhf_smpguest_arch_x86vmx_unblock_nmi();
-		}
-	}
-	printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
-		   vmcs12_info->vmcs12_value.info_vmexit_reason);
+	printf("CPU(0x%02x): nested vmexit ?\n", vcpu->id);
 	/* Follow SDM to load host state */
 	vcpu->vmcs.guest_DR7 = 0x400UL;
 	vcpu->vmcs.guest_IA32_DEBUGCTL = 0ULL;
