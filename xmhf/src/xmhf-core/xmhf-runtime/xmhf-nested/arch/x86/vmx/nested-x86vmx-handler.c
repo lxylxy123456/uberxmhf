@@ -371,9 +371,17 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
 
 	if (vmcs12_info->launched) {
+		/* Simply skip L2 guest */
+#ifdef SKIP_NESTED_GUEST
+		xmhf_nested_arch_x86vmx_handle_vmexit(vcpu, r);
+#endif
 		__vmx_vmentry_vmresume(r);
 	} else {
 		vmcs12_info->launched = 1;
+		/* Simply skip L2 guest */
+#ifdef SKIP_NESTED_GUEST
+		xmhf_nested_arch_x86vmx_handle_vmexit(vcpu, r);
+#endif
 		__vmx_vmentry_vmlaunch(r);
 	}
 
@@ -552,6 +560,12 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
 	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
+#ifdef SKIP_NESTED_GUEST
+	vmcs12_info->vmcs12_value.info_vmexit_reason = VMX_VMEXIT_VMCALL;
+	vmcs12_info->vmcs12_value.info_vmexit_instruction_length = 3;
+#endif
+	HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.info_vmexit_reason == VMX_VMEXIT_VMCALL);
+	HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.info_vmexit_instruction_length == 3);
 	if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {
 		/*
 		 * TODO: Stopping here makes debugging a correct guest hypervisor
