@@ -6,7 +6,6 @@
 .global vmresume_asm
 
 vmexit_asm:
-	vmresume
 #ifdef __XMHF_AMD64__
 	pushq	%rax
 	pushq	%rcx
