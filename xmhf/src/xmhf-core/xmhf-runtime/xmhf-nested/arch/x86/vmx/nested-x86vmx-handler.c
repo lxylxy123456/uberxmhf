@@ -565,6 +565,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	vmcs12_info->vmcs12_value.info_vmexit_reason = VMX_VMEXIT_VMCALL;
 	vmcs12_info->vmcs12_value.info_vmexit_instruction_length = 3;
 #endif
+	if (vmcs12_info->vmcs12_value.info_vmexit_reason != VMX_VMEXIT_VMCALL) {
+		global_bad = 1;
+	}
 	HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.info_vmexit_reason == VMX_VMEXIT_VMCALL);
 	HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.info_vmexit_instruction_length == 3);
 	if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {

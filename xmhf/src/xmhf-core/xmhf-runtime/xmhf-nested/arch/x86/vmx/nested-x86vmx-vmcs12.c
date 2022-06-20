@@ -995,17 +995,18 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 				}
 				break;
 			default:
-				if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr
-					(vcpu, guest_entry.index, guest_entry.data)) {
-					/*
-					 * Likely need to fail VMEXIT, but need to double check.
-					 */
-					HALT_ON_ERRORCOND(0 && "WRMSR fail, what should I do?");
-				}
+//				if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr
+//					(vcpu, guest_entry.index, guest_entry.data)) {
+//					/*
+//					 * Likely need to fail VMEXIT, but need to double check.
+//					 */
+//					HALT_ON_ERRORCOND(0 && "WRMSR fail, what should I do?");
+//				}
 				break;
 			}
 		}
 	}
+	printf("hello!");
 	{
 		HALT_ON_ERRORCOND(vmcs12->control_VM_entry_controls ==
 						  __vmx_vmread32(0x4012));
