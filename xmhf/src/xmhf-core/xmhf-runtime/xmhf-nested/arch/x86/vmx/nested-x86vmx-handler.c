@@ -346,6 +346,7 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 {
 	u32 result;
 
+	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMENTRY01");
 	/*
 	   Features notes
 	   * "enable VPID" not supported (currently ignore control_vpid in VMCS12)
@@ -364,7 +365,7 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 			u32 tmp = __vmx_vmread32(0x4824);
 			HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
 		}
-		if (vcpu->id != 0) {
+		if (0 && vcpu->id != 0) {
 			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 			printf("In quiesce %d\n", cpu1202_done[vcpu->idx]);
 			xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
@@ -386,6 +387,7 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	}
 
 	printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
+	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMENTRY02");
 
 	/* From now on, cannot fail */
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
@@ -582,6 +584,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
 	u32 tmp;
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
+	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMEXIT02");
 	xmhf_smpguest_arch_x86vmx_unblock_nmi();	// TODO: hacking fix
 	tmp = __vmx_vmread32(0x4824);
 	if (cpu0212_done[vcpu->idx]++) {
@@ -647,6 +650,8 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		tmp |= (1 << 3);
 		__vmx_vmwrite32(0x4824, tmp);
 	}
+
+	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMEXIT01");
 
 	// TODO: handle vcpu->vmx_guest_inject_nmi?
 	vcpu->vmx_nested_is_vmx_root_operation = 1;
