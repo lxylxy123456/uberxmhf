@@ -361,7 +361,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		}
 	case VMX_VMEXIT_VMCALL:
 		{
-			asm volatile ("sti; hlt; cli;");
+			// asm volatile ("sti; hlt; cli;");
 			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 			break;
 		}
