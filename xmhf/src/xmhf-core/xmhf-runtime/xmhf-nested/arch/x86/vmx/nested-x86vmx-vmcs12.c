@@ -913,8 +913,8 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		/* VMCS02 needs to always process the same fields as VMCS01 */
 		HALT_ON_ERRORCOND(vcpu->vmcs.control_VM_exit_MSR_store_count ==
 						  __vmx_vmread32(0x400E));
-		HALT_ON_ERRORCOND(hva2spa(vmcs12_info->vmcs02_vmexit_msr_store_area) ==
-						  __vmx_vmread64(0x2006));
+//		HALT_ON_ERRORCOND(hva2spa(vmcs12_info->vmcs02_vmexit_msr_store_area) ==
+//						  __vmx_vmread64(0x2006));
 
 		/* Read MSRs and write to guest */
 		for (i = 0; i < vmcs12->control_VM_exit_MSR_store_count; i++) {
@@ -964,8 +964,8 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		/* VMCS02 needs to always process the same fields as VMCS01 */
 		HALT_ON_ERRORCOND(vcpu->vmcs.control_VM_exit_MSR_load_count ==
 						  __vmx_vmread32(0x400E));
-		HALT_ON_ERRORCOND(hva2spa(vmcs12_info->vmcs02_vmexit_msr_load_area) ==
-						  __vmx_vmread64(0x2008));
+//		HALT_ON_ERRORCOND(hva2spa(vmcs12_info->vmcs02_vmexit_msr_load_area) ==
+//						  __vmx_vmread64(0x2008));
 
 		/* Write MSRs as requested by guest */
 		for (i = 0; i < vmcs12->control_VM_exit_MSR_load_count; i++) {
@@ -1014,8 +1014,8 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		/* VMCS02 needs to always process the same fields as VMCS01 */
 		HALT_ON_ERRORCOND(vcpu->vmcs.control_VM_entry_MSR_load_count ==
 						  __vmx_vmread32(0x4014));
-		HALT_ON_ERRORCOND(hva2spa(vmcs12_info->vmcs02_vmentry_msr_load_area) ==
-						  __vmx_vmread64(0x200A));
+//		HALT_ON_ERRORCOND(hva2spa(vmcs12_info->vmcs02_vmentry_msr_load_area) ==
+//						  __vmx_vmread64(0x200A));
 	}
 	{
 		/* Note: VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS is always enabled */
