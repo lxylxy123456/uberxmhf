@@ -1011,11 +1011,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 
 //	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMEXIT02");
 	xmhf_smpguest_arch_x86vmx_unblock_nmi();	// TODO: hacking fix
-	if (cpu0212_done[vcpu->idx]++) {
-		if (vcpu->id == 0) {
-			printf("hello! %d\n", cpu0212_done[vcpu->idx]);
-		}
-	}
 	printf("CPU(0x%02x): nested vmexit ?\n", vcpu->id);
 	/* Follow SDM to load host state */
 	vcpu->vmcs.guest_DR7 = 0x400UL;
