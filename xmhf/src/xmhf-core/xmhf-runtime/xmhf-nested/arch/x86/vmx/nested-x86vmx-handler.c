@@ -858,13 +858,23 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
 	if (__vmx_vmread32(0x4402) == 24) {
 		xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(vcpu, r, 1);
-		HALT_ON_ERRORCOND(0);
+		HALT_ON_ERRORCOND(0);	/* Should not return */
+	}
+
+	if (__vmx_vmread32(0x4402) == VMX_VMEXIT_EXCEPTION &&
+		(__vmx_vmread32(0x4404) & INTR_INFO_VECTOR_MASK) == 0x2) {
+		/* NMI received by L1 or L2 guest */
+		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu, 3)) {
+			xmhf_smpguest_arch_x86vmx_unblock_nmi();
+		} else {
+			HALT_ON_ERRORCOND(0);
+		}
+		__vmx_vmentry_vmresume(r);
 	}
 
 	if (__vmx_vmread32(0x4402) != 0x00000012) {
-		global_bad = 1;
 		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "NMI?");
-		HALT();
+		HALT_ON_ERRORCOND(0);	/* Unknown VMEXIT */
 	}
 
 	HALT_ON_ERRORCOND(__vmx_vmread16(0x0000) == 0x0000); /* control_vpid */
