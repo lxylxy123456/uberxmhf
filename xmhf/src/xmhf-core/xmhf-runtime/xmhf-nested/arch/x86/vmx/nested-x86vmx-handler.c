@@ -443,7 +443,7 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		HALT_ON_ERRORCOND(__vmx_vmread32(0x481e) == 0x0000c093); /* guest_GS_access_rights */
 		HALT_ON_ERRORCOND(__vmx_vmread32(0x4820) == 0x00010000); /* guest_LDTR_access_rights */
 		HALT_ON_ERRORCOND(__vmx_vmread32(0x4822) == 0x0000008b); /* guest_TR_access_rights */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4824) == 0x00000008); /* guest_interruptibility */
+		HALT_ON_ERRORCOND(__vmx_vmread32(0x4824) == 0x00000000); /* guest_interruptibility */
 		HALT_ON_ERRORCOND(__vmx_vmread32(0x4826) == 0x00000000); /* guest_activity_state */
 		HALT_ON_ERRORCOND(__vmx_vmread32(0x482a) == 0x00000000); /* guest_SYSENTER_CS */
 		HALT_ON_ERRORCOND(__vmx_vmread32(0x482e) == 0x00000000); /* guest_VMX_preemption_timer_value */
@@ -610,7 +610,7 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	__vmx_vmwrite32(0x481e, 0x0000c093); /* guest_GS_access_rights */
 	__vmx_vmwrite32(0x4820, 0x00010000); /* guest_LDTR_access_rights */
 	__vmx_vmwrite32(0x4822, 0x0000008b); /* guest_TR_access_rights */
-	__vmx_vmwrite32(0x4824, 0x00000008); /* guest_interruptibility */
+	__vmx_vmwrite32(0x4824, 0x00000000); /* guest_interruptibility */
 	__vmx_vmwrite32(0x4826, 0x00000000); /* guest_activity_state */
 	__vmx_vmwrite32(0x482a, 0x00000000); /* guest_SYSENTER_CS */
 	__vmx_vmwrite32(0x482e, 0x00000000); /* guest_VMX_preemption_timer_value */
@@ -849,7 +849,10 @@ u32 cpu0212_done[2];
 /* Handle VMEXIT from nested guest */
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
-	u32 tmp;
+	if (__vmx_vmread32(0x4402) != 0x00000012) {
+		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "NMI?");
+		HALT();
+	}
 
 	HALT_ON_ERRORCOND(__vmx_vmread16(0x0000) == 0x0000); /* control_vpid */
 	HALT_ON_ERRORCOND(__vmx_vmread16(0x0002) == 0x0000); /* control_post_interrupt_notification_vec */
@@ -949,7 +952,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	HALT_ON_ERRORCOND(__vmx_vmread32(0x481e) == 0x0000c093); /* guest_GS_access_rights */
 	HALT_ON_ERRORCOND(__vmx_vmread32(0x4820) == 0x00010000); /* guest_LDTR_access_rights */
 	HALT_ON_ERRORCOND(__vmx_vmread32(0x4822) == 0x0000008b); /* guest_TR_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4824) == 0x00000008); /* guest_interruptibility */
+	HALT_ON_ERRORCOND(__vmx_vmread32(0x4824) == 0x00000000); /* guest_interruptibility */
 	HALT_ON_ERRORCOND(__vmx_vmread32(0x4826) == 0x00000000); /* guest_activity_state */
 	HALT_ON_ERRORCOND(__vmx_vmread32(0x482a) == 0x00000000); /* guest_SYSENTER_CS */
 	HALT_ON_ERRORCOND(__vmx_vmread32(0x482e) == 0x00000000); /* guest_VMX_preemption_timer_value */
@@ -995,14 +998,10 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 
 //	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMEXIT02");
 	xmhf_smpguest_arch_x86vmx_unblock_nmi();	// TODO: hacking fix
-	tmp = __vmx_vmread32(0x4824);
 	if (cpu0212_done[vcpu->idx]++) {
-		HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
 		if (vcpu->id == 0) {
 			printf("hello! %d\n", cpu0212_done[vcpu->idx]);
 		}
-	} else {
-		HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
 	}
 	printf("CPU(0x%02x): nested vmexit ?\n", vcpu->id);
 	/* Follow SDM to load host state */
@@ -1011,15 +1010,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	vcpu->vmcs.guest_RFLAGS = (1UL << 1);
 	/* Prepare VMRESUME to guest hypervisor */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
-
-	tmp = __vmx_vmread32(0x4824);
-	if (cpu0212_done[vcpu->idx] > 1) {
-		HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
-	} else {
-		HALT_ON_ERRORCOND((tmp & (1 << 3)) == 0);
-		tmp |= (1 << 3);
-		__vmx_vmwrite32(0x4824, tmp);
-	}
 
 	__vmx_vmwrite16(0x0000, 0x0001); /* control_vpid */
 	__vmx_vmwrite16(0x0002, 0x0000); /* control_post_interrupt_notification_vec */
@@ -1119,7 +1109,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	__vmx_vmwrite32(0x481e, 0x0000c093); /* guest_GS_access_rights */
 	__vmx_vmwrite32(0x4820, 0x00010000); /* guest_LDTR_access_rights */
 	__vmx_vmwrite32(0x4822, 0x0000008b); /* guest_TR_access_rights */
-	__vmx_vmwrite32(0x4824, 0x00000008); /* guest_interruptibility */
+	__vmx_vmwrite32(0x4824, 0x00000000); /* guest_interruptibility */
 	__vmx_vmwrite32(0x4826, 0x00000000); /* guest_activity_state */
 	__vmx_vmwrite32(0x482a, 0x00000000); /* guest_SYSENTER_CS */
 	__vmx_vmwrite32(0x482e, 0x00000000); /* guest_VMX_preemption_timer_value */
