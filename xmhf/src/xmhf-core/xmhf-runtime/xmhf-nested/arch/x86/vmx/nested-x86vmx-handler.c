@@ -501,7 +501,9 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	 */
 
 	/* Translate VMCS12 to VMCS02 */
+#ifndef NO_VMPTRLD
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
+#endif
 	if (cpu1202_done[vcpu->idx]++) {
 		if (1 && vcpu->id != 0) {	/* TODO: manual quiesce */
 			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
@@ -672,7 +674,11 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 #ifdef SKIP_NESTED_GUEST
 		xmhf_nested_arch_x86vmx_handle_vmexit(vcpu, r);
 #endif
+#ifdef NO_VMPTRLD
+		__vmx_vmentry_vmresume(r);
+#else
 		__vmx_vmentry_vmlaunch(r);
+#endif
 	}
 
 	HALT_ON_ERRORCOND(0 && "VM entry should never return");
@@ -1015,7 +1021,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	vcpu->vmcs.guest_IA32_DEBUGCTL = 0ULL;
 	vcpu->vmcs.guest_RFLAGS = (1UL << 1);
 	/* Prepare VMRESUME to guest hypervisor */
+#ifndef NO_VMPTRLD
 	HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
+#endif
 
 	__vmx_vmwrite16(0x0000, 0x0001); /* control_vpid */
 	__vmx_vmwrite16(0x0002, 0x0000); /* control_post_interrupt_notification_vec */
