@@ -360,28 +360,6 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
 	result = xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(vcpu, vmcs12_info);
 
-#if 0
-	// printf("CPU(0x%02x): _vmx_vmentry done\n", vcpu->id);
-	for (int i = 0; 0; i++) {
-		static int j;
-		//xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
-		//xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
-		xmhf_memprot_arch_x86vmx_mtrr_write(vcpu, IA32_MTRR_PHYSBASE6, 0xaaaaa000);
-		while (1) {
-			u64 *a;
-			j++;
-			j %= 0x4000;
-			a = (u64 *) (vcpu->esp - j);
-			if ((*a) % 23 == 14) {
-				break;
-			}
-		}
-		if (i % 100 == 0) {
-			printf("CPU(0x%02x): BBBB %d\n", vcpu->id, j);
-		}
-	}
-#endif
-
 	/* When a problem happens, translate back to L1 guest */
 	if (result != VM_INST_SUCCESS) {
 		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
@@ -568,10 +546,6 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 	}
 }
 
-extern void *emhfc_putchar_linelock_arg;
-extern void emhfc_putchar_linelock(void *arg);
-extern void emhfc_putchar_lineunlock(void *arg);
-
 /* Handle VMEXIT from nested guest */
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
@@ -588,12 +562,19 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	if (vmcs12_info->vmcs12_value.info_vmexit_reason == VMX_VMEXIT_EXCEPTION &&
 		(vmcs12_info->vmcs12_value.info_vmexit_interrupt_information &
 		 INTR_INFO_VECTOR_MASK) == 0x02) {
-		// TODO: not implemented
-		emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
-		if (g_vmx_quiesce && !vcpu->quiesced) {
-			xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(vcpu, NULL, 1);
+		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu) == 1) {
+			xmhf_smpguest_arch_x86vmx_unblock_nmi();
+			/*
+			 * This is the rare case where we have L2 -> L0 -> L2. Usually it
+			 * is L2 -> L0 -> L1.
+			 */
+			__vmx_vmentry_vmresume(r);
+		} else {
+			/* Need to check guest's setting about virtual NMI etc */
+			HALT_ON_ERRORCOND(0 && "Nested guest NMI handling not implemented");
+			/* You probably want the following */
+			xmhf_smpguest_arch_x86vmx_unblock_nmi();
 		}
-		//HALT_ON_ERRORCOND(0 && "Nested guest NMI handling not implemented");
 	}
 	printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
 		   vmcs12_info->vmcs12_value.info_vmexit_reason);
