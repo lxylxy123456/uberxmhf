@@ -386,7 +386,7 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		}
 	}
 
-	printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
+//	printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
 
 	__vmx_vmwrite16(0x0000, 0x0000); /* control_vpid */
 	__vmx_vmwrite16(0x0002, 0x0000); /* control_post_interrupt_notification_vec */
@@ -782,8 +782,8 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		}
 	}
 
-	printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
-		   vmcs12_info->vmcs12_value.info_vmexit_reason);
+//	printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
+//		   vmcs12_info->vmcs12_value.info_vmexit_reason);
 	/* Follow SDM to load host state */
 	vcpu->vmcs.guest_DR7 = 0x400UL;
 	vcpu->vmcs.guest_IA32_DEBUGCTL = 0ULL;
