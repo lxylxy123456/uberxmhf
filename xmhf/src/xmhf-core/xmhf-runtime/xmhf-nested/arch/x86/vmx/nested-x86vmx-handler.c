@@ -344,8 +344,6 @@ u32 cpu1202_done[2];
 static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 						struct regs *r)
 {
-	u32 result;
-
 	if (cpu1202_done[vcpu->idx]) {
 		HALT_ON_ERRORCOND(__vmx_vmread16(0x0000) == 0x0001); /* control_vpid */
 		HALT_ON_ERRORCOND(__vmx_vmread16(0x0002) == 0x0000); /* control_post_interrupt_notification_vec */
@@ -505,28 +503,10 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	/* Translate VMCS12 to VMCS02 */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
 	if (cpu1202_done[vcpu->idx]++) {
-		{
-			u32 tmp = __vmx_vmread32(0x4824);
-			HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
-		}
 		if (1 && vcpu->id != 0) {	/* TODO: manual quiesce */
 			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 			printf("In quiesce %d\n", cpu1202_done[vcpu->idx]);
 			xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
-		}
-	} else {
-		result = xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(vcpu, vmcs12_info);
-
-		/* When a problem happens, translate back to L1 guest */
-		if (result != VM_INST_SUCCESS) {
-			HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
-			return result;
-		}
-		{
-			u32 tmp = __vmx_vmread32(0x4824);
-			HALT_ON_ERRORCOND((tmp & (1 << 3)) == 0);
-			tmp |= (1 << 3);
-			__vmx_vmwrite32(0x4824, tmp);
 		}
 	}
 
@@ -1070,7 +1050,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	vcpu->vmcs.guest_RFLAGS = (1UL << 1);
 	/* Prepare VMRESUME to guest hypervisor */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
-	xmhf_baseplatform_arch_x86vmx_putVMCS(vcpu);
 
 	tmp = __vmx_vmread32(0x4824);
 	if (cpu0212_done[vcpu->idx] > 1) {
