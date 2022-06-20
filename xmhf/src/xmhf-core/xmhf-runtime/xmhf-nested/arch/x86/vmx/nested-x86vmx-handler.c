@@ -599,7 +599,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	if (vmcs12_info->vmcs12_value.info_vmexit_reason == VMX_VMEXIT_EXCEPTION &&
 		(vmcs12_info->vmcs12_value.info_vmexit_interrupt_information &
 		 INTR_INFO_VECTOR_MASK) == 0x02) {
-		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu) == 1) {
+		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu, 3) == 1) {
 			xmhf_smpguest_arch_x86vmx_unblock_nmi();
 			/*
 			 * This is the rare case where we have L2 -> L0 -> L2. Usually it
