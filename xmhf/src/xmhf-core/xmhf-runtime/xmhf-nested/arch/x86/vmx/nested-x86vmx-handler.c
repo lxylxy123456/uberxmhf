@@ -728,6 +728,18 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	u32 tmp;
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
 
+	if (__vmx_vmread32(0x4402) == VMX_VMEXIT_EXCEPTION &&
+		(__vmx_vmread32(0x4404) & INTR_INFO_VECTOR_MASK) == 0x2) {
+		/* NMI received by L1 or L2 guest */
+		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu, 3)) {
+			xmhf_smpguest_arch_x86vmx_unblock_nmi();
+		} else {
+			HALT_ON_ERRORCOND(0);
+		}
+		__vmx_vmentry_vmresume(r);
+		HALT_ON_ERRORCOND(0);	/* Should not return */
+	}
+
 	HALT_ON_ERRORCOND(__vmx_vmread16(0x0000) == 0x0000); /* control_vpid */
 	HALT_ON_ERRORCOND(__vmx_vmread16(0x0002) == 0x0000); /* control_post_interrupt_notification_vec */
 	HALT_ON_ERRORCOND(__vmx_vmread16(0x0800) == 0x0010); /* guest_ES_selector */
