@@ -51,6 +51,8 @@
 #include <xmhf.h>
 
 
+u32 global_bad;
+
 //---forward prototypes---------------------------------------------------------
 u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus);
 void cstartup(multiboot_info_t *mbi);

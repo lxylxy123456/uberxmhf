@@ -56,9 +56,12 @@
 /* HALT() contains an infinite loop to indicate that it never exits */
 #define HALT() do { __asm__ __volatile__ ("hlt\r\n"); } while (1)
 
+extern u32 global_bad;
+
 #define HALT_ON_ERRORCOND(_p) \
     do { \
         if ( !(_p) ) { \
+            global_bad = 1; \
             printf("\nFatal: Halting! Condition '%s' failed, line %d, file %s\n", #_p , __LINE__, __FILE__); \
             HALT(); \
         } \
