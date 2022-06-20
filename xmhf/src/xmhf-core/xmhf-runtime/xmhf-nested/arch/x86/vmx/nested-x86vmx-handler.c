@@ -736,9 +736,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	tmp = __vmx_vmread32(0x4824);
 	if (cpu0212_done[vcpu->idx]++) {
 		HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
-		if (vcpu->id == 0) {
-			printf("hello! %d\n", cpu0212_done[vcpu->idx]);
-		}
 	} else {
 		xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
 		HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
@@ -779,6 +776,12 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			xmhf_smpguest_arch_x86vmx_unblock_nmi();
 		}
 	}
+	if (cpu0212_done[vcpu->idx] > 1) {
+		if (vcpu->id == 0) {
+			printf("hello! %d\n", cpu0212_done[vcpu->idx]);
+		}
+	}
+
 	printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
 		   vmcs12_info->vmcs12_value.info_vmexit_reason);
 	/* Follow SDM to load host state */
