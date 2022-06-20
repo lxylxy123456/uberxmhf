@@ -335,6 +335,8 @@ static u32 _vmx_check_physical_addr_width(VCPU * vcpu, u64 addr)
 	return (addr & ~paddrmask) == 0;
 }
 
+u32 cpu1202_done[2];
+
 /*
  * Perform VMENTRY. Never returns if succeed. If controls / host state check
  * fails, return error code for _vmx_nested_vm_fail().
@@ -357,17 +359,21 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 
 	/* Translate VMCS12 to VMCS02 */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
-	result = xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(vcpu, vmcs12_info);
-	if (vcpu->id != 0) {
-		xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
-		printf("In quiesce\n");
-		xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
-	}
+	if (cpu1202_done[vcpu->idx]) {
+		if (vcpu->id != 0) {
+			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+			printf("In quiesce\n");
+			xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+		}
+	} else {
+		result = xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(vcpu, vmcs12_info);
 
-	/* When a problem happens, translate back to L1 guest */
-	if (result != VM_INST_SUCCESS) {
-		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
-		return result;
+		/* When a problem happens, translate back to L1 guest */
+		if (result != VM_INST_SUCCESS) {
+			HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
+			return result;
+		}
+		cpu1202_done[vcpu->idx]++;
 	}
 
 	printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
@@ -560,14 +566,20 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 
 extern u32 global_bad;
 
+u32 cpu0212_done[2];
+
 /* Handle VMEXIT from nested guest */
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
 	xmhf_smpguest_arch_x86vmx_unblock_nmi();	// TODO: hacking fix
-	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
-	if (vcpu->id == 0) {
-		printf("hello!\n");
+	if (cpu0212_done[vcpu->idx]) {
+		if (vcpu->id == 0) {
+			printf("hello!\n");
+		}
+	} else {
+		xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
+		cpu0212_done[vcpu->idx] = 1;
 	}
 #ifdef SKIP_NESTED_GUEST
 	vmcs12_info->vmcs12_value.info_vmexit_reason = VMX_VMEXIT_VMCALL;
