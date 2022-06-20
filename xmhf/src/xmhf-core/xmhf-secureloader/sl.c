@@ -50,8 +50,6 @@
 
 #include <xmhf.h>
 
-u32 global_bad;
-
 RPB * rpb;
 u32 sl_baseaddr=0;
 

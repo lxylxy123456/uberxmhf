@@ -335,8 +335,6 @@ static u32 _vmx_check_physical_addr_width(VCPU * vcpu, u64 addr)
 	return (addr & ~paddrmask) == 0;
 }
 
-u32 cpu1202_done[2];
-
 /*
  * Perform VMENTRY. Never returns if succeed. If controls / host state check
  * fails, return error code for _vmx_nested_vm_fail().
@@ -344,151 +342,8 @@ u32 cpu1202_done[2];
 static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 						struct regs *r)
 {
-	if (cpu1202_done[vcpu->idx]) {
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0000) == 0x0001); /* control_vpid */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0002) == 0x0000); /* control_post_interrupt_notification_vec */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0800) == 0x0010); /* guest_ES_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0802) == 0x0008); /* guest_CS_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0804) == 0x0010); /* guest_SS_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0806) == 0x0010); /* guest_DS_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0808) == 0x0010); /* guest_FS_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x080a) == 0x0010); /* guest_GS_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x080c) == 0x0000); /* guest_LDTR_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x080e) == 0x0018); /* guest_TR_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0810) == 0x0000); /* guest_interrupt_status */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0812) == 0x0000); /* guest_PML_index */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0c00) == 0x0010); /* host_ES_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0c02) == 0x0008); /* host_CS_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0c04) == 0x0010); /* host_SS_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0c06) == 0x0010); /* host_DS_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0c08) == 0x0010); /* host_FS_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0c0a) == 0x0010); /* host_GS_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread16(0x0c0c) == 0x0018); /* host_TR_selector */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2000) == 0x000000001c77c000); /* control_IO_BitmapA_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2002) == 0x000000001c77d000); /* control_IO_BitmapB_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2004) == 0x0000000000000000); /* control_MSR_Bitmaps_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2006) == vcpu->vmcs.control_VM_exit_MSR_store_address); /* control_VM_exit_MSR_store_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2008) == vcpu->vmcs.control_VM_exit_MSR_load_address); /* control_VM_exit_MSR_load_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x200a) == vcpu->vmcs.control_VM_entry_MSR_load_address); /* control_VM_entry_MSR_load_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x200e) == 0x0000000000000000); /* control_PML_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2010) == 0x0000000000000000); /* control_TSC_offset */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2012) == 0x0000000000000000); /* control_virtual_APIC_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2014) == 0x0000000000000000); /* control_APIC_access_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2016) == 0x0000000000000000); /* control_posted_interrupt_desc_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2018) == 0x0000000000000000); /* control_VM_function_controls */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x201a) == vcpu->vmcs.control_EPT_pointer); /* control_EPT_pointer */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x201c) == 0x0000000000000000); /* control_EOI_exit_bitmap_0 */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x201e) == 0x0000000000000000); /* control_EOI_exit_bitmap_1 */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2020) == 0x0000000000000000); /* control_EOI_exit_bitmap_2 */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2022) == 0x0000000000000000); /* control_EOI_exit_bitmap_3 */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2024) == 0x0000000000000000); /* control_EPTP_list_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2026) == 0x0000000000000000); /* control_VMREAD_bitmap_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2028) == 0x0000000000000000); /* control_VMWRITE_bitmap_address */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x202c) == 0x0000000000000000); /* control_XSS_exiting_bitmap */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x202e) == 0x0000000000000000); /* control_ENCLS_exiting_bitmap */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2032) == 0x0000000000000000); /* control_TSC_multiplier */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2400) == 0x00000000fee00300); /* guest_paddr */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2800) == 0xffffffffffffffff); /* guest_VMCS_link_pointer */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2802) == 0x0000000000000000); /* guest_IA32_DEBUGCTL */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2804) == 0x0000000000000000); /* guest_IA32_PAT */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2806) == 0x0000000000000000); /* guest_IA32_EFER */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2808) == 0x0000000000000000); /* guest_IA32_PERF_GLOBAL_CTRL */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x280a) == 0x0000000008b61001); /* guest_PDPTE0 */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x280c) == 0x0000000008b62001); /* guest_PDPTE1 */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x280e) == 0x0000000008b63001); /* guest_PDPTE2 */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2810) == 0x0000000008b64001); /* guest_PDPTE3 */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2812) == 0x0000000000000000); /* guest_IA32_BNDCFGS */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2c00) == 0x0000000000000000); /* host_IA32_PAT */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2c02) == 0x0000000000000000); /* host_IA32_EFER */
-		HALT_ON_ERRORCOND(__vmx_vmread64(0x2c04) == 0x0000000000000000); /* host_IA32_PERF_GLOBAL_CTRL */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4000) == 0x0000003e); /* control_VMX_pin_based */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4002) == 0x86006172); /* control_VMX_cpu_based */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4004) == 0x00000000); /* control_exception_bitmap */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4006) == 0x00000000); /* control_pagefault_errorcode_mask */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4008) == 0x00000000); /* control_pagefault_errorcode_match */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x400a) == 0x00000000); /* control_CR3_target_count */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x400c) == 0x00036dfb); /* control_VM_exit_controls */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x400e) == 0x00000003); /* control_VM_exit_MSR_store_count */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4010) == 0x00000003); /* control_VM_exit_MSR_load_count */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4012) == 0x000011fb); /* control_VM_entry_controls */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4014) == 0x00000003); /* control_VM_entry_MSR_load_count */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4016) == 0x00000000); /* control_VM_entry_interruption_information */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4018) == 0x00000000); /* control_VM_entry_exception_errorcode */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x401a) == 0x00000000); /* control_VM_entry_instruction_length */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x401c) == 0x00000000); /* control_Task_PRivilege_Threshold */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x401e) == 0x000010aa); /* control_VMX_seccpu_based */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4400) == 0x0000000c); /* info_vminstr_error */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4402) == 0x00000018); /* info_vmexit_reason */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4404) == 0x00000000); /* info_vmexit_interrupt_information */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4406) == 0x00000000); /* info_vmexit_interrupt_error_code */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4408) == 0x00000000); /* info_IDT_vectoring_information */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x440a) == 0x00000000); /* info_IDT_vectoring_error_code */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x440c) == 0x00000003); /* info_vmexit_instruction_length */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x440e) == 0x00000000); /* info_vmx_instruction_information */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4800) == 0xffffffff); /* guest_ES_limit */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4802) == 0xffffffff); /* guest_CS_limit */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4804) == 0xffffffff); /* guest_SS_limit */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4806) == 0xffffffff); /* guest_DS_limit */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4808) == 0xffffffff); /* guest_FS_limit */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x480a) == 0xffffffff); /* guest_GS_limit */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x480c) == 0x00000000); /* guest_LDTR_limit */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x480e) == 0x00000067); /* guest_TR_limit */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4810) == 0x0000001f); /* guest_GDTR_limit */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4812) == 0x000003ff); /* guest_IDTR_limit */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4814) == 0x0000c093); /* guest_ES_access_rights */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4816) == 0x0000c09b); /* guest_CS_access_rights */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4818) == 0x0000c093); /* guest_SS_access_rights */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x481a) == 0x0000c093); /* guest_DS_access_rights */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x481c) == 0x0000c093); /* guest_FS_access_rights */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x481e) == 0x0000c093); /* guest_GS_access_rights */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4820) == 0x00010000); /* guest_LDTR_access_rights */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4822) == 0x0000008b); /* guest_TR_access_rights */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4824) == 0x00000000); /* guest_interruptibility */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4826) == 0x00000000); /* guest_activity_state */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x482a) == 0x00000000); /* guest_SYSENTER_CS */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x482e) == 0x00000000); /* guest_VMX_preemption_timer_value */
-		HALT_ON_ERRORCOND(__vmx_vmread32(0x4c00) == 0x00000000); /* host_SYSENTER_CS */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6000) == 0x60000020); /* control_CR0_mask */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6002) == 0x00002000); /* control_CR4_mask */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6004) == 0x80000035); /* control_CR0_shadow */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6006) == 0x00002030); /* control_CR4_shadow */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6400) == 0x00000000); /* info_exit_qualification */
-//		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x640a) == 0x00000000); /* info_guest_linear_address */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6800) == 0x80000035); /* guest_CR0 */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6802) == 0x08b60000); /* guest_CR3 */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6804) == 0x00002030); /* guest_CR4 */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6806) == 0x00000000); /* guest_ES_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6808) == 0x00000000); /* guest_CS_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x680a) == 0x00000000); /* guest_SS_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x680c) == 0x00000000); /* guest_DS_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x680e) == 0x00000000); /* guest_FS_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6810) == 0x00000000); /* guest_GS_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6812) == 0x00000000); /* guest_LDTR_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6814) == 0x08211240); /* guest_TR_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6816) == 0x082127d0); /* guest_GDTR_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6818) == 0x0820e010); /* guest_IDTR_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x681a) == 0x00000400); /* guest_DR7 */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x681c) == 0x08bb0ffc); /* guest_RSP */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x681e) == 0x0820596f); /* guest_RIP */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6820) == 0x00000002); /* guest_RFLAGS */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6822) == 0x00000000); /* guest_pending_debug_x */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6824) == 0x00000000); /* guest_SYSENTER_ESP */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6826) == 0x00000000); /* guest_SYSENTER_EIP */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c00) == vcpu->vmcs.host_CR0); /* host_CR0 */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c02) == vcpu->vmcs.host_CR3); /* host_CR3 */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c04) == 0x00042030); /* host_CR4 */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c06) == 0x00000000); /* host_FS_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c08) == 0x00000000); /* host_GS_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c0a) == vcpu->vmcs.host_TR_base); /* host_TR_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c0c) == vcpu->vmcs.host_GDTR_base); /* host_GDTR_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c0e) == vcpu->vmcs.host_IDTR_base); /* host_IDTR_base */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c10) == 0x00000000); /* host_SYSENTER_ESP */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c12) == 0x00000000); /* host_SYSENTER_EIP */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c14) == vcpu->vmcs.host_RSP); /* host_RSP */
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c16) == vcpu->vmcs.host_RIP); /* host_RIP */
-	}
+	u32 result;
 
-//	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMENTRY01");
 	/*
 	   Features notes
 	   * "enable VPID" not supported (currently ignore control_vpid in VMCS12)
@@ -501,184 +356,25 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	 */
 
 	/* Translate VMCS12 to VMCS02 */
-#ifndef NO_VMPTRLD
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
-#endif
-	if (cpu1202_done[vcpu->idx]++) {
-		if (1 && vcpu->id != 0) {	/* TODO: manual quiesce */
-			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
-			printf("In quiesce %d\n", cpu1202_done[vcpu->idx]);
-			xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
-		}
+	result = xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(vcpu, vmcs12_info);
+
+	/* When a problem happens, translate back to L1 guest */
+	if (result != VM_INST_SUCCESS) {
+		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
+		return result;
 	}
 
-//	printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
-
-	__vmx_vmwrite16(0x0000, 0x0000); /* control_vpid */
-	__vmx_vmwrite16(0x0002, 0x0000); /* control_post_interrupt_notification_vec */
-	__vmx_vmwrite16(0x0800, 0x0010); /* guest_ES_selector */
-	__vmx_vmwrite16(0x0802, 0x0008); /* guest_CS_selector */
-	__vmx_vmwrite16(0x0804, 0x0010); /* guest_SS_selector */
-	__vmx_vmwrite16(0x0806, 0x0010); /* guest_DS_selector */
-	__vmx_vmwrite16(0x0808, 0x0010); /* guest_FS_selector */
-	__vmx_vmwrite16(0x080a, 0x0010); /* guest_GS_selector */
-	__vmx_vmwrite16(0x080c, 0x0000); /* guest_LDTR_selector */
-	__vmx_vmwrite16(0x080e, 0x0018); /* guest_TR_selector */
-	__vmx_vmwrite16(0x0810, 0x0000); /* guest_interrupt_status */
-	__vmx_vmwrite16(0x0812, 0x0000); /* guest_PML_index */
-	__vmx_vmwrite16(0x0c00, 0x0010); /* host_ES_selector */
-	__vmx_vmwrite16(0x0c02, 0x0008); /* host_CS_selector */
-	__vmx_vmwrite16(0x0c04, 0x0010); /* host_SS_selector */
-	__vmx_vmwrite16(0x0c06, 0x0010); /* host_DS_selector */
-	__vmx_vmwrite16(0x0c08, 0x0010); /* host_FS_selector */
-	__vmx_vmwrite16(0x0c0a, 0x0010); /* host_GS_selector */
-	__vmx_vmwrite16(0x0c0c, 0x0018); /* host_TR_selector */
-	__vmx_vmwrite64(0x2000, 0x0000000000000000); /* control_IO_BitmapA_address */
-	__vmx_vmwrite64(0x2002, 0x0000000000000000); /* control_IO_BitmapB_address */
-	__vmx_vmwrite64(0x2004, 0x0000000000000000); /* control_MSR_Bitmaps_address */
-	__vmx_vmwrite64(0x2006, vcpu->vmcs.control_VM_exit_MSR_store_address); /* control_VM_exit_MSR_store_address */
-	__vmx_vmwrite64(0x2008, vcpu->vmcs.control_VM_exit_MSR_load_address); /* control_VM_exit_MSR_load_address */
-	__vmx_vmwrite64(0x200a, vcpu->vmcs.control_VM_entry_MSR_load_address); /* control_VM_entry_MSR_load_address */
-	__vmx_vmwrite64(0x200e, 0x0000000000000000); /* control_PML_address */
-	__vmx_vmwrite64(0x2010, 0x0000000000000000); /* control_TSC_offset */
-	__vmx_vmwrite64(0x2012, 0x0000000000000000); /* control_virtual_APIC_address */
-	__vmx_vmwrite64(0x2014, 0x0000000000000000); /* control_APIC_access_address */
-	__vmx_vmwrite64(0x2016, 0x0000000000000000); /* control_posted_interrupt_desc_address */
-	__vmx_vmwrite64(0x2018, 0x0000000000000000); /* control_VM_function_controls */
-	__vmx_vmwrite64(0x201a, vcpu->vmcs.control_EPT_pointer); /* control_EPT_pointer */
-	__vmx_vmwrite64(0x201c, 0x0000000000000000); /* control_EOI_exit_bitmap_0 */
-	__vmx_vmwrite64(0x201e, 0x0000000000000000); /* control_EOI_exit_bitmap_1 */
-	__vmx_vmwrite64(0x2020, 0x0000000000000000); /* control_EOI_exit_bitmap_2 */
-	__vmx_vmwrite64(0x2022, 0x0000000000000000); /* control_EOI_exit_bitmap_3 */
-	__vmx_vmwrite64(0x2024, 0x0000000000000000); /* control_EPTP_list_address */
-	__vmx_vmwrite64(0x2026, 0x0000000000000000); /* control_VMREAD_bitmap_address */
-	__vmx_vmwrite64(0x2028, 0x0000000000000000); /* control_VMWRITE_bitmap_address */
-	__vmx_vmwrite64(0x202c, 0x0000000000000000); /* control_XSS_exiting_bitmap */
-	__vmx_vmwrite64(0x202e, 0x0000000000000000); /* control_ENCLS_exiting_bitmap */
-	__vmx_vmwrite64(0x2032, 0x0000000000000000); /* control_TSC_multiplier */
-	__vmx_vmwrite64(0x2400, 0x0000000000000000); /* guest_paddr */
-	__vmx_vmwrite64(0x2800, 0xffffffffffffffff); /* guest_VMCS_link_pointer */
-	__vmx_vmwrite64(0x2802, 0x0000000000000000); /* guest_IA32_DEBUGCTL */
-	__vmx_vmwrite64(0x2804, 0x0000000000000000); /* guest_IA32_PAT */
-	__vmx_vmwrite64(0x2806, 0x0000000000000000); /* guest_IA32_EFER */
-	__vmx_vmwrite64(0x2808, 0x0000000000000000); /* guest_IA32_PERF_GLOBAL_CTRL */
-	__vmx_vmwrite64(0x280a, 0x0000000008b61001); /* guest_PDPTE0 */
-	__vmx_vmwrite64(0x280c, 0x0000000008b62001); /* guest_PDPTE1 */
-	__vmx_vmwrite64(0x280e, 0x0000000008b63001); /* guest_PDPTE2 */
-	__vmx_vmwrite64(0x2810, 0x0000000008b64001); /* guest_PDPTE3 */
-	__vmx_vmwrite64(0x2812, 0x0000000000000000); /* guest_IA32_BNDCFGS */
-	__vmx_vmwrite64(0x2c00, 0x0000000000000000); /* host_IA32_PAT */
-	__vmx_vmwrite64(0x2c02, 0x0000000000000000); /* host_IA32_EFER */
-	__vmx_vmwrite64(0x2c04, 0x0000000000000000); /* host_IA32_PERF_GLOBAL_CTRL */
-	__vmx_vmwrite32(0x4000, 0x0000003e); /* control_VMX_pin_based */
-	__vmx_vmwrite32(0x4002, 0x8401e172); /* control_VMX_cpu_based */
-	__vmx_vmwrite32(0x4004, 0x00000000); /* control_exception_bitmap */
-	__vmx_vmwrite32(0x4006, 0x00000000); /* control_pagefault_errorcode_mask */
-	__vmx_vmwrite32(0x4008, 0x00000000); /* control_pagefault_errorcode_match */
-	__vmx_vmwrite32(0x400a, 0x00000000); /* control_CR3_target_count */
-	__vmx_vmwrite32(0x400c, 0x00036dff); /* control_VM_exit_controls */
-	__vmx_vmwrite32(0x400e, 0x00000003); /* control_VM_exit_MSR_store_count */
-	__vmx_vmwrite32(0x4010, 0x00000003); /* control_VM_exit_MSR_load_count */
-	__vmx_vmwrite32(0x4012, 0x000011ff); /* control_VM_entry_controls */
-	__vmx_vmwrite32(0x4014, 0x00000003); /* control_VM_entry_MSR_load_count */
-	__vmx_vmwrite32(0x4016, 0x00000000); /* control_VM_entry_interruption_information */
-	__vmx_vmwrite32(0x4018, 0x00000000); /* control_VM_entry_exception_errorcode */
-	__vmx_vmwrite32(0x401a, 0x00000000); /* control_VM_entry_instruction_length */
-	__vmx_vmwrite32(0x401c, 0x00000000); /* control_Task_PRivilege_Threshold */
-	__vmx_vmwrite32(0x401e, 0x00000002); /* control_VMX_seccpu_based */
-	__vmx_vmwrite32(0x4400, 0x0000000c); /* info_vminstr_error */
-	__vmx_vmwrite32(0x4402, 0x00000012); /* info_vmexit_reason */
-	__vmx_vmwrite32(0x4404, 0x00000000); /* info_vmexit_interrupt_information */
-	__vmx_vmwrite32(0x4406, 0x00000000); /* info_vmexit_interrupt_error_code */
-	__vmx_vmwrite32(0x4408, 0x00000000); /* info_IDT_vectoring_information */
-	__vmx_vmwrite32(0x440a, 0x00000000); /* info_IDT_vectoring_error_code */
-	__vmx_vmwrite32(0x440c, 0x00000003); /* info_vmexit_instruction_length */
-	__vmx_vmwrite32(0x440e, 0x00000000); /* info_vmx_instruction_information */
-	__vmx_vmwrite32(0x4800, 0xffffffff); /* guest_ES_limit */
-	__vmx_vmwrite32(0x4802, 0xffffffff); /* guest_CS_limit */
-	__vmx_vmwrite32(0x4804, 0xffffffff); /* guest_SS_limit */
-	__vmx_vmwrite32(0x4806, 0xffffffff); /* guest_DS_limit */
-	__vmx_vmwrite32(0x4808, 0xffffffff); /* guest_FS_limit */
-	__vmx_vmwrite32(0x480a, 0xffffffff); /* guest_GS_limit */
-	__vmx_vmwrite32(0x480c, 0x00000000); /* guest_LDTR_limit */
-	__vmx_vmwrite32(0x480e, 0x00000000); /* guest_TR_limit */
-	__vmx_vmwrite32(0x4810, 0x0000ffff); /* guest_GDTR_limit */
-	__vmx_vmwrite32(0x4812, 0x0000ffff); /* guest_IDTR_limit */
-	__vmx_vmwrite32(0x4814, 0x0000c093); /* guest_ES_access_rights */
-	__vmx_vmwrite32(0x4816, 0x0000c09b); /* guest_CS_access_rights */
-	__vmx_vmwrite32(0x4818, 0x0000c093); /* guest_SS_access_rights */
-	__vmx_vmwrite32(0x481a, 0x0000c093); /* guest_DS_access_rights */
-	__vmx_vmwrite32(0x481c, 0x0000c093); /* guest_FS_access_rights */
-	__vmx_vmwrite32(0x481e, 0x0000c093); /* guest_GS_access_rights */
-	__vmx_vmwrite32(0x4820, 0x00010000); /* guest_LDTR_access_rights */
-	__vmx_vmwrite32(0x4822, 0x0000008b); /* guest_TR_access_rights */
-	__vmx_vmwrite32(0x4824, 0x00000000); /* guest_interruptibility */
-	__vmx_vmwrite32(0x4826, 0x00000000); /* guest_activity_state */
-	__vmx_vmwrite32(0x482a, 0x00000000); /* guest_SYSENTER_CS */
-	__vmx_vmwrite32(0x482e, 0x00000000); /* guest_VMX_preemption_timer_value */
-	__vmx_vmwrite32(0x4c00, 0x00000000); /* host_SYSENTER_CS */
-	__vmx_vmwriteNW(0x6000, 0x60000020); /* control_CR0_mask */
-	__vmx_vmwriteNW(0x6002, 0x00002000); /* control_CR4_mask */
-	__vmx_vmwriteNW(0x6004, 0x00000000); /* control_CR0_shadow */
-	__vmx_vmwriteNW(0x6006, 0x00000000); /* control_CR4_shadow */
-	__vmx_vmwriteNW(0x6400, 0x00000000); /* info_exit_qualification */
-	__vmx_vmwriteNW(0x640a, 0x00000000); /* info_guest_linear_address */
-	__vmx_vmwriteNW(0x6800, 0x80000031); /* guest_CR0 */
-	__vmx_vmwriteNW(0x6802, 0x08b60000); /* guest_CR3 */
-	__vmx_vmwriteNW(0x6804, 0x00002020); /* guest_CR4 */
-	__vmx_vmwriteNW(0x6806, 0x00000000); /* guest_ES_base */
-	__vmx_vmwriteNW(0x6808, 0x00000000); /* guest_CS_base */
-	__vmx_vmwriteNW(0x680a, 0x00000000); /* guest_SS_base */
-	__vmx_vmwriteNW(0x680c, 0x00000000); /* guest_DS_base */
-	__vmx_vmwriteNW(0x680e, 0x00000000); /* guest_FS_base */
-	__vmx_vmwriteNW(0x6810, 0x00000000); /* guest_GS_base */
-	__vmx_vmwriteNW(0x6812, 0x00000000); /* guest_LDTR_base */
-	__vmx_vmwriteNW(0x6814, 0x00000000); /* guest_TR_base */
-	__vmx_vmwriteNW(0x6816, 0x082127d0); /* guest_GDTR_base */
-	__vmx_vmwriteNW(0x6818, 0x0820e010); /* guest_IDTR_base */
-	__vmx_vmwriteNW(0x681a, 0x00000400); /* guest_DR7 */
-	__vmx_vmwriteNW(0x681c, 0x08b8d000); /* guest_RSP */
-	__vmx_vmwriteNW(0x681e, 0x0820b7cf); /* guest_RIP */
-	__vmx_vmwriteNW(0x6820, 0x00000002); /* guest_RFLAGS */
-	__vmx_vmwriteNW(0x6822, 0x00000000); /* guest_pending_debug_x */
-	__vmx_vmwriteNW(0x6824, 0x00000000); /* guest_SYSENTER_ESP */
-	__vmx_vmwriteNW(0x6826, 0x00000000); /* guest_SYSENTER_EIP */
-	__vmx_vmwriteNW(0x6c00, vcpu->vmcs.host_CR0); /* host_CR0 */
-	__vmx_vmwriteNW(0x6c02, vcpu->vmcs.host_CR3); /* host_CR3 */
-	__vmx_vmwriteNW(0x6c04, 0x00042030); /* host_CR4 */
-	__vmx_vmwriteNW(0x6c06, 0x00000000); /* host_FS_base */
-	__vmx_vmwriteNW(0x6c08, 0x00000000); /* host_GS_base */
-	__vmx_vmwriteNW(0x6c0a, vcpu->vmcs.host_TR_base); /* host_TR_base */
-	__vmx_vmwriteNW(0x6c0c, vcpu->vmcs.host_GDTR_base); /* host_GDTR_base */
-	__vmx_vmwriteNW(0x6c0e, vcpu->vmcs.host_IDTR_base); /* host_IDTR_base */
-	__vmx_vmwriteNW(0x6c10, 0x00000000); /* host_SYSENTER_ESP */
-	__vmx_vmwriteNW(0x6c12, 0x00000000); /* host_SYSENTER_EIP */
-	__vmx_vmwriteNW(0x6c14, vcpu->vmcs.host_RSP); /* host_RSP */
-	__vmx_vmwriteNW(0x6c16, vcpu->vmcs.host_RIP); /* host_RIP */
-
-//	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMENTRY02");
+	printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
 
 	/* From now on, cannot fail */
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
-	vcpu->vmx_nested_forward_all = 1;
 
 	if (vmcs12_info->launched) {
-		/* Simply skip L2 guest */
-#ifdef SKIP_NESTED_GUEST
-		xmhf_nested_arch_x86vmx_handle_vmexit(vcpu, r);
-#endif
 		__vmx_vmentry_vmresume(r);
 	} else {
 		vmcs12_info->launched = 1;
-		/* Simply skip L2 guest */
-#ifdef SKIP_NESTED_GUEST
-		xmhf_nested_arch_x86vmx_handle_vmexit(vcpu, r);
-#endif
-#ifdef NO_VMPTRLD
-		__vmx_vmentry_vmresume(r);
-#else
 		__vmx_vmentry_vmlaunch(r);
-#endif
 	}
 
 	HALT_ON_ERRORCOND(0 && "VM entry should never return");
@@ -849,188 +545,14 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 	}
 }
 
-extern u32 global_bad;
-
-u32 cpu0212_done[2];
-
 /* Handle VMEXIT from nested guest */
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
-<<<<<<< HEAD
-	if (__vmx_vmread32(0x4402) == 24) {
-		xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(vcpu, r, 1);
-		HALT_ON_ERRORCOND(0);	/* Should not return */
-	}
-
-	if (__vmx_vmread32(0x4402) == VMX_VMEXIT_EXCEPTION &&
-		(__vmx_vmread32(0x4404) & INTR_INFO_VECTOR_MASK) == 0x2) {
-		/* NMI received by L1 or L2 guest */
-		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu, 3)) {
-			xmhf_smpguest_arch_x86vmx_unblock_nmi();
-		} else {
-			HALT_ON_ERRORCOND(0);
-		}
-		__vmx_vmentry_vmresume(r);
-	}
-
-	if (__vmx_vmread32(0x4402) != 0x00000012) {
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "NMI?");
-		HALT_ON_ERRORCOND(0);	/* Unknown VMEXIT */
-	}
-
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0000) == 0x0000); /* control_vpid */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0002) == 0x0000); /* control_post_interrupt_notification_vec */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0800) == 0x0010); /* guest_ES_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0802) == 0x0008); /* guest_CS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0804) == 0x0010); /* guest_SS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0806) == 0x0010); /* guest_DS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0808) == 0x0010); /* guest_FS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x080a) == 0x0010); /* guest_GS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x080c) == 0x0000); /* guest_LDTR_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x080e) == 0x0018); /* guest_TR_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0810) == 0x0000); /* guest_interrupt_status */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0812) == 0x0000); /* guest_PML_index */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c00) == 0x0010); /* host_ES_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c02) == 0x0008); /* host_CS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c04) == 0x0010); /* host_SS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c06) == 0x0010); /* host_DS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c08) == 0x0010); /* host_FS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c0a) == 0x0010); /* host_GS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c0c) == 0x0018); /* host_TR_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2000) == 0x0000000000000000); /* control_IO_BitmapA_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2002) == 0x0000000000000000); /* control_IO_BitmapB_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2004) == 0x0000000000000000); /* control_MSR_Bitmaps_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2006) == vcpu->vmcs.control_VM_exit_MSR_store_address); /* control_VM_exit_MSR_store_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2008) == vcpu->vmcs.control_VM_exit_MSR_load_address); /* control_VM_exit_MSR_load_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x200a) == vcpu->vmcs.control_VM_entry_MSR_load_address); /* control_VM_entry_MSR_load_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x200e) == 0x0000000000000000); /* control_PML_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2010) == 0x0000000000000000); /* control_TSC_offset */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2012) == 0x0000000000000000); /* control_virtual_APIC_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2014) == 0x0000000000000000); /* control_APIC_access_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2016) == 0x0000000000000000); /* control_posted_interrupt_desc_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2018) == 0x0000000000000000); /* control_VM_function_controls */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x201a) == vcpu->vmcs.control_EPT_pointer); /* control_EPT_pointer */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x201c) == 0x0000000000000000); /* control_EOI_exit_bitmap_0 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x201e) == 0x0000000000000000); /* control_EOI_exit_bitmap_1 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2020) == 0x0000000000000000); /* control_EOI_exit_bitmap_2 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2022) == 0x0000000000000000); /* control_EOI_exit_bitmap_3 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2024) == 0x0000000000000000); /* control_EPTP_list_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2026) == 0x0000000000000000); /* control_VMREAD_bitmap_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2028) == 0x0000000000000000); /* control_VMWRITE_bitmap_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x202c) == 0x0000000000000000); /* control_XSS_exiting_bitmap */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x202e) == 0x0000000000000000); /* control_ENCLS_exiting_bitmap */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2032) == 0x0000000000000000); /* control_TSC_multiplier */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2400) == 0x0000000000000000); /* guest_paddr */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2800) == 0xffffffffffffffff); /* guest_VMCS_link_pointer */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2802) == 0x0000000000000000); /* guest_IA32_DEBUGCTL */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2804) == 0x0000000000000000); /* guest_IA32_PAT */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2806) == 0x0000000000000000); /* guest_IA32_EFER */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2808) == 0x0000000000000000); /* guest_IA32_PERF_GLOBAL_CTRL */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x280a) == 0x0000000008b61001); /* guest_PDPTE0 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x280c) == 0x0000000008b62001); /* guest_PDPTE1 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x280e) == 0x0000000008b63001); /* guest_PDPTE2 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2810) == 0x0000000008b64001); /* guest_PDPTE3 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2812) == 0x0000000000000000); /* guest_IA32_BNDCFGS */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2c00) == 0x0000000000000000); /* host_IA32_PAT */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2c02) == 0x0000000000000000); /* host_IA32_EFER */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2c04) == 0x0000000000000000); /* host_IA32_PERF_GLOBAL_CTRL */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4000) == 0x0000003e); /* control_VMX_pin_based */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4002) == 0x8401e172); /* control_VMX_cpu_based */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4004) == 0x00000000); /* control_exception_bitmap */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4006) == 0x00000000); /* control_pagefault_errorcode_mask */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4008) == 0x00000000); /* control_pagefault_errorcode_match */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x400a) == 0x00000000); /* control_CR3_target_count */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x400c) == 0x00036dff); /* control_VM_exit_controls */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x400e) == 0x00000003); /* control_VM_exit_MSR_store_count */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4010) == 0x00000003); /* control_VM_exit_MSR_load_count */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4012) == 0x000011ff); /* control_VM_entry_controls */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4014) == 0x00000003); /* control_VM_entry_MSR_load_count */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4016) == 0x00000000); /* control_VM_entry_interruption_information */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4018) == 0x00000000); /* control_VM_entry_exception_errorcode */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x401a) == 0x00000000); /* control_VM_entry_instruction_length */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x401c) == 0x00000000); /* control_Task_PRivilege_Threshold */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x401e) == 0x00000002); /* control_VMX_seccpu_based */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4400) == 0x0000000c); /* info_vminstr_error */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4402) == 0x00000012); /* info_vmexit_reason */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4404) == 0x00000000); /* info_vmexit_interrupt_information */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4406) == 0x00000000); /* info_vmexit_interrupt_error_code */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4408) == 0x00000000); /* info_IDT_vectoring_information */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x440a) == 0x00000000); /* info_IDT_vectoring_error_code */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x440c) == 0x00000003); /* info_vmexit_instruction_length */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x440e) == 0x00000000); /* info_vmx_instruction_information */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4800) == 0xffffffff); /* guest_ES_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4802) == 0xffffffff); /* guest_CS_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4804) == 0xffffffff); /* guest_SS_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4806) == 0xffffffff); /* guest_DS_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4808) == 0xffffffff); /* guest_FS_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x480a) == 0xffffffff); /* guest_GS_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x480c) == 0x00000000); /* guest_LDTR_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x480e) == 0x00000000); /* guest_TR_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4810) == 0x0000ffff); /* guest_GDTR_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4812) == 0x0000ffff); /* guest_IDTR_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4814) == 0x0000c093); /* guest_ES_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4816) == 0x0000c09b); /* guest_CS_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4818) == 0x0000c093); /* guest_SS_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x481a) == 0x0000c093); /* guest_DS_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x481c) == 0x0000c093); /* guest_FS_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x481e) == 0x0000c093); /* guest_GS_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4820) == 0x00010000); /* guest_LDTR_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4822) == 0x0000008b); /* guest_TR_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4824) == 0x00000000); /* guest_interruptibility */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4826) == 0x00000000); /* guest_activity_state */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x482a) == 0x00000000); /* guest_SYSENTER_CS */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x482e) == 0x00000000); /* guest_VMX_preemption_timer_value */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4c00) == 0x00000000); /* host_SYSENTER_CS */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6000) == 0x60000020); /* control_CR0_mask */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6002) == 0x00002000); /* control_CR4_mask */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6004) == 0x00000000); /* control_CR0_shadow */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6006) == 0x00000000); /* control_CR4_shadow */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6400) == 0x00000000); /* info_exit_qualification */
-//	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x640a) == 0x00000000); /* info_guest_linear_address */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6800) == 0x80000031); /* guest_CR0 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6802) == 0x08b60000); /* guest_CR3 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6804) == 0x00002020); /* guest_CR4 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6806) == 0x00000000); /* guest_ES_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6808) == 0x00000000); /* guest_CS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x680a) == 0x00000000); /* guest_SS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x680c) == 0x00000000); /* guest_DS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x680e) == 0x00000000); /* guest_FS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6810) == 0x00000000); /* guest_GS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6812) == 0x00000000); /* guest_LDTR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6814) == 0x00000000); /* guest_TR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6816) == 0x082127d0); /* guest_GDTR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6818) == 0x0820e010); /* guest_IDTR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x681a) == 0x00000400); /* guest_DR7 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x681c) == 0x08b8d000); /* guest_RSP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x681e) == 0x0820b7cf); /* guest_RIP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6820) == 0x00000002); /* guest_RFLAGS */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6822) == 0x00000000); /* guest_pending_debug_x */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6824) == 0x00000000); /* guest_SYSENTER_ESP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6826) == 0x00000000); /* guest_SYSENTER_EIP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c00) == vcpu->vmcs.host_CR0); /* host_CR0 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c02) == vcpu->vmcs.host_CR3); /* host_CR3 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c04) == 0x00042030); /* host_CR4 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c06) == 0x00000000); /* host_FS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c08) == 0x00000000); /* host_GS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c0a) == vcpu->vmcs.host_TR_base); /* host_TR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c0c) == vcpu->vmcs.host_GDTR_base); /* host_GDTR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c0e) == vcpu->vmcs.host_IDTR_base); /* host_IDTR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c10) == 0x00000000); /* host_SYSENTER_ESP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c12) == 0x00000000); /* host_SYSENTER_EIP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c14) == vcpu->vmcs.host_RSP); /* host_RSP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c16) == vcpu->vmcs.host_RIP); /* host_RIP */
-
-//	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMEXIT02");
-	xmhf_smpguest_arch_x86vmx_unblock_nmi();	// TODO: hacking fix
-	printf("CPU(0x%02x): nested vmexit ?\n", vcpu->id);
-=======
-	u32 tmp;
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
-
 	if (__vmx_vmread32(0x4402) == VMX_VMEXIT_EXCEPTION &&
 		(__vmx_vmread32(0x4404) & INTR_INFO_VECTOR_MASK) == 0x2) {
-		/* NMI received by L1 or L2 guest */
-		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu, 3)) {
+		/* NMI received by L2 guest */
+		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu)) {
 			xmhf_smpguest_arch_x86vmx_unblock_nmi();
 		} else {
 			HALT_ON_ERRORCOND(0);
@@ -1038,167 +560,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		__vmx_vmentry_vmresume(r);
 		HALT_ON_ERRORCOND(0);	/* Should not return */
 	}
-
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0000) == 0x0000); /* control_vpid */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0002) == 0x0000); /* control_post_interrupt_notification_vec */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0800) == 0x0010); /* guest_ES_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0802) == 0x0008); /* guest_CS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0804) == 0x0010); /* guest_SS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0806) == 0x0010); /* guest_DS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0808) == 0x0010); /* guest_FS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x080a) == 0x0010); /* guest_GS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x080c) == 0x0000); /* guest_LDTR_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x080e) == 0x0018); /* guest_TR_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0810) == 0x0000); /* guest_interrupt_status */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0812) == 0x0000); /* guest_PML_index */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c00) == 0x0010); /* host_ES_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c02) == 0x0008); /* host_CS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c04) == 0x0010); /* host_SS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c06) == 0x0010); /* host_DS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c08) == 0x0010); /* host_FS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c0a) == 0x0010); /* host_GS_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread16(0x0c0c) == 0x0018); /* host_TR_selector */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2000) == 0x0000000000000000); /* control_IO_BitmapA_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2002) == 0x0000000000000000); /* control_IO_BitmapB_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2004) == 0x0000000000000000); /* control_MSR_Bitmaps_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2006) == vcpu->vmcs.control_VM_exit_MSR_store_address); /* control_VM_exit_MSR_store_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2008) == vcpu->vmcs.control_VM_exit_MSR_load_address); /* control_VM_exit_MSR_load_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x200a) == vcpu->vmcs.control_VM_entry_MSR_load_address); /* control_VM_entry_MSR_load_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x200e) == 0x0000000000000000); /* control_PML_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2010) == 0x0000000000000000); /* control_TSC_offset */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2012) == 0x0000000000000000); /* control_virtual_APIC_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2014) == 0x0000000000000000); /* control_APIC_access_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2016) == 0x0000000000000000); /* control_posted_interrupt_desc_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2018) == 0x0000000000000000); /* control_VM_function_controls */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x201a) == vcpu->vmcs.control_EPT_pointer); /* control_EPT_pointer */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x201c) == 0x0000000000000000); /* control_EOI_exit_bitmap_0 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x201e) == 0x0000000000000000); /* control_EOI_exit_bitmap_1 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2020) == 0x0000000000000000); /* control_EOI_exit_bitmap_2 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2022) == 0x0000000000000000); /* control_EOI_exit_bitmap_3 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2024) == 0x0000000000000000); /* control_EPTP_list_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2026) == 0x0000000000000000); /* control_VMREAD_bitmap_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2028) == 0x0000000000000000); /* control_VMWRITE_bitmap_address */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x202c) == 0x0000000000000000); /* control_XSS_exiting_bitmap */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x202e) == 0x0000000000000000); /* control_ENCLS_exiting_bitmap */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2032) == 0x0000000000000000); /* control_TSC_multiplier */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2400) == 0x0000000000000000); /* guest_paddr */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2800) == 0xffffffffffffffff); /* guest_VMCS_link_pointer */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2802) == 0x0000000000000000); /* guest_IA32_DEBUGCTL */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2804) == 0x0000000000000000); /* guest_IA32_PAT */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2806) == 0x0000000000000000); /* guest_IA32_EFER */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2808) == 0x0000000000000000); /* guest_IA32_PERF_GLOBAL_CTRL */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x280a) == 0x0000000008b61001); /* guest_PDPTE0 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x280c) == 0x0000000008b62001); /* guest_PDPTE1 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x280e) == 0x0000000008b63001); /* guest_PDPTE2 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2810) == 0x0000000008b64001); /* guest_PDPTE3 */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2812) == 0x0000000000000000); /* guest_IA32_BNDCFGS */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2c00) == 0x0000000000000000); /* host_IA32_PAT */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2c02) == 0x0000000000000000); /* host_IA32_EFER */
-	HALT_ON_ERRORCOND(__vmx_vmread64(0x2c04) == 0x0000000000000000); /* host_IA32_PERF_GLOBAL_CTRL */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4000) == 0x0000003e); /* control_VMX_pin_based */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4002) == 0x8401e172); /* control_VMX_cpu_based */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4004) == 0x00000000); /* control_exception_bitmap */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4006) == 0x00000000); /* control_pagefault_errorcode_mask */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4008) == 0x00000000); /* control_pagefault_errorcode_match */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x400a) == 0x00000000); /* control_CR3_target_count */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x400c) == 0x00036dff); /* control_VM_exit_controls */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x400e) == 0x00000003); /* control_VM_exit_MSR_store_count */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4010) == 0x00000003); /* control_VM_exit_MSR_load_count */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4012) == 0x000011ff); /* control_VM_entry_controls */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4014) == 0x00000003); /* control_VM_entry_MSR_load_count */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4016) == 0x00000000); /* control_VM_entry_interruption_information */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4018) == 0x00000000); /* control_VM_entry_exception_errorcode */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x401a) == 0x00000000); /* control_VM_entry_instruction_length */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x401c) == 0x00000000); /* control_Task_PRivilege_Threshold */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x401e) == 0x00000002); /* control_VMX_seccpu_based */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4400) == 0x0000000c); /* info_vminstr_error */
-//	HALT_ON_ERRORCOND(__vmx_vmread32(0x4402) == 0x00000012); /* info_vmexit_reason */
-//	HALT_ON_ERRORCOND(__vmx_vmread32(0x4404) == 0x00000000); /* info_vmexit_interrupt_information */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4406) == 0x00000000); /* info_vmexit_interrupt_error_code */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4408) == 0x00000000); /* info_IDT_vectoring_information */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x440a) == 0x00000000); /* info_IDT_vectoring_error_code */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x440c) == 0x00000003); /* info_vmexit_instruction_length */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x440e) == 0x00000000); /* info_vmx_instruction_information */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4800) == 0xffffffff); /* guest_ES_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4802) == 0xffffffff); /* guest_CS_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4804) == 0xffffffff); /* guest_SS_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4806) == 0xffffffff); /* guest_DS_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4808) == 0xffffffff); /* guest_FS_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x480a) == 0xffffffff); /* guest_GS_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x480c) == 0x00000000); /* guest_LDTR_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x480e) == 0x00000000); /* guest_TR_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4810) == 0x0000ffff); /* guest_GDTR_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4812) == 0x0000ffff); /* guest_IDTR_limit */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4814) == 0x0000c093); /* guest_ES_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4816) == 0x0000c09b); /* guest_CS_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4818) == 0x0000c093); /* guest_SS_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x481a) == 0x0000c093); /* guest_DS_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x481c) == 0x0000c093); /* guest_FS_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x481e) == 0x0000c093); /* guest_GS_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4820) == 0x00010000); /* guest_LDTR_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4822) == 0x0000008b); /* guest_TR_access_rights */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4824) == 0x00000008); /* guest_interruptibility */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4826) == 0x00000000); /* guest_activity_state */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x482a) == 0x00000000); /* guest_SYSENTER_CS */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x482e) == 0x00000000); /* guest_VMX_preemption_timer_value */
-	HALT_ON_ERRORCOND(__vmx_vmread32(0x4c00) == 0x00000000); /* host_SYSENTER_CS */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6000) == 0x60000020); /* control_CR0_mask */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6002) == 0x00002000); /* control_CR4_mask */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6004) == 0x00000000); /* control_CR0_shadow */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6006) == 0x00000000); /* control_CR4_shadow */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6400) == 0x00000000); /* info_exit_qualification */
-//	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x640a) == 0x00000000); /* info_guest_linear_address */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6800) == 0x80000031); /* guest_CR0 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6802) == 0x08b60000); /* guest_CR3 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6804) == 0x00002020); /* guest_CR4 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6806) == 0x00000000); /* guest_ES_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6808) == 0x00000000); /* guest_CS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x680a) == 0x00000000); /* guest_SS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x680c) == 0x00000000); /* guest_DS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x680e) == 0x00000000); /* guest_FS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6810) == 0x00000000); /* guest_GS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6812) == 0x00000000); /* guest_LDTR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6814) == 0x00000000); /* guest_TR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6816) == 0x082127d0); /* guest_GDTR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6818) == 0x0820e010); /* guest_IDTR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x681a) == 0x00000400); /* guest_DR7 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x681c) == 0x08b8d000); /* guest_RSP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x681e) == 0x0820b7cf); /* guest_RIP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6820) == 0x00000002); /* guest_RFLAGS */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6822) == 0x00000000); /* guest_pending_debug_x */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6824) == 0x00000000); /* guest_SYSENTER_ESP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6826) == 0x00000000); /* guest_SYSENTER_EIP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c00) == vcpu->vmcs.host_CR0); /* host_CR0 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c02) == vcpu->vmcs.host_CR3); /* host_CR3 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c04) == 0x00042030); /* host_CR4 */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c06) == 0x00000000); /* host_FS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c08) == 0x00000000); /* host_GS_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c0a) == vcpu->vmcs.host_TR_base); /* host_TR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c0c) == vcpu->vmcs.host_GDTR_base); /* host_GDTR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c0e) == vcpu->vmcs.host_IDTR_base); /* host_IDTR_base */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c10) == 0x00000000); /* host_SYSENTER_ESP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c12) == 0x00000000); /* host_SYSENTER_EIP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c14) == vcpu->vmcs.host_RSP); /* host_RSP */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6c16) == vcpu->vmcs.host_RIP); /* host_RIP */
-
-//	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMEXIT02");
-	xmhf_smpguest_arch_x86vmx_unblock_nmi();	// TODO: hacking fix
-	tmp = __vmx_vmread32(0x4824);
-	if (cpu0212_done[vcpu->idx]++) {
-		HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
-	} else {
-		xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
-		HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
-	}
-#ifdef SKIP_NESTED_GUEST
-	vmcs12_info->vmcs12_value.info_vmexit_reason = VMX_VMEXIT_VMCALL;
-	vmcs12_info->vmcs12_value.info_vmexit_instruction_length = 3;
-#endif
-	if (vmcs12_info->vmcs12_value.info_vmexit_reason != VMX_VMEXIT_VMCALL) {
-		global_bad = 1;
-	}
-	HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.info_vmexit_reason == VMX_VMEXIT_VMCALL);
-	HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.info_vmexit_instruction_length == 3);
+	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
 	if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {
 		/*
 		 * TODO: Stopping here makes debugging a correct guest hypervisor
@@ -1210,14 +572,12 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	if (vmcs12_info->vmcs12_value.info_vmexit_reason == VMX_VMEXIT_EXCEPTION &&
 		(vmcs12_info->vmcs12_value.info_vmexit_interrupt_information &
 		 INTR_INFO_VECTOR_MASK) == 0x02) {
-		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu, 3) == 1) {
+		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu) == 1) {
 			xmhf_smpguest_arch_x86vmx_unblock_nmi();
 			/*
 			 * This is the rare case where we have L2 -> L0 -> L2. Usually it
 			 * is L2 -> L0 -> L1.
 			 */
-			global_bad = 2;
-			HALT_ON_ERRORCOND(0);
 			__vmx_vmentry_vmresume(r);
 		} else {
 			/* Need to check guest's setting about virtual NMI etc */
@@ -1226,168 +586,15 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			xmhf_smpguest_arch_x86vmx_unblock_nmi();
 		}
 	}
-	if (cpu0212_done[vcpu->idx] > 1) {
-		if (vcpu->id == 0) {
-			printf("hello! %d\n", cpu0212_done[vcpu->idx]);
-		}
-	}
-
-//	printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
-//		   vmcs12_info->vmcs12_value.info_vmexit_reason);
->>>>>>> ad4e34aae
+	printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
+		   vmcs12_info->vmcs12_value.info_vmexit_reason);
 	/* Follow SDM to load host state */
 	vcpu->vmcs.guest_DR7 = 0x400UL;
 	vcpu->vmcs.guest_IA32_DEBUGCTL = 0ULL;
 	vcpu->vmcs.guest_RFLAGS = (1UL << 1);
 	/* Prepare VMRESUME to guest hypervisor */
-#ifndef NO_VMPTRLD
 	HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
-#endif
-
-	__vmx_vmwrite16(0x0000, 0x0001); /* control_vpid */
-	__vmx_vmwrite16(0x0002, 0x0000); /* control_post_interrupt_notification_vec */
-	__vmx_vmwrite16(0x0800, 0x0010); /* guest_ES_selector */
-	__vmx_vmwrite16(0x0802, 0x0008); /* guest_CS_selector */
-	__vmx_vmwrite16(0x0804, 0x0010); /* guest_SS_selector */
-	__vmx_vmwrite16(0x0806, 0x0010); /* guest_DS_selector */
-	__vmx_vmwrite16(0x0808, 0x0010); /* guest_FS_selector */
-	__vmx_vmwrite16(0x080a, 0x0010); /* guest_GS_selector */
-	__vmx_vmwrite16(0x080c, 0x0000); /* guest_LDTR_selector */
-	__vmx_vmwrite16(0x080e, 0x0018); /* guest_TR_selector */
-	__vmx_vmwrite16(0x0810, 0x0000); /* guest_interrupt_status */
-	__vmx_vmwrite16(0x0812, 0x0000); /* guest_PML_index */
-	__vmx_vmwrite16(0x0c00, 0x0010); /* host_ES_selector */
-	__vmx_vmwrite16(0x0c02, 0x0008); /* host_CS_selector */
-	__vmx_vmwrite16(0x0c04, 0x0010); /* host_SS_selector */
-	__vmx_vmwrite16(0x0c06, 0x0010); /* host_DS_selector */
-	__vmx_vmwrite16(0x0c08, 0x0010); /* host_FS_selector */
-	__vmx_vmwrite16(0x0c0a, 0x0010); /* host_GS_selector */
-	__vmx_vmwrite16(0x0c0c, 0x0018); /* host_TR_selector */
-	__vmx_vmwrite64(0x2000, 0x000000001c77c000); /* control_IO_BitmapA_address */
-	__vmx_vmwrite64(0x2002, 0x000000001c77d000); /* control_IO_BitmapB_address */
-	__vmx_vmwrite64(0x2004, 0x0000000000000000); /* control_MSR_Bitmaps_address */
-	__vmx_vmwrite64(0x2006, vcpu->vmcs.control_VM_exit_MSR_store_address); /* control_VM_exit_MSR_store_address */
-	__vmx_vmwrite64(0x2008, vcpu->vmcs.control_VM_exit_MSR_load_address); /* control_VM_exit_MSR_load_address */
-	__vmx_vmwrite64(0x200a, vcpu->vmcs.control_VM_entry_MSR_load_address); /* control_VM_entry_MSR_load_address */
-	__vmx_vmwrite64(0x200e, 0x0000000000000000); /* control_PML_address */
-	__vmx_vmwrite64(0x2010, 0x0000000000000000); /* control_TSC_offset */
-	__vmx_vmwrite64(0x2012, 0x0000000000000000); /* control_virtual_APIC_address */
-	__vmx_vmwrite64(0x2014, 0x0000000000000000); /* control_APIC_access_address */
-	__vmx_vmwrite64(0x2016, 0x0000000000000000); /* control_posted_interrupt_desc_address */
-	__vmx_vmwrite64(0x2018, 0x0000000000000000); /* control_VM_function_controls */
-	__vmx_vmwrite64(0x201a, vcpu->vmcs.control_EPT_pointer); /* control_EPT_pointer */
-	__vmx_vmwrite64(0x201c, 0x0000000000000000); /* control_EOI_exit_bitmap_0 */
-	__vmx_vmwrite64(0x201e, 0x0000000000000000); /* control_EOI_exit_bitmap_1 */
-	__vmx_vmwrite64(0x2020, 0x0000000000000000); /* control_EOI_exit_bitmap_2 */
-	__vmx_vmwrite64(0x2022, 0x0000000000000000); /* control_EOI_exit_bitmap_3 */
-	__vmx_vmwrite64(0x2024, 0x0000000000000000); /* control_EPTP_list_address */
-	__vmx_vmwrite64(0x2026, 0x0000000000000000); /* control_VMREAD_bitmap_address */
-	__vmx_vmwrite64(0x2028, 0x0000000000000000); /* control_VMWRITE_bitmap_address */
-	__vmx_vmwrite64(0x202c, 0x0000000000000000); /* control_XSS_exiting_bitmap */
-	__vmx_vmwrite64(0x202e, 0x0000000000000000); /* control_ENCLS_exiting_bitmap */
-	__vmx_vmwrite64(0x2032, 0x0000000000000000); /* control_TSC_multiplier */
-	__vmx_vmwrite64(0x2400, 0x00000000fee00300); /* guest_paddr */
-	__vmx_vmwrite64(0x2800, 0xffffffffffffffff); /* guest_VMCS_link_pointer */
-	__vmx_vmwrite64(0x2802, 0x0000000000000000); /* guest_IA32_DEBUGCTL */
-	__vmx_vmwrite64(0x2804, 0x0000000000000000); /* guest_IA32_PAT */
-	__vmx_vmwrite64(0x2806, 0x0000000000000000); /* guest_IA32_EFER */
-	__vmx_vmwrite64(0x2808, 0x0000000000000000); /* guest_IA32_PERF_GLOBAL_CTRL */
-	__vmx_vmwrite64(0x280a, 0x0000000008b61001); /* guest_PDPTE0 */
-	__vmx_vmwrite64(0x280c, 0x0000000008b62001); /* guest_PDPTE1 */
-	__vmx_vmwrite64(0x280e, 0x0000000008b63001); /* guest_PDPTE2 */
-	__vmx_vmwrite64(0x2810, 0x0000000008b64001); /* guest_PDPTE3 */
-	__vmx_vmwrite64(0x2812, 0x0000000000000000); /* guest_IA32_BNDCFGS */
-	__vmx_vmwrite64(0x2c00, 0x0000000000000000); /* host_IA32_PAT */
-	__vmx_vmwrite64(0x2c02, 0x0000000000000000); /* host_IA32_EFER */
-	__vmx_vmwrite64(0x2c04, 0x0000000000000000); /* host_IA32_PERF_GLOBAL_CTRL */
-	__vmx_vmwrite32(0x4000, 0x0000003e); /* control_VMX_pin_based */
-	__vmx_vmwrite32(0x4002, 0x86006172); /* control_VMX_cpu_based */
-	__vmx_vmwrite32(0x4004, 0x00000000); /* control_exception_bitmap */
-	__vmx_vmwrite32(0x4006, 0x00000000); /* control_pagefault_errorcode_mask */
-	__vmx_vmwrite32(0x4008, 0x00000000); /* control_pagefault_errorcode_match */
-	__vmx_vmwrite32(0x400a, 0x00000000); /* control_CR3_target_count */
-	__vmx_vmwrite32(0x400c, 0x00036dfb); /* control_VM_exit_controls */
-	__vmx_vmwrite32(0x400e, 0x00000003); /* control_VM_exit_MSR_store_count */
-	__vmx_vmwrite32(0x4010, 0x00000003); /* control_VM_exit_MSR_load_count */
-	__vmx_vmwrite32(0x4012, 0x000011fb); /* control_VM_entry_controls */
-	__vmx_vmwrite32(0x4014, 0x00000003); /* control_VM_entry_MSR_load_count */
-	__vmx_vmwrite32(0x4016, 0x00000000); /* control_VM_entry_interruption_information */
-	__vmx_vmwrite32(0x4018, 0x00000000); /* control_VM_entry_exception_errorcode */
-	__vmx_vmwrite32(0x401a, 0x00000000); /* control_VM_entry_instruction_length */
-	__vmx_vmwrite32(0x401c, 0x00000000); /* control_Task_PRivilege_Threshold */
-	__vmx_vmwrite32(0x401e, 0x000010aa); /* control_VMX_seccpu_based */
-	__vmx_vmwrite32(0x4400, 0x0000000c); /* info_vminstr_error */
-	__vmx_vmwrite32(0x4402, 0x00000018); /* info_vmexit_reason */
-	__vmx_vmwrite32(0x4404, 0x00000000); /* info_vmexit_interrupt_information */
-	__vmx_vmwrite32(0x4406, 0x00000000); /* info_vmexit_interrupt_error_code */
-	__vmx_vmwrite32(0x4408, 0x00000000); /* info_IDT_vectoring_information */
-	__vmx_vmwrite32(0x440a, 0x00000000); /* info_IDT_vectoring_error_code */
-	__vmx_vmwrite32(0x440c, 0x00000003); /* info_vmexit_instruction_length */
-	__vmx_vmwrite32(0x440e, 0x00000000); /* info_vmx_instruction_information */
-	__vmx_vmwrite32(0x4800, 0xffffffff); /* guest_ES_limit */
-	__vmx_vmwrite32(0x4802, 0xffffffff); /* guest_CS_limit */
-	__vmx_vmwrite32(0x4804, 0xffffffff); /* guest_SS_limit */
-	__vmx_vmwrite32(0x4806, 0xffffffff); /* guest_DS_limit */
-	__vmx_vmwrite32(0x4808, 0xffffffff); /* guest_FS_limit */
-	__vmx_vmwrite32(0x480a, 0xffffffff); /* guest_GS_limit */
-	__vmx_vmwrite32(0x480c, 0x00000000); /* guest_LDTR_limit */
-	__vmx_vmwrite32(0x480e, 0x00000067); /* guest_TR_limit */
-	__vmx_vmwrite32(0x4810, 0x0000001f); /* guest_GDTR_limit */
-	__vmx_vmwrite32(0x4812, 0x000003ff); /* guest_IDTR_limit */
-	__vmx_vmwrite32(0x4814, 0x0000c093); /* guest_ES_access_rights */
-	__vmx_vmwrite32(0x4816, 0x0000c09b); /* guest_CS_access_rights */
-	__vmx_vmwrite32(0x4818, 0x0000c093); /* guest_SS_access_rights */
-	__vmx_vmwrite32(0x481a, 0x0000c093); /* guest_DS_access_rights */
-	__vmx_vmwrite32(0x481c, 0x0000c093); /* guest_FS_access_rights */
-	__vmx_vmwrite32(0x481e, 0x0000c093); /* guest_GS_access_rights */
-	__vmx_vmwrite32(0x4820, 0x00010000); /* guest_LDTR_access_rights */
-	__vmx_vmwrite32(0x4822, 0x0000008b); /* guest_TR_access_rights */
-	__vmx_vmwrite32(0x4824, 0x00000000); /* guest_interruptibility */
-	__vmx_vmwrite32(0x4826, 0x00000000); /* guest_activity_state */
-	__vmx_vmwrite32(0x482a, 0x00000000); /* guest_SYSENTER_CS */
-	__vmx_vmwrite32(0x482e, 0x00000000); /* guest_VMX_preemption_timer_value */
-	__vmx_vmwrite32(0x4c00, 0x00000000); /* host_SYSENTER_CS */
-	__vmx_vmwriteNW(0x6000, 0x60000020); /* control_CR0_mask */
-	__vmx_vmwriteNW(0x6002, 0x00002000); /* control_CR4_mask */
-	__vmx_vmwriteNW(0x6004, 0x80000035); /* control_CR0_shadow */
-	__vmx_vmwriteNW(0x6006, 0x00002030); /* control_CR4_shadow */
-	__vmx_vmwriteNW(0x6400, 0x00000000); /* info_exit_qualification */
-	__vmx_vmwriteNW(0x640a, 0x00000000); /* info_guest_linear_address */
-	__vmx_vmwriteNW(0x6800, 0x80000035); /* guest_CR0 */
-	__vmx_vmwriteNW(0x6802, 0x08b60000); /* guest_CR3 */
-	__vmx_vmwriteNW(0x6804, 0x00002030); /* guest_CR4 */
-	__vmx_vmwriteNW(0x6806, 0x00000000); /* guest_ES_base */
-	__vmx_vmwriteNW(0x6808, 0x00000000); /* guest_CS_base */
-	__vmx_vmwriteNW(0x680a, 0x00000000); /* guest_SS_base */
-	__vmx_vmwriteNW(0x680c, 0x00000000); /* guest_DS_base */
-	__vmx_vmwriteNW(0x680e, 0x00000000); /* guest_FS_base */
-	__vmx_vmwriteNW(0x6810, 0x00000000); /* guest_GS_base */
-	__vmx_vmwriteNW(0x6812, 0x00000000); /* guest_LDTR_base */
-	__vmx_vmwriteNW(0x6814, 0x08211240); /* guest_TR_base */
-	__vmx_vmwriteNW(0x6816, 0x082127d0); /* guest_GDTR_base */
-	__vmx_vmwriteNW(0x6818, 0x0820e010); /* guest_IDTR_base */
-	__vmx_vmwriteNW(0x681a, 0x00000400); /* guest_DR7 */
-	__vmx_vmwriteNW(0x681c, 0x08bb0ffc); /* guest_RSP */
-	__vmx_vmwriteNW(0x681e, 0x0820596f); /* guest_RIP */
-	__vmx_vmwriteNW(0x6820, 0x00000002); /* guest_RFLAGS */
-	__vmx_vmwriteNW(0x6822, 0x00000000); /* guest_pending_debug_x */
-	__vmx_vmwriteNW(0x6824, 0x00000000); /* guest_SYSENTER_ESP */
-	__vmx_vmwriteNW(0x6826, 0x00000000); /* guest_SYSENTER_EIP */
-	__vmx_vmwriteNW(0x6c00, vcpu->vmcs.host_CR0); /* host_CR0 */
-	__vmx_vmwriteNW(0x6c02, vcpu->vmcs.host_CR3); /* host_CR3 */
-	__vmx_vmwriteNW(0x6c04, 0x00042030); /* host_CR4 */
-	__vmx_vmwriteNW(0x6c06, 0x00000000); /* host_FS_base */
-	__vmx_vmwriteNW(0x6c08, 0x00000000); /* host_GS_base */
-	__vmx_vmwriteNW(0x6c0a, vcpu->vmcs.host_TR_base); /* host_TR_base */
-	__vmx_vmwriteNW(0x6c0c, vcpu->vmcs.host_GDTR_base); /* host_GDTR_base */
-	__vmx_vmwriteNW(0x6c0e, vcpu->vmcs.host_IDTR_base); /* host_IDTR_base */
-	__vmx_vmwriteNW(0x6c10, 0x00000000); /* host_SYSENTER_ESP */
-	__vmx_vmwriteNW(0x6c12, 0x00000000); /* host_SYSENTER_EIP */
-	__vmx_vmwriteNW(0x6c14, vcpu->vmcs.host_RSP); /* host_RSP */
-	__vmx_vmwriteNW(0x6c16, vcpu->vmcs.host_RIP); /* host_RIP */
-
-//	xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMEXIT01");
-
+	xmhf_baseplatform_arch_x86vmx_putVMCS(vcpu);
 	// TODO: handle vcpu->vmx_guest_inject_nmi?
 	vcpu->vmx_nested_is_vmx_root_operation = 1;
 	__vmx_vmentry_vmresume(r);

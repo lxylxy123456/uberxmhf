@@ -619,11 +619,6 @@ void xmhf_smpguest_arch_x86vmx_endquiesce(VCPU *vcpu){
 
 }
 
-u32 global_bad = 0;
-
-u32 nmi_log_ptr[2];
-u8 nmi_log[2][10000];
-
 /*
  * Check whether an NMI received by the CPU is for quiesce.
  *
@@ -645,8 +640,7 @@ u8 nmi_log[2][10000];
  * (3) If no one requests quiesce and the current core receives NMI, then
  *     it should be injected to the trapped guest.
  */
-u32 xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(VCPU *vcpu, u32 source) {
-	nmi_log[vcpu->idx][nmi_log_ptr[vcpu->idx]++] = source;
+u32 xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(VCPU *vcpu) {
 	if(g_vmx_quiesce && !vcpu->quiesced){
 		vcpu->quiesced=1;
 
@@ -672,7 +666,6 @@ u32 xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(VCPU *vcpu, u32 source) {
 		vcpu->quiesced=0;
 		return 1;
 	} else {
-		global_bad = 5;
 		return 0;
 	}
 }
@@ -684,7 +677,7 @@ u32 xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(VCPU *vcpu, u32 source) {
 void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs *r, u32 from_guest){
 	(void)r;
 
-	if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu, from_guest ? 2 : 1) == 0) {
+	if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu) == 0) {
 		/* The NMI is not for quiesce, inject it to guest */
 
 		/*
@@ -856,16 +849,12 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * E12.    }
 		 * E13.}
 		 */
-		global_bad = 3;
-		HALT_ON_ERRORCOND(0);
 		xmhf_smpguest_arch_x86vmx_inject_nmi(vcpu);
 	}
 
 	/* Unblock NMI in hypervisor */
 	if (from_guest) {
 		xmhf_smpguest_arch_x86vmx_unblock_nmi();
-	} else {
-		xmhf_smpguest_arch_x86vmx_unblock_nmi();	// TODO: hacky fix
 	}
 }
 

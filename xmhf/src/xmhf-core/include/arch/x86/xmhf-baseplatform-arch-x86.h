@@ -295,7 +295,6 @@ typedef struct _vcpu {
   u64 vmx_nested_procbased_ctls;
   u64 vmx_nested_exit_ctls;
   u64 vmx_nested_entry_ctls;
-  u32 vmx_nested_forward_all;
 #endif /* !__NESTED_VIRTUALIZATION__ */
 } VCPU;
 
