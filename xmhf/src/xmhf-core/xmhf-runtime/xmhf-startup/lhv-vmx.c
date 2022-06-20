@@ -333,9 +333,9 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	ulong_t inst_len = vmcs_vmread(vcpu, VMCS_info_vmexit_instruction_length);
 	HALT_ON_ERRORCOND(vcpu == _svm_and_vmx_getvcpu());
 	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
-		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[0].data == 0x00000000aaaaa000ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x20bU) == 0x00000000bbbbb000ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x20cU) == 0x00000000ccccc000ULL);
+//		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[0].data == 0x00000000aaaaa000ULL);
+//		HALT_ON_ERRORCOND(rdmsr64(0x20bU) == 0x00000000bbbbb000ULL);
+//		HALT_ON_ERRORCOND(rdmsr64(0x20cU) == 0x00000000ccccc000ULL);
 	}
 	switch (vmexit_reason) {
 	case VMX_VMEXIT_CPUID:
