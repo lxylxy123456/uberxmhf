@@ -360,6 +360,10 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	/* Translate VMCS12 to VMCS02 */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
 	if (cpu1202_done[vcpu->idx]++) {
+		{
+			u32 tmp = __vmx_vmread32(0x4824);
+			HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
+		}
 		if (vcpu->id != 0) {
 			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 			printf("In quiesce %d\n", cpu1202_done[vcpu->idx]);
@@ -372,6 +376,12 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		if (result != VM_INST_SUCCESS) {
 			HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
 			return result;
+		}
+		{
+			u32 tmp = __vmx_vmread32(0x4824);
+			HALT_ON_ERRORCOND((tmp & (1 << 3)) == 0);
+			tmp |= (1 << 3);
+			__vmx_vmwrite32(0x4824, tmp);
 		}
 	}
 
@@ -581,9 +591,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		}
 	} else {
 		xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
-		HALT_ON_ERRORCOND((tmp & (1 << 3)) == 0);
-		tmp |= (1 << 3);
-		__vmx_vmwrite32(0x4824, tmp);
+		HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
 	}
 #ifdef SKIP_NESTED_GUEST
 	vmcs12_info->vmcs12_value.info_vmexit_reason = VMX_VMEXIT_VMCALL;
@@ -630,6 +638,16 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	/* Prepare VMRESUME to guest hypervisor */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
 	xmhf_baseplatform_arch_x86vmx_putVMCS(vcpu);
+
+	tmp = __vmx_vmread32(0x4824);
+	if (cpu0212_done[vcpu->idx] > 1) {
+		HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
+	} else {
+		HALT_ON_ERRORCOND((tmp & (1 << 3)) == 0);
+		tmp |= (1 << 3);
+		__vmx_vmwrite32(0x4824, tmp);
+	}
+
 	// TODO: handle vcpu->vmx_guest_inject_nmi?
 	vcpu->vmx_nested_is_vmx_root_operation = 1;
 	__vmx_vmentry_vmresume(r);
