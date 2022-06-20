@@ -1085,8 +1085,9 @@ u32 xmhf_parteventhub_arch_x86vmx_print_guest(VCPU *vcpu, struct regs *r)
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 #ifdef __NESTED_VIRTUALIZATION__
-	if (vcpu->vmx_nested_is_vmx_operation &&
-		!vcpu->vmx_nested_is_vmx_root_operation) {
+	if ((vcpu->vmx_nested_is_vmx_operation &&
+		 !vcpu->vmx_nested_is_vmx_root_operation) ||
+		vcpu->vmx_nested_forward_all) {
 		xmhf_nested_arch_x86vmx_handle_vmexit(vcpu, r);
 		return 1;
 	}
@@ -1121,9 +1122,10 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * is for quiescing (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION),
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
-//	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
-//		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
-//	}
+	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION &&
+		vcpu->vmcs.info_vmexit_reason != 24) {
+		printf("CPU(0x%02x): PEH handled %d\n", vcpu->id, vcpu->vmcs.info_vmexit_reason);
+	}
 
 	//handle intercepts
 	switch((u32)vcpu->vmcs.info_vmexit_reason){
@@ -1256,6 +1258,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 					xmhf_parteventhub_arch_x86vmx_print_guest(vcpu, r);
 					HALT();
 			}
+			printf("CPU(0x%02x): PEH just handled an exception\n");
 		}
 		break;
 

@@ -658,6 +658,7 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 
 	/* From now on, cannot fail */
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
+	vcpu->vmx_nested_forward_all = 1;
 
 	if (vmcs12_info->launched) {
 		/* Simply skip L2 guest */
@@ -849,6 +850,11 @@ u32 cpu0212_done[2];
 /* Handle VMEXIT from nested guest */
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
+	if (__vmx_vmread32(0x4402) == 24) {
+		xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(vcpu, r, 1);
+		HALT_ON_ERRORCOND(0);
+	}
+
 	if (__vmx_vmread32(0x4402) != 0x00000012) {
 		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "NMI?");
 		HALT();
