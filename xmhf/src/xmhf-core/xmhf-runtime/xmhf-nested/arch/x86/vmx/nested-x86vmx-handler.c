@@ -358,6 +358,11 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	/* Translate VMCS12 to VMCS02 */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(vmcs12_info->vmcs02_ptr));
 	result = xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(vcpu, vmcs12_info);
+	if (vcpu->id != 0) {
+		xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+		printf("In quiesce\n");
+		xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+	}
 
 	/* When a problem happens, translate back to L1 guest */
 	if (result != VM_INST_SUCCESS) {
@@ -561,6 +566,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
 	xmhf_smpguest_arch_x86vmx_unblock_nmi();	// TODO: hacking fix
 	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
+	if (vcpu->id == 0) {
+		printf("hello!\n");
+	}
 #ifdef SKIP_NESTED_GUEST
 	vmcs12_info->vmcs12_value.info_vmexit_reason = VMX_VMEXIT_VMCALL;
 	vmcs12_info->vmcs12_value.info_vmexit_instruction_length = 3;
@@ -587,7 +595,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			 * This is the rare case where we have L2 -> L0 -> L2. Usually it
 			 * is L2 -> L0 -> L1.
 			 */
-			global_bad = 1;
+			global_bad = 2;
 			HALT_ON_ERRORCOND(0);
 			__vmx_vmentry_vmresume(r);
 		} else {

@@ -1006,7 +1006,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 			}
 		}
 	}
-	printf("hello!");
 	{
 		HALT_ON_ERRORCOND(vmcs12->control_VM_entry_controls ==
 						  __vmx_vmread32(0x4012));

@@ -851,7 +851,7 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 		 * E12.    }
 		 * E13.}
 		 */
-		global_bad = 1;
+		global_bad = 3;
 		HALT_ON_ERRORCOND(0);
 		xmhf_smpguest_arch_x86vmx_inject_nmi(vcpu);
 	}
