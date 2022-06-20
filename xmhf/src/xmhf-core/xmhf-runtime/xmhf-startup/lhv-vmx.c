@@ -90,9 +90,9 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 
 	//Critical MSR load/store
 	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
-		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 1);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 1);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 1);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 2);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 2);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 2);
 		vcpu->my_vmexit_msrstore = vmexit_msrstore_entries[0][vcpu->idx];
 		vcpu->my_vmexit_msrload = vmexit_msrload_entries[0][vcpu->idx];
 		vcpu->my_vmentry_msrload = vmentry_msrload_entries[0][vcpu->idx];
@@ -112,12 +112,19 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 		wrmsr64(0x20aU, 0x00000000aaaaa000ULL);
 		wrmsr64(0x20bU, 0x00000000deadb000ULL);
 		wrmsr64(0x20cU, 0x00000000deadc000ULL);
+		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007040600070406);
 		vcpu->my_vmexit_msrstore[0].index = 0x20aU;
 		vcpu->my_vmexit_msrstore[0].data = 0x00000000deada000ULL;
+		vcpu->my_vmexit_msrstore[1].index = MSR_EFER;
+		vcpu->my_vmexit_msrstore[1].data = 0x00000000deada000ULL;
 		vcpu->my_vmexit_msrload[0].index = 0x20bU;
 		vcpu->my_vmexit_msrload[0].data = 0x00000000bbbbb000ULL;
+		vcpu->my_vmexit_msrload[1].index = 0xc0000081U;
+		vcpu->my_vmexit_msrload[1].data = 0x0000000011111000ULL;
 		vcpu->my_vmentry_msrload[0].index = 0x20cU;
 		vcpu->my_vmentry_msrload[0].data = 0x00000000ccccc000ULL;
+		vcpu->my_vmentry_msrload[1].index = MSR_IA32_PAT;
+		vcpu->my_vmentry_msrload[1].data = 0x0007060400070604;
 		printf("CPU(0x%02x): configured load/store MSR\n", vcpu->id);
 	} else {
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
@@ -334,8 +341,11 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	HALT_ON_ERRORCOND(vcpu == _svm_and_vmx_getvcpu());
 	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
 		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[0].data == 0x00000000aaaaa000ULL);
+		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[1].data == rdmsr64(MSR_EFER));
 		HALT_ON_ERRORCOND(rdmsr64(0x20bU) == 0x00000000bbbbb000ULL);
+		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007060400070604ULL);
 		HALT_ON_ERRORCOND(rdmsr64(0x20cU) == 0x00000000ccccc000ULL);
+		HALT_ON_ERRORCOND(rdmsr64(0xc0000081U) == 0x0000000011111000ULL);
 	}
 	switch (vmexit_reason) {
 	case VMX_VMEXIT_CPUID:
