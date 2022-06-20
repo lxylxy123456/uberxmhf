@@ -365,7 +365,7 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 			u32 tmp = __vmx_vmread32(0x4824);
 			HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
 		}
-		if (0 && vcpu->id != 0) {	/* TODO: manual quiesce */
+		if (1 && vcpu->id != 0) {	/* TODO: manual quiesce */
 			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 			printf("In quiesce %d\n", cpu1202_done[vcpu->idx]);
 			xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
@@ -836,7 +836,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6004) == 0x00000000); /* control_CR0_shadow */
 	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6006) == 0x00000000); /* control_CR4_shadow */
 	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6400) == 0x00000000); /* info_exit_qualification */
-	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x640a) == 0x00000000); /* info_guest_linear_address */
+//	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x640a) == 0x00000000); /* info_guest_linear_address */
 	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6800) == 0x80000031); /* guest_CR0 */
 	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6802) == 0x08b60000); /* guest_CR3 */
 	HALT_ON_ERRORCOND(__vmx_vmreadNW(0x6804) == 0x00002020); /* guest_CR4 */
