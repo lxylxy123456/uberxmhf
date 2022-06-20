@@ -570,14 +570,20 @@ u32 cpu0212_done[2];
 /* Handle VMEXIT from nested guest */
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
+	u32 tmp;
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
 	xmhf_smpguest_arch_x86vmx_unblock_nmi();	// TODO: hacking fix
+	tmp = __vmx_vmread32(0x4824);
 	if (cpu0212_done[vcpu->idx]++) {
+		HALT_ON_ERRORCOND((tmp & (1 << 3)) != 0);
 		if (vcpu->id == 0) {
 			printf("hello! %d\n", cpu0212_done[vcpu->idx]);
 		}
 	} else {
 		xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
+		HALT_ON_ERRORCOND((tmp & (1 << 3)) == 0);
+		tmp |= (1 << 3);
+		__vmx_vmwrite32(0x4824, tmp);
 	}
 #ifdef SKIP_NESTED_GUEST
 	vmcs12_info->vmcs12_value.info_vmexit_reason = VMX_VMEXIT_VMCALL;
