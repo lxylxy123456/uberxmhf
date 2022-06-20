@@ -559,6 +559,7 @@ extern u32 global_bad;
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
 	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
+	xmhf_smpguest_arch_x86vmx_unblock_nmi();	// TODO: hacking fix
 	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
 #ifdef SKIP_NESTED_GUEST
 	vmcs12_info->vmcs12_value.info_vmexit_reason = VMX_VMEXIT_VMCALL;
