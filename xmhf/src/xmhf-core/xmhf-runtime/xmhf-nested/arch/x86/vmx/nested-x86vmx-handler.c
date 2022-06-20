@@ -862,6 +862,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	}
 
 	if (__vmx_vmread32(0x4402) != 0x00000012) {
+		global_bad = 1;
 		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "NMI?");
 		HALT();
 	}
