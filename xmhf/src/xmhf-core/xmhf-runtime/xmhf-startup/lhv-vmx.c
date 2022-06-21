@@ -22,6 +22,73 @@ __attribute__((aligned(16)));
 
 extern u32 x_gdt_start[];
 
+/*
+ * Perform RDMSR instruction, r->ecx is input, r->eax and r->edx are outputs.
+ * If successful, return 0. If RDMSR causes #GP, return 1.
+ * Implementation similar to Linux's native_read_msr_safe().
+ */
+u32 rdmsr_safe(u32 index, u64 *value) {
+    u32 result;
+    u32 eax, edx;
+    asm volatile ("1:\r\n"
+                  "rdmsr\r\n"
+                  "xor %%ebx, %%ebx\r\n"
+                  "jmp 3f\r\n"
+                  "2:\r\n"
+                  "movl $1, %%ebx\r\n"
+                  "jmp 3f\r\n"
+                  ".section .xcph_table\r\n"
+#ifdef __AMD64__
+                  ".quad 0xd\r\n"
+                  ".quad 1b\r\n"
+                  ".quad 2b\r\n"
+#elif defined(__I386__)
+                  ".long 0xd\r\n"
+                  ".long 1b\r\n"
+                  ".long 2b\r\n"
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+                  ".previous\r\n"
+                  "3:\r\n"
+                  : "=a"(eax), "=d"(edx), "=b"(result)
+                  : "c" (index));
+	if (result == 0) {
+		*value = ((u64) edx << 32) | eax;
+	}
+    return result;
+}
+
+u32 wrmsr_safe(u32 index, u64 value) {
+    u32 result;
+    u32 eax = (u32) value;
+    u32 edx = value >> 32;
+    asm volatile ("1:\r\n"
+                  "wrmsr\r\n"
+                  "xor %%ebx, %%ebx\r\n"
+                  "jmp 3f\r\n"
+                  "2:\r\n"
+                  "movl $1, %%ebx\r\n"
+                  "jmp 3f\r\n"
+                  ".section .xcph_table\r\n"
+#ifdef __AMD64__
+                  ".quad 0xd\r\n"
+                  ".quad 1b\r\n"
+                  ".quad 2b\r\n"
+#elif defined(__I386__)
+                  ".long 0xd\r\n"
+                  ".long 1b\r\n"
+                  ".long 2b\r\n"
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+                  ".previous\r\n"
+                  "3:\r\n"
+                  : "=b"(result)
+                  : "c" (index), "a" (eax), "d" (edx));
+    return result;
+}
+
 static void lhv_vmx_vmcs_init(VCPU *vcpu)
 {
 	// From vmx_initunrestrictedguestVMCS
@@ -90,9 +157,9 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 
 	//Critical MSR load/store
 	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
-		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 2);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 2);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 2);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 3);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 3);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 3);
 		vcpu->my_vmexit_msrstore = vmexit_msrstore_entries[0][vcpu->idx];
 		vcpu->my_vmexit_msrload = vmexit_msrload_entries[0][vcpu->idx];
 		vcpu->my_vmentry_msrload = vmentry_msrload_entries[0][vcpu->idx];
@@ -108,23 +175,55 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 				printf("MTRR 0x%08x 0x%016llx\n", i, rdmsr64(i));
 			}
 		}
+		if (1 && "Scan all MSRs") {
+			for (u32 i = 0; i < 0xc0000200; i++) {
+				u64 val;
+				u64 mask = 0;
+				if (i == 0xe00) {
+					i = 0xc0000000;
+					continue;
+				}
+				if (rdmsr_safe(i, &val)) {
+					continue;
+				}
+				if (i >= 0x400 && i < 0x480 && (i & 3) < 2) {
+					continue;
+				}
+				printf("0x%08x 0x%016llx ", i, val);
+				for (u32 j = 0; j < 64; j++) {
+					if (wrmsr_safe(i, val ^ (1 << j)) == 0) {
+						mask |= (1 << j);
+					}
+					wrmsr_safe(i, val);
+				}
+				printf("0x%016llx\n", mask);
+			}
+			wrmsr_safe(0x1234, 0x12345678);
+		}
 		HALT_ON_ERRORCOND((rdmsr64(0xfeU) & 0xff) > 6);
 		wrmsr64(0x20aU, 0x00000000aaaaa000ULL);
 		wrmsr64(0x20bU, 0x00000000deadb000ULL);
 		wrmsr64(0x20cU, 0x00000000deadc000ULL);
+//		wrmsr64(0x1d9U, 0x0000000000000000ULL);
 		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007040600070406);
 		vcpu->my_vmexit_msrstore[0].index = 0x20aU;
 		vcpu->my_vmexit_msrstore[0].data = 0x00000000deada000ULL;
 		vcpu->my_vmexit_msrstore[1].index = MSR_EFER;
 		vcpu->my_vmexit_msrstore[1].data = 0x00000000deada000ULL;
+		vcpu->my_vmexit_msrstore[2].index = 0x174;
+		vcpu->my_vmexit_msrstore[2].data = 0x00000000dead0000ULL;
 		vcpu->my_vmexit_msrload[0].index = 0x20bU;
 		vcpu->my_vmexit_msrload[0].data = 0x00000000bbbbb000ULL;
 		vcpu->my_vmexit_msrload[1].index = 0xc0000081U;
 		vcpu->my_vmexit_msrload[1].data = 0x0000000011111000ULL;
+		vcpu->my_vmexit_msrload[2].index = 0x187U;
+		vcpu->my_vmexit_msrload[2].data = 0x0000000044440000ULL;
 		vcpu->my_vmentry_msrload[0].index = 0x20cU;
 		vcpu->my_vmentry_msrload[0].data = 0x00000000ccccc000ULL;
 		vcpu->my_vmentry_msrload[1].index = MSR_IA32_PAT;
 		vcpu->my_vmentry_msrload[1].data = 0x0007060400070604;
+		vcpu->my_vmentry_msrload[2].index = 0x1d9U;
+		vcpu->my_vmentry_msrload[2].data = 0x0000000000000001ULL;
 		printf("CPU(0x%02x): configured load/store MSR\n", vcpu->id);
 	} else {
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
@@ -342,10 +441,14 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
 		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[0].data == 0x00000000aaaaa000ULL);
 		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[1].data == rdmsr64(MSR_EFER));
+//		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[2].data == 0x0000000044440000ULL);
 		HALT_ON_ERRORCOND(rdmsr64(0x20bU) == 0x00000000bbbbb000ULL);
 		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007060400070604ULL);
+//		printf("rdmsr64(0x187U) = 0x%016llx", rdmsr64(0x187U));
+//		HALT_ON_ERRORCOND(rdmsr64(0x187U) == 0x0000000044440000ULL);
 		HALT_ON_ERRORCOND(rdmsr64(0x20cU) == 0x00000000ccccc000ULL);
 		HALT_ON_ERRORCOND(rdmsr64(0xc0000081U) == 0x0000000011111000ULL);
+//		HALT_ON_ERRORCOND(rdmsr64(0x1d9U) == 0x0000000000000001ULL);
 	}
 	switch (vmexit_reason) {
 	case VMX_VMEXIT_CPUID:

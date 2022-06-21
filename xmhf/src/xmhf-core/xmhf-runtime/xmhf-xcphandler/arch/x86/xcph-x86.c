@@ -209,7 +209,7 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
 
             if (found) {
                 /* Found in xcph table; Modify EIP on stack and iret */
-                printf("Found in xcph table\n");
+//                printf("Found in xcph table\n");
 #ifdef __AMD64__
                 ((uintptr_t *)(r->rsp))[0] = found[2];
 #elif defined(__I386__)
