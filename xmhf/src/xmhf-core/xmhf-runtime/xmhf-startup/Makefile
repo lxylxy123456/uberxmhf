@@ -14,6 +14,7 @@ C_SOURCES += lhv-timer.c
 C_SOURCES += lhv-pic.c
 C_SOURCES += lhv-keyboard.c
 C_SOURCES += lhv-vmx.c
+C_SOURCES += lhv-ept.c
 C_SOURCES += lhv-vmcs.c
 C_SOURCES += lhv-guest.c
 

@@ -51,6 +51,9 @@ void vmexit_asm(void);				/* Called by hardware only */
 void vmlaunch_asm(struct regs *r);	/* Never returns */
 void vmresume_asm(struct regs *r);	/* Never returns */
 
+/* lhv-ept.c */
+u64 lhv_build_ept(VCPU *vcpu);
+
 /* lhv-vmcs.c */
 void vmcs_vmwrite(VCPU *vcpu, ulong_t encoding, ulong_t value);
 void vmcs_vmwrite64(VCPU *vcpu, ulong_t encoding, u64 value);
