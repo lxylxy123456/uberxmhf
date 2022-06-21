@@ -179,6 +179,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 			for (u32 i = 0; i < 0xc0000200; i++) {
 				u64 val;
 				u64 mask = 0;
+				u64 mask2 = 0;
 				if (i == 0xe00) {
 					i = 0xc0000000;
 					continue;
@@ -192,11 +193,17 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 				printf("0x%08x 0x%016llx ", i, val);
 				for (u32 j = 0; j < 64; j++) {
 					if (wrmsr_safe(i, val ^ (1 << j)) == 0) {
+						u64 new_val;
 						mask |= (1 << j);
+						if (rdmsr_safe(i, &new_val) == 0) {
+							if (new_val == (val ^ (1 << j))) {
+								mask2 |= (1 << j);
+							}
+						}
 					}
 					wrmsr_safe(i, val);
 				}
-				printf("0x%016llx\n", mask);
+				printf("0x%016llx 0x%016llx\n", mask, mask2);
 			}
 			wrmsr_safe(0x1234, 0x12345678);
 		}
