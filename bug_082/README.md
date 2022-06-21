@@ -1,4 +1,4 @@
-# Support guest hypervisor setting MSR and EPT
+# Support guest hypervisor setting MSR
 
 ## Scope
 * All subarchs
@@ -6,9 +6,8 @@
 * Git branch `lhv` commit `d90b70785`
 
 ## Behavior
-Currently for the guest hypervisor running in XMHF, EPT is not supported.
-MSR load / store count must be 0. These need to be changed in order to run
-unrestricted nested guests.
+Currently for the guest hypervisor running in XMHF, MSR load / store count must
+be 0. This need to be changed in order to run unrestricted nested guests.
 
 ## Debugging
 
@@ -323,9 +322,326 @@ does not respond.
 I think this indicates that entering L2 guest probably does something strange.
 It looks like NMIs are blocked and probably one NMI is lost.
 
-TODO: check NMI related fields in VMCS02
-TODO: use correct sync primitives in NMI exception handler
-TODO: `xmhf_smpguest_arch_x86vmx_unblock_nmi()` in `xmhf_nested_arch_x86vmx_handle_vmexit()`
-TODO: try on another machine
-TODO: try something other than KVM
+In `b28a25d0a`, serial `20220620112939`, collect VMCS dump. LHV image can be
+found in `lhv-97894439f.img.xz`.
+
+The logic is
+* Guest HV requests VMENTRY
+* Collect VMENTRY01
+* VMPTRLD VMCS02
+* Edit VMCS02
+* Collect VMENTRY02
+* VMLAUNCH / VMRESUME
+* Nested guest causes VMEXIT
+* Collect VMEXIT02
+* VMPTRLD VMCS01
+* Edit VMCS01
+* Collect VMEXIT01
+* VMRESUME
+
+For example, in the following 3 outputs, the last 2 are the same. The first
+2 are similar (only off by VMEXIT reason fields)
+
+```sh
+cat 20220620112939 | grep 'CPU(0x00):' | grep VMEXIT01 | head -n 167
+cat 20220620112939 | grep 'CPU(0x00):' | grep VMEXIT01 | tail -n +168 | head -n 167
+cat 20220620112939 | grep 'CPU(0x00):' | grep VMEXIT01 | tail -n +168 | tail -n +168 | head -n 167
+```
+
+Across multiple CPUs, there are some more changes.
+```sh
+cat 20220620112939 | grep 'CPU(0x00):' | grep VMEXIT01 | tail -n +168 | head -n 167 | cut -b 10-
+cat 20220620112939 | grep 'CPU(0x01):' | grep VMEXIT01 | tail -n +168 | tail -n +168 | head -n 167 | cut -b 10-
+```
+
+Here is a program to extract the dumps
+```py
+import re
+vmexit01 = [[], []]
+vmexit02 = [[], []]
+vmentry01 = [[], []]
+vmentry02 = [[], []]
+d = {'VMEXIT': {'01': vmexit01, '02': vmexit02},
+	'VMENTRY': {'01': vmentry01, '02': vmentry02}}
+for i in open('20220620112939').read().split('\n'):
+	matched = re.fullmatch('CPU\(0x(\d+)\): \((0x[0-9a-f]{4})\) (VMEXIT|VMENTRY)(0[12])(\w+) = (0x[0-9a-f]+|unavailable)', i)
+	if not matched:
+		continue
+	cpu, enc, entry_exit, _01_02, name, value_str = matched.groups()
+	l = d[entry_exit][_01_02][int(cpu)]
+	if not l or len(l[-1]) == 167:
+		l.append([])
+	l[-1].append((enc, name, value_str))
+
+for ki, vi in d.items():
+	for kj, vj in vi.items():
+		for kk, vk in enumerate(vj):
+			for kl, vl in enumerate(vk):
+				if len(vl) < 167:
+					continue
+				fname = 'tmp/%s%s_CPU%02d_%d' % (ki, kj, kk, kl)
+				with open(fname, 'w') as f:
+					for i in vl:
+						print('(%s) %s = %s' % i, file=f)
+```
+
+We can see that `VMEXIT01_CPU(i)_(n) = VMENTRY01_CPU(i)_(n)`, for `n >= 1`.
+Also `VMEXIT02_CPU(i)_(n) = VMENTRY02_CPU(i)_(n+1)`, for `n >= 0`. These are
+all expected. We can use these information to hard-code VMCS in XMHF. The
+relevant addresses in the guest are
+
+```
+(gdb) x/i 0x0820596f
+   0x820596f:	vmresume
+(gdb) x/i 0x0820b7cf
+   0x820b7cf:	vmcall
+(gdb) 
+```
+
+`diff VMENTRY01_CPU00_2 VMENTRY02_CPU00_2` shows differences between VMCS01 and
+VMCS02. The control fields are the following. However, there are not a lot of
+clues.
+
+```
+67c67
+< (0x4002) control_VMX_cpu_based = 0x86006172
+---
+> (0x4002) control_VMX_cpu_based = 0x8401e172
+72c72
+< (0x400c) control_VM_exit_controls = 0x00036dfb
+---
+> (0x400c) control_VM_exit_controls = 0x00036dff
+75c75
+< (0x4012) control_VM_entry_controls = 0x000011fb
+---
+> (0x4012) control_VM_entry_controls = 0x000011ff
+81c81
+< (0x401e) control_VMX_seccpu_based = 0x000010aa
+---
+> (0x401e) control_VMX_seccpu_based = 0x00000002
+```
+
+We can use the Python code to generate code to write VMCS. Be careful that
+MSR, EPT, and many host state fields are pointers that may change after XMHF
+code changes.
+
+```py
+for e, n, v in vmentry02[0][1]:
+	if v == 'unavailable':
+		continue
+	s = {'0': '16', '2': '64', '4': '32', '6': 'NW'}[e[2]]
+	print('\t__vmx_vmwrite%s(%s, %s); /* %s */' % (s, e, v, n))
+
+# Do the same thing for vmexit01[0][1]
+```
+
+In git `2617b040a`, able to remove a lot of non-static code that modifies VMCS.
+Basically peh no longer handles intercepts. Instead, all intercepts happen in
+nested handlers. The nested handlers have not implemented NMI exit handling, so
+encountering such a VMEXIT will set `global_bad`. The reporducibility criteria
+is:
+* Thing stops to be printed in serial
+* All CPUs should be running (i.e. not HLT)
+* In gdb, `global_bad = 0`
+* In gdb, CPU 0 should be trying to lock printf lock, CPU 1 should be waiting
+  for CPU 0 to quiesce
+
+In `8992699fe`, realized that a `global_bad` is missing, cause false positives
+in things thought to be reproducible.
+
+```
+* 8992699fe Add global_bad
+* 2617b040a Support NO_VMPTRLD												bad
+* eb3f815ae Forward everything to xmhf_nested_arch_x86vmx_handle_vmexit()
+* 9e8959112 Remove guest NMI blocking										bad
+* 23855fa38 global_bad everywhere
+* a18b9ef6f Remove more code
+* 58a6ce80d Remove vmcs12 and vmcs02 translation
+* 9c331b3ba Control VMCS01													skip
+* 731bc77aa Set VMCS01 state
+* 45d9251e0 Fix assertion error												skip
+* e5bf072fd Complete take control of VMCS02
+* 03caf80de Still reproduce by hardcoding most of VMCS02					FIND
+* b28a25d0a Collect VMCS dump
+```
+
+At `03caf80de`, found that the reproducing code is incorrect. In
+`xmhf_nested_arch_x86vmx_handle_vmexit()`, before handling NMI exit
+(`xmhf_smpguest_arch_x86vmx_nmi_check_quiesce()`), the print "hello" is called.
+This of course causes deadlock when nested guest receives NMI intercept.
+
+`03caf80de..896612547` solves the problem by moving print "hello" to after
+handling NMI. Now the reproducing should be legit.
+
+`8ebfba40d` merges the changes from `896612547` and debugged. However, it no
+longer reproduces the bug.
+
+In `ad4e34aae`, found that adding some code to use `__vmx_vmread32(0x4402)` to
+check whether the current VMEXIT is for NMI instead of using
+`vmcs12_info->vmcs12_value.info_vmexit_reason` solves the problem. Try to
+backport it to `xmhf64-nest` and see whether it solves the problem.
+
+Indeed, this solves the problem. See git `c6f552b61..296d39b8d`.
+
+Untried ideas:
+* check NMI related fields in VMCS02
+* use correct sync primitives in NMI exception handler
+* try on another machine
+* `NO_VMPTRLD`
+* try something other than KVM
+
+### Why is there a problem?
+
+The old logic of `xmhf_nested_arch_x86vmx_handle_vmexit()` is:
+* Call `xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12()`
+* Check `vmcs12_info` (modified by `xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12()`)
+  to see whether NMI happens
+
+Unfortunately `xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12()` prints to serial
+port. However, before NMI is handled printing to serial port will deadlock.
+
+### Bug in handling MSRs that the host cares about
+
+In lhv `36faf216d`, tested the EFER-like MSRs. The XMHF's behavior is incorrect
+when dealing with VMENTRY MSR load. If the corresponding MSR is not present
+in VMEXIT MSR load. Fixed in xmhf `24fbc0c2d`.
+
+### Testing normal MSRs
+
+The biggest challenge in testing normal MSRs is to find MSRs that can be
+written to. In lhv-dev `b4a2e906b`, use safe MSR to scan all MSRs. See results
+below.
+
+```
+MSR        Value read         Bit can write      Bit will preserve  Comment
+0x00000000 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x00000001 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x00000010 0x000000005732c2d0 0xffffffffffffffff 0x0000000000000000
+0x00000011 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000012 0x00000000000e8f61 0xffffffffffffffff 0xffffffffffffffff
+0x00000017 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x0000001b 0x00000000fee00900 0x000000007ffffd00 0x000000007ffffd00
+0x0000002a 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x0000002c 0x0000000001000000 0x0000000000000000 0x0000000000000000
+0x00000034 0x000000000000000b 0x0000000000000000 0x0000000000000000
+0x0000003a 0x0000000000000005 0x0000000000000000 0x0000000000000000
+0x0000003b 0xffffffffffe4bdde 0xffffffffffffffff 0x0000000000000000
+0x0000008b 0x0000000100000000 0xffffffffffffffff 0x0000000000000000
+0x000000c1 0x0000000000000000 0xffffffffffffffff 0x0000000000000000
+0x000000c2 0x0000000000000000 0xffffffffffffffff 0x0000000000000000
+0x000000cd 0x0000000000000003 0x0000000000000000 0x0000000000000000
+0x000000ce 0x0000000080000000 0x0000000000000000 0x0000000000000000
+0x000000fe 0x0000000000000508 0x0000000000000000 0x0000000000000000
+0x0000011e 0x00000000be702111 0xffffffffffffffff 0x0000000000000000
+0x00000140 0x0000000000000000 0x0000000000000001 0x0000000000000001
+0x00000174 0x0000000000000000 0xffffffffffffffff 0x000000007fffffff IA32_SYSENTER_CS
+0x00000175 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff IA32_SYSENTER_ESP
+0x00000176 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff IA32_SYSENTER_EIP
+0x00000179 0x000000000100010a 0x0000000000000000 0x0000000000000000
+0x0000017a 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff IA32_MCG_STATUS
+0x0000017b 0xffffffffffffffff 0x0000000000000000 0x0000000000000000
+0x00000186 0x0000000000000000 0xffffffffffffffff 0x0000000000000000
+0x00000187 0x0000000000000000 0xffffffffffffffff 0x0000000000000000
+0x00000198 0x00000400000003e8 0x0000000000000000 0x0000000000000000
+0x00000199 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x000001a0 0x0000000000000001 0xffffffffffffffff 0xffffffffffffffff
+0x000001d9 0x0000000000000000 0x0000000000000003 0x0000000000000000
+0x000001db 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x000001dc 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x000001dd 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x000001de 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x000001fc 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000200 0x0000000080000000 0x000000007ffff005 0x000000007ffff005
+0x00000201 0x0000000f80000800 0x000000007ffff800 0x000000007ffff800
+0x00000202 0x0000000000000000 0x000000007ffff005 0x000000007ffff005
+0x00000203 0x0000000000000000 0x000000007ffff800 0x000000007ffff800
+0x00000204 0x0000000000000000 0x000000007ffff005 0x000000007ffff005
+0x00000205 0x0000000000000000 0x000000007ffff800 0x000000007ffff800
+0x00000206 0x0000000000000000 0x000000007ffff005 0x000000007ffff005
+0x00000207 0x0000000000000000 0x000000007ffff800 0x000000007ffff800
+0x00000208 0x0000000000000000 0x000000007ffff005 0x000000007ffff005
+0x00000209 0x0000000000000000 0x000000007ffff800 0x000000007ffff800
+0x0000020a 0x0000000000000000 0x000000007ffff005 0x000000007ffff005
+0x0000020b 0x0000000000000000 0x000000007ffff800 0x000000007ffff800
+0x0000020c 0x0000000000000000 0x000000007ffff005 0x000000007ffff005
+0x0000020d 0x0000000000000000 0x000000007ffff800 0x000000007ffff800
+0x0000020e 0x0000000000000000 0x000000007ffff005 0x000000007ffff005
+0x0000020f 0x0000000000000000 0x000000007ffff800 0x000000007ffff800
+0x00000250 0x0606060606060606 0x0000000002020202 0x0000000002020202
+0x00000258 0x0606060606060606 0x0000000002020202 0x0000000002020202
+0x00000259 0x0000000000000000 0x0000000005050505 0x0000000005050505
+0x00000268 0x0505050505050505 0x0000000005050505 0x0000000005050505
+0x00000269 0x0505050505050505 0x0000000005050505 0x0000000005050505
+0x0000026a 0x0505050505050505 0x0000000005050505 0x0000000005050505
+0x0000026b 0x0505050505050505 0x0000000005050505 0x0000000005050505
+0x0000026c 0x0505050505050505 0x0000000005050505 0x0000000005050505
+0x0000026d 0x0505050505050505 0x0000000005050505 0x0000000005050505
+0x0000026e 0x0505050505050505 0x0000000005050505 0x0000000005050505
+0x0000026f 0x0505050505050505 0x0000000005050505 0x0000000005050505
+0x00000277 0x0007040600070406 0x0000000005030703 0x0000000005030703
+0x000002ff 0x0000000000000c06 0x0000000000000c02 0x0000000000000c02
+0x00000402 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000403 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000406 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000407 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x0000040a 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x0000040b 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x0000040e 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x0000040f 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000412 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000413 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000416 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000417 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x0000041a 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x0000041b 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x0000041e 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x0000041f 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000422 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000423 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000426 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000427 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0x00000480 0x00d8100011e57ed0 0x0000000000000000 0x0000000000000000
+0x00000481 0x0000007f00000016 0x0000000000000000 0x0000000000000000
+0x00000482 0xfff9fffe0401e172 0x0000000000000000 0x0000000000000000
+0x00000483 0x007ffdff00036dff 0x0000000000000000 0x0000000000000000
+0x00000484 0x0000f3ff000011ff 0x0000000000000000 0x0000000000000000
+0x00000485 0x0000000020000065 0x0000000000000000 0x0000000000000000
+0x00000486 0x0000000080000021 0x0000000000000000 0x0000000000000000
+0x00000487 0x00000000ffffffff 0x0000000000000000 0x0000000000000000
+0x00000488 0x0000000000002000 0x0000000000000000 0x0000000000000000
+0x00000489 0x00000000001727ff 0x0000000000000000 0x0000000000000000
+0x0000048a 0x000000000000002e 0x0000000000000000 0x0000000000000000
+0x0000048b 0x000078ff00000000 0x0000000000000000 0x0000000000000000
+0x0000048c 0x00000f0106334041 0x0000000000000000 0x0000000000000000
+0x0000048d 0x0000007f00000016 0x0000000000000000 0x0000000000000000
+0x0000048e 0xfff9fffe04006172 0x0000000000000000 0x0000000000000000
+0x0000048f 0x007ffdff00036dfb 0x0000000000000000 0x0000000000000000
+0x00000490 0x0000f3ff000011fb 0x0000000000000000 0x0000000000000000
+0x00000491 0x0000000000000001 0x0000000000000000 0x0000000000000000
+0x00000606 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x00000611 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x00000619 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x00000639 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x00000641 0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x000006e0 0x0000000000000000 0xffffffffffffffff 0x0000000000000000
+0xc0000080 0x0000000000000000 0x0000000000000801 0x0000000000000801
+0xc0000081 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0xc0000082 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0xc0000083 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0xc0000084 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0xc0000100 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0xc0000101 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0xc0000102 0x0000000000000000 0xffffffffffffffff 0xffffffffffffffff
+0xc0000103 0x0000000000000000 0x000000007fffffff 0x000000007fffffff
+```
+
+We can use MSRs near `0x00000402`. Implemented the test in lhv `e6b0d5183`.
+Running on XMHF nest looks good.
+
+## Fix
+
+`d3c97a24b..24fbc0c2d`
+* Support MSR load / store in VMEXIT / VMENTRY
+* Indent nested virtualization code
+* Support handling quiesce NMI in nested guest
 
