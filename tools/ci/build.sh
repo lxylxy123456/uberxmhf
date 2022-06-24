@@ -11,7 +11,9 @@
 #   --no-x2apic: hide x2APIC to workaround a bug (--enable-hide-x2apic)
 #   --lhv-opt OPT: modify __LHV_OPT__ (u64) (--with-lhv-opt)
 #   --no-rt-bss: skip runtime bss in image (--enable-skip-runtime-bss)
+#                (Note: in LHV, this is always set)
 #   --no-bl-hash: skip bootloader hashing (--enable-skip-bootloader-hash)
+#                 (Note: in LHV, this is always set)
 #   fast: equivalent to --no-rt-bss --no-bl-hash (For running XMHF quickly)
 #   release: equivalent to --drt --dmap --no-dbg (For GitHub actions)
 #   debug: ignored (For GitHub actions)
@@ -39,8 +41,8 @@ AMD64MEM="0x140000000"
 DRY_RUN="n"
 CIRCLE_CI="n"
 NO_X2APIC="n"
-NO_RT_BSS="n"
-NO_BL_HASH="n"
+NO_RT_BSS="y"	# Always set in LHV
+NO_BL_HASH="y"	# Always set in LHV
 OPT=""
 LHV_OPT="0"
 
