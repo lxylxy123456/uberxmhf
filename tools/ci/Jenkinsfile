@@ -16,7 +16,7 @@
 properties([
     parameters([
         string(name: 'XMHF_BRANCH', defaultValue: 'lhv'),
-        string(name: 'BUILD_OPTS', defaultValue: '--no-x2apic --lhv-opt 0')
+        string(name: 'BUILD_OPTS', defaultValue: '--no-x2apic fast --lhv-opt 0')
     ])
 ])
 
