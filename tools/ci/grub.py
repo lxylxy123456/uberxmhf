@@ -54,7 +54,7 @@ def generate_xmhf_image(args):
 	if args.full_grub_mods:
 		ext4_size_kb = 1024 * 7
 	else:
-		ext4_size_kb = 1440
+		ext4_size_kb = 768
 
 	# Construct ext4, prepare command file
 	b_img = os.path.join(grub_dir, 'b.img')
