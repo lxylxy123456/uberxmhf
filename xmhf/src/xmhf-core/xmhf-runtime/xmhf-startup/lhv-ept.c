@@ -54,7 +54,7 @@ static void ept_map_continuous_addr(VCPU *vcpu, lhv_ept_ctx_t *ept_ctx,
 									hpt_pmeo_t *pmeo, u64 low, u64 high)
 {
 	u64 paddr;
-	printf("CPU(0x%02x): ept map 0x%08llx - 0x%08llx\n", vcpu->id, low, high);
+	printf("CPU(0x%02x): EPT map 0x%08llx - 0x%08llx\n", vcpu->id, low, high);
 	for (paddr = low; paddr < high; paddr += PA_PAGE_SIZE_4K) {
 		hpt_pmeo_set_address(pmeo, paddr);
 		HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&ept_ctx->ctx, pmeo,
