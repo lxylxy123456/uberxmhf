@@ -53,7 +53,11 @@ static void* lhv_ept_pa2ptr(void *vctx, hpt_pa_t spa, size_t sz, hpt_prot_t acce
 u64 lhv_build_ept(VCPU *vcpu)
 {
 	u64 low = rpb->XtVmmRuntimePhysBase;
+#ifdef __SKIP_RUNTIME_BSS__
+	u64 high = rpb->XtVmmRuntimeBssEnd;
+#else /* !__SKIP_RUNTIME_BSS__ */
 	u64 high = low + rpb->XtVmmRuntimeSize;
+#endif /* __SKIP_RUNTIME_BSS__ */
 	u64 paddr;
 	lhv_ept_ctx_t ept_ctx;
 	hpt_pmeo_t pmeo;
@@ -71,6 +75,7 @@ u64 lhv_build_ept(VCPU *vcpu)
 	hpt_pmeo_setuser(&pmeo, true);
 	hpt_pmeo_setprot(&pmeo, HPT_PROTS_RWX);
 	hpt_pmeo_setcache(&pmeo, HPT_PMT_WB);
+	printf("CPU(0x%02x): low=0x%08llx, high=0x%08llx\n", vcpu->id, low, high);
 	for (paddr = low; paddr < high; paddr += PA_PAGE_SIZE_4K) {
 		hpt_pmeo_set_address(&pmeo, paddr);
 		HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&ept_ctx.ctx, &pmeo,
