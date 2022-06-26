@@ -147,6 +147,16 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
 		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
 		vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
+		// TODO
+#ifdef __I386__
+		{
+			u64 *cr3 = (u64 *)read_cr3();
+			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE0, cr3[0]);
+			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE1, cr3[1]);
+			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE2, cr3[2]);
+			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE3, cr3[3]);
+		}
+#endif /* __I386__ */
 	}
 
 	vmcs_vmwrite(vcpu, VMCS_control_pagefault_errorcode_mask, 0);

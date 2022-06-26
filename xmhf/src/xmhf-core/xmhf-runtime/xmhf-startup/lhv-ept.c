@@ -54,8 +54,10 @@ u64 lhv_build_ept(VCPU *vcpu)
 {
 	u64 low = rpb->XtVmmRuntimePhysBase;
 	u64 high = low + rpb->XtVmmRuntimeSize;
+	u64 paddr;
 	lhv_ept_ctx_t ept_ctx;
 	hpt_pmeo_t pmeo;
+	/* Assuming that ept_pool and ept_alloc are initialized to 0 by bss */
 	ept_ctx.ctx.gzp = lhv_ept_gzp;
 	ept_ctx.ctx.pa2ptr = lhv_ept_pa2ptr;
 	ept_ctx.ctx.ptr2pa = lhv_ept_ptr2pa;
@@ -66,20 +68,14 @@ u64 lhv_build_ept(VCPU *vcpu)
 	pmeo.pme = 0;
 	pmeo.t = HPT_TYPE_EPT;
 	pmeo.lvl = 1;
-	// TODO
 	hpt_pmeo_setuser(&pmeo, true);
 	hpt_pmeo_setprot(&pmeo, HPT_PROTS_RWX);
 	hpt_pmeo_setcache(&pmeo, HPT_PMT_WB);
-	hpt_pmeo_set_address(&pmeo, 0x01234000);
-	/* Assuming that ept_pool and ept_alloc are initialized to 0 by bss */
-	for (int i = 0; i >= 0; i += 10) {}
-	HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&ept_ctx.ctx, &pmeo, 0x01234000) == 0);
-	HALT_ON_ERRORCOND(0 && "TODO frontier");
-	(void) low;
-	(void) high;
-	(void) vcpu;
-	HALT_ON_ERRORCOND((void *)hptw_insert_pmeo != (void *)hptw_get_pmo_alloc);
-	return 0;
-	return 0xdead0000;
+	for (paddr = low; paddr < high; paddr += PA_PAGE_SIZE_4K) {
+		hpt_pmeo_set_address(&pmeo, paddr);
+		HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&ept_ctx.ctx, &pmeo,
+												 paddr) == 0);
+	}
+	return (uintptr_t)ept_root;
 }
 
