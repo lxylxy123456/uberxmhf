@@ -69,8 +69,7 @@ u64 lhv_build_ept(VCPU *vcpu)
 	// TODO
 	hpt_pmeo_setuser(&pmeo, true);
 	hpt_pmeo_setprot(&pmeo, HPT_PROTS_RWX);
-	// TODO: set memory type to uncached
-	// TODO: is trustvisor doing this correctly?
+	hpt_pmeo_setcache(&pmeo, HPT_PMT_WB);
 	hpt_pmeo_set_address(&pmeo, 0x01234000);
 	/* Assuming that ept_pool and ept_alloc are initialized to 0 by bss */
 	for (int i = 0; i >= 0; i += 10) {}
