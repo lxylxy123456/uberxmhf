@@ -30,6 +30,9 @@ void lhv_main(VCPU *vcpu)
 		set_eflags(a);
 	}
 
+	// TODO: test TrustVisor
+	enter_user_mode(vcpu, 0);
+
 	/* Start VT related things */
 	lhv_vmx_main(vcpu);
 
