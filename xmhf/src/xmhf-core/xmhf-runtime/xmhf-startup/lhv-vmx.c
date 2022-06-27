@@ -1,5 +1,6 @@
 #include <xmhf.h>
 #include <lhv.h>
+#include <limits.h>
 
 #define MAX_GUESTS 4
 #define MAX_MSR_LS 16	/* Max number of MSRs in MSR load / store */
@@ -147,6 +148,15 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
 		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
 		vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
+#ifdef __I386__
+		{
+			u64 *cr3 = (u64 *)read_cr3();
+			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE0, cr3[0]);
+			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE1, cr3[1]);
+			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE2, cr3[2]);
+			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE3, cr3[3]);
+		}
+#endif /* __I386__ */
 	}
 
 	vmcs_vmwrite(vcpu, VMCS_control_pagefault_errorcode_mask, 0);
@@ -390,9 +400,42 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			break;
 		}
 	case VMX_VMEXIT_VMCALL:
+		if (vcpu->vmcall_exit_count < UINT_MAX) {
+			vcpu->vmcall_exit_count++;
+		}
+		if (__LHV_OPT__ & LHV_USE_EPT) {
+			/* Make sure that EPT exits are present */
+			HALT_ON_ERRORCOND(vcpu->ept_exit_count + 3 >
+							  vcpu->vmcall_exit_count);
+		}
 		{
 			asm volatile ("sti; hlt; cli;");
 			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+			break;
+		}
+	case VMX_VMEXIT_EPT_VIOLATION:
+		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+		if (vcpu->ept_exit_count < UINT_MAX) {
+			vcpu->ept_exit_count++;
+		}
+		{
+			ulong_t q = vmcs_vmread(vcpu, VMCS_info_exit_qualification);
+			u64 paddr = vmcs_vmread64(vcpu, VMCS_guest_paddr);
+			ulong_t vaddr = vmcs_vmread(vcpu, VMCS_info_guest_linear_address);
+			if (paddr == 0x12340000 && vaddr == 0x12340000) {
+				HALT_ON_ERRORCOND(q == 0x181);
+				HALT_ON_ERRORCOND(r->eax == 0xdeadbeef);
+				HALT_ON_ERRORCOND(r->ebx == 0x12340000);
+				r->eax = 0xfee1c0de;
+				vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+				break;
+			}
+			/* Unknown EPT violation */
+			printf("CPU(0x%02x): ept: 0x%08lx\n", vcpu->id, q);
+			printf("CPU(0x%02x): paddr: 0x%016llx\n", vcpu->id, paddr);
+			printf("CPU(0x%02x): vaddr: 0x%08lx\n", vcpu->id, vaddr);
+			vmcs_dump(vcpu, 0);
+			HALT_ON_ERRORCOND(0);
 			break;
 		}
 	default:

@@ -54,7 +54,7 @@
 #ifndef __ASSEMBLY__
 
 /* HALT() contains an infinite loop to indicate that it never exits */
-#define HALT() do { __asm__ __volatile__ ("hlt\r\n"); } while (1)
+#define HALT() do { __asm__ __volatile__ ("cli; hlt\r\n"); } while (1)
 
 #define HALT_ON_ERRORCOND(_p) \
     do { \

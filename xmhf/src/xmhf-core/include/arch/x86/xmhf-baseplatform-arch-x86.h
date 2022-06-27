@@ -287,6 +287,8 @@ typedef struct _vcpu {
   msr_entry_t *my_vmexit_msrstore;
   msr_entry_t *my_vmexit_msrload;
   msr_entry_t *my_vmentry_msrload;
+  u32 vmcall_exit_count;
+  u32 ept_exit_count;
 } VCPU;
 
 #define SIZE_STRUCT_VCPU    (sizeof(struct _vcpu))
