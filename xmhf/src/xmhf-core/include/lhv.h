@@ -83,6 +83,7 @@ typedef struct ureg_t {
 	u32 ss;
 } ureg_t;
 void enter_user_mode(VCPU *vcpu, ulong_t arg);
+void user_main(VCPU *vcpu, ulong_t arg);
 
 /* lhv-user-asm.S */
 void enter_user_mode_asm(ureg_t *ureg);
