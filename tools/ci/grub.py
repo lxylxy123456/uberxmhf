@@ -76,8 +76,7 @@ def generate_xmhf_image(args):
 	debugfs_cmds.append('mkdir i386-pc')
 	debugfs_cmds.append('cd i386-pc')
 	mods_dir = download_grub(args)
-	# for i in os.listdir(mods_dir):
-	for i in open('mods.txt').read().split():
+	for i in os.listdir(mods_dir):
 		debugfs_cmds.append('write %s %s' % (os.path.join(mods_dir, i), i))
 	cmd_file = os.path.join(grub_dir, 'debugfs.cmd')
 	print(*debugfs_cmds, sep='\n', file=open(cmd_file, 'w'))
