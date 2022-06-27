@@ -1068,7 +1068,7 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   /* disable interrupts, assume regular code has interrupts enabled */
   {
     u64 rflags = VCPU_grflags(vcpu);
-    EU_CHK((rflags & EFLAGS_IF) == EFLAGS_IF);
+    EU_CHK((rflags & EFLAGS_IF) == 0);
     VCPU_grflags_set(vcpu, rflags & ~EFLAGS_IF);
   }
 
@@ -1277,7 +1277,7 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
   {
     u64 rflags = VCPU_grflags(vcpu);
     EU_CHK((rflags & EFLAGS_IF) == 0);
-    VCPU_grflags_set(vcpu, rflags | EFLAGS_IF);
+    VCPU_grflags_set(vcpu, rflags);
   }
 
   /* enable NMIs, check that scode has NMIs disabled */
