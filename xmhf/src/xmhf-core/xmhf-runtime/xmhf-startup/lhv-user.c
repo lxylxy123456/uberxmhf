@@ -22,7 +22,7 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 	(void) arg;
 	HALT_ON_ERRORCOND(0 && "64-bit not supported (yet?)");
 #else
-	uintptr_t stack_top = (uintptr_t) user_stack[vcpu->idx];
+	uintptr_t stack_top = ((uintptr_t) user_stack[vcpu->idx]) + PAGE_SIZE_4K;
 	u32 *stack = (u32 *)stack_top;
 	ureg_t ureg = {
 		.edi=0,
@@ -34,10 +34,10 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 		.ecx=0,
 		.eax=arg,
 		.eip=(uintptr_t) user_main,
-		.cs=0xb,
+		.cs=0x2b,
 		.eflags=2,
 		.esp=(uintptr_t) (&stack[-2]),
-		.ss=0x13,
+		.ss=0x33,
 	};
 	stack[-1] = arg;
 	stack[-2] = 0xdeadbeef;

@@ -65,7 +65,10 @@ u64 x_gdt_start[] __attribute__(( section(".data"), aligned(16) )) = {
 	0x0000000000000000ULL,
 	0x00cf9a000000ffffULL,
 	0x00cf92000000ffffULL,
-	0x0000000000000000ULL
+	0x0000000000000000ULL,
+	0x0000000000000000ULL,
+	0x00cffa000000ffffULL,	/* 0x2b: User mode CS */
+	0x00cff2000000ffffULL	/* 0x33: User mode DS */
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */

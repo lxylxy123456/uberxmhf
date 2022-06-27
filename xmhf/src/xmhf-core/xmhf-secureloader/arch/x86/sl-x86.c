@@ -174,7 +174,7 @@ u32 xmhf_sl_arch_x86_setup_runtime_paging(RPB *rpb, u32 runtime_spa, u32 runtime
   }
 
   //init pdts with unity mappings
-  default_flags = (u64)(_PAGE_PRESENT | _PAGE_RW | _PAGE_PSE);
+  default_flags = (u64)(_PAGE_PRESENT | _PAGE_RW | _PAGE_PSE | _PAGE_USER);
   for(i = 0, hva = 0;
       i < (ADDR_4GB >> (PAE_PDT_SHIFT));
       i ++, hva += PAGE_SIZE_2M) {
