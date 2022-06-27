@@ -35,7 +35,7 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 		.eax=arg,
 		.eip=(uintptr_t) user_main,
 		.cs=0x2b,
-		.eflags=2,
+		.eflags=2 | (3 << 12),
 		.esp=(uintptr_t) (&stack[-2]),
 		.ss=0x33,
 	};
@@ -47,6 +47,6 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 
 void user_main(ulong_t arg)
 {
-	while (1);
+	while (1) printf(".");
 	(void)arg;
 }
