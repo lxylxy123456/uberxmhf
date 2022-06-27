@@ -91,5 +91,106 @@ Now the memory type is correct:
 Also encountered triple fault after enabling EPT in i386 lhv. The cause is the
 same as in `bug_079`. Since i386 LHV uses PAE, the PDPTE needs to be populated.
 
-TODO
+In `5eb712013`, LHV contains non-trivial use of EPT.
+
+### Understand TrustVisor
+
+I don't recall how TrustVisor makes sure that when CPU 1 is running PAL, CPU
+2's EPT is set correctly so that CPU 2 cannot access the PAL.
+
+Actually, this problem is solved in `did_change_root_mappings` in `scode.c`.
+When TrustVisor is first started, all CPUs are changed to use the same EPT.
+Then when changing EPT entry for one CPU will automatically apply to other
+CPUs.
+
+### Planning EPT support
+
+It may become a challenge to support EPT shadowing and changing EPT on the fly
+efficiently.
+
+Re-read the Turtles Project paper. Note that the EPT02 is built on the fly,
+driven by EPT exits. The paper also says that the memory EPT12 uses need to be
+set to read only in EPT01.
+
+A blog that is possibly helpful:
+<https://royhunter.github.io/2014/06/20/NESTED-EPT/>
+
+Possible features to be supported
+* Different EPT01 between CPUs
+	* This means that when EPT01 is changed, need to notify other CPUs to
+	  update their EPT01. Currently it is supported by XMHF, but TrustVisor
+	  uses the same EPT01 between CPUs.
+* Allow invalid entries in EPT12 but not accessed
+	* This means that we need shadow EPT
+* Modifying EPT12 in L1 guest after VMENTRY
+	* If cacheing (see below), may need to invalidate cache
+* Modifying EPT12 in L2 guest
+	* Should be able to assume that this never exists, or there is a security
+	  problem for L1. Should also assume that paddr of EPT12 does not appear in
+	  EPT12.
+* Modifying EPT12 in L1 guest in another CPU
+	* A good hypervisor should synchronize one CPU's use of EPT and another
+	  CPU's access to EPT. So probably CPU 1 is not using the EPT when CPU 2
+	  is modifying it.
+* Support dirty and accessed flags in EPT12
+	* It is possible for this feature to be unavailable by setting
+	  `IA32_VMX_EPT_VPID_CAP`
+
+Suppose EPT01 of CPU 1 is different from CPU 2. Then during a VMENTRY or EPT
+exit in CPU 1, CPU 2's access to CPU 1's EPT12 need to be removed.
+
+The key idea of translation is
+* EPT02(x) = EPT01(EPT12(x))
+* EPT01(x) = ...
+	* ... invalid if x is memory used by EPT12
+	* ... x else
+
+Mapping from entity to events may occur are:
+* L0
+	* Change EPT01 (e.g. TrustVisor)
+* L1
+	* Change EPT12
+* L2
+	* Change EPT12 (if support)
+	* Change EPT02 (accessed bit, dirty bit)
+
+Possible ways to implement
+* Translate all mappings / translate only EPT exit entries
+* Cache EPT02 between L2 -> L1 -> L2 / do not cache EPT02
+
+Suppose we are first implementing only translate EPT exit entries and without
+cache. We track what need to be done after cache.
+
+Mapping from events to other events they cause are:
+* Add entry to EPT01
+	* N/A (will update EPT02 when EPT exit)
+* Remove entry in EPT01
+	* Remove all relevant entry in EPT02 (need to search), or invalidate EPT02
+* Add entry in EPT12
+	* N/A (will update EPT02 when EPT exit)
+	* Remove address of EPT12 from EPT01
+* Remove entry in EPT12
+	* Remove entry in EPT02
+* Change EPT02 accessed / dirty bit
+	* Update EPT12 relevant bits, or make EPT12 not readable in EPT01
+
+So current implementation plan is:
+* No caching on EPT02
+* When L1 calls VMENTRY, enter L2 with empty EPT
+* L2 -> L0 due to EPT, populate EPT and L0 -> L2
+* When L2 -> L0 -> L1, invalidate EPT02 and update accessed / dirty for EPT12
+
+### Another possible TrustVisor security problem
+
+TrustVisor synchronizes EPT by using the same EPT across different CPUs.
+However, it does not flush the EPT TLB using `__vmx_invept()` on all CPUs. This
+may allow CPU 2 to access memory of PAL on CPU 1.
+
+To test, we need to be able to run TrustVisor in a controlled environment.
+Probably LHV is the best choice.
+
+In lhv-dev `94275e47a` and xmhf64-dev `b4d6e3435`, can run PAL in LHV.
+
+TODO: test security problem in TrustVisor
+TODO: implement EPT
 
