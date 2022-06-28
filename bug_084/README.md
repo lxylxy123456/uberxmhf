@@ -191,6 +191,108 @@ Probably LHV is the best choice.
 
 In lhv-dev `94275e47a` and xmhf64-dev `b4d6e3435`, can run PAL in LHV.
 
-TODO: test security problem in TrustVisor
+Wrote the test script in `ba6290f05`. However, it does not work in QEMU KVM.
+I think maybe KVM's nested virtualization has different EPT TLB behavior
+compared to real hardware. We try Bochs.
+
+### Bochs
+
+After the GRUB boot image work, booting on Bochs becomes easy.
+
+To boot LHV (no VMX), copy `/usr/share/doc/bochs/bochsrc-sample.txt` to
+`bochsrc` and modify the following.
+
+```diff
+759c759,760
+< ata0-master: type=disk, mode=flat, path="30M.sample"
+---
+> #ata0-master: type=disk, mode=flat, path="30M.sample"
+> ata0-master: type=disk, mode=flat, path="c.img"
+901a903
+> com1: enabled=1, mode=file, dev=/dev/stdout
+955c957
+< sound: driver=default, waveout=/dev/dsp. wavein=, midiout=
+---
+> #sound: driver=default, waveout=/dev/dsp. wavein=, midiout=
+```
+
+The modified configuration looks like
+```
+cpu: model=core2_penryn_t9600, count=1, ips=50000000, reset_on_triple_fault=1, ignore_bad_msrs=1, msrs="msrs.def"
+memory: guest=512, host=256
+romimage: file=$BXSHARE/BIOS-bochs-latest, options=fastboot
+vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata1: enabled=1, ioaddr1=0x170, ioaddr2=0x370, irq=15
+ata0-master: type=disk, mode=flat, path="d.img"
+boot: disk
+log: bochsout.txt
+panic: action=ask
+error: action=report
+info: action=report
+debug: action=ignore, pci=report # report BX_DEBUG from module 'pci'
+debugger_log: -
+com1: enabled=1, mode=file, dev=/dev/stdout
+```
+
+To run VMX, need to re-compile Bochs. Trying different configurations
+
+```
+./configure \
+            --enable-all-optimizations \
+            --enable-cpu-level=6 \
+            --enable-x86-64 \
+            --enable-vmx=2 \
+            --enable-clgd54xx \
+            --enable-busmouse \
+            --enable-show-ips \
+            \
+            --enable-smp \
+            --disable-docbook \
+            --with-x --with-x11 --with-term --with-sdl2 \
+            \
+            --prefix=USR_LOCAL
+```
+
+Using CPU `model=corei7_sandy_bridge_2600k` seems working. Note that
+`IA32_VMX_VMFUNC_MSR` is not supported, so need to decrease `IA32_VMX_MSRCOUNT`
+if using LHV.
+
+To boot XMHF and then LHV, save XMHF as `c.img` and LHV as `d.img`, then use
+configuration
+
+```
+cpu: model=corei7_sandy_bridge_2600k, count=2, ips=50000000, reset_on_triple_fault=1, ignore_bad_msrs=1, msrs="msrs.def"
+memory: guest=512, host=256
+romimage: file=$BXSHARE/BIOS-bochs-latest, options=fastboot
+vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata1: enabled=1, ioaddr1=0x170, ioaddr2=0x370, irq=15
+ata0-master: type=disk, mode=flat, path="c.img"
+ata1-master: type=disk, mode=flat, path="d.img"
+boot: disk
+log: bochsout.txt
+panic: action=ask
+error: action=report
+info: action=report
+debug: action=ignore, pci=report # report BX_DEBUG from module 'pci'
+debugger_log: -
+com1: enabled=1, mode=file, dev=/dev/stdout
+```
+
+However, the possible security problem cannot be reproduced in Bochs. Either
+Bochs does not fully implement the EPT TLB (i.e. will be reproducible on real
+hardware), or the Intel manual leaves the possibility of the bug, but real
+hardware implementation does not have the bug (i.e. will not be reproducible
+on real hardware). Of course, maybe I am wrong.
+
+Looks like this is the question I want to ask:
+* <https://stackoverflow.com/questions/70179745/>
+
+From Intel manual, it looks like TLB shootdown still need to be performed
+manually for EPT.
+
+TODO: discuss TLB shootdown and security problem in TrustVisor
 TODO: implement EPT
+TODO: study KVM code, maybe use older version
 
