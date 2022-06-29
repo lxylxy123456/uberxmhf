@@ -292,7 +292,8 @@ Looks like this is the question I want to ask:
 From Intel manual, it looks like TLB shootdown still need to be performed
 manually for EPT.
 
+TODO: test EPT TLB using LHV
 TODO: discuss TLB shootdown and security problem in TrustVisor
-TODO: implement EPT
+TODO: implement EPT with limited features
 TODO: study KVM code, maybe use older version
 
