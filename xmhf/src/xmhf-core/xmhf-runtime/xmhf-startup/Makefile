@@ -5,7 +5,6 @@
 AS_SOURCES =
 AS_SOURCES += lhv-asm.S
 AS_SOURCES += lhv-guest-asm.S
-AS_SOURCES += lhv-user-asm.S
 
 C_SOURCES =  runtime.c
 C_SOURCES += rntm-data.c
@@ -18,7 +17,6 @@ C_SOURCES += lhv-vmx.c
 C_SOURCES += lhv-ept.c
 C_SOURCES += lhv-vmcs.c
 C_SOURCES += lhv-guest.c
-C_SOURCES += lhv-user.c
 
 C_SOURCES += ./arch/x86/rntm-x86-data.c
 

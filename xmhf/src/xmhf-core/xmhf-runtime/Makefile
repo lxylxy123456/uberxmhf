@@ -108,8 +108,6 @@ OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-vmcs.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-ept.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-guest.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-guest-asm.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-user.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-user-asm.o
 
 
 # separate from OBJECTS_PRECOMPILED because needs to come after libs on link line
