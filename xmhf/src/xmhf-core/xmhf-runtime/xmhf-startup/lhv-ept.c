@@ -92,6 +92,6 @@ u64 lhv_build_ept(VCPU *vcpu)
 	ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0xfee00000, 0xfee01000);
 	/* Console */
 	ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0x000b8000, 0x000b9000);
-	return (uintptr_t)ept_root;
+	return ept_ctx.ctx.root_pa;
 }
 
