@@ -7,6 +7,9 @@
 extern void* vtd_cet; // cet holds all its structures in the memory linearly
 extern struct dmap_vmx_cap g_vtd_cap;
 
+//! Return the spaddr of the VT-d page root 
+extern spa_t xmhf_dmaprot_arch_x86_vmx_get_eap_vtd_pt_root(void);
+
 
 //! Invalidate the IOMMU PageTable corresponding to <pt_info>
 void iommu_vmx_invalidate_pt(IOMMU_PT_INFO* pt_info)
@@ -203,11 +206,16 @@ static bool __x86vmx_bind_cet(DEVICEDESC* device, iommu_pt_t pt_id, spa_t iommu_
 
 bool iommu_vmx_bind_device(IOMMU_PT_INFO* pt_info, DEVICEDESC* device)
 {
-	return __x86vmx_bind_cet(device, pt_info->iommu_pt_id, hva2spa(pt_info->pt_root));;
+	return __x86vmx_bind_cet(device, pt_info->iommu_pt_id, hva2spa(pt_info->pt_root));
 }
 
 //! Bind the untrusted OS's default IOMMU PT to a device
 bool iommu_vmx_unbind_device(DEVICEDESC* device)
 {
-	return __x86vmx_bind_cet(device, UNTRUSTED_OS_IOMMU_PT_ID, hva2spa(g_rntm_dmaprot_buffer));;
+    spa_t vtd_pt_root = xmhf_dmaprot_arch_x86_vmx_get_eap_vtd_pt_root();
+
+    if(vtd_pt_root == INVALID_SPADDR)
+        return false;
+
+	return __x86vmx_bind_cet(device, UNTRUSTED_OS_IOMMU_PT_ID, hva2spa(vtd_pt_root));
 }
