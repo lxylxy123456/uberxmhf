@@ -292,7 +292,59 @@ Looks like this is the question I want to ask:
 From Intel manual, it looks like TLB shootdown still need to be performed
 manually for EPT.
 
-TODO: test EPT TLB using LHV
+### Experimenting EPT TLB using LHV
+
+In lhv-dev `4f8ccfcf6`, perform the following experiment
+1. CPU 0 constructs EPT for all CPUs
+2. CPU 1 enters guest mode and access a memory region called `lxy` forever
+3. CPU 0 removes `lxy` from EPT
+4. CPU 0 accesses `lxy`
+
+What happens on QEMU:
+* At step 4, CPU 0 does not error
+* CPU 0 halts by design
+* Then CPU 1 gets EPT violation
+
+Expected:
+* CPU 1 never gets EPT violation
+
+In lhv-dev `977ecf572`, make CPU 0 never halt by design. This time both CPUs
+do not get EPT violation.
+
+In lhv-dev `072022e50`, add INVEPT. Can see that after INVEPT, both CPU halts.
+Without INVEPT, both CPU runs forever. However, I expect that only CPU 0 halts
+if with INVEPT.
+
+In lhv-dev `c55d7aea3`, modify code to be able to run on Bochs. On Bochs,
+CPU 1 never gets EPT violation. This is the expected behavior.
+
+According to the experiment, my answer to
+<https://stackoverflow.com/questions/70179745/> is correct. i.e. INVEPT only
+applies to the current CPU. There needs to be TLB shootdown to synchronize
+EPT change between CPUs.
+
+For now, likely not going to worry about reproducing the problem in TrustVisor.
+Not having TLB shootdown code in TrustVisor can already be considered a
+security problem.
+
+### KVM code
+
+Using the following script to collect KVM code from Linux
+
+```sh
+#!/bin/bash
+set -xe
+LINUX_DIR=/PATH/TO/linux-5.10.84
+mkdir -p arch/x86
+cp -a $LINUX_DIR/arch/x86/kvm arch/x86
+mkdir -p virt
+cp -a $LINUX_DIR/virt/kvm virt
+```
+
+Then place the code in OpenGrok. Looks good
+
+### EPT with limited features
+
 TODO: discuss TLB shootdown and security problem in TrustVisor
 TODO: implement EPT with limited features
 TODO: study KVM code, maybe use older version
