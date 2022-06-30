@@ -5,8 +5,6 @@
 #define MAX_GUESTS 4
 #define MAX_MSR_LS 16	/* Max number of MSRs in MSR load / store */
 
-extern void lhv_remove_ept(VCPU *vcpu);
-
 static u8 all_vmxon_region[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 
@@ -380,32 +378,42 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		HALT_ON_ERRORCOND(rdmsr64(0x406U) == 0x6666666666666666ULL);
 	}
 	switch (vmexit_reason) {
-	case VMX_VMEXIT_VMCALL:
-		printf("%d VMCALL\n", vcpu->idx);
+	case VMX_VMEXIT_CPUID:
 		{
-			static int removed;
-			if (!removed) {
-				lhv_remove_ept(vcpu);
-				removed = 1;
+			u32 old_eax = r->eax;
+			asm volatile ("cpuid\r\n"
+				  :"=a"(r->eax), "=b"(r->ebx), "=c"(r->ecx), "=d"(r->edx)
+				  :"a"(r->eax), "c" (r->ecx));
+			if (old_eax == 0x1) {
+				/* Clear VMX capability */
+				r->ecx &= ~(1U << 5);
 			}
-			__vmx_invept(VMX_INVEPT_GLOBAL, (u64)0);
-		}
-		//HALT_ON_ERRORCOND(0 && "VMCALL");
-		vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
-		break;
-	case VMX_VMEXIT_EPT_VIOLATION:
-		printf("%d EPT\n", vcpu->idx);
-		{
-			ulong_t q = vmcs_vmread(vcpu, VMCS_info_exit_qualification);
-			u64 paddr = vmcs_vmread64(vcpu, VMCS_guest_paddr);
-			ulong_t vaddr = vmcs_vmread(vcpu, VMCS_info_guest_linear_address);
-			printf("CPU(0x%02x): ept: 0x%08lx\n", vcpu->id, q);
-			printf("CPU(0x%02x): paddr: 0x%016llx\n", vcpu->id, paddr);
-			printf("CPU(0x%02x): vaddr: 0x%08lx\n", vcpu->id, vaddr);
-			vmcs_dump(vcpu, 0);
-			HALT_ON_ERRORCOND(0 && "EPT VIOLATION");
+			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 			break;
 		}
+	case VMX_VMEXIT_RDMSR:
+		{
+			asm volatile ("rdmsr\r\n"
+				  :"=a"(r->eax), "=d"(r->edx)
+				  :"c" (r->ecx));
+			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+			break;
+		}
+	case VMX_VMEXIT_VMCALL:
+		if (vcpu->vmcall_exit_count < UINT_MAX) {
+			vcpu->vmcall_exit_count++;
+		}
+		if (__LHV_OPT__ & LHV_USE_EPT) {
+			/* Make sure that EPT exits are present */
+			HALT_ON_ERRORCOND(vcpu->ept_exit_count + 3 >
+							  vcpu->vmcall_exit_count);
+		}
+		{
+			asm volatile ("sti; hlt; cli;");
+			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+			break;
+		}
+	case VMX_VMEXIT_EPT_VIOLATION:
 		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
 		if (vcpu->ept_exit_count < UINT_MAX) {
 			vcpu->ept_exit_count++;
