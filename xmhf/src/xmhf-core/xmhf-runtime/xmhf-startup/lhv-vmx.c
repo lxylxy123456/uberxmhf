@@ -382,7 +382,13 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	switch (vmexit_reason) {
 	case VMX_VMEXIT_VMCALL:
 		printf("%d VMCALL\n", vcpu->idx);
-		lhv_remove_ept(vcpu);
+		{
+			static int removed;
+			if (!removed) {
+				lhv_remove_ept(vcpu);
+				removed = 1;
+			}
+		}
 		//HALT_ON_ERRORCOND(0 && "VMCALL");
 		break;
 	case VMX_VMEXIT_EPT_VIOLATION:

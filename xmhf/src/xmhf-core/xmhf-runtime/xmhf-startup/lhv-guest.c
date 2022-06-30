@@ -12,6 +12,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		}
 	} else {
 		while (1) {
+			printf("%ld access lxy\n", cpu_id);
 			lxy[0]++;
 		}
 	}
