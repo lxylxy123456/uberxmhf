@@ -5,10 +5,10 @@ extern u8 lxy[PAGE_SIZE_4K];
 
 void lhv_guest_main(ulong_t cpu_id)
 {
-	lxy[0]++;
 	if (cpu_id == 0) {
 		while (1) {
 			asm volatile ("vmcall");
+			lxy[0]++;
 		}
 	} else {
 		while (1) {
