@@ -14,6 +14,19 @@ else
 		echo "Skip $1"
 		exit 0
 	fi
-	indent -linux -ts4 -i4 "$1"
+	
+	# Old implementation: $1 will be overwritten even if no changes are made.
+	# indent -linux -ts4 -i4 "$1"
+
+	# New implementation: only modify $1 when changing content.
+	TEMP_FILE="`mktemp`"
+	cp "$1" "$TEMP_FILE"
+	VERSION_CONTROL=none indent -linux -ts4 -i4 "$TEMP_FILE"
+	if diff "$1" "$TEMP_FILE" > /dev/null; then
+		rm "$TEMP_FILE"
+	else
+		mv "$1" "$1~"
+		mv "$TEMP_FILE" "$1"
+	fi
 fi
 

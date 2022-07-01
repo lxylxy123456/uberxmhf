@@ -348,4 +348,5 @@ Then place the code in OpenGrok. Looks good
 TODO: discuss TLB shootdown and security problem in TrustVisor
 TODO: implement EPT with limited features
 TODO: study KVM code, maybe use older version
+TODO: encountering memory size limit: on QEMU currently runtime has to < 256M
 
