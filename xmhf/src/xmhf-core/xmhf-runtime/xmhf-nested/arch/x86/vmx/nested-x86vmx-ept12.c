@@ -192,6 +192,9 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	/* Get the entry in EPT12 and the L1 paddr that is to be accessed */
 	hptw_get_pmeo(&pmeo12, (hptw_ctx_t *) & ept12_ctx, 1, guest2_paddr);
 	if (!hpt_pmeo_is_page(&pmeo12)) {
+		printf("CPU(0x%02x): EPT: pa=0x%08llx rip=0x%08lx rflags=0x%08lx 2\n",
+			   vcpu->id, guest2_paddr, __vmx_vmreadNW(VMCSENC_guest_RIP),
+			   __vmx_vmreadNW(VMCSENC_guest_RFLAGS));
 		return 2;
 	}
 	/* TODO: Large pages not supported yet */
@@ -202,6 +205,9 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	hptw_get_pmeo(&pmeo01, (hptw_ctx_t *) & ept12_ctx.ctx01.host_ctx, 1,
 				  guest1_paddr);
 	if (!hpt_pmeo_is_page(&pmeo01)) {
+		printf("CPU(0x%02x): EPT: pa=0x%08llx rip=0x%08lx rflags=0x%08lx 3\n",
+			   vcpu->id, guest2_paddr, __vmx_vmreadNW(VMCSENC_guest_RIP),
+			   __vmx_vmreadNW(VMCSENC_guest_RFLAGS));
 		return 3;
 	}
 	/* TODO: Large pages not supported yet */
@@ -244,7 +250,14 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	/* Put page map entry into EPT02 */
 	HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&vmcs12_info->ept02_ctx.ctx,
 											 &pmeo02, guest2_paddr) == 0);
-	printf("CPU(0x%02x): EPT: 0x%08llx 0x%08llx 0x%08llx\n", vcpu->id,
-		   guest2_paddr, guest1_paddr, xmhf_paddr);
+
+	/* Sanity check for identity mapping pages (TODO: remove me) */
+	{
+		HALT_ON_ERRORCOND(guest1_paddr == xmhf_paddr);
+		HALT_ON_ERRORCOND(PA_PAGE_ALIGN_4K(guest2_paddr) == guest1_paddr);
+		printf("CPU(0x%02x): EPT: pa=0x%08llx rip=0x%08lx rflags=0x%08lx\n",
+			   vcpu->id, guest2_paddr, __vmx_vmreadNW(VMCSENC_guest_RIP),
+			   __vmx_vmreadNW(VMCSENC_guest_RFLAGS));
+	}
 	return 1;
 }
