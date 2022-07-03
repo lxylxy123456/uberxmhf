@@ -251,6 +251,19 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&vmcs12_info->ept02_ctx.ctx,
 											 &pmeo02, guest2_paddr) == 0);
 
+	{
+		static int index;
+		if (index == 11) {
+//			HALT_ON_ERRORCOND(0);
+			printf("R\n");
+			__vmx_vmwrite64(VMCSENC_control_EPT_pointer, vcpu->vmcs.control_EPT_pointer);
+		}
+		printf("         %d PMEO02=0x%08llx PMEO12=0x%08llx PMEO01=0x%08llx\n",
+				index++, pmeo02.pme, pmeo12.pme, pmeo01.pme);
+		HALT_ON_ERRORCOND((pmeo02.pme & ~0x38ULL) == (pmeo12.pme & ~0x38ULL));
+		HALT_ON_ERRORCOND(pmeo02.pme == pmeo01.pme);
+	}
+
 	/* Sanity check for identity mapping pages (TODO: remove me) */
 	{
 		HALT_ON_ERRORCOND(guest1_paddr == xmhf_paddr);
