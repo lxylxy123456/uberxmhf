@@ -51,9 +51,7 @@
 #include "nested-x86vmx-handler.h"
 #include "nested-x86vmx-vmcs12.h"
 #include "nested-x86vmx-vminsterr.h"
-
-/* Maximum number of active VMCS per CPU */
-#define VMX_NESTED_MAX_ACTIVE_VMCS 10
+#include "nested-x86vmx-ept12.h"
 
 #define CUR_VMCS_PTR_INVALID 0xffffffffffffffffULL
 
@@ -223,6 +221,7 @@ static void active_vmcs12_array_init(VCPU * vcpu)
 	int i;
 	for (i = 0; i < VMX_NESTED_MAX_ACTIVE_VMCS; i++) {
 		spa_t vmcs02_ptr = hva2spa(cpu_vmcs02[vcpu->idx][i]);
+		cpu_active_vmcs12[vcpu->idx][i].index = i;
 		cpu_active_vmcs12[vcpu->idx][i].vmcs12_ptr = CUR_VMCS_PTR_INVALID;
 		cpu_active_vmcs12[vcpu->idx][i].vmcs02_ptr = vmcs02_ptr;
 	}
@@ -265,6 +264,9 @@ static void new_active_vmcs12(VCPU * vcpu, gpa_t vmcs_ptr, u32 rev)
 		   sizeof(vmcs12_info->vmcs02_vmexit_msr_load_area));
 	memset(&vmcs12_info->vmcs02_vmentry_msr_load_area, 0,
 		   sizeof(vmcs12_info->vmcs02_vmentry_msr_load_area));
+	vmcs12_info->guest_ept_enable = 0;
+	vmcs12_info->guest_ept_root = 0;
+	/* vmcs12_info->ept02_ctx is initialized when guest uses EPT */
 }
 
 /*
@@ -549,12 +551,15 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
 	vmcs12_info_t *vmcs12_info;
+	u32 vmexit_reason = __vmx_vmread32(VMCSENC_info_vmexit_reason);
+
 	/*
 	 * Check whether this VMEXIT is for quiescing. If so, printing before the
 	 * quiesce is completed will result in deadlock.
 	 */
-	if (__vmx_vmread32(0x4402) == VMX_VMEXIT_EXCEPTION &&
-		(__vmx_vmread32(0x4404) & INTR_INFO_VECTOR_MASK) == 0x2) {
+	if (vmexit_reason == VMX_VMEXIT_EXCEPTION &&
+		(__vmx_vmread32(VMCSENC_info_vmexit_interrupt_information) &
+		 INTR_INFO_VECTOR_MASK) == 0x2) {
 		/* NMI received by L2 guest */
 		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu)) {
 			xmhf_smpguest_arch_x86vmx_unblock_nmi();
@@ -576,11 +581,55 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			xmhf_smpguest_arch_x86vmx_unblock_nmi();
 		}
 	}
+
 	vmcs12_info = find_current_vmcs12(vcpu);
+
+	/*
+	 * Check whether this VMEXIT is caused by EPT violation.
+	 * If guest does not enable EPT, then the guest is doing illegal things.
+	 * If guest enables EPT, need to manually walk EPT12 and see.
+	 */
+	if (vmexit_reason == VMX_VMEXIT_EPT_VIOLATION) {
+		int status = 3;
+		if (vmcs12_info->guest_ept_enable) {
+			status =
+				xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu, vmcs12_info);
+		}
+		switch (status) {
+		case 1:
+			/* EPT handled by L0, continue running L2 */
+			__vmx_vmentry_vmresume(r);
+			HALT_ON_ERRORCOND(0 && "VMRESUME should not return");
+			break;
+		case 2:
+			/*
+			 * Forward EPT violation to L1.
+			 *
+			 * There is no address L0 physical -> L1 physical address
+			 * translation needed, so just continue.
+			 */
+			break;
+		case 3:
+			/* Guest accesses illegal address, halt for safety */
+			printf("CPU(0x%02x): qualification: 0x%08lx\n", vcpu->id,
+				   __vmx_vmreadNW(VMCSENC_info_exit_qualification));
+			printf("CPU(0x%02x): paddr: 0x%016llx\n", vcpu->id,
+				   __vmx_vmread64(VMCSENC_guest_paddr));
+			printf("CPU(0x%02x): linear addr:   0x%08lx\n", vcpu->id,
+				   __vmx_vmreadNW(VMCSENC_info_guest_linear_address));
+			HALT_ON_ERRORCOND(0 && "Guest accesses illegal memory");
+			break;
+		default:
+			HALT_ON_ERRORCOND(0 && "Unknown status");
+			break;
+		}
+	}
+
+	/* Wake the guest hypervisor up for the VMEXIT */
 	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
 	if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {
 		/*
-		 * TODO: Stopping here makes debugging a correct guest hypervisor
+		 * TODO: Stopping here makes debugging with a correct guest hypervisor
 		 * easier. The correct behavior should be injecting the VMEXIT to
 		 * guest hypervisor.
 		 */
