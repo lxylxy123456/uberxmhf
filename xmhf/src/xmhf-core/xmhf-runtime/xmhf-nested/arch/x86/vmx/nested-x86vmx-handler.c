@@ -608,6 +608,13 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			 * There is no address L0 physical -> L1 physical address
 			 * translation needed, so just continue.
 			 */
+#if 0 /* Emulate instruction */
+			r->eax = 0xfee1c0de;
+			__vmx_vmwriteNW(VMCSENC_guest_RIP,
+				__vmx_vmreadNW(VMCSENC_guest_RIP) + 
+				__vmx_vmread32(VMCSENC_info_vmexit_instruction_length));
+			__vmx_vmentry_vmresume(r);
+#endif
 			break;
 		case 3:
 			/* Guest accesses illegal address, halt for safety */
