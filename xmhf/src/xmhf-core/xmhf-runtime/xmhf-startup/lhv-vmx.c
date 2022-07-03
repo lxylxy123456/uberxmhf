@@ -400,6 +400,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			break;
 		}
 	case VMX_VMEXIT_VMCALL:
+#if 0
 		if (vcpu->vmcall_exit_count < UINT_MAX) {
 			vcpu->vmcall_exit_count++;
 		}
@@ -413,6 +414,8 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 			break;
 		}
+#endif
+		/* fallthrough */
 	case VMX_VMEXIT_EPT_VIOLATION:
 		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
 		if (vcpu->ept_exit_count < UINT_MAX) {
@@ -422,6 +425,11 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			ulong_t q = vmcs_vmread(vcpu, VMCS_info_exit_qualification);
 			u64 paddr = vmcs_vmread64(vcpu, VMCS_guest_paddr);
 			ulong_t vaddr = vmcs_vmread(vcpu, VMCS_info_guest_linear_address);
+			if (vmexit_reason == VMX_VMEXIT_VMCALL) {
+				q = 0x181;
+				paddr = 0x12340000;
+				vaddr = 0x12340000;
+			}
 			if (paddr == 0x12340000 && vaddr == 0x12340000) {
 				HALT_ON_ERRORCOND(q == 0x181);
 				HALT_ON_ERRORCOND(r->eax == 0xdeadbeef);

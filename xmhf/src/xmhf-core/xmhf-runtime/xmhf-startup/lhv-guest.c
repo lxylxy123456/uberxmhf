@@ -22,7 +22,8 @@ void lhv_guest_main(ulong_t cpu_id)
 			u32 a = 0xdeadbeef;
 			u32 *p = (u32 *)0x12340000;
 			printf("!ACCESS\n");
-			asm volatile("movl (%1), %%eax" :
+			// asm volatile("movl (%1), %%eax" :
+			asm volatile("vmcall" :
 						 "+a" (a) :
 						 "b" (p) :
 						 "cc", "memory");
