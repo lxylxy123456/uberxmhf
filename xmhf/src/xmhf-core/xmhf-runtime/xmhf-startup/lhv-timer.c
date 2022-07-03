@@ -62,10 +62,10 @@ void timer_init(VCPU *vcpu)
 		outb((u8)(ncycles >> 8), TIMER_PERIOD_IO_PORT);
 	}
 
-	/* LAPIC Timer */
-	write_lapic(LAPIC_TIMER_DIV, 0x0000000b);
-	write_lapic(LAPIC_TIMER_INIT, LAPIC_PERIOD);
-	write_lapic(LAPIC_LVT_TIMER, 0x00020022);
+//	/* LAPIC Timer */
+//	write_lapic(LAPIC_TIMER_DIV, 0x0000000b);
+//	write_lapic(LAPIC_TIMER_INIT, LAPIC_PERIOD);
+//	write_lapic(LAPIC_LVT_TIMER, 0x00020022);
 }
 
 static void update_screen(VCPU *vcpu, int *x, int y, int guest)

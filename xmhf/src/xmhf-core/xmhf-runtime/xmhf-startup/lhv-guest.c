@@ -18,17 +18,21 @@ void lhv_guest_main(ulong_t cpu_id)
 		asm volatile ("sti");
 	}
 	while (1) {
-		asm volatile ("hlt");
+		// asm volatile ("hlt");
 		// asm volatile ("vmcall");
+#if 1
 		if (__LHV_OPT__ & LHV_USE_EPT) {
 			u32 a = 0xdeadbeef;
 			u32 *p = (u32 *)0x12340000;
+			printf("!ACCESS\n");
 			asm volatile("movl (%1), %%eax" :
 						 "+a" (a) :
 						 "b" (p) :
 						 "cc", "memory");
 			HALT_ON_ERRORCOND(a == 0xfee1c0de);
 		}
+#endif
+		asm volatile ("hlt");
 	}
 }
 
