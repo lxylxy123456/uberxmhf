@@ -345,8 +345,18 @@ Then place the code in OpenGrok. Looks good
 
 ### EPT with limited features
 
-TODO: discuss TLB shootdown and security problem in TrustVisor
+We start implementing the EPT anyway. For now forget about the challenged. I
+also realized that if we are driven by EPT exits and do not care about access
+and dirty bits, maybe we can leave EPT12 intact. The guest should run INVEPT
+when it changes EPT entries, and the guest is responsible for TLB shootdown.
+
+In xmhf64-dev `6eb88e97b`, have basic EPT. However, the guest stuck due to not
+receiving expected interrupt (probably EOI is lost).
+
+TODO: fix security problem in TrustVisor
+
 TODO: implement EPT with limited features
 TODO: study KVM code, maybe use older version
+TODO: study shadow page table, maybe use Xen code
 TODO: encountering memory size limit: on QEMU currently runtime has to < 256M
 
