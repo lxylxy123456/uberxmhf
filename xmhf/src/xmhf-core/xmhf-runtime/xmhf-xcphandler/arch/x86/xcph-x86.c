@@ -62,7 +62,9 @@ VCPU *_svm_and_vmx_getvcpu(void){
   u32 lapic_id;
 
   //read LAPIC id of this core
-  rdmsr(MSR_APIC_BASE, &eax, &edx);
+  //rdmsr(MSR_APIC_BASE, &eax, &edx);
+  eax = 0xfee00020;
+  edx = 0;
   HALT_ON_ERRORCOND( edx == 0 ); //APIC is below 4G
   if (eax & (1U << 10)) {
     /* x2APIC is enabled, use it */
