@@ -62,10 +62,12 @@ void timer_init(VCPU *vcpu)
 		outb((u8)(ncycles >> 8), TIMER_PERIOD_IO_PORT);
 	}
 
-//	/* LAPIC Timer */
-//	write_lapic(LAPIC_TIMER_DIV, 0x0000000b);
-//	write_lapic(LAPIC_TIMER_INIT, LAPIC_PERIOD);
-//	write_lapic(LAPIC_LVT_TIMER, 0x00020022);
+#if 0
+	/* LAPIC Timer */
+	write_lapic(LAPIC_TIMER_DIV, 0x0000000b);
+	write_lapic(LAPIC_TIMER_INIT, LAPIC_PERIOD);
+	write_lapic(LAPIC_LVT_TIMER, 0x00020022);
+#endif
 }
 
 static void update_screen(VCPU *vcpu, int *x, int y, int guest)
@@ -107,9 +109,13 @@ static void calibrate_timer(VCPU *vcpu) {
 			p_t, l_t, l_quo, l_tot, cal_1, cal_2, rtc_get_sec_of_day());
 }
 
+static int timer20_count = 0;
+static int timer22_count = 0;
+
 void handle_timer_interrupt(VCPU *vcpu, int vector, int guest)
 {
 	if (vector == 0x20) {
+		timer20_count++;
 		vcpu->pit_time++;
 		update_screen(vcpu, &vcpu->lhv_pit_x[guest], 0, guest);
 		outb(INT_ACK_CURRENT, INT_CTL_PORT);
@@ -118,6 +124,7 @@ void handle_timer_interrupt(VCPU *vcpu, int vector, int guest)
 		}
 	} else if (vector == 0x22) {
 		vcpu->lapic_time++;
+		timer22_count++;
 		update_screen(vcpu, &vcpu->lhv_lapic_x[guest], 1, guest);
 		write_lapic(LAPIC_EOI, 0);
 		if (!"Calibrate timer" && vcpu->isbsp && vcpu->lapic_time % 50 == 0) {

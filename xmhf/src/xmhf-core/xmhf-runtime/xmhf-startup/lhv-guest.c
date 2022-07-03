@@ -14,9 +14,6 @@ void lhv_guest_main(ulong_t cpu_id)
 			console_put_char(&vc, i, j, '0' + vcpu->id);
 		}
 	}
-	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
-		asm volatile ("sti");
-	}
 	while (1) {
 		// asm volatile ("hlt");
 		// asm volatile ("vmcall");
@@ -32,7 +29,9 @@ void lhv_guest_main(ulong_t cpu_id)
 			HALT_ON_ERRORCOND(a == 0xfee1c0de);
 		}
 #endif
+		asm volatile ("sti");
 		asm volatile ("hlt");
+		asm volatile ("cli");
 	}
 }
 

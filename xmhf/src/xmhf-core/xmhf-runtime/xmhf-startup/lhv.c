@@ -22,7 +22,7 @@ void lhv_main(VCPU *vcpu)
 			console_put_char(&vc, i, j, '0' + vcpu->id);
 		}
 	}
-	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+	if (0 && !(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 		/* Set EFLAGS.IF */
 		uintptr_t a;
 		get_eflags(a);
