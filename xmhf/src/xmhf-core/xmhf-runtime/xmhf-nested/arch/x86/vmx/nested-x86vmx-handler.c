@@ -560,6 +560,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	if (vmexit_reason == VMX_VMEXIT_EXCEPTION &&
 		(__vmx_vmread32(VMCSENC_info_vmexit_interrupt_information) &
 		 INTR_INFO_VECTOR_MASK) == 0x2) {
+		HALT_ON_ERRORCOND(0 && "not expected");
 		/* NMI received by L2 guest */
 		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu)) {
 			xmhf_smpguest_arch_x86vmx_unblock_nmi();
