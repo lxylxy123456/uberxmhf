@@ -327,6 +327,9 @@ For now, likely not going to worry about reproducing the problem in TrustVisor.
 Not having TLB shootdown code in TrustVisor can already be considered a
 security problem.
 
+Fixed in `99a7e5aba..aadd462c1`. The TLB shootdown code is already there. Just
+request TLB shootdown by setting `g_vmx_flush_all_tlb_signal` to 1.
+
 ### KVM code
 
 Using the following script to collect KVM code from Linux
@@ -353,9 +356,90 @@ when it changes EPT entries, and the guest is responsible for TLB shootdown.
 In xmhf64-dev `6eb88e97b`, have basic EPT. However, the guest stuck due to not
 receiving expected interrupt (probably EOI is lost).
 
-TODO: fix security problem in TrustVisor
+We start by simplifying LHV. In `f75302811`, remove VMCALL and see that guest
+mode also stucks. In `8fb399926`, simplify LHV more. We see that if we remove
+the EPT violation in `lhv_guest_main()` to address `0x12340000`, then the
+problem disappears. So we suspect that the code to forward L2 EPT exit to L1 is
+incorrect.
+
+In `599e7668a`, only enable interrupts after L1 handles EPT. Can see that
+L1's handling of EPT has a problem. In `69c30a52a`, can run on Bochs. The
+result is the same as QEMU. So most likely XMHF is incorrect.
+
+Since there is only one EPT exit that goes to L1, we should be able to replace
+it with VMCALL. In lhv-dev `6fc25ee9a` (and xmhf64-dev `ed588a2ba`),
+implemented this and the problem is still reproducible.
+
+In lhv-dev `23e417468`, can remove VMCALL. So the experiment in `8fb399926` may
+be incorrect. In lhv-dev `4116b8b75`, removed all `L2 -> L0 -> L1` VMEXITs. Now
+the behavior is
+* Without XMHF, see `Halting! Condition '0' failed, line 368, file lhv-vmx.c`
+  because LHV no longer handles VMEXITs
+* With xmhf64-nest-dev `ed588a2ba`, LHV stucks forever.
+
+There are 12 VMEXITs at this point:
+
+```
+pa=0x08b68208 rip=0x0820bff8 rflags=0x00010002 0  PMEO02=0x08b68037
+pa=0x0820bff8 rip=0x0820bff8 rflags=0x00010002 1  PMEO02=0x0820b037
+pa=0x08b93ffc rip=0x0820bff8 rflags=0x00010002 2  PMEO02=0x08b93037
+pa=0x08200560 rip=0x08200560 rflags=0x00010012 3  PMEO02=0x08200037
+pa=0x08b6bfb8 rip=0x082005f5 rflags=0x00010082 4  PMEO02=0x08b6b037
+pa=0xfee00020 rip=0x082005f5 rflags=0x00010082 5  PMEO02=0xfee00007
+pa=0x08216220 rip=0x08200625 rflags=0x00010046 6  PMEO02=0x08216037
+pa=0x08213dac rip=0x0820be7b rflags=0x00010046 7  PMEO02=0x08213037
+pa=0x08203ff8 rip=0x08203ff8 rflags=0x00010046 8  PMEO02=0x08203037
+pa=0x08204000 rip=0x08203ffe rflags=0x00010016 9  PMEO02=0x08204037
+pa=0x000b8050 rip=0x08203f68 rflags=0x00010006 10 PMEO02=0x000b8007
+pa=0x082177d8 rip=0x0820bf70 rflags=0x00000246 11 PMEO02=0x08217037
+```
+
+In xmhf64-nest-dev `202a35d31`, at the last EPT exit, replace EPT02 with
+EPT01. The process still stucks. However, if replace earlier, no longer stucks.
+By bisecting, it turns out that if replace at second last EPT exit, the problem
+is gone.
+
+Interestingly, the last EPT exit's RIP (`0x0820bf70`) is CLI instruction. pa
+is `0x082177d8 <x_gdt_start+8>`. So it is likely that EPT exit indicates that
+the exit happens during handling of interrupt / exception, and the hypervisor
+needs to re-inject the interrupt / exception.
+
+The related information is in Intel v3
+"26.2.4 Information for VM Exits During Event Delivery". For the last ETP exit,
+`info_IDT_vectoring_information = 0x80000020`. The structure is in
+"Table 23-18. Format of the IDT-Vectoring Information Field" at page 921.
+For others, the VMCS field is 0. `info_IDT_vectoring_error_code` should also be
+checked.
+
+The correct response should be injecting the event to the CPU, using
+`control_VM_entry_interruption_information` and
+`control_VM_entry_exception_errorcode`. The sturcture for the first one is in
+"Table 23-15. Format of the VM-Entry Interruption-Information Field" on
+page 918. We can see that these 2 tables are the same. So just need to copy
+the fields.
+
+In `xmhf64-nest-dev 23785cedb`, solve the problem. Cherry-picked to
+`xmhf64-nest 54c4697bd`.
+
+Well, actually XMHF checks this in peh:
+```c
+1403  	//make sure we have no nested events
+1404  	if(vcpu->vmcs.info_IDT_vectoring_information & 0x80000000){
+1405  		printf("CPU(0x%02x): HALT; Nested events unhandled with hwp:0x%08x\n",
+1406  			vcpu->id, vcpu->vmcs.info_IDT_vectoring_information);
+1407  		HALT();
+1408  	}
+```
+
+Untried ideas
+* check all bits during EPT exit
+	* The cause of this bug would be found if checking
+	  `control_VM_entry_interruption_information`
+* maybe has something to do with EPT TLB? Though not likely
 
 TODO: implement EPT with limited features
+TODO: perform some caching on EPT
+TODO: implement unrestricted guest
 TODO: study KVM code, maybe use older version
 TODO: study shadow page table, maybe use Xen code
 TODO: encountering memory size limit: on QEMU currently runtime has to < 256M
