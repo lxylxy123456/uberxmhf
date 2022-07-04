@@ -20,7 +20,8 @@ typedef struct {
 #define LHV_USE_MSR_LOAD			0x0000000000000001ULL
 #define LHV_NO_EFLAGS_IF			0x0000000000000002ULL
 #define LHV_USE_EPT					0x0000000000000004ULL
-#define LHV_USE_UNRESTRICTED_GUEST	0x0000000000000008ULL
+#define LHV_USE_SWITCH_EPT			0x0000000000000008ULL
+#define LHV_USE_UNRESTRICTED_GUEST	0x0000000000000010ULL
 
 /* xcph-x86.c */
 VCPU *_svm_and_vmx_getvcpu(void);
@@ -52,7 +53,13 @@ void vmlaunch_asm(struct regs *r);	/* Never returns */
 void vmresume_asm(struct regs *r);	/* Never returns */
 
 /* lhv-ept.c */
-#define LHV_EPT_COUNT 5
+
+/*
+ * When this is larger than XMHF's VMX_NESTED_MAX_ACTIVE_EPT, should see a lot
+ * of EPT cache misses.
+ */
+#define LHV_EPT_COUNT 2
+
 u64 lhv_build_ept(VCPU *vcpu, u8 ept_num);
 
 /* lhv-vmcs.c */
