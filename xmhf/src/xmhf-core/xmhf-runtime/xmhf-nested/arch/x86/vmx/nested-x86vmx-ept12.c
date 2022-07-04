@@ -268,9 +268,13 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	{
 		HALT_ON_ERRORCOND(guest1_paddr == xmhf_paddr);
 		HALT_ON_ERRORCOND(PA_PAGE_ALIGN_4K(guest2_paddr) == guest1_paddr);
-		printf("CPU(0x%02x): EPT: pa=0x%08llx rip=0x%08lx rflags=0x%08lx\n",
+		printf("CPU(0x%02x): EPT: pa=0x%08llx rip=0x%08lx rflags=0x%08lx "
+				"q=0x%08lx int=0x%08x idt=0x%08x\n",
 			   vcpu->id, guest2_paddr, __vmx_vmreadNW(VMCSENC_guest_RIP),
-			   __vmx_vmreadNW(VMCSENC_guest_RFLAGS));
+			   __vmx_vmreadNW(VMCSENC_guest_RFLAGS),
+			   __vmx_vmreadNW(VMCSENC_info_exit_qualification),
+			   __vmx_vmread32(VMCSENC_control_VM_entry_interruption_information),
+			   __vmx_vmread32(VMCSENC_info_IDT_vectoring_information));
 	}
 	return 1;
 }
