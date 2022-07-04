@@ -14,25 +14,21 @@ void lhv_guest_main(ulong_t cpu_id)
 			console_put_char(&vc, i, j, '0' + vcpu->id);
 		}
 	}
+	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+		asm volatile ("sti");
+	}
 	while (1) {
-		// asm volatile ("hlt");
-		// asm volatile ("vmcall");
-#if 0
+		asm volatile ("hlt");
+		asm volatile ("vmcall");
 		if (__LHV_OPT__ & LHV_USE_EPT) {
 			u32 a = 0xdeadbeef;
 			u32 *p = (u32 *)0x12340000;
-			printf("!ACCESS\n");
-			// asm volatile("movl (%1), %%eax" :
-			asm volatile("vmcall" :
+			asm volatile("movl (%1), %%eax" :
 						 "+a" (a) :
 						 "b" (p) :
 						 "cc", "memory");
 			HALT_ON_ERRORCOND(a == 0xfee1c0de);
 		}
-#endif
-		asm volatile ("sti");
-		asm volatile ("hlt");
-		asm volatile ("cli");
 	}
 }
 

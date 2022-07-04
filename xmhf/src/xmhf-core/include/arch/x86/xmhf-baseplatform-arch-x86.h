@@ -171,7 +171,7 @@ struct _guestmtrrmsrs {
 #define INDEX_IA32_VMX_VMFUNC_MSR               0x11
 
 //---platform
-#define IA32_VMX_MSRCOUNT                       17
+#define IA32_VMX_MSRCOUNT                       18
 
 #ifndef __ASSEMBLY__
 
