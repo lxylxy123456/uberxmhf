@@ -104,15 +104,21 @@ u64 lhv_build_ept(VCPU *vcpu, u8 ept_num)
 		/* Console */
 		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0x000b8000, 0x000b9000);
 		/* 0x12340000 -> ept_target */
+	} else {
+		HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_SINGLECONTEXT,
+									   ept_ctx.ctx.root_pa | 0x1eULL));
+		// HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_GLOBAL, 0));
 	}
-	if (ept_num) {
+	{
 		memset(ept_target[ept_num], ept_num, 16);
-		hpt_pmeo_set_address(&pmeo, hva2spa(ept_target[ept_num]));
+		if (ept_num) {
+			hpt_pmeo_set_address(&pmeo, hva2spa(ept_target[ept_num]));
+		} else {
+			pmeo.pme = 0;
+		}
 		HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&ept_ctx.ctx, &pmeo,
 												 0x12340000ULL) == 0);
 	}
-	HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_SINGLECONTEXT, ept_ctx.ctx.root_pa | 0x1eULL));
-	// HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_GLOBAL, 0));
 	return ept_ctx.ctx.root_pa;
 }
 

@@ -29,8 +29,10 @@ void lhv_guest_main(ulong_t cpu_id)
 						 "+a" (a) :
 						 "b" (p) :
 						 "cc", "memory");
-			printf("CPU(0x%02x): EPT result: 0x%08x 0x%02x\n", vcpu->id, a,
-				   vcpu->ept_num);
+			if (0) {
+				printf("CPU(0x%02x): EPT result: 0x%08x 0x%02x\n", vcpu->id, a,
+					   vcpu->ept_num);
+			}
 			if (vcpu->ept_num == 0) {
 				HALT_ON_ERRORCOND(a == 0xfee1c0de);
 			} else {
