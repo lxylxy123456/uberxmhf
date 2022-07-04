@@ -171,7 +171,8 @@ struct _guestmtrrmsrs {
 #define INDEX_IA32_VMX_VMFUNC_MSR               0x11
 
 //---platform
-#define IA32_VMX_MSRCOUNT                       18
+// TODO: IA32_VMX_MSRCOUNT should be 18, but Bochs does not support the last one
+#define IA32_VMX_MSRCOUNT                       17
 
 #ifndef __ASSEMBLY__
 
