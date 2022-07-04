@@ -419,7 +419,8 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
 			/* Swap EPT */
 			vcpu->ept_num++;
-			vcpu->ept_num %= (LHV_EPT_COUNT << 4);
+			// TODO: vcpu->ept_num %= (LHV_EPT_COUNT << 4);
+			vcpu->ept_num %= 2;
 			eptp = lhv_build_ept(vcpu, vcpu->ept_num);
 			vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
 		}

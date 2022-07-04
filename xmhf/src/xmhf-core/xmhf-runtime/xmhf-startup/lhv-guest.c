@@ -18,7 +18,9 @@ void lhv_guest_main(ulong_t cpu_id)
 		asm volatile ("sti");
 	}
 	while (1) {
-		asm volatile ("hlt");
+		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+			asm volatile ("hlt");
+		}
 		asm volatile ("vmcall");
 		if (__LHV_OPT__ & LHV_USE_EPT) {
 			u32 a = 0xdeadbeef;

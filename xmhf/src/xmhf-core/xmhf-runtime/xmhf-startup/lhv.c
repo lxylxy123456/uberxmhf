@@ -24,10 +24,7 @@ void lhv_main(VCPU *vcpu)
 	}
 	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 		/* Set EFLAGS.IF */
-		uintptr_t a;
-		get_eflags(a);
-		a |= EFLAGS_IF;
-		set_eflags(a);
+		asm volatile ("sti");
 	}
 
 	/* Start VT related things */
