@@ -52,7 +52,8 @@ void vmlaunch_asm(struct regs *r);	/* Never returns */
 void vmresume_asm(struct regs *r);	/* Never returns */
 
 /* lhv-ept.c */
-u64 lhv_build_ept(VCPU *vcpu);
+#define LHV_EPT_COUNT 5
+u64 lhv_build_ept(VCPU *vcpu, u8 ept_num);
 
 /* lhv-vmcs.c */
 void vmcs_vmwrite(VCPU *vcpu, ulong_t encoding, ulong_t value);

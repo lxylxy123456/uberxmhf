@@ -27,7 +27,14 @@ void lhv_guest_main(ulong_t cpu_id)
 						 "+a" (a) :
 						 "b" (p) :
 						 "cc", "memory");
-			HALT_ON_ERRORCOND(a == 0xfee1c0de);
+			if (vcpu->ept_num == 0) {
+				HALT_ON_ERRORCOND(a == 0xfee1c0de);
+			} else {
+				HALT_ON_ERRORCOND((u8) a == vcpu->ept_num);
+				HALT_ON_ERRORCOND((u8) (a >> 8) == vcpu->ept_num);
+				HALT_ON_ERRORCOND((u8) (a >> 16) == vcpu->ept_num);
+				HALT_ON_ERRORCOND((u8) (a >> 24) == vcpu->ept_num);
+			}
 		}
 	}
 }

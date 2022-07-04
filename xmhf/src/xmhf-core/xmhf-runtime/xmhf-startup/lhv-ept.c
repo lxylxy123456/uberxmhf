@@ -3,16 +3,23 @@
 
 #define EPT_POOL_SIZE 128
 
+/* Whether the EPT is already built. If so, store EPTP */
+static u64 ept_valid[MAX_VCPU_ENTRIES][LHV_EPT_COUNT];
+
 /* Root EPT pages */
-static u8 ept_root[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+static u8 ept_root[MAX_VCPU_ENTRIES][LHV_EPT_COUNT][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 
 /* Physical memory for storing more  */
-static u8 ept_pool[MAX_VCPU_ENTRIES][EPT_POOL_SIZE][PAGE_SIZE_4K]
+static u8 ept_pool[MAX_VCPU_ENTRIES][LHV_EPT_COUNT][EPT_POOL_SIZE][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 
 /* Indicate whether the page in ept_pool is free */
-static u8 ept_alloc[MAX_VCPU_ENTRIES][EPT_POOL_SIZE];
+static u8 ept_alloc[MAX_VCPU_ENTRIES][LHV_EPT_COUNT][EPT_POOL_SIZE];
+
+/* Memory to be mapped  */
+static u8 ept_target[EPT_POOL_SIZE][PAGE_SIZE_4K]
+__attribute__(( section(".bss.palign_data") ));
 
 typedef struct {
 	hptw_ctx_t ctx;
@@ -62,7 +69,7 @@ static void ept_map_continuous_addr(VCPU *vcpu, lhv_ept_ctx_t *ept_ctx,
 	}
 }
 
-u64 lhv_build_ept(VCPU *vcpu)
+u64 lhv_build_ept(VCPU *vcpu, u8 ept_num)
 {
 	u64 low = rpb->XtVmmRuntimePhysBase;
 #ifdef __SKIP_RUNTIME_BSS__
@@ -72,14 +79,18 @@ u64 lhv_build_ept(VCPU *vcpu)
 #endif /* __SKIP_RUNTIME_BSS__ */
 	lhv_ept_ctx_t ept_ctx;
 	hpt_pmeo_t pmeo;
+	/* Skip if EPT is already built */
+	if (ept_valid[vcpu->idx][ept_num]) {
+		return ept_valid[vcpu->idx][ept_num];
+	}
 	/* Assuming that ept_pool and ept_alloc are initialized to 0 by bss */
 	ept_ctx.ctx.gzp = lhv_ept_gzp;
 	ept_ctx.ctx.pa2ptr = lhv_ept_pa2ptr;
 	ept_ctx.ctx.ptr2pa = lhv_ept_ptr2pa;
-	ept_ctx.ctx.root_pa = hva2spa(ept_root[vcpu->idx]);
+	ept_ctx.ctx.root_pa = hva2spa(ept_root[vcpu->idx][ept_num]);
 	ept_ctx.ctx.t = HPT_TYPE_EPT;
-	ept_ctx.page_pool = ept_pool[vcpu->idx];
-	ept_ctx.page_alloc = ept_alloc[vcpu->idx];
+	ept_ctx.page_pool = ept_pool[vcpu->idx][ept_num];
+	ept_ctx.page_alloc = ept_alloc[vcpu->idx][ept_num];
 	pmeo.pme = 0;
 	pmeo.t = HPT_TYPE_EPT;
 	pmeo.lvl = 1;
@@ -92,6 +103,14 @@ u64 lhv_build_ept(VCPU *vcpu)
 	ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0xfee00000, 0xfee01000);
 	/* Console */
 	ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0x000b8000, 0x000b9000);
+	/* 0x12340000 -> ept_target */
+	if (ept_num) {
+		memset(ept_target[ept_num], ept_num, PAGE_SIZE_4K);
+		hpt_pmeo_set_address(&pmeo, hva2spa(ept_target[ept_num]));
+		HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&ept_ctx.ctx, &pmeo,
+												 0x12340000ULL) == 0);
+	}
+	ept_valid[vcpu->idx][ept_num] = ept_ctx.ctx.root_pa;
 	return ept_ctx.ctx.root_pa;
 }
 

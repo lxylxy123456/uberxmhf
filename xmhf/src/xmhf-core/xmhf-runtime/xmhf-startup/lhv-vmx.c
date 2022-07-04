@@ -143,7 +143,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	}
 
 	if (__LHV_OPT__ & LHV_USE_EPT) {
-		u64 eptp = lhv_build_ept(vcpu);
+		u64 eptp = lhv_build_ept(vcpu, 0);
 		u32 seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
 		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
 		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
@@ -405,8 +405,15 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		}
 		if (__LHV_OPT__ & LHV_USE_EPT) {
 			/* Make sure that EPT exits are present */
-			HALT_ON_ERRORCOND(vcpu->ept_exit_count + 3 >
+			HALT_ON_ERRORCOND((vcpu->ept_exit_count + 3) * LHV_EPT_COUNT >
 							  vcpu->vmcall_exit_count);
+			/* Swap EPT */
+			vcpu->ept_num++;
+			vcpu->ept_num %= LHV_EPT_COUNT;
+			{
+				u64 eptp = lhv_build_ept(vcpu, vcpu->ept_num);
+				vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
+			}
 		}
 		{
 			asm volatile ("sti; hlt; cli;");
