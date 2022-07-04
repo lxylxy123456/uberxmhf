@@ -604,10 +604,23 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			 * not lost.
 			 */
 			{
+<<<<<<< HEAD
 				u32 idt_info = __vmx_vmread32(VMCSENC_info_IDT_vectoring_information);
 				u32 idt_errcode = __vmx_vmread32(VMCSENC_info_IDT_vectoring_error_code);
 				__vmx_vmwrite32(VMCSENC_control_VM_entry_interruption_information, idt_info);
 				__vmx_vmwrite32(VMCSENC_control_VM_entry_exception_errorcode, idt_errcode);
+=======
+				u16 encoding;
+				u32 idt_info, idt_errcode;
+				encoding = VMCSENC_info_IDT_vectoring_information;
+				idt_info = __vmx_vmread32(encoding);
+				encoding = VMCSENC_control_VM_entry_interruption_information;
+				__vmx_vmwrite32(encoding, idt_info);
+				encoding = VMCSENC_info_IDT_vectoring_error_code;
+				idt_errcode = __vmx_vmread32(encoding);
+				encoding = VMCSENC_control_VM_entry_exception_errorcode;
+				__vmx_vmwrite32(encoding, idt_errcode);
+>>>>>>> xmhf64-nest
 			}
 			/* Call VMRESUME */
 			__vmx_vmentry_vmresume(r);
