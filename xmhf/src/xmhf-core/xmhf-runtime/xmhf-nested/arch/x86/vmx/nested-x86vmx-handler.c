@@ -560,7 +560,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	if (vmexit_reason == VMX_VMEXIT_EXCEPTION &&
 		(__vmx_vmread32(VMCSENC_info_vmexit_interrupt_information) &
 		 INTR_INFO_VECTOR_MASK) == 0x2) {
-		HALT_ON_ERRORCOND(0 && "not expected");
 		/* NMI received by L2 guest */
 		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu)) {
 			xmhf_smpguest_arch_x86vmx_unblock_nmi();
@@ -604,12 +603,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			 * not lost.
 			 */
 			{
-<<<<<<< HEAD
-				u32 idt_info = __vmx_vmread32(VMCSENC_info_IDT_vectoring_information);
-				u32 idt_errcode = __vmx_vmread32(VMCSENC_info_IDT_vectoring_error_code);
-				__vmx_vmwrite32(VMCSENC_control_VM_entry_interruption_information, idt_info);
-				__vmx_vmwrite32(VMCSENC_control_VM_entry_exception_errorcode, idt_errcode);
-=======
 				u16 encoding;
 				u32 idt_info, idt_errcode;
 				encoding = VMCSENC_info_IDT_vectoring_information;
@@ -620,7 +613,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 				idt_errcode = __vmx_vmread32(encoding);
 				encoding = VMCSENC_control_VM_entry_exception_errorcode;
 				__vmx_vmwrite32(encoding, idt_errcode);
->>>>>>> xmhf64-nest
 			}
 			/* Call VMRESUME */
 			__vmx_vmentry_vmresume(r);
@@ -633,13 +625,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			 * There is no address L0 physical -> L1 physical address
 			 * translation needed, so just continue.
 			 */
-#if 0 /* Emulate instruction */
-			r->eax = 0xfee1c0de;
-			__vmx_vmwriteNW(VMCSENC_guest_RIP,
-				__vmx_vmreadNW(VMCSENC_guest_RIP) + 
-				__vmx_vmread32(VMCSENC_info_vmexit_instruction_length));
-			__vmx_vmentry_vmresume(r);
-#endif
 			break;
 		case 3:
 			/* Guest accesses illegal address, halt for safety */

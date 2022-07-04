@@ -857,7 +857,7 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		} else {
 			ept02 = vcpu->vmcs.control_EPT_pointer;
 		}
-		HALT_ON_ERRORCOND(__vmx_vmread64(encoding) == ept02 || 1);
+		HALT_ON_ERRORCOND(__vmx_vmread64(encoding) == ept02);
 		/* vmcs12->control_EPT_pointer is ignored here */
 	}
 	if (0) {
