@@ -425,7 +425,9 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
 		}
 		{
-			asm volatile ("sti; hlt; cli;");
+			if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+				asm volatile ("sti; hlt; cli;");
+			}
 			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 			break;
 		}
