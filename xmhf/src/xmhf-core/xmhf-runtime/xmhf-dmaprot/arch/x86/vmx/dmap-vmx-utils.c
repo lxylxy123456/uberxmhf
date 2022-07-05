@@ -213,5 +213,5 @@ bool iommu_vmx_unbind_device(DEVICEDESC *device)
 	if (vtd_pt_root == INVALID_SPADDR)
 		return false;
 
-	return __x86vmx_bind_cet(device, UNTRUSTED_OS_IOMMU_PT_ID, hva2spa(vtd_pt_root));
+	return __x86vmx_bind_cet(device, UNTRUSTED_OS_IOMMU_PT_ID, vtd_pt_root);
 }
