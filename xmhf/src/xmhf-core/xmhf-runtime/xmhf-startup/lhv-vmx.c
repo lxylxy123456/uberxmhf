@@ -159,6 +159,13 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 #endif /* __I386__ */
 	}
 
+	if (__LHV_OPT__ & LHV_USE_VPID) {
+		u32 seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
+		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_VPID);
+		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
+		vmcs_vmwrite(vcpu, VMCS_control_vpid, 1);
+	}
+
 	vmcs_vmwrite(vcpu, VMCS_control_pagefault_errorcode_mask, 0);
 	vmcs_vmwrite(vcpu, VMCS_control_pagefault_errorcode_match, 0);
 	vmcs_vmwrite(vcpu, VMCS_control_exception_bitmap, 0);
@@ -422,6 +429,12 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			vcpu->ept_num %= (LHV_EPT_COUNT << 4);
 			eptp = lhv_build_ept(vcpu, vcpu->ept_num);
 			vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
+		}
+		if (__LHV_OPT__ & LHV_USE_VPID) {
+			/* VPID will always be odd */
+			u16 vpid = vmcs_vmread(vcpu, VMCS_control_vpid);
+			vpid += 2;
+			vmcs_vmwrite(vcpu, VMCS_control_vpid, vpid);
 		}
 		{
 			if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
