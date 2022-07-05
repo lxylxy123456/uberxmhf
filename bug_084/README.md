@@ -437,8 +437,30 @@ Untried ideas
 	  `control_VM_entry_interruption_information`
 * maybe has something to do with EPT TLB? Though not likely
 
-TODO: implement EPT with limited features
-TODO: perform some caching on EPT
+### Continue working on EPT
+
+In `67bd95800`, check feature bits for EPT and disable unsupported features
+(e.g. large page, access / dirty bit).
+
+In `67bd95800..44cfb2b4c`, perform some caching on EPT to make things run fast.
+Using LRU caching policy. Cache lab is a useful reference.
+
+In lhv `8b35e400a..09f773f29`, add code to switch EPTP and EPT entries. In
+XMHF, need to handle VMEXIT due to INVEPT and INVVPID.
+
+In `xmhf64-nest 8c0f7e841`, realize that using `hptw_get_pmeo()` in
+`xmhf_nested_arch_x86vmx_handle_ept02_exit()` is bad, because `hptw_get_pmeo()`
+does not check access rights for all 4 levels of paging. We need to write some
+new functions in `hptw.c` to achieve this functionality. In
+`xmhf64-nest daafed3d0`, fixed by writing `hptw_checked_get_pmeo()` that walks
+page table.
+
+Even though we require the guest to not use VPID, there is one caveat: during
+all VMEXIT and VMENTRY, the TLB needs to be flushed. See KVM's
+`nested_vmx_transition_tlb_flush()`.
+
+TODO: let nested guest always occupy VPID = 2 for now
+TODO: implement INVVPID
 TODO: implement unrestricted guest
 TODO: study KVM code, maybe use older version
 TODO: study shadow page table, maybe use Xen code
