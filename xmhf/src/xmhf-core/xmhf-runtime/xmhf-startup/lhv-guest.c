@@ -45,10 +45,12 @@ void lhv_guest_main(ulong_t cpu_id)
 		if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
 			ulong_t cr0 = read_cr0();
 			asm volatile ("cli");
-			cr0 &= 0x7fffffffUL;
-			HALT_ON_ERRORCOND(0 && "TODO frontier");
+			write_cr0(cr0 & 0x7fffffffUL);
+			if (0) {
+				printf("CPU(0x%02x): LHV guest can disable paging\n", vcpu->id);
+			}
 			write_cr0(cr0);
-			HALT_ON_ERRORCOND(0 && "TODO frontier");
+			asm volatile ("sti");
 		}
 	}
 }
