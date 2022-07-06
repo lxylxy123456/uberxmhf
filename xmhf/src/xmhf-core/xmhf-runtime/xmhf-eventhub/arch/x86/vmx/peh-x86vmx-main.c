@@ -1122,10 +1122,19 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				// g_vmx_ept_pd_table_buffers has ...
 				// g_vmx_ept_p_table_buffers has ...
 				u64 old_t4 = ept02_cache[0].elems[3].value.ept02_ctx.ctx.root_pa;
-				//u64 old_e4 = *(u64 *) old_t4;
+				u64 old_e4 = *(u64 *) (uintptr_t) old_t4;
+				u64 old_t3 = old_e4 & ~0xfff;
+				u64 old_e3 = *(u64 *) (uintptr_t) old_t3;
 				u64 new_t4 = (uintptr_t) &g_vmx_ept_pml4_table_buffers[0];
 				u64 new_e4 = *(u64 *) (uintptr_t) new_t4;
-				*(u64 *) (uintptr_t) old_t4 = new_e4;
+				u64 new_t3 = new_e4 & ~0xfff;
+				u64 new_e3 = *(u64 *) (uintptr_t) new_t3;
+				if (1) {
+					HALT_ON_ERRORCOND(0);
+					old_e3 = new_e3;
+					new_e3 = old_e3;
+				}
+				*(u64 *) (uintptr_t) old_t3 = new_e3;
 			}
 			HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_GLOBAL, 0));
 			HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_ALLCONTEXTS, 0, 0));
