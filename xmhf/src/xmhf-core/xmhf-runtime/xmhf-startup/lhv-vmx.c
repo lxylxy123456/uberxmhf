@@ -14,12 +14,6 @@ __attribute__(( section(".bss.palign_data") ));
 static u8 all_guest_stack[MAX_VCPU_ENTRIES][MAX_GUESTS][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 
-static msr_entry_t vmexit_msrstore_entries[MAX_VCPU_ENTRIES][MAX_GUESTS][MAX_MSR_LS]
-__attribute__((aligned(16)));
-static msr_entry_t vmexit_msrload_entries[MAX_VCPU_ENTRIES][MAX_GUESTS][MAX_MSR_LS]
-__attribute__((aligned(16)));
-static msr_entry_t vmentry_msrload_entries[MAX_VCPU_ENTRIES][MAX_GUESTS][MAX_MSR_LS]
-__attribute__((aligned(16)));
 
 extern u32 x_gdt_start[];
 
@@ -90,59 +84,13 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
 
 	//Critical MSR load/store
-	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
-		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 3);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 3);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 3);
-		vcpu->my_vmexit_msrstore = vmexit_msrstore_entries[0][vcpu->idx];
-		vcpu->my_vmexit_msrload = vmexit_msrload_entries[0][vcpu->idx];
-		vcpu->my_vmentry_msrload = vmentry_msrload_entries[0][vcpu->idx];
-		vmcs_vmwrite64(vcpu, VMCS_control_VM_exit_MSR_store_address,
-						hva2spa(vcpu->my_vmexit_msrstore));
-		vmcs_vmwrite64(vcpu, VMCS_control_VM_exit_MSR_load_address,
-						hva2spa(vcpu->my_vmexit_msrload));
-		vmcs_vmwrite64(vcpu, VMCS_control_VM_entry_MSR_load_address,
-						hva2spa(vcpu->my_vmentry_msrload));
-		if (0) {
-			printf("MTRR 0x%016llx\n", rdmsr64(0xfeU));
-			for (u32 i = 0x200; i < 0x210; i++) {
-				printf("MTRR 0x%08x 0x%016llx\n", i, rdmsr64(i));
-			}
-		}
-		HALT_ON_ERRORCOND((rdmsr64(0xfeU) & 0xff) > 6);
-		wrmsr64(0x20aU, 0x00000000aaaaa000ULL);
-		wrmsr64(0x20bU, 0x00000000deadb000ULL);
-		wrmsr64(0x20cU, 0x00000000deadc000ULL);
-		wrmsr64(0x402U, 0x2222222222222222ULL);
-		wrmsr64(0x403U, 0xdeaddeadbeefbeefULL);
-		wrmsr64(0x406U, 0xdeaddeadbeefbeefULL);
-		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007040600070406ULL);
-		vcpu->my_vmexit_msrstore[0].index = 0x20aU;
-		vcpu->my_vmexit_msrstore[0].data = 0x00000000deada000ULL;
-		vcpu->my_vmexit_msrstore[1].index = MSR_EFER;
-		vcpu->my_vmexit_msrstore[1].data = 0x00000000deada000ULL;
-		vcpu->my_vmexit_msrstore[2].index = 0x402U;
-		vcpu->my_vmexit_msrstore[2].data = 0xdeaddeadbeefbeefULL;
-		vcpu->my_vmexit_msrload[0].index = 0x20bU;
-		vcpu->my_vmexit_msrload[0].data = 0x00000000bbbbb000ULL;
-		vcpu->my_vmexit_msrload[1].index = 0xc0000081U;
-		vcpu->my_vmexit_msrload[1].data = 0x0000000011111000ULL;
-		vcpu->my_vmexit_msrload[2].index = 0x403U;
-		vcpu->my_vmexit_msrload[2].data = 0x3333333333333333ULL;
-		vcpu->my_vmentry_msrload[0].index = 0x20cU;
-		vcpu->my_vmentry_msrload[0].data = 0x00000000ccccc000ULL;
-		vcpu->my_vmentry_msrload[1].index = MSR_IA32_PAT;
-		vcpu->my_vmentry_msrload[1].data = 0x0007060400070604ULL;
-		vcpu->my_vmentry_msrload[2].index = 0x406U;
-		vcpu->my_vmentry_msrload[2].data = 0x6666666666666666ULL;
-		printf("CPU(0x%02x): configured load/store MSR\n", vcpu->id);
-	} else {
+	{
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
 		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 0);
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 0);
 	}
 
-	if (__LHV_OPT__ & LHV_USE_EPT) {
+	{
 		u64 eptp = lhv_build_ept(vcpu, 0);
 		u32 seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
 		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
@@ -159,16 +107,8 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 #endif /* __I386__ */
 	}
 
-	if (__LHV_OPT__ & LHV_USE_VPID) {
-		u32 seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
-		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_VPID);
-		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
-		vmcs_vmwrite(vcpu, VMCS_control_vpid, 1);
-	}
-
-	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
+	{
 		u32 seccpu;
-		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
 		seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
 		seccpu |= (1U << VMX_SECPROCBASED_UNRESTRICTED_GUEST);
 		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
@@ -379,17 +319,6 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	ulong_t guest_rip = vmcs_vmread(vcpu, VMCS_guest_RIP);
 	ulong_t inst_len = vmcs_vmread(vcpu, VMCS_info_vmexit_instruction_length);
 	HALT_ON_ERRORCOND(vcpu == _svm_and_vmx_getvcpu());
-	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
-		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[0].data == 0x00000000aaaaa000ULL);
-		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[1].data == rdmsr64(MSR_EFER));
-		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[2].data == 0x2222222222222222ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x20bU) == 0x00000000bbbbb000ULL);
-		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007060400070604ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x403U) == 0x3333333333333333ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x20cU) == 0x00000000ccccc000ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0xc0000081U) == 0x0000000011111000ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x406U) == 0x6666666666666666ULL);
-	}
 	switch (vmexit_reason) {
 	case VMX_VMEXIT_CPUID:
 		{
@@ -452,7 +381,6 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 				HALT_ON_ERRORCOND(0 && "hypervisor receives unknown EPT (unknown behavior)");
 			}
 		}
-		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
 		{
 			ulong_t q = vmcs_vmread(vcpu, VMCS_info_exit_qualification);
 			u64 paddr = vmcs_vmread64(vcpu, VMCS_guest_paddr);
