@@ -166,6 +166,14 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 		vmcs_vmwrite(vcpu, VMCS_control_vpid, 1);
 	}
 
+	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
+		u32 seccpu;
+		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+		seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
+		seccpu |= (1U << VMX_SECPROCBASED_UNRESTRICTED_GUEST);
+		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
+	}
+
 	vmcs_vmwrite(vcpu, VMCS_control_pagefault_errorcode_mask, 0);
 	vmcs_vmwrite(vcpu, VMCS_control_pagefault_errorcode_match, 0);
 	vmcs_vmwrite(vcpu, VMCS_control_exception_bitmap, 0);
