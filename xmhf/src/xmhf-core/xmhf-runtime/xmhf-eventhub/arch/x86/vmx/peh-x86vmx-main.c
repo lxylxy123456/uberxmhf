@@ -154,7 +154,7 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 	// Use the registers returned by <xmhf_app_handlecpuid>
 	xmhf_app_handlecpuid(vcpu, r, old_eax);
 
-	if (old_eax == 0x1) {
+	if (old_eax == 0x1U) {
 #ifndef __NESTED_VIRTUALIZATION__
 		/* Clear VMX capability */
 		r->ecx &= ~(1U << 5);
@@ -167,12 +167,23 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 		/*
 		 * Set Hypervisor Present bit.
 		 * Fedora 35's AP will retry updating Intel microcode forever if the
-		 * update fails. So we set the hypervisor present bit to solve this
-		 * problem.
+		 * update fails. So we set the hypervisor present bit to work around
+		 * this problem.
 		 */
 		r->ecx |= (1U << 31);
 #endif /* !__UPDATE_INTEL_UCODE__ */
 	}
+#ifdef __I386__
+	/*
+	 * For i386 XMHF running on an AMD64 CPU, make the guest think that the CPU
+	 * is i386 (i.e. 32-bits).
+	 */
+	if (old_eax == 0x80000001U) {
+		r->edx &= ~(1U << 29);
+	}
+#elif !defined(__AMD64__)
+    #error "Unsupported Arch"
+#endif /* !defined(__AMD64__) */
 	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 }
 
@@ -908,7 +919,7 @@ static void vmx_handle_intercept_cr4access_ug(VCPU *vcpu, struct regs *r, u32 gp
 
 	#if defined (__NESTED_PAGING__)
 	//we need to flush EPT mappings as we emulated CR4 load above
-	__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT, 1, 0);
+	HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT, 1, 0));
 	#endif
   }
 
@@ -1154,50 +1165,49 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		break;
 
 #ifdef __NESTED_VIRTUALIZATION__
-		case VMX_VMEXIT_VMCLEAR:{
+		case VMX_VMEXIT_INVEPT:
+			xmhf_nested_arch_x86vmx_handle_invept(vcpu, r);
+			break;
+
+		case VMX_VMEXIT_INVVPID:
+			xmhf_nested_arch_x86vmx_handle_invvpid(vcpu, r);
+			break;
+		
+		case VMX_VMEXIT_VMCLEAR:
 			xmhf_nested_arch_x86vmx_handle_vmclear(vcpu, r);
-		}
-		break;
+			break;
 
-		case VMX_VMEXIT_VMLAUNCH:{
+		case VMX_VMEXIT_VMLAUNCH:
 			xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(vcpu, r, 0);
-		}
-		break;
+			break;
 
-		case VMX_VMEXIT_VMPTRLD:{
+		case VMX_VMEXIT_VMPTRLD:
 			xmhf_nested_arch_x86vmx_handle_vmptrld(vcpu, r);
-		}
-		break;
+			break;
 
-		case VMX_VMEXIT_VMPTRST:{
+		case VMX_VMEXIT_VMPTRST:
 			xmhf_nested_arch_x86vmx_handle_vmptrst(vcpu, r);
-		}
-		break;
+			break;
 
-		case VMX_VMEXIT_VMREAD:{
+		case VMX_VMEXIT_VMREAD:
 			xmhf_nested_arch_x86vmx_handle_vmread(vcpu, r);
-		}
-		break;
+			break;
 
-		case VMX_VMEXIT_VMRESUME:{
+		case VMX_VMEXIT_VMRESUME:
 			xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(vcpu, r, 1);
-		}
-		break;
+			break;
 
-		case VMX_VMEXIT_VMWRITE:{
+		case VMX_VMEXIT_VMWRITE:
 			xmhf_nested_arch_x86vmx_handle_vmwrite(vcpu, r);
-		}
-		break;
+			break;
 
-		case VMX_VMEXIT_VMXOFF:{
+		case VMX_VMEXIT_VMXOFF:
 			xmhf_nested_arch_x86vmx_handle_vmxoff(vcpu, r);
-		}
-		break;
+			break;
 
-		case VMX_VMEXIT_VMXON:{
+		case VMX_VMEXIT_VMXON:
 			xmhf_nested_arch_x86vmx_handle_vmxon(vcpu, r);
-		}
-		break;
+			break;
 #endif /* !__NESTED_VIRTUALIZATION__ */
 
 		case VMX_VMEXIT_IOIO:{
@@ -1430,7 +1440,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 #ifdef __XMHF_VERIFICATION_DRIVEASSERTS__
 	//ensure that whenever a partition is resumed on a vcpu, we have extended paging
 	//enabled and that the base points to the extended page tables we have initialized
-	assert( (vcpu->vmcs.control_VMX_seccpu_based & 0x2) );
+	assert( (vcpu->vmcs.control_VMX_seccpu_based & (1U << VMX_SECPROCBASED_ENABLE_EPT)) );
 	assert( (vcpu->vmcs.control_EPT_pointer == (hva2spa((void*)vcpu->vmx_vaddr_ept_pml4_table) | 0x1E)) );
 #endif
 

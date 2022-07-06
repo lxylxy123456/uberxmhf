@@ -343,8 +343,8 @@ static u32 _vmcs12_get_ctls(VCPU * vcpu, struct nested_vmcs12 *vmcs12,
 	}
 	{
 		u32 val = 0;
-		u32 fixed0 = vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR];
-		u32 fixed1 = vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR] >> 32;
+		u32 fixed0 = vcpu->vmx_nested_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR];
+		u32 fixed1 = vcpu->vmx_nested_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR] >> 32;
 		/* Check whether guest enables secondary controls */
 		if (_vmx_hasctl_activate_secondary_controls(ctls)) {
 			val = vmcs12->control_VMX_seccpu_based;
@@ -354,7 +354,7 @@ static u32 _vmcs12_get_ctls(VCPU * vcpu, struct nested_vmcs12 *vmcs12,
 		}
 		ctls->procbased_ctls2 = val;
 	}
-	return 0;
+	return VM_INST_SUCCESS;
 }
 
 /*
@@ -424,12 +424,28 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 #include "nested-x86vmx-vmcs12-guesthost.h"
 
 	/* 16-Bit Control Fields */
-	if (_vmx_hasctl_enable_vpid(&ctls)) {
-		u16 control_vpid = vmcs12->control_vpid;
-		// Note: VIRTUAL PROCESSOR IDENTIFIERS (VPIDS) not supported yet
-		// Need to multiplex vmcs12->control_vpid
-		control_vpid = 0;
-		__vmx_vmwrite16(VMCSENC_control_vpid, control_vpid);
+	{
+		u16 vpid02;
+		if (_vmx_hasctl_enable_vpid(&ctls)) {
+			bool cache_hit;
+			u16 vpid12 = vmcs12->control_vpid;
+			if (vpid12 == 0) {
+				return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
+			}
+			vpid02 = xmhf_nested_arch_x86vmx_get_vpid02(vcpu, vpid12,
+														&cache_hit);
+		} else {
+			/*
+			 * When VPID is not enabled, VMENTRY and VMEXIT in L1 should result
+			 * in flushing linear and combination TLB. We simulate this effect
+			 * here by setting VPID of L2 guest to the same as L1 guest
+			 * (VPID = 1) and manually executing INVVPID for every VNENTRY and
+			 * VMEXIT.
+			 */
+			vpid02 = 1;
+			HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT, 1, 0));
+		}
+		__vmx_vmwrite16(VMCSENC_control_vpid, vpid02);
 	}
 
 	/* 16-Bit Guest-State Fields */
@@ -460,32 +476,18 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 		HALT_ON_ERRORCOND(_vmx_hasctl_enable_ept(&vcpu->vmx_caps));
 		if (_vmx_hasctl_enable_ept(&ctls)) {
 			/* Construct shadow EPT */
-			struct {
-				union {
-					struct {
-						u8 mem_type:3;
-						u8 walk_length:3;
-						u8 access_dirty:1;
-						u8 access_right_sup_shadow_stack:1;
-						u8 reserved_11_8:4;
-						u64 ept_pml4t:52;
-					};
-					u64 raw;
-				};
-			} guest_eptp;
+			u64 eptp12 = vmcs12->control_EPT_pointer;
+			gpa_t ept12;
+			ept02_cache_line_t *cache_line;
+			bool cache_hit;
 			vmcs12_info->guest_ept_enable = 1;
-			xmhf_nested_arch_x86vmx_ept02_init(vcpu, vmcs12_info,
-											   &vmcs12_info->ept02_ctx);
-			ept02 = xmhf_nested_arch_x86vmx_get_ept02(vcpu, vmcs12_info);
-			guest_eptp.raw = vmcs12->control_EPT_pointer;
-			HALT_ON_ERRORCOND(guest_eptp.mem_type == HPT_PMT_WB);
-			HALT_ON_ERRORCOND(guest_eptp.walk_length == 3);
-			/* Setting this bit to 1 is not supported yet. */
-			HALT_ON_ERRORCOND(guest_eptp.access_dirty == 0);
-			/* Setting this bit to 1 is not supported yet. */
-			HALT_ON_ERRORCOND(guest_eptp.access_right_sup_shadow_stack == 0);
-			HALT_ON_ERRORCOND(guest_eptp.reserved_11_8 == 0);
-			vmcs12_info->guest_ept_root = guest_eptp.ept_pml4t << PAGE_SHIFT_4K;
+			if (!xmhf_nested_arch_x86vmx_check_ept_lower_bits(eptp12, &ept12)) {
+				return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
+			}
+			ept02 = xmhf_nested_arch_x86vmx_get_ept02(vcpu, ept12, &cache_hit,
+													  &cache_line);
+			vmcs12_info->guest_ept_cache_line = cache_line;
+			vmcs12_info->guest_ept_root = ept12;
 		} else {
 			/* Guest does not use EPT, just use XMHF's EPT */
 			vmcs12_info->guest_ept_enable = 0;
@@ -729,7 +731,7 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 		HALT_ON_ERRORCOND(0 && "Not implemented");
 	}
 
-	return 0;
+	return VM_INST_SUCCESS;
 }
 
 /*
@@ -810,11 +812,27 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 #include "nested-x86vmx-vmcs12-guesthost.h"
 
 	/* 16-Bit Control Fields */
-	if (_vmx_hasctl_enable_vpid(&ctls)) {
-		// Note: VIRTUAL PROCESSOR IDENTIFIERS (VPIDS) not supported yet
-		// Need to multiplex vmcs12->control_vpid
-		HALT_ON_ERRORCOND(__vmx_vmread16(VMCSENC_control_vpid) == 0);
-		// vmcs12->control_vpid = __vmx_vmread16(VMCSENC_control_vpid);
+	{
+		u16 vpid02;
+		if (_vmx_hasctl_enable_vpid(&ctls)) {
+			bool cache_hit;
+			u16 vpid12 = vmcs12->control_vpid;
+			HALT_ON_ERRORCOND(vpid12 != 0);
+			vpid02 = xmhf_nested_arch_x86vmx_get_vpid02(vcpu, vpid12,
+														&cache_hit);
+			HALT_ON_ERRORCOND(cache_hit);
+		} else {
+			/*
+			 * When VPID is not enabled, VMENTRY and VMEXIT in L1 should result
+			 * in flushing linear and combination TLB. We simulate this effect
+			 * here by setting VPID of L2 guest to the same as L1 guest
+			 * (VPID = 1) and manually executing INVVPID for every VNENTRY and
+			 * VMEXIT.
+			 */
+			vpid02 = 1;
+			HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT, 1, 0));
+		}
+		HALT_ON_ERRORCOND(__vmx_vmread16(VMCSENC_control_vpid) == vpid02);
 	}
 
 	/* 16-Bit Guest-State Fields */
@@ -853,7 +871,12 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		u16 encoding = VMCSENC_control_EPT_pointer;
 		HALT_ON_ERRORCOND(_vmx_hasctl_enable_ept(&vcpu->vmx_caps));
 		if (_vmx_hasctl_enable_ept(&ctls)) {
-			ept02 = xmhf_nested_arch_x86vmx_get_ept02(vcpu, vmcs12_info);
+			gpa_t ept12 = vmcs12_info->guest_ept_root;
+			ept02_cache_line_t *cache_line;
+			bool cache_hit;
+			ept02 = xmhf_nested_arch_x86vmx_get_ept02(vcpu, ept12, &cache_hit,
+													  &cache_line);
+			HALT_ON_ERRORCOND(cache_hit);
 		} else {
 			ept02 = vcpu->vmcs.control_EPT_pointer;
 		}

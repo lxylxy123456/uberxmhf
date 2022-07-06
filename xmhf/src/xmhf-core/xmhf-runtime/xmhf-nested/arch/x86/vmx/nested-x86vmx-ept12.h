@@ -52,13 +52,72 @@
 #define _NESTED_X86VMX_EPT12_H_
 
 #include "nested-x86vmx-vmcs12.h"
+#include "nested-x86vmx-lru.h"
 
-void xmhf_nested_arch_x86vmx_ept02_init(VCPU * vcpu,
-										vmcs12_info_t * vmcs12_info,
-										ept02_ctx_t * ept02_ctx);
-spa_t xmhf_nested_arch_x86vmx_get_ept02(VCPU * vcpu,
-										vmcs12_info_t * vmcs12_info);
+/* Maximum number of active EPTs per CPU */
+#define VMX_NESTED_MAX_ACTIVE_EPT 4
+
+/* Maximum number of active VPIDs per CPU */
+#define VMX_NESTED_MAX_ACTIVE_VPID 4
+
+/* Format of EPT12 context information */
+typedef struct {
+	/* Context of EPT12 */
+	hptw_ctx_t ctx;
+	/* Context of EPT01 */
+	guestmem_hptw_ctx_pair_t ctx01;
+} ept12_ctx_t;
+
+/* Format of EPT02 context information */
+typedef struct {
+	/* Context */
+	hptw_ctx_t ctx;
+	/* List of pages to be allocated by ctx, limit = EPT02_PAGE_POOL_SIZE */
+	 u8(*page_pool)[PAGE_SIZE_4K];
+	/* Whether the corresponding page in page_pool is allocated */
+	u8 *page_alloc;
+} ept02_ctx_t;
+
+typedef u32 ept02_cache_index_t;
+
+/* Guest physical address of EPT12 (4K aligned) */
+typedef gpa_t ept02_cache_key_t;
+
+typedef struct {
+	/* EPT02 context (for allocating pages) */
+	ept02_ctx_t ept02_ctx;
+	/* EPT12 context (for accessing guest EPT) */
+	ept12_ctx_t ept12_ctx;
+} ept02_cache_value_t;
+
+LRU_NEW_SET(ept02_cache_set_t, ept02_cache_line_t, VMX_NESTED_MAX_ACTIVE_EPT,
+			ept02_cache_index_t, ept02_cache_key_t, ept02_cache_value_t);
+
+typedef u16 vpid02_cache_index_t;
+typedef u16 vpid02_cache_key_t;
+typedef u16 vpid02_cache_value_t;
+
+LRU_NEW_SET(vpid02_cache_set_t, vpid02_cache_line_t, VMX_NESTED_MAX_ACTIVE_VPID,
+			vpid02_cache_index_t, vpid02_cache_key_t, vpid02_cache_value_t);
+
+void xmhf_nested_arch_x86vmx_ept_init(VCPU * vcpu);
+void xmhf_nested_arch_x86vmx_vpid_init(VCPU * vcpu);
+bool xmhf_nested_arch_x86vmx_check_ept_lower_bits(u64 eptp12,
+												  gpa_t * ept_pml4t);
+void xmhf_nested_arch_x86vmx_invept_single_context(VCPU * vcpu, gpa_t ept12);
+void xmhf_nested_arch_x86vmx_invept_global(VCPU * vcpu);
+bool xmhf_nested_arch_x86vmx_invvpid_indiv_addr(VCPU * vcpu, u16 vpid12,
+												u64 address);
+void xmhf_nested_arch_x86vmx_invvpid_single_ctx(VCPU * vcpu, u16 vpid12);
+void xmhf_nested_arch_x86vmx_invvpid_all_ctx(VCPU * vcpu);
+void xmhf_nested_arch_x86vmx_invvpid_single_ctx_global(VCPU * vcpu, u16 vpid12);
+spa_t xmhf_nested_arch_x86vmx_get_ept02(VCPU * vcpu, gpa_t ept12,
+										bool *cache_hit,
+										ept02_cache_line_t ** cache_line);
+u16 xmhf_nested_arch_x86vmx_get_vpid02(VCPU * vcpu, u16 vpid12,
+									   bool *cache_hit);
 int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
-											  vmcs12_info_t * vmcs12_info);
+											  vmcs12_info_t * vmcs12_info,
+											  ept02_cache_line_t * cache_line);
 
 #endif							/* _NESTED_X86VMX_EPT12_H_ */

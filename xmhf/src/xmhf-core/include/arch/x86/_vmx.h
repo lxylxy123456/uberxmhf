@@ -160,6 +160,8 @@
 #define VMX_VMEXIT_INIT   0x3
 #define VMX_VMEXIT_EPT_VIOLATION  0x30
 #define VMX_VMEXIT_TASKSWITCH	0x9
+#define	VMX_VMEXIT_INVEPT		50
+#define	VMX_VMEXIT_INVVPID		53
 #define	VMX_VMEXIT_WBINVD		54
 #define VMX_VMEXIT_XSETBV		55
 
@@ -637,7 +639,7 @@ static inline u32 __vmx_vmptrld(u64 vmcs){
 #define VMX_INVVPID_ALLCONTEXTS				2
 #define VMX_INVVPID_SINGLECONTEXTGLOBAL		3
 
-static inline u32 __vmx_invvpid(int invalidation_type, u16 vpid, u32 linearaddress){
+static inline u32 __vmx_invvpid(int invalidation_type, u16 vpid, uintptr_t linearaddress){
 	//return status (1 or 0)
 	u32 status;
 

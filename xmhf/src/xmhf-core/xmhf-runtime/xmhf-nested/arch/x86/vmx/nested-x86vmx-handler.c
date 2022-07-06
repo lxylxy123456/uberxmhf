@@ -64,15 +64,17 @@
  * Instruction-Information Field as Used for VMREAD and VMWRITE in Intel's
  * System Programming Guide, Order Number 325384. It covers all structures in
  * Table 26-13. Format of the VM-Exit Instruction-Information Field as Used
- * for VMCLEAR, VMPTRLD, VMPTRST, VMXON, XRSTORS, and XSAVES.
+ * for VMCLEAR, VMPTRLD, VMPTRST, VMXON, XRSTORS, and XSAVES. It also covers
+ * all structures in Table 26-9. Format of the VM-Exit Instruction-Information
+ * Field as Used for INVEPT, INVPCID, and INVVPID.
  */
 union _vmx_decode_vm_inst_info {
 	struct {
 		u32 scaling:2;
 		u32 undefined2:1;
-		u32 reg1:4;				/* Undefined in Table 26-13. */
+		u32 reg1:4;				/* Undefined in Table 26-9 and 26-13. */
 		u32 address_size:3;
-		u32 mem_reg:1;			/* Cleared to 0 in Table 26-13. */
+		u32 mem_reg:1;			/* Cleared to 0 in Table 26-9 and 26-13. */
 		u32 undefined14_11:4;
 		u32 segment_register:3;
 		u32 index_reg:4;
@@ -161,10 +163,32 @@ static gva_t _vmx_decode_mem_operand(VCPU * vcpu, struct regs *r)
 }
 
 /*
+ * Decode the operand for instructions that take one register operand and one
+ * m64 operand. Following Table 26-9. Format of the VM-Exit
+ * Instruction-Information Field as Used for INVEPT, INVPCID, and INVVPID in
+ * Intel's System Programming Guide, Order Number 325384. The register operand
+ * is returned in ptype. The address of memory operand is returned in
+ * ppdescriptor.
+ */
+static void _vmx_decode_r_m128(VCPU * vcpu, struct regs *r, ulong_t * ptype,
+							   gva_t * ppdescriptor)
+{
+	union _vmx_decode_vm_inst_info inst_info;
+	size_t size = (VCPU_g64(vcpu) ? sizeof(u64) : sizeof(u32));
+	uintptr_t *type;
+	inst_info.raw = vcpu->vmcs.info_vmx_instruction_information;
+	HALT_ON_ERRORCOND(inst_info.mem_reg == 0);
+	type = _vmx_decode_reg(inst_info.reg2, vcpu, r);
+	*ptype = 0;
+	memcpy(ptype, type, size);
+	*ppdescriptor = _vmx_decode_mem_operand(vcpu, r);
+}
+
+/*
  * Decode the operand for instructions that take one m64 operand. Following
  * Table 26-13. Format of the VM-Exit Instruction-Information Field as Used
  * for VMCLEAR, VMPTRLD, VMPTRST, VMXON, XRSTORS, and XSAVES in Intel's
- * System Programming Guide, Order Number 325384
+ * System Programming Guide, Order Number 325384.
  */
 static gva_t _vmx_decode_m64(VCPU * vcpu, struct regs *r)
 {
@@ -331,7 +355,7 @@ static u32 _vmx_check_physical_addr_width(VCPU * vcpu, u64 addr)
 	HALT_ON_ERRORCOND(eax >= 32 && eax < 64);
 	paddrmask = (1ULL << eax) - 0x1ULL;
 	if (vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR] & (1ULL << 48)) {
-		paddrmask &= (1ULL << 32);
+		paddrmask &= (1ULL << 32) - 1ULL;
 	}
 	// TODO: paddrmask can be cached, maybe move code to part-*.c
 	return (addr & ~paddrmask) == 0;
@@ -458,6 +482,7 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 	vcpu->vmx_nested_vmxon_pointer = 0;
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
 	vcpu->vmx_nested_current_vmcs_pointer = CUR_VMCS_PTR_INVALID;
+
 	/* Compute MSRs for the guest */
 	for (i = 0; i < IA32_VMX_MSRCOUNT; i++) {
 		vcpu->vmx_nested_msrs[i] = vcpu->vmx_msrs[i];
@@ -511,19 +536,22 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 	/* INDEX_IA32_VMX_CR4_FIXED1_MSR: not changed */
 	/* INDEX_IA32_VMX_VMCS_ENUM_MSR: not changed */
 	{
-		/* "Enable VPID" not supported */
-		u64 mask = ~(1ULL << (32 + VMX_SECPROCBASED_ENABLE_VPID));
 		/* "VMCS shadowing" not supported */
-		mask &= ~(1ULL << (32 + VMX_SECPROCBASED_VMCS_SHADOWING));
-		/* "Enable EPT" not supported */
-		mask &= ~(1ULL << (32 + VMX_SECPROCBASED_ENABLE_EPT));
-		/* "Unrestricted guest" not supported */
-		mask &= ~(1ULL << (32 + VMX_SECPROCBASED_UNRESTRICTED_GUEST));
+		u64 mask = ~(1ULL << (32 + VMX_SECPROCBASED_VMCS_SHADOWING));
 		/* "Sub-page write permissions for EPT" not supported */
 		mask &=
 			~(1ULL <<
 			  (32 + VMX_SECPROCBASED_SUB_PAGE_WRITE_PERMISSIONS_FOR_EPT));
 		vcpu->vmx_nested_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR] &= mask;
+	}
+	{
+		/* "configure a EPT PDE to map a 2-Mbyte page" not supported */
+		u64 mask = ~(1ULL << 16);
+		/* "configure a EPT PDPTE to map a 1-Gbyte page" not supported */
+		mask &= ~(1ULL << 17);
+		/* "accessed and dirty flags for EPT" not supported */
+		mask &= ~(1ULL << 21);
+		vcpu->vmx_nested_msrs[INDEX_IA32_VMX_EPT_VPID_CAP_MSR] &= mask;
 	}
 	/* Select IA32_VMX_* or IA32_VMX_TRUE_* in guest mode */
 	if (vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR] & (1ULL << 55)) {
@@ -545,6 +573,10 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 		vcpu->vmx_nested_entry_ctls =
 			vcpu->vmx_nested_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR];
 	}
+
+	/* Initialize EPT and VPID cache */
+	xmhf_nested_arch_x86vmx_ept_init(vcpu);
+	xmhf_nested_arch_x86vmx_vpid_init(vcpu);
 }
 
 /* Handle VMEXIT from nested guest */
@@ -563,6 +595,17 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		/* NMI received by L2 guest */
 		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu)) {
 			xmhf_smpguest_arch_x86vmx_unblock_nmi();
+			/*
+			 * Make sure that there is no interruption. (Not implemented if
+			 * there is one. In this case re-injecting the event is likely the
+			 * correct thing to do.)
+			 */
+			{
+				u32 idt_info;
+				u16 encoding = VMCSENC_info_IDT_vectoring_information;
+				idt_info = __vmx_vmread32(encoding);
+				HALT_ON_ERRORCOND((idt_info & 0x80000000U) == 0);
+			}
 			/*
 			 * This is the rare case where we have L2 -> L0 -> L2. Usually it
 			 * is L2 -> L0 -> L1.
@@ -592,8 +635,10 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	if (vmexit_reason == VMX_VMEXIT_EPT_VIOLATION) {
 		int status = 3;
 		if (vmcs12_info->guest_ept_enable) {
+			ept02_cache_line_t *cache_line = vmcs12_info->guest_ept_cache_line;
 			status =
-				xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu, vmcs12_info);
+				xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu, vmcs12_info,
+														  cache_line);
 		}
 		switch (status) {
 		case 1:
@@ -642,6 +687,11 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		}
 	}
 
+	// TODO: handle EPT misconfiguration
+	if (vmexit_reason == VMX_VMEXIT_EPT_MISCONFIGURATION) {
+		HALT_ON_ERRORCOND(0 && "EPT misconfiguration not implemented");
+	}
+
 	/* Wake the guest hypervisor up for the VMEXIT */
 	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
 	if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {
@@ -664,6 +714,138 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	// TODO: handle vcpu->vmx_guest_inject_nmi?
 	vcpu->vmx_nested_is_vmx_root_operation = 1;
 	__vmx_vmentry_vmresume(r);
+}
+
+void xmhf_nested_arch_x86vmx_handle_invept(VCPU * vcpu, struct regs *r)
+{
+	if (_vmx_nested_check_ud(vcpu, 0)) {
+		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
+	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+		/*
+		 * Guest hypervisor is likely performing nested virtualization.
+		 * This case should be handled in
+		 * xmhf_parteventhub_arch_x86vmx_intercept_handler(). So panic if we
+		 * end up here.
+		 */
+		HALT_ON_ERRORCOND(0 && "Nested vmexit should be handled elsewhere");
+	} else if (_vmx_guest_get_cpl(vcpu) > 0) {
+		_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
+	} else {
+		ulong_t type;
+		gva_t pdescriptor;
+		struct {
+			u64 eptp;
+			u64 reserved;
+		} descriptor;
+		guestmem_hptw_ctx_pair_t ctx_pair;
+		_vmx_decode_r_m128(vcpu, r, &type, &pdescriptor);
+		guestmem_init(vcpu, &ctx_pair);
+		guestmem_copy_gv2h(&ctx_pair, 0, &descriptor, pdescriptor,
+						   sizeof(descriptor));
+		if (descriptor.reserved) {
+			/* SDM does not say should fail, so just print a warning */
+			printf("CPU(0x%02x): warning: INVEPT reserved 0x%016llx != 0\n",
+				   vcpu->id, descriptor.reserved);
+		}
+		switch (type) {
+		case VMX_INVEPT_SINGLECONTEXT:
+			{
+				gpa_t ept12;
+				/* Check whether EPTP will result in VMENTRY failure */
+				if (!xmhf_nested_arch_x86vmx_check_ept_lower_bits
+					(descriptor.eptp, &ept12)) {
+					u32 errno = VM_INST_ERRNO_INVALID_OPERAND_INVEPT_INVVPID;
+					printf("CPU(0x%02x): INVEPT rejects EPTP 0x%016llx\n",
+						   vcpu->id, descriptor.eptp);
+					_vmx_nested_vm_fail(vcpu, errno);
+				} else {
+					xmhf_nested_arch_x86vmx_invept_single_context(vcpu, ept12);
+					_vmx_nested_vm_succeed(vcpu);
+				}
+			}
+			break;
+		case VMX_INVEPT_GLOBAL:
+			xmhf_nested_arch_x86vmx_invept_global(vcpu);
+			_vmx_nested_vm_succeed(vcpu);
+			break;
+		default:
+			_vmx_nested_vm_fail(vcpu,
+								VM_INST_ERRNO_INVALID_OPERAND_INVEPT_INVVPID);
+			break;
+		}
+		vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
+	}
+}
+
+void xmhf_nested_arch_x86vmx_handle_invvpid(VCPU * vcpu, struct regs *r)
+{
+	if (_vmx_nested_check_ud(vcpu, 0)) {
+		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
+	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+		/*
+		 * Guest hypervisor is likely performing nested virtualization.
+		 * This case should be handled in
+		 * xmhf_parteventhub_arch_x86vmx_intercept_handler(). So panic if we
+		 * end up here.
+		 */
+		HALT_ON_ERRORCOND(0 && "Nested vmexit should be handled elsewhere");
+	} else if (_vmx_guest_get_cpl(vcpu) > 0) {
+		_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
+	} else {
+		ulong_t type;
+		gva_t pdescriptor;
+		bool succeed = false;
+		struct {
+			u16 vpid;
+			u16 reserved_31_16;
+			u32 reserved_63_32;
+			u64 linear_addr;
+		} descriptor;
+		guestmem_hptw_ctx_pair_t ctx_pair;
+		_vmx_decode_r_m128(vcpu, r, &type, &pdescriptor);
+		guestmem_init(vcpu, &ctx_pair);
+		guestmem_copy_gv2h(&ctx_pair, 0, &descriptor, pdescriptor,
+						   sizeof(descriptor));
+		if (!descriptor.reserved_31_16 && !descriptor.reserved_63_32) {
+			switch (type) {
+			case VMX_INVVPID_INDIVIDUALADDRESS:
+				if (descriptor.vpid) {
+					if (xmhf_nested_arch_x86vmx_invvpid_indiv_addr
+						(vcpu, descriptor.vpid, descriptor.linear_addr)) {
+						succeed = true;
+					}
+				}
+				break;
+			case VMX_INVVPID_SINGLECONTEXT:
+				if (descriptor.vpid) {
+					xmhf_nested_arch_x86vmx_invvpid_single_ctx(vcpu,
+															   descriptor.vpid);
+					succeed = true;
+				}
+				break;
+			case VMX_INVVPID_ALLCONTEXTS:
+				xmhf_nested_arch_x86vmx_invvpid_all_ctx(vcpu);
+				succeed = true;
+				break;
+			case VMX_INVVPID_SINGLECONTEXTGLOBAL:
+				if (descriptor.vpid) {
+					xmhf_nested_arch_x86vmx_invvpid_single_ctx_global
+						(vcpu, descriptor.vpid);
+					succeed = true;
+				}
+				break;
+			default:
+				break;
+			}
+		}
+		if (succeed) {
+			_vmx_nested_vm_succeed(vcpu);
+		} else {
+			_vmx_nested_vm_fail(vcpu,
+								VM_INST_ERRNO_INVALID_OPERAND_INVEPT_INVVPID);
+		}
+		vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
+	}
 }
 
 void xmhf_nested_arch_x86vmx_handle_vmclear(VCPU * vcpu, struct regs *r)
