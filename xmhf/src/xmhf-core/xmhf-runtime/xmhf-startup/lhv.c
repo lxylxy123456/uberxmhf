@@ -23,11 +23,15 @@ void lhv_main(VCPU *vcpu)
 		}
 	}
 	/* Demonstrate disabling paging in hypervisor */
-	{
+	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
 		ulong_t cr0 = read_cr0();
 		write_cr0(cr0 & 0x7fffffffUL);
 		printf("LHV hypervisor can disable paging\n");
 		write_cr0(cr0);
+	}
+	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+		/* Set EFLAGS.IF */
+		asm volatile ("sti");
 	}
 
 	/* Start VT related things */

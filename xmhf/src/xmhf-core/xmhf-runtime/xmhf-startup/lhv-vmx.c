@@ -14,6 +14,12 @@ __attribute__(( section(".bss.palign_data") ));
 static u8 all_guest_stack[MAX_VCPU_ENTRIES][MAX_GUESTS][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 
+static msr_entry_t vmexit_msrstore_entries[MAX_VCPU_ENTRIES][MAX_GUESTS][MAX_MSR_LS]
+__attribute__((aligned(16)));
+static msr_entry_t vmexit_msrload_entries[MAX_VCPU_ENTRIES][MAX_GUESTS][MAX_MSR_LS]
+__attribute__((aligned(16)));
+static msr_entry_t vmentry_msrload_entries[MAX_VCPU_ENTRIES][MAX_GUESTS][MAX_MSR_LS]
+__attribute__((aligned(16)));
 
 extern u32 x_gdt_start[];
 
@@ -84,13 +90,59 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
 
 	//Critical MSR load/store
-	{
+	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 3);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 3);
+		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 3);
+		vcpu->my_vmexit_msrstore = vmexit_msrstore_entries[0][vcpu->idx];
+		vcpu->my_vmexit_msrload = vmexit_msrload_entries[0][vcpu->idx];
+		vcpu->my_vmentry_msrload = vmentry_msrload_entries[0][vcpu->idx];
+		vmcs_vmwrite64(vcpu, VMCS_control_VM_exit_MSR_store_address,
+						hva2spa(vcpu->my_vmexit_msrstore));
+		vmcs_vmwrite64(vcpu, VMCS_control_VM_exit_MSR_load_address,
+						hva2spa(vcpu->my_vmexit_msrload));
+		vmcs_vmwrite64(vcpu, VMCS_control_VM_entry_MSR_load_address,
+						hva2spa(vcpu->my_vmentry_msrload));
+		if (0) {
+			printf("MTRR 0x%016llx\n", rdmsr64(0xfeU));
+			for (u32 i = 0x200; i < 0x210; i++) {
+				printf("MTRR 0x%08x 0x%016llx\n", i, rdmsr64(i));
+			}
+		}
+		HALT_ON_ERRORCOND((rdmsr64(0xfeU) & 0xff) > 6);
+		wrmsr64(0x20aU, 0x00000000aaaaa000ULL);
+		wrmsr64(0x20bU, 0x00000000deadb000ULL);
+		wrmsr64(0x20cU, 0x00000000deadc000ULL);
+		wrmsr64(0x402U, 0x2222222222222222ULL);
+		wrmsr64(0x403U, 0xdeaddeadbeefbeefULL);
+		wrmsr64(0x406U, 0xdeaddeadbeefbeefULL);
+		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007040600070406ULL);
+		vcpu->my_vmexit_msrstore[0].index = 0x20aU;
+		vcpu->my_vmexit_msrstore[0].data = 0x00000000deada000ULL;
+		vcpu->my_vmexit_msrstore[1].index = MSR_EFER;
+		vcpu->my_vmexit_msrstore[1].data = 0x00000000deada000ULL;
+		vcpu->my_vmexit_msrstore[2].index = 0x402U;
+		vcpu->my_vmexit_msrstore[2].data = 0xdeaddeadbeefbeefULL;
+		vcpu->my_vmexit_msrload[0].index = 0x20bU;
+		vcpu->my_vmexit_msrload[0].data = 0x00000000bbbbb000ULL;
+		vcpu->my_vmexit_msrload[1].index = 0xc0000081U;
+		vcpu->my_vmexit_msrload[1].data = 0x0000000011111000ULL;
+		vcpu->my_vmexit_msrload[2].index = 0x403U;
+		vcpu->my_vmexit_msrload[2].data = 0x3333333333333333ULL;
+		vcpu->my_vmentry_msrload[0].index = 0x20cU;
+		vcpu->my_vmentry_msrload[0].data = 0x00000000ccccc000ULL;
+		vcpu->my_vmentry_msrload[1].index = MSR_IA32_PAT;
+		vcpu->my_vmentry_msrload[1].data = 0x0007060400070604ULL;
+		vcpu->my_vmentry_msrload[2].index = 0x406U;
+		vcpu->my_vmentry_msrload[2].data = 0x6666666666666666ULL;
+		printf("CPU(0x%02x): configured load/store MSR\n", vcpu->id);
+	} else {
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
 		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 0);
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 0);
 	}
 
-	{
+	if (__LHV_OPT__ & LHV_USE_EPT) {
 		u64 eptp = lhv_build_ept(vcpu, 0);
 		u32 seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
 		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
@@ -107,8 +159,16 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 #endif /* __I386__ */
 	}
 
-	{
+	if (__LHV_OPT__ & LHV_USE_VPID) {
+		u32 seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
+		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_VPID);
+		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
+		vmcs_vmwrite(vcpu, VMCS_control_vpid, 1);
+	}
+
+	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
 		u32 seccpu;
+		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
 		seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
 		seccpu |= (1U << VMX_SECPROCBASED_UNRESTRICTED_GUEST);
 		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
@@ -302,6 +362,8 @@ void lhv_vmx_main(VCPU *vcpu)
 	lhv_vmx_vmcs_init(vcpu);
 	vmcs_dump(vcpu, 0);
 
+//	asm volatile ("cli");	// TODO: tmp
+
 	/* VMLAUNCH */
 	{
 		struct regs r;
@@ -319,6 +381,17 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	ulong_t guest_rip = vmcs_vmread(vcpu, VMCS_guest_RIP);
 	ulong_t inst_len = vmcs_vmread(vcpu, VMCS_info_vmexit_instruction_length);
 	HALT_ON_ERRORCOND(vcpu == _svm_and_vmx_getvcpu());
+	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
+		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[0].data == 0x00000000aaaaa000ULL);
+		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[1].data == rdmsr64(MSR_EFER));
+		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[2].data == 0x2222222222222222ULL);
+		HALT_ON_ERRORCOND(rdmsr64(0x20bU) == 0x00000000bbbbb000ULL);
+		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007060400070604ULL);
+		HALT_ON_ERRORCOND(rdmsr64(0x403U) == 0x3333333333333333ULL);
+		HALT_ON_ERRORCOND(rdmsr64(0x20cU) == 0x00000000ccccc000ULL);
+		HALT_ON_ERRORCOND(rdmsr64(0xc0000081U) == 0x0000000011111000ULL);
+		HALT_ON_ERRORCOND(rdmsr64(0x406U) == 0x6666666666666666ULL);
+	}
 	switch (vmexit_reason) {
 	case VMX_VMEXIT_CPUID:
 		{
@@ -342,49 +415,85 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			break;
 		}
 	case VMX_VMEXIT_VMCALL:
-		if (r->eax == 0x4321) {
-			u64 eptp = vmcs_vmread(vcpu, VMCS_control_EPT_pointer);
-			u64 cr3 = vmcs_vmread(vcpu, VMCS_guest_CR3);
-			u64 ept_t4 = (eptp & ~0xfff);
-			u64 ept_e4 = *(u64*)(uintptr_t)(ept_t4 + (((cr3 >> 39) & 0x1ff) << 3));
-			u64 ept_t3 = (ept_e4 & ~0xfff);
-			u64 ept_e3 = *(u64*)(uintptr_t)(ept_t3 + (((cr3 >> 30) & 0x1ff) << 3));
-			u64 ept_t2 = (ept_e3 & ~0xfff);
-			u64 ept_e2 = *(u64*)(uintptr_t)(ept_t2 + (((cr3 >> 21) & 0x1ff) << 3));
-			u64 ept_t1 = (ept_e2 & ~0xfff);
-			u64 *ept_e1p = (u64*)(uintptr_t)(ept_t1 + (((cr3 >> 12) & 0x1ff) << 3));
-			u64 ept_e1 = *ept_e1p;
-			printf("EPT E1 = 0x%016llx\n", ept_e1);
-			printf("CR3    = 0x%016llx\n", cr3);
-			*ept_e1p = 0;
-			__vmx_invept(VMX_INVEPT_GLOBAL, 0);
-		} else {
-			HALT_ON_ERRORCOND(0);
+		if (vcpu->vmcall_exit_count < UINT_MAX) {
+			vcpu->vmcall_exit_count++;
 		}
-		vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
-		break;
-	case VMX_VMEXIT_EPT_VIOLATION:
-		{
-			u64 cr3 = vmcs_vmread(vcpu, VMCS_guest_CR3);
-			u64 paddr = vmcs_vmread64(vcpu, VMCS_guest_paddr);
-			if (cr3 == (paddr & ~0xfff)) {
-				console_put_char(NULL, vcpu->idx * 5 + 0, 21, 'G');
-				console_put_char(NULL, vcpu->idx * 5 + 1, 21, 'O');
-				console_put_char(NULL, vcpu->idx * 5 + 2, 21, 'O');
-				console_put_char(NULL, vcpu->idx * 5 + 3, 21, 'D');
-				HALT_ON_ERRORCOND(0 && "hypervisor receives CR3 EPT (correct behavior)");
+		if (__LHV_OPT__ & LHV_USE_EPT) {
+			/* Make sure that EPT exits are present */
+			if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
+				HALT_ON_ERRORCOND((vcpu->ept_exit_count + 3) * LHV_EPT_COUNT * 16 >
+								  vcpu->vmcall_exit_count);
 			} else {
-				console_put_char(NULL, vcpu->idx * 5 + 0, 23, '?');
-				console_put_char(NULL, vcpu->idx * 5 + 1, 23, '?');
-				console_put_char(NULL, vcpu->idx * 5 + 2, 23, '?');
-				console_put_char(NULL, vcpu->idx * 5 + 3, 23, '?');
-				HALT_ON_ERRORCOND(0 && "hypervisor receives unknown EPT (unknown behavior)");
+				HALT_ON_ERRORCOND(vcpu->ept_exit_count + 3 >
+								  vcpu->vmcall_exit_count);
 			}
+		}
+		if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
+			u64 eptp;
+			/* Check prerequisite */
+			HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+			/* Swap EPT */
+			vcpu->ept_num++;
+			vcpu->ept_num %= (LHV_EPT_COUNT << 4);
+			eptp = lhv_build_ept(vcpu, vcpu->ept_num);
+			vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
+		}
+		if (__LHV_OPT__ & LHV_USE_VPID) {
+			/* VPID will always be odd */
+			u16 vpid = vmcs_vmread(vcpu, VMCS_control_vpid);
+			if ("test INVVPID") {
+				/*
+				 * Currently we cannot easily test the effect of INVVPID. So
+				 * just make sure that the return value is correct.
+				 */
+				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
+												vpid, 0x12345678U));
+#ifdef __AMD64__
+				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
+												 vpid, 0xf0f0f0f0f0f0f0f0ULL));
+#elif !defined(__I386__)
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) */
+				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
+												 0, 0x12345678U));
+				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT,
+												vpid, 0));
+				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT,
+												 0, 0));
+				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_ALLCONTEXTS,
+												vpid, 0));
+				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXTGLOBAL,
+												vpid, 0));
+				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_SINGLECONTEXTGLOBAL,
+												 0, 0));
+			}
+			vpid += 2;
+			vmcs_vmwrite(vcpu, VMCS_control_vpid, vpid);
+		}
+		{
+			if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+				asm volatile ("sti; hlt; cli;");
+			}
+			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+			break;
+		}
+	case VMX_VMEXIT_EPT_VIOLATION:
+		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+		if (vcpu->ept_exit_count < UINT_MAX) {
+			vcpu->ept_exit_count++;
 		}
 		{
 			ulong_t q = vmcs_vmread(vcpu, VMCS_info_exit_qualification);
 			u64 paddr = vmcs_vmread64(vcpu, VMCS_guest_paddr);
 			ulong_t vaddr = vmcs_vmread(vcpu, VMCS_info_guest_linear_address);
+			if (paddr == 0x12340000 && vaddr == 0x12340000) {
+				HALT_ON_ERRORCOND(q == 0x181);
+				HALT_ON_ERRORCOND(r->eax == 0xdeadbeef);
+				HALT_ON_ERRORCOND(r->ebx == 0x12340000);
+				r->eax = 0xfee1c0de;
+				vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+				break;
+			}
 			/* Unknown EPT violation */
 			printf("CPU(0x%02x): ept: 0x%08lx\n", vcpu->id, q);
 			printf("CPU(0x%02x): paddr: 0x%016llx\n", vcpu->id, paddr);
