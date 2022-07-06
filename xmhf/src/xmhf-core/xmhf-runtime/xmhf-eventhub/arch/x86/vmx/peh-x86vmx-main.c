@@ -1098,13 +1098,42 @@ u32 xmhf_parteventhub_arch_x86vmx_print_guest(VCPU *vcpu, struct regs *r)
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	if (__vmx_vmread32(0x4402) == VMX_VMEXIT_VMCALL) {
+		extern void xmhf_nested_arch_x86vmx_vmread_all(VCPU * vcpu, char *prefix);
 		switch (r->eax) {
 		case 0x1234:
 			printf("LXY: host vmcall\n");
+			printf("LXY: :host : ebx=0x%08x\n", r->ebx);
+			xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":host :");
 			__vmx_vmwriteNW(0x681E, __vmx_vmreadNW(0x681E) + __vmx_vmread32(0x440C));
 			return 1;
 		case 0x4321:
 			printf("LXY: guest vmcall\n");
+			/* Start manipulating VMCS */
+			//__vmx_vmwrite64(0x201a, vcpu->vmcs.control_EPT_pointer);
+			r->ebx = 0x80000015U;
+			__vmx_vmwrite64(0x2000, 0x000000001d73e000);
+			__vmx_vmwrite64(0x2002, 0x000000001d73f000);
+			__vmx_vmwrite64(0x2006, 0x000000001d750000);
+			__vmx_vmwrite64(0x2008, 0x000000001d740000);
+			__vmx_vmwrite64(0x200a, 0x000000001d750000);
+			__vmx_vmwrite32(0x4002, 0x86006172);
+			__vmx_vmwrite32(0x400c, 0x00036dfb);
+			__vmx_vmwrite32(0x4012, 0x000011fb);
+			__vmx_vmwrite32(0x401e, 0x000010aa);
+			__vmx_vmwrite32(0x480e, 0x00000000);
+			__vmx_vmwrite32(0x4810, 0x0000ffff);
+			__vmx_vmwrite32(0x4812, 0x0000ffff);
+			__vmx_vmwriteNW(0x6804, 0x2030);
+			__vmx_vmwriteNW(0x6814, 0x08217260);
+			__vmx_vmwrite32(0x480e, 0x00000067);
+			__vmx_vmwrite32(0x4810, 0x0000001f);
+			__vmx_vmwrite32(0x4812, 0x000003ff);
+			// CR0
+			__vmx_vmwriteNW(0x6004, 0x10);
+			__vmx_vmwriteNW(0x6800, 0x35);
+			/* End manipulating VMCS */
+			printf("LXY: :guest: ebx=0x%08x\n", r->ebx);
+			xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":guest:");
 			__vmx_vmwriteNW(0x681E, __vmx_vmreadNW(0x681E) + __vmx_vmread32(0x440C));
 			return 1;
 		default:
