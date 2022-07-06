@@ -1112,7 +1112,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		case 0x4321:
 			printf("LXY: guest vmcall\n");
 			/* Start manipulating VMCS */
-			//__vmx_vmwrite64(0x201a, vcpu->vmcs.control_EPT_pointer);
 			if ("manipulate EPT") {
 				// vcpu->vmcs.control_EPT_pointer = g_vmx_ept_pml4_table_buffers | 0x1e
 				// New ept = (uintptr_t) &g_vmx_ept_pml4_table_buffers[0] | 0x1e
@@ -1142,35 +1141,12 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				if (0) {
 					HALT_ON_ERRORCOND(0);
 				}
-				// *(u64 *) (uintptr_t) (old_t2 + 0x228) = *(u64 *) (uintptr_t) (new_t2 + 0x228);
-//#define F(I) *(u64 *) (uintptr_t) (old_t1 + I) = *(u64 *) (uintptr_t) (new_t1 + I);
-				// F(0xb48);
 				HALT_ON_ERRORCOND(*(u64 *) (uintptr_t) (new_t1 + 0xb48) == 0x8b69037);
-				*(u64 *) (uintptr_t) (old_t1 + 0xb48) = 0x8b69037;
+				*(u64 *) (uintptr_t) (old_t1 + 0xb48) = 0x8b69033;
+				(void) old_t1;
 			}
 			HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_GLOBAL, 0));
 			HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_ALLCONTEXTS, 0, 0));
-			r->ebx = 0x80000015U;
-			__vmx_vmwrite64(0x2000, vcpu->vmcs.control_IO_BitmapA_address);
-			__vmx_vmwrite64(0x2002, vcpu->vmcs.control_IO_BitmapB_address);
-			__vmx_vmwrite64(0x2006, vcpu->vmcs.control_VM_exit_MSR_store_address);
-			__vmx_vmwrite64(0x2008, vcpu->vmcs.control_VM_exit_MSR_load_address);
-			__vmx_vmwrite64(0x200a, vcpu->vmcs.control_VM_entry_MSR_load_address);
-			__vmx_vmwrite32(0x4002, 0x86006172);
-			__vmx_vmwrite32(0x400c, 0x00036dfb);
-			__vmx_vmwrite32(0x4012, 0x000011fb);
-			__vmx_vmwrite32(0x401e, 0x000010aa);
-			__vmx_vmwrite32(0x480e, 0x00000000);
-			__vmx_vmwrite32(0x4810, 0x0000ffff);
-			__vmx_vmwrite32(0x4812, 0x0000ffff);
-			__vmx_vmwriteNW(0x6804, 0x2030);
-			__vmx_vmwriteNW(0x6814, vcpu->vmcs.guest_TR_base);
-			__vmx_vmwrite32(0x480e, 0x00000067);
-			__vmx_vmwrite32(0x4810, 0x0000001f);
-			__vmx_vmwrite32(0x4812, 0x000003ff);
-			// CR0
-			__vmx_vmwriteNW(0x6004, 0x10);
-			__vmx_vmwriteNW(0x6800, 0x35);
 			/* End manipulating VMCS */
 			printf("LXY: :guest: ebx=0x%08x\n", r->ebx);
 			xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":guest:");
