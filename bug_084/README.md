@@ -457,10 +457,29 @@ page table.
 
 Even though we require the guest to not use VPID, there is one caveat: during
 all VMEXIT and VMENTRY, the TLB needs to be flushed. See KVM's
-`nested_vmx_transition_tlb_flush()`.
+`nested_vmx_transition_tlb_flush()`. This is fixed in
+`xmhf64-nest daafed3d0..458adf795`.
 
-TODO: let nested guest always occupy VPID = 2 for now
-TODO: implement INVVPID
+In `xmhf64-nest 458adf795..3f796487d`, extract the LRU cache algorithm to a
+single file. Use macros to achieve a similar effect of C++ templating. This is
+similar to 15410's variable queue challenge.
+
+In `lhv 308174b5c`, can enable VPID using `__LHV_OPT__` mask `0x10`. In
+`xmhf64-nest de0873065..20dad0089`, support enabling VPID in XMHF (but not
+INVVPID yet).
+
+In `lhv c41fe8b62`, use all 4 kinds of INVVPID. In
+`xmhf64-nest 20dad0089..e69ca507a`, support all 4 kinds of INVVPID.
+
+### Unrestricted guest
+
+After implementing nested page table, we should be able to enable unrestricted
+guest. However, when I try to disable paging in LHV guest in `lhv 6332af28c`, I
+get a `#GP`. I suspect that maybe some VMCS settings in LHV is wrong, because
+this does not happend when disabling paging in LHV hypervsior.
+
+SDM says that when unrestricted guest is 0, MOV CR0 will `#GP` if unset CR0.PG.
+
 TODO: implement unrestricted guest
 TODO: study KVM code, maybe use older version
 TODO: study shadow page table, maybe use Xen code
