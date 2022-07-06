@@ -1095,67 +1095,8 @@ u32 xmhf_parteventhub_arch_x86vmx_print_guest(VCPU *vcpu, struct regs *r)
 	HALT();
 }
 
-#include "../../../../xmhf-nested/arch/x86/vmx/nested-x86vmx-ept12.h"
-extern ept02_cache_set_t ept02_cache[1];
-
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
-	if (__vmx_vmread32(0x4402) == VMX_VMEXIT_VMCALL) {
-		extern void xmhf_nested_arch_x86vmx_vmread_all(VCPU * vcpu, char *prefix);
-		switch (r->eax) {
-		case 0x1234:
-			printf("LXY: host vmcall\n");
-			printf("LXY: :host : ebx=0x%08x\n", r->ebx);
-			xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":host :");
-			__vmx_vmwriteNW(0x681E, __vmx_vmreadNW(0x681E) + __vmx_vmread32(0x440C));
-			return 1;
-		case 0x4321:
-			printf("LXY: guest vmcall\n");
-			/* Start manipulating VMCS */
-			if ("manipulate EPT") {
-				// vcpu->vmcs.control_EPT_pointer = g_vmx_ept_pml4_table_buffers | 0x1e
-				// New ept = (uintptr_t) &g_vmx_ept_pml4_table_buffers[0] | 0x1e
-				// Old ept = ept02_cache[0].elems[3].value.ept02_ctx.ctx.root_pa | 0x1e
-				// g_vmx_ept_pml4_table_buffers only has 1 entry
-				// g_vmx_ept_pdp_table_buffers has 4 entries
-				// g_vmx_ept_pd_table_buffers has ...
-				// g_vmx_ept_p_table_buffers has ...
-				u64 old_t4 = ept02_cache[0].elems[3].value.ept02_ctx.ctx.root_pa;
-				u64 old_e4 = *(u64 *) (uintptr_t) old_t4;
-				u64 old_t3 = old_e4 & ~0xfff;
-				u64 old_e3 = *(u64 *) (uintptr_t) old_t3;
-				u64 old_t2 = old_e3 & ~0xfff;
-				// Only offset 0x208 and 0x228 of t2 is used
-				u64 old_e2 = *(u64 *) (uintptr_t) (old_t2 | 0x228);
-				u64 old_t1 = old_e2 & ~0xfff;
-				// Only offset 0xb50 and 0xca8 of t1 are used:
-				//  0x1c8a7b50:	0x0000000008b6a037	0x0000000000000000
-				//  0x1c8a7ca0:	0x0000000000000000	0x0000000008b95037
-				u64 new_t4 = (uintptr_t) &g_vmx_ept_pml4_table_buffers[0];
-				u64 new_e4 = *(u64 *) (uintptr_t) new_t4;
-				u64 new_t3 = new_e4 & ~0xfff;
-				u64 new_e3 = *(u64 *) (uintptr_t) new_t3;
-				u64 new_t2 = new_e3 & ~0xfff;
-				u64 new_e2 = *(u64 *) (uintptr_t) (new_t2 | 0x228);
-				u64 new_t1 = new_e2 & ~0xfff;
-				if (0) {
-					HALT_ON_ERRORCOND(0);
-				}
-				HALT_ON_ERRORCOND(*(u64 *) (uintptr_t) (new_t1 + 0xb48) == 0x8b69037);
-				*(u64 *) (uintptr_t) (old_t1 + 0xb48) = 0x8b69033;
-				(void) old_t1;
-			}
-			HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_GLOBAL, 0));
-			HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_ALLCONTEXTS, 0, 0));
-			/* End manipulating VMCS */
-			printf("LXY: :guest: ebx=0x%08x\n", r->ebx);
-			xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":guest:");
-			__vmx_vmwriteNW(0x681E, __vmx_vmreadNW(0x681E) + __vmx_vmread32(0x440C));
-			return 1;
-		default:
-			break;
-		}
-	}
 #ifdef __NESTED_VIRTUALIZATION__
 	if (vcpu->vmx_nested_is_vmx_operation &&
 		!vcpu->vmx_nested_is_vmx_root_operation) {

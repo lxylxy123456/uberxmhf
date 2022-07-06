@@ -54,7 +54,7 @@
 #define EPT02_PAGE_POOL_SIZE 128
 
 /* For each CPU, information about all EPT12 -> EPT02 it caches */
-ept02_cache_set_t ept02_cache[MAX_VCPU_ENTRIES];
+static ept02_cache_set_t ept02_cache[MAX_VCPU_ENTRIES];
 
 /* Page pool for ept02_cache */
 static u8 ept02_page_pool[MAX_VCPU_ENTRIES][VMX_NESTED_MAX_ACTIVE_EPT]
@@ -480,7 +480,7 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	/* Put page map entry into EPT02 */
 	HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&cache_line->value.ept02_ctx.ctx,
 											 &pmeo02, guest2_paddr) == 0);
-	printf("CPU(0x%02x): EPT: 0x%08llx 0x%08llx 0x%08llx RIP=0x%08lx\n", vcpu->id,
-		   guest2_paddr, guest1_paddr, xmhf_paddr, __vmx_vmreadNW(VMCSENC_guest_RIP));
+	printf("CPU(0x%02x): EPT: 0x%08llx 0x%08llx 0x%08llx\n", vcpu->id,
+		   guest2_paddr, guest1_paddr, xmhf_paddr);
 	return 1;
 }
