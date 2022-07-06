@@ -435,11 +435,23 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 		break;
 	case VMX_VMEXIT_EPT_VIOLATION:
-		console_put_char(NULL, vcpu->idx * 5 + 0, 21, 'G');
-		console_put_char(NULL, vcpu->idx * 5 + 1, 21, 'O');
-		console_put_char(NULL, vcpu->idx * 5 + 2, 21, 'O');
-		console_put_char(NULL, vcpu->idx * 5 + 3, 21, 'D');
-		HALT_ON_ERRORCOND(0 && "hypervisor receives EPT (correct behavior)");
+		{
+			u64 cr3 = vmcs_vmread(vcpu, VMCS_guest_CR3);
+			u64 paddr = vmcs_vmread64(vcpu, VMCS_guest_paddr);
+			if (cr3 == (paddr & ~0xfff)) {
+				console_put_char(NULL, vcpu->idx * 5 + 0, 21, 'G');
+				console_put_char(NULL, vcpu->idx * 5 + 1, 21, 'O');
+				console_put_char(NULL, vcpu->idx * 5 + 2, 21, 'O');
+				console_put_char(NULL, vcpu->idx * 5 + 3, 21, 'D');
+				HALT_ON_ERRORCOND(0 && "hypervisor receives CR3 EPT (correct behavior)");
+			} else {
+				console_put_char(NULL, vcpu->idx * 5 + 0, 23, '?');
+				console_put_char(NULL, vcpu->idx * 5 + 1, 23, '?');
+				console_put_char(NULL, vcpu->idx * 5 + 2, 23, '?');
+				console_put_char(NULL, vcpu->idx * 5 + 3, 23, '?');
+				HALT_ON_ERRORCOND(0 && "hypervisor receives unknown EPT (unknown behavior)");
+			}
+		}
 		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
 		{
 			ulong_t q = vmcs_vmread(vcpu, VMCS_info_exit_qualification);
