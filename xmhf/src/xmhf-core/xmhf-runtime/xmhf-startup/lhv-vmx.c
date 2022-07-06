@@ -143,7 +143,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	}
 
 	if (__LHV_OPT__ & LHV_USE_EPT) {
-		u64 eptp = lhv_build_ept(vcpu);
+		u64 eptp = lhv_build_ept(vcpu, 0);
 		u32 seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
 		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
 		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
@@ -157,6 +157,21 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE3, cr3[3]);
 		}
 #endif /* __I386__ */
+	}
+
+	if (__LHV_OPT__ & LHV_USE_VPID) {
+		u32 seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
+		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_VPID);
+		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
+		vmcs_vmwrite(vcpu, VMCS_control_vpid, 1);
+	}
+
+	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
+		u32 seccpu;
+		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+		seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
+		seccpu |= (1U << VMX_SECPROCBASED_UNRESTRICTED_GUEST);
+		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
 	}
 
 	vmcs_vmwrite(vcpu, VMCS_control_pagefault_errorcode_mask, 0);
@@ -405,11 +420,60 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		}
 		if (__LHV_OPT__ & LHV_USE_EPT) {
 			/* Make sure that EPT exits are present */
-			HALT_ON_ERRORCOND(vcpu->ept_exit_count + 3 >
-							  vcpu->vmcall_exit_count);
+			if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
+				HALT_ON_ERRORCOND((vcpu->ept_exit_count + 3) * LHV_EPT_COUNT * 16 >
+								  vcpu->vmcall_exit_count);
+			} else {
+				HALT_ON_ERRORCOND(vcpu->ept_exit_count + 3 >
+								  vcpu->vmcall_exit_count);
+			}
+		}
+		if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
+			u64 eptp;
+			/* Check prerequisite */
+			HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+			/* Swap EPT */
+			vcpu->ept_num++;
+			vcpu->ept_num %= (LHV_EPT_COUNT << 4);
+			eptp = lhv_build_ept(vcpu, vcpu->ept_num);
+			vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
+		}
+		if (__LHV_OPT__ & LHV_USE_VPID) {
+			/* VPID will always be odd */
+			u16 vpid = vmcs_vmread(vcpu, VMCS_control_vpid);
+			if ("test INVVPID") {
+				/*
+				 * Currently we cannot easily test the effect of INVVPID. So
+				 * just make sure that the return value is correct.
+				 */
+				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
+												vpid, 0x12345678U));
+#ifdef __AMD64__
+				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
+												 vpid, 0xf0f0f0f0f0f0f0f0ULL));
+#elif !defined(__I386__)
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) */
+				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
+												 0, 0x12345678U));
+				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT,
+												vpid, 0));
+				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT,
+												 0, 0));
+				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_ALLCONTEXTS,
+												vpid, 0));
+				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXTGLOBAL,
+												vpid, 0));
+				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_SINGLECONTEXTGLOBAL,
+												 0, 0));
+			}
+			vpid += 2;
+			vmcs_vmwrite(vcpu, VMCS_control_vpid, vpid);
 		}
 		{
-			asm volatile ("sti; hlt; cli;");
+			if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+				asm volatile ("sti; hlt; cli;");
+			}
 			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 			break;
 		}

@@ -149,7 +149,9 @@ void udelay(u32 usecs){
     outb(val , 0x42);
 
     //wait for countdown
-    while(!(inb(0x61) & 0x20));
+    while (!(inb(0x61) & 0x20)) {
+        asm volatile ("pause");     /* Save energy when waiting */
+    }
 
     //disable ch-2 counter
     val = inb(0x61);
@@ -176,11 +178,8 @@ void send_init_ipi_to_all_APs(void) {
     *icr = 0x000c4500UL;
     udelay(10000);
     //wait for command completion
-    {
-        u32 val;
-        do{
-            val = *icr;
-        }while(--timeout > 0 && (val & 0x1000) );
+    while (--timeout > 0 && ((*icr) & 0x00001000U)) {
+        asm volatile ("pause");     /* Save energy when waiting */
     }
     if(timeout == 0) {
         printf("\nERROR: send_init_ipi_to_all_APs() TIMEOUT!\n");
@@ -761,33 +760,27 @@ void wakeupAPs(void){
 
     //our test code is at 1000:0000, we need to send 10 as vector
     //send INIT
-    printf("Sending INIT IPI to all APs...\n");
+    printf("Sending INIT IPI to all APs...");
     *icr = 0x000c4500UL;
     udelay(10000);
     //wait for command completion
-    {
-        u32 val;
-        do{
-            val = *icr;
-        }while( (val & 0x1000) );
+    while ((*icr) & 0x1000U) {
+        asm volatile ("pause");     /* Save energy when waiting */
     }
-    printf("Done.");
+    printf("Done.\n");
 
     //send SIPI (twice as per the MP protocol)
     {
         int i;
         for(i=0; i < 2; i++){
-            printf("Sending SIPI-%u...\n", i);
+            printf("Sending SIPI-%u...", i);
             *icr = 0x000c4610UL;
             udelay(200);
             //wait for command completion
-            {
-                u32 val;
-                do{
-                    val = *icr;
-                }while( (val & 0x1000) );
+            while ((*icr) & 0x1000U) {
+                asm volatile ("pause");     /* Save energy when waiting */
             }
-            printf("Done.");
+            printf("Done.\n");
         }
     }
 
@@ -859,9 +852,11 @@ void cstartup(multiboot_info_t *mbi){
 	printf("LHV_OPT = 0x%016llx\n", (u64) __LHV_OPT__);
 #ifdef __XMHF_AMD64__
 	printf("Subarch: amd64\n\n");
-#else /* !__XMHF_AMD64__ */
+#elif __XMHF_I386__
 	printf("Subarch: i386\n\n");
-#endif /* __XMHF_AMD64__ */
+#else /* !defined(__XMHF_I386__) && !defined(__XMHF_AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__XMHF_I386__) && !defined(__XMHF_AMD64__) */
 
     printf("INIT(early): initializing, total modules=%u\n", mods_count);
 
@@ -883,6 +878,19 @@ void cstartup(multiboot_info_t *mbi){
     } else {
         printf("INIT(early): Dazed and confused: Unknown CPU vendor %d\n", cpu_vendor);
     }
+
+#ifdef __XMHF_AMD64__
+    //check whether 64-bit is supported by the CPU
+    {
+        uint32_t eax, edx, ebx, ecx;
+        cpuid(0x80000000U, &eax, &ebx, &ecx, &edx);
+        HALT_ON_ERRORCOND(eax >= 0x80000001U);
+        cpuid(0x80000001U, &eax, &ebx, &ecx, &edx);
+        HALT_ON_ERRORCOND((edx & (1U << 29)) && "64-bit not supported");
+    }
+#elif !defined(__XMHF_I386__)
+    #error "Unsupported Arch"
+#endif /* !defined(__XMHF_I386__) */
 
     //deal with MP and get CPU table
     dealwithMP();
@@ -1078,7 +1086,9 @@ void mp_cstartup (VCPU *vcpu){
 
         //wait for cpus_active to become midtable_numentries -1 to indicate
         //that all APs have been successfully started
-        while(cpus_active < midtable_numentries);
+        while (cpus_active < midtable_numentries) {
+            asm volatile ("pause");     /* Save energy when waiting */
+        }
 #endif /* DUPLICATE_INIT_SIPI_SIPI */
 
 
