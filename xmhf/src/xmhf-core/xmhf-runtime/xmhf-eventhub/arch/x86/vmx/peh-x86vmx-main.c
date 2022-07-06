@@ -1111,11 +1111,11 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			/* Start manipulating VMCS */
 			//__vmx_vmwrite64(0x201a, vcpu->vmcs.control_EPT_pointer);
 			r->ebx = 0x80000015U;
-			__vmx_vmwrite64(0x2000, 0x000000001d73e000);
-			__vmx_vmwrite64(0x2002, 0x000000001d73f000);
-			__vmx_vmwrite64(0x2006, 0x000000001d750000);
-			__vmx_vmwrite64(0x2008, 0x000000001d740000);
-			__vmx_vmwrite64(0x200a, 0x000000001d750000);
+			__vmx_vmwrite64(0x2000, vcpu->vmcs.control_IO_BitmapA_address);
+			__vmx_vmwrite64(0x2002, vcpu->vmcs.control_IO_BitmapB_address);
+			__vmx_vmwrite64(0x2006, vcpu->vmcs.control_VM_exit_MSR_store_address);
+			__vmx_vmwrite64(0x2008, vcpu->vmcs.control_VM_exit_MSR_load_address);
+			__vmx_vmwrite64(0x200a, vcpu->vmcs.control_VM_entry_MSR_load_address);
 			__vmx_vmwrite32(0x4002, 0x86006172);
 			__vmx_vmwrite32(0x400c, 0x00036dfb);
 			__vmx_vmwrite32(0x4012, 0x000011fb);
@@ -1124,7 +1124,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			__vmx_vmwrite32(0x4810, 0x0000ffff);
 			__vmx_vmwrite32(0x4812, 0x0000ffff);
 			__vmx_vmwriteNW(0x6804, 0x2030);
-			__vmx_vmwriteNW(0x6814, 0x08217260);
+			__vmx_vmwriteNW(0x6814, vcpu->vmcs.guest_TR_base);
 			__vmx_vmwrite32(0x480e, 0x00000067);
 			__vmx_vmwrite32(0x4810, 0x0000001f);
 			__vmx_vmwrite32(0x4812, 0x000003ff);
