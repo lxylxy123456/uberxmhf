@@ -435,6 +435,10 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 		break;
 	case VMX_VMEXIT_EPT_VIOLATION:
+		console_put_char(NULL, 20, 21, 'G');
+		console_put_char(NULL, 21, 21, 'O');
+		console_put_char(NULL, 22, 21, 'O');
+		console_put_char(NULL, 23, 21, 'D');
 		HALT_ON_ERRORCOND(0 && "hypervisor receives EPT (correct behavior)");
 		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
 		{

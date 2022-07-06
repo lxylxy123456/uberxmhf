@@ -18,6 +18,9 @@ void lhv_guest_main(ulong_t cpu_id)
 void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 {
 	(void) r;
+	console_put_char(NULL, 20, 20, 'B');
+	console_put_char(NULL, 21, 20, 'A');
+	console_put_char(NULL, 22, 20, 'D');
 	HALT_ON_ERRORCOND(0 && "Guest received exception (incorrect behavior)");
 	switch (vector) {
 	case 0x20:
