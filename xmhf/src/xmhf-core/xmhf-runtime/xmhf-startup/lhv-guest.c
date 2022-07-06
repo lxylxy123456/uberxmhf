@@ -17,10 +17,11 @@ void lhv_guest_main(ulong_t cpu_id)
 
 void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 {
+	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	(void) r;
-	console_put_char(NULL, 20, 20, 'B');
-	console_put_char(NULL, 21, 20, 'A');
-	console_put_char(NULL, 22, 20, 'D');
+	console_put_char(NULL, vcpu->idx * 5 + 0, 20, 'B');
+	console_put_char(NULL, vcpu->idx * 5 + 1, 20, 'A');
+	console_put_char(NULL, vcpu->idx * 5 + 2, 20, 'D');
 	HALT_ON_ERRORCOND(0 && "Guest received exception (incorrect behavior)");
 	switch (vector) {
 	case 0x20:
