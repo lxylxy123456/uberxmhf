@@ -1,6 +1,10 @@
 #include <xmhf.h>
 #include <lhv.h>
 
+static inline void write_cr0_2(unsigned long val){
+	__asm__("mov $0x4321, %%eax; vmcall; mov %0,%%cr0": :"b" ((unsigned long)val));
+}
+
 void lhv_guest_main(ulong_t cpu_id)
 {
 	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
@@ -10,8 +14,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		if (1) {
 			printf("CPU(0x%02x): LHV guest can disable paging\n", cpu_id);
 		}
-		asm volatile ("mov $0x4321, %eax; vmcall;");
-		write_cr0(cr0);
+		write_cr0_2(cr0);
 		if (1) {
 			printf("CPU(0x%02x): LHV guest can enable paging\n", cpu_id);
 		}
