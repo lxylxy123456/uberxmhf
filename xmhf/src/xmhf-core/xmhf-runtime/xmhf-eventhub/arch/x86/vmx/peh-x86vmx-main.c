@@ -1095,6 +1095,9 @@ u32 xmhf_parteventhub_arch_x86vmx_print_guest(VCPU *vcpu, struct regs *r)
 	HALT();
 }
 
+#include "../../../../xmhf-nested/arch/x86/vmx/nested-x86vmx-ept12.h"
+extern ept02_cache_set_t ept02_cache[1];
+
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	if (__vmx_vmread32(0x4402) == VMX_VMEXIT_VMCALL) {
@@ -1110,6 +1113,22 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			printf("LXY: guest vmcall\n");
 			/* Start manipulating VMCS */
 			//__vmx_vmwrite64(0x201a, vcpu->vmcs.control_EPT_pointer);
+			if ("manipulate EPT") {
+				// vcpu->vmcs.control_EPT_pointer = g_vmx_ept_pml4_table_buffers | 0x1e
+				// New ept = (uintptr_t) &g_vmx_ept_pml4_table_buffers[0] | 0x1e
+				// Old ept = ept02_cache[0].elems[3].value.ept02_ctx.ctx.root_pa | 0x1e
+				// g_vmx_ept_pml4_table_buffers only has 1 entry
+				// g_vmx_ept_pdp_table_buffers has 4 entries
+				// g_vmx_ept_pd_table_buffers has ...
+				// g_vmx_ept_p_table_buffers has ...
+				u64 old_t4 = ept02_cache[0].elems[3].value.ept02_ctx.ctx.root_pa;
+				//u64 old_e4 = *(u64 *) old_t4;
+				u64 new_t4 = (uintptr_t) &g_vmx_ept_pml4_table_buffers[0];
+				u64 new_e4 = *(u64 *) (uintptr_t) new_t4;
+				*(u64 *) (uintptr_t) old_t4 = new_e4;
+			}
+			HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_GLOBAL, 0));
+			HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_ALLCONTEXTS, 0, 0));
 			r->ebx = 0x80000015U;
 			__vmx_vmwrite64(0x2000, vcpu->vmcs.control_IO_BitmapA_address);
 			__vmx_vmwrite64(0x2002, vcpu->vmcs.control_IO_BitmapB_address);

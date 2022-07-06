@@ -54,7 +54,7 @@
 #define EPT02_PAGE_POOL_SIZE 128
 
 /* For each CPU, information about all EPT12 -> EPT02 it caches */
-static ept02_cache_set_t ept02_cache[MAX_VCPU_ENTRIES];
+ept02_cache_set_t ept02_cache[MAX_VCPU_ENTRIES];
 
 /* Page pool for ept02_cache */
 static u8 ept02_page_pool[MAX_VCPU_ENTRIES][VMX_NESTED_MAX_ACTIVE_EPT]
