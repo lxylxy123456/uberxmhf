@@ -1097,6 +1097,20 @@ u32 xmhf_parteventhub_arch_x86vmx_print_guest(VCPU *vcpu, struct regs *r)
 
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
+	if (__vmx_vmread32(0x4402) == VMX_VMEXIT_VMCALL) {
+		switch (r->eax) {
+		case 0x1234:
+			printf("LXY: host vmcall\n");
+			__vmx_vmwriteNW(0x681E, __vmx_vmreadNW(0x681E) + __vmx_vmread32(0x440C));
+			return 1;
+		case 0x4321:
+			printf("LXY: guest vmcall\n");
+			__vmx_vmwriteNW(0x681E, __vmx_vmreadNW(0x681E) + __vmx_vmread32(0x440C));
+			return 1;
+		default:
+			break;
+		}
+	}
 #ifdef __NESTED_VIRTUALIZATION__
 	if (vcpu->vmx_nested_is_vmx_operation &&
 		!vcpu->vmx_nested_is_vmx_root_operation) {
