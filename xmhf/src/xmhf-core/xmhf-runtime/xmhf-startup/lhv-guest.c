@@ -42,6 +42,13 @@ void lhv_guest_main(ulong_t cpu_id)
 				HALT_ON_ERRORCOND((u8) (a >> 24) == vcpu->ept_num);
 			}
 		}
+		if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
+			ulong_t cr0 = read_cr0();
+			asm volatile ("cli");
+			cr0 &= 0x7fffffffUL;
+			write_cr0(cr0);
+			HALT_ON_ERRORCOND(0 && "TODO frontier");
+		}
 	}
 }
 
@@ -59,9 +66,8 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 		handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
 		break;
 	default:
-//		while (1) {
-//			printf("Guest: unknown interrupt / exception!\n");
-//		}
+		printf("Guest: interrupt / exception vector %ld\n", vector);
+		HALT_ON_ERRORCOND(0 && "Guest: unknown interrupt / exception!\n");
 		break;
 	}
 }
