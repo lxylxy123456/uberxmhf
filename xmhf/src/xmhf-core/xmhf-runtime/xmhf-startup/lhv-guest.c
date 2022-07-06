@@ -46,6 +46,7 @@ void lhv_guest_main(ulong_t cpu_id)
 			ulong_t cr0 = read_cr0();
 			asm volatile ("cli");
 			cr0 &= 0x7fffffffUL;
+			HALT_ON_ERRORCOND(0 && "TODO frontier");
 			write_cr0(cr0);
 			HALT_ON_ERRORCOND(0 && "TODO frontier");
 		}

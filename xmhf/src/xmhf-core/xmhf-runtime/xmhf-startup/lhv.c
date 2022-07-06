@@ -22,6 +22,14 @@ void lhv_main(VCPU *vcpu)
 			console_put_char(&vc, i, j, '0' + vcpu->id);
 		}
 	}
+	if (1) {
+		ulong_t cr0 = read_cr0();
+		asm volatile ("cli");
+		cr0 &= 0x7fffffffUL;
+		HALT_ON_ERRORCOND(0 && "TODO frontier");
+		write_cr0(cr0);
+		HALT_ON_ERRORCOND(0 && "TODO frontier");
+	}
 	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 		/* Set EFLAGS.IF */
 		asm volatile ("sti");
