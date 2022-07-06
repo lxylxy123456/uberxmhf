@@ -27,6 +27,7 @@ void lhv_main(VCPU *vcpu)
 		ulong_t cr0 = read_cr0();
 		write_cr0(cr0 & 0x7fffffffUL);
 		printf("LHV hypervisor can disable paging\n");
+		asm volatile ("mov $0x1234, %eax; vmcall;");
 		write_cr0(cr0);
 	}
 	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {

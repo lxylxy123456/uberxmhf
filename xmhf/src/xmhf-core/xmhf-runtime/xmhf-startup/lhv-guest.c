@@ -10,6 +10,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		if (1) {
 			printf("CPU(0x%02x): LHV guest can disable paging\n", cpu_id);
 		}
+		asm volatile ("mov $0x4321, %eax; vmcall;");
 		write_cr0(cr0);
 		if (1) {
 			printf("CPU(0x%02x): LHV guest can enable paging\n", cpu_id);
