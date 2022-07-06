@@ -1125,16 +1125,18 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				u64 old_e4 = *(u64 *) (uintptr_t) old_t4;
 				u64 old_t3 = old_e4 & ~0xfff;
 				u64 old_e3 = *(u64 *) (uintptr_t) old_t3;
+				u64 old_t2 = old_e3 & ~0xfff;
+				// Only offset 0x208 and 0x228 of t2 is used
 				u64 new_t4 = (uintptr_t) &g_vmx_ept_pml4_table_buffers[0];
 				u64 new_e4 = *(u64 *) (uintptr_t) new_t4;
 				u64 new_t3 = new_e4 & ~0xfff;
 				u64 new_e3 = *(u64 *) (uintptr_t) new_t3;
-				if (1) {
+				u64 new_t2 = new_e3 & ~0xfff;
+				if (0) {
 					HALT_ON_ERRORCOND(0);
-					old_e3 = new_e3;
-					new_e3 = old_e3;
 				}
-				*(u64 *) (uintptr_t) old_t3 = new_e3;
+				// *(u64 *) (uintptr_t) (old_t2 + 0x208) = *(u64 *) (uintptr_t) (new_t2 + 0x208);
+				*(u64 *) (uintptr_t) (old_t2 + 0x228) = *(u64 *) (uintptr_t) (new_t2 + 0x228);
 			}
 			HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_GLOBAL, 0));
 			HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_ALLCONTEXTS, 0, 0));
