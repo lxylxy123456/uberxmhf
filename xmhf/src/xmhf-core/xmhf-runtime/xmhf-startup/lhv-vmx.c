@@ -362,8 +362,6 @@ void lhv_vmx_main(VCPU *vcpu)
 	lhv_vmx_vmcs_init(vcpu);
 	vmcs_dump(vcpu, 0);
 
-//	asm volatile ("cli");	// TODO: tmp
-
 	/* VMLAUNCH */
 	{
 		struct regs r;
@@ -415,85 +413,34 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			break;
 		}
 	case VMX_VMEXIT_VMCALL:
-		if (vcpu->vmcall_exit_count < UINT_MAX) {
-			vcpu->vmcall_exit_count++;
+		if (r->eax == 0x4321) {
+			u64 eptp = vmcs_vmread(vcpu, VMCS_control_EPT_pointer);
+			u64 cr3 = vmcs_vmread(vcpu, VMCS_guest_CR3);
+			u64 ept_t4 = (eptp & ~0xfff);
+			u64 ept_e4 = *(u64*)(uintptr_t)(ept_t4 + (((cr3 >> 39) & 0x1ff) << 3));
+			u64 ept_t3 = (ept_e4 & ~0xfff);
+			u64 ept_e3 = *(u64*)(uintptr_t)(ept_t3 + (((cr3 >> 30) & 0x1ff) << 3));
+			u64 ept_t2 = (ept_e3 & ~0xfff);
+			u64 ept_e2 = *(u64*)(uintptr_t)(ept_t2 + (((cr3 >> 21) & 0x1ff) << 3));
+			u64 ept_t1 = (ept_e2 & ~0xfff);
+			u64 *ept_e1p = (u64*)(uintptr_t)(ept_t1 + (((cr3 >> 12) & 0x1ff) << 3));
+			u64 ept_e1 = *ept_e1p;
+			printf("EPT E1 = 0x%016llx\n", ept_e1);
+			printf("CR3    = 0x%016llx\n", cr3);
+			*ept_e1p = 0;
+			__vmx_invept(VMX_INVEPT_GLOBAL, 0);
+		} else {
+			HALT_ON_ERRORCOND(0);
 		}
-		if (__LHV_OPT__ & LHV_USE_EPT) {
-			/* Make sure that EPT exits are present */
-			if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
-				HALT_ON_ERRORCOND((vcpu->ept_exit_count + 3) * LHV_EPT_COUNT * 16 >
-								  vcpu->vmcall_exit_count);
-			} else {
-				HALT_ON_ERRORCOND(vcpu->ept_exit_count + 3 >
-								  vcpu->vmcall_exit_count);
-			}
-		}
-		if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
-			u64 eptp;
-			/* Check prerequisite */
-			HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
-			/* Swap EPT */
-			vcpu->ept_num++;
-			vcpu->ept_num %= (LHV_EPT_COUNT << 4);
-			eptp = lhv_build_ept(vcpu, vcpu->ept_num);
-			vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
-		}
-		if (__LHV_OPT__ & LHV_USE_VPID) {
-			/* VPID will always be odd */
-			u16 vpid = vmcs_vmread(vcpu, VMCS_control_vpid);
-			if ("test INVVPID") {
-				/*
-				 * Currently we cannot easily test the effect of INVVPID. So
-				 * just make sure that the return value is correct.
-				 */
-				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
-												vpid, 0x12345678U));
-#ifdef __AMD64__
-				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
-												 vpid, 0xf0f0f0f0f0f0f0f0ULL));
-#elif !defined(__I386__)
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) */
-				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
-												 0, 0x12345678U));
-				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT,
-												vpid, 0));
-				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT,
-												 0, 0));
-				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_ALLCONTEXTS,
-												vpid, 0));
-				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXTGLOBAL,
-												vpid, 0));
-				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_SINGLECONTEXTGLOBAL,
-												 0, 0));
-			}
-			vpid += 2;
-			vmcs_vmwrite(vcpu, VMCS_control_vpid, vpid);
-		}
-		{
-			if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
-				asm volatile ("sti; hlt; cli;");
-			}
-			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
-			break;
-		}
+		vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+		break;
 	case VMX_VMEXIT_EPT_VIOLATION:
+		HALT_ON_ERRORCOND(0 && "hypervisor receives EPT (correct behavior)");
 		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
-		if (vcpu->ept_exit_count < UINT_MAX) {
-			vcpu->ept_exit_count++;
-		}
 		{
 			ulong_t q = vmcs_vmread(vcpu, VMCS_info_exit_qualification);
 			u64 paddr = vmcs_vmread64(vcpu, VMCS_guest_paddr);
 			ulong_t vaddr = vmcs_vmread(vcpu, VMCS_info_guest_linear_address);
-			if (paddr == 0x12340000 && vaddr == 0x12340000) {
-				HALT_ON_ERRORCOND(q == 0x181);
-				HALT_ON_ERRORCOND(r->eax == 0xdeadbeef);
-				HALT_ON_ERRORCOND(r->ebx == 0x12340000);
-				r->eax = 0xfee1c0de;
-				vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
-				break;
-			}
 			/* Unknown EPT violation */
 			printf("CPU(0x%02x): ept: 0x%08lx\n", vcpu->id, q);
 			printf("CPU(0x%02x): paddr: 0x%016llx\n", vcpu->id, paddr);
