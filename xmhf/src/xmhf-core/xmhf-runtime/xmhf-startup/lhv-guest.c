@@ -3,6 +3,24 @@
 
 void lhv_guest_main(ulong_t cpu_id)
 {
+	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
+		ulong_t cr0 = read_cr0();
+		asm volatile ("cli");
+		write_cr0(cr0 & 0x7fffffffUL);
+		if (1) {
+			printf("CPU(0x%02x): LHV guest can disable paging\n", cpu_id);
+		}
+		write_cr0(cr0);
+		if (1) {
+			printf("CPU(0x%02x): LHV guest can enable paging\n", cpu_id);
+		}
+		asm volatile ("sti");
+	}
+	HALT();
+}
+
+void lhv_guest_main2(ulong_t cpu_id)
+{
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	console_vc_t vc;
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
