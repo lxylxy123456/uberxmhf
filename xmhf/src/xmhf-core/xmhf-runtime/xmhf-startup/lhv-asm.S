@@ -115,3 +115,68 @@ inst_name&_asm:
 vmentry_asm_template vmlaunch 0
 vmentry_asm_template vmresume 1
 
+#ifdef __AMD64__
+.global lhv_disable_enable_paging
+lhv_disable_enable_paging:
+	/* Argument %rdi is pointer to string to print */
+	movq	%rdi, %rcx
+
+	/* Jump to compatibility mode */
+	pushq	$(__CS32)
+	pushq	$1f
+	lretq
+1:
+.code32
+
+	/* Disable paging */
+	movl	%cr0, %eax
+	andl	$0x7fffffff, %eax
+	movl	%eax, %cr0
+
+	/* Get printf lock */
+	movl	(emhfc_putchar_linelock_arg), %eax
+1:	pause
+	btl		$0, (%eax)
+	jnc		1b
+	lock
+	btrl	$0, (%eax)
+	jnc		1b
+
+	/* Print the string at %ecx */
+2:	cmpb	$0, (%ecx)
+	je		3f
+
+	/* Use inb to make sure the serial port is ready */
+	movw	$(0x3f8 + 5), %dx
+1:	inb		(%dx), %al
+	testb	$0x20, %al
+	jz		1b
+
+	/* Use outb to print to serial port */
+	movw	$(0x3f8), %dx
+	movb	(%ecx), %al
+	outb	%al, (%dx)
+	incl	%ecx
+
+	jmp		2b
+3:
+
+	/* Release printf lock */
+	movl	(emhfc_putchar_linelock_arg), %eax
+	btsl	$0, (%eax)
+
+	/* Enable paging */
+	movl	%cr0, %eax
+	orl		$0x80000000, %eax
+	movl	%eax, %cr0
+
+	/* Jump to long mode */
+	pushl	$(__CS)
+	pushl	$1f
+	lretl
+1:
+.code64
+	/* Done */
+	ret
+#endif /* __AMD64__ */
+

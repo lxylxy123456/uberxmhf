@@ -43,6 +43,14 @@ void lhv_guest_main(ulong_t cpu_id)
 			}
 		}
 		if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
+#ifdef __AMD64__
+			extern void lhv_disable_enable_paging(char *);
+			if ("quiet") {
+				lhv_disable_enable_paging("");
+			} else {
+				lhv_disable_enable_paging("LHV guest can disable paging\n");
+			}
+#elif defined(__I386__)
 			ulong_t cr0 = read_cr0();
 			asm volatile ("cli");
 			write_cr0(cr0 & 0x7fffffffUL);
@@ -51,6 +59,9 @@ void lhv_guest_main(ulong_t cpu_id)
 			}
 			write_cr0(cr0);
 			asm volatile ("sti");
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
 		}
 	}
 }
