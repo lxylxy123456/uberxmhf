@@ -431,8 +431,6 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	/* Get the entry in EPT12 and the L1 paddr that is to be accessed */
 	if (hptw_checked_get_pmeo(&pmeo12, &ept12_ctx->ctx, access_type, 0,
 							  guest2_paddr) != 0) {
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, ".LXY.");
-		HALT_ON_ERRORCOND(0);
 		return 2;
 	}
 	/* TODO: Large pages not supported yet */
