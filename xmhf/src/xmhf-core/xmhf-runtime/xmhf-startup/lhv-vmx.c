@@ -497,7 +497,6 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 				break;
 			}
 			/* Unknown EPT violation */
-			vmcs_dump(vcpu, 0);
 			printf("CPU(0x%02x): ept: 0x%08lx\n", vcpu->id, q);
 			printf("CPU(0x%02x): paddr: 0x%016llx\n", vcpu->id, paddr);
 			printf("CPU(0x%02x): vaddr: 0x%08lx\n", vcpu->id, vaddr);
