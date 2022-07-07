@@ -418,6 +418,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		if (vcpu->vmcall_exit_count < UINT_MAX) {
 			vcpu->vmcall_exit_count++;
 		}
+#if 0
 		if (__LHV_OPT__ & LHV_USE_EPT) {
 			/* Make sure that EPT exits are present */
 			if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
@@ -428,6 +429,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 								  vcpu->vmcall_exit_count);
 			}
 		}
+#endif
 		if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
 			u64 eptp;
 			/* Check prerequisite */
