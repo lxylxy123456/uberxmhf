@@ -366,6 +366,83 @@ spa_t xmhf_nested_arch_x86vmx_get_ept02(VCPU * vcpu, gpa_t ept12,
 		ept02_ctx_reset(&line->value.ept02_ctx);
 		ept12_ctx_update(vcpu, &line->value.ept12_ctx, ept12);
 	}
+#ifdef __DEBUG_QEMU__
+	/*
+	 * Workaround a KVM bug (TODO: document this bug)
+	 * Looks like KVM has a problem setting CR0.PG when nested guest's PDPTEs
+	 * are not in guest hypervisor's EPT. So we always make sure the EPT entry
+	 * is available. This is done similarly by calling
+	 * xmhf_nested_arch_x86vmx_handle_ept02_exit() with guest2_paddr = CR3.
+	 */
+	{
+		ept12_ctx_t *ept12_ctx;
+		u64 guest2_paddr = (u64) __vmx_vmreadNW(VMCSENC_guest_CR3);
+		gpa_t guest1_paddr;
+		spa_t xmhf_paddr;
+		hpt_pmeo_t pmeo12;
+		hpt_pmeo_t pmeo01;
+		hpt_pmeo_t pmeo02;
+		hpt_prot_t access_type;
+
+		ept12_ctx = &line->value.ept12_ctx;
+		access_type = HPT_PROT_READ_MASK;
+
+		/* Get the entry in EPT12 and the L1 paddr that is to be accessed */
+		if (hptw_checked_get_pmeo(&pmeo12, &ept12_ctx->ctx, access_type, 0,
+								  guest2_paddr) != 0) {
+			HALT_ON_ERRORCOND(0 && "guest cannot access CR3 (not implemented)");
+		}
+		/* TODO: Large pages not supported yet */
+		HALT_ON_ERRORCOND(pmeo12.lvl == 1);
+		guest1_paddr = hpt_pmeo_get_address(&pmeo12);
+
+		/* Get the entry in EPT01 for the L1 paddr */
+		if (hptw_checked_get_pmeo(&pmeo01, &ept12_ctx->ctx01.host_ctx,
+								  access_type, 0, guest1_paddr) != 0) {
+			HALT_ON_ERRORCOND(0 && "guest cannot access CR3 (illegal guest)");
+		}
+		/* TODO: Large pages not supported yet */
+		HALT_ON_ERRORCOND(pmeo12.lvl == 1);
+		xmhf_paddr = hpt_pmeo_get_address(&pmeo01);
+
+		/* Construct page map entry for EPT02 */
+		pmeo02.pme = 0;
+		pmeo02.t = HPT_TYPE_EPT;
+		pmeo02.lvl = 1;
+		hpt_pmeo_set_address(&pmeo02, xmhf_paddr);
+		{
+			hpt_prot_t prot01 = hpt_pmeo_getprot(&pmeo01);
+			hpt_prot_t prot12 = hpt_pmeo_getprot(&pmeo12);
+			hpt_pmeo_setprot(&pmeo02, prot01 & prot12);
+		}
+		{
+			hpt_pmt_t cache01 = hpt_pmeo_getcache(&pmeo01);
+			hpt_pmt_t cache12 = hpt_pmeo_getcache(&pmeo12);
+			hpt_pmt_t cache02 = HPT_PMT_UC;
+			/*
+			 * TODO: full support of cache type operations not supported.
+			 * Currently only support WB and UC.
+			 */
+			HALT_ON_ERRORCOND(cache01 == HPT_PMT_UC || cache01 == HPT_PMT_WB);
+			HALT_ON_ERRORCOND(cache12 == HPT_PMT_UC || cache12 == HPT_PMT_WB);
+			if (cache01 == HPT_PMT_WB && cache12 == HPT_PMT_WB) {
+				cache02 = HPT_PMT_WB;
+			}
+			hpt_pmeo_setcache(&pmeo02, cache02);
+		}
+		{
+			bool user01 = hpt_pmeo_getuser(&pmeo01);
+			bool user12 = hpt_pmeo_getuser(&pmeo12);
+			hpt_pmeo_setuser(&pmeo02, user01 && user12);
+		}
+
+		/* Put page map entry into EPT02 */
+		HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&line->value.ept02_ctx.ctx,
+												 &pmeo02, guest2_paddr) == 0);
+		printf("CPU(0x%02x): EPT: 0x%08llx 0x%08llx 0x%08llx (manual)\n",
+			   vcpu->id, guest2_paddr, guest1_paddr, xmhf_paddr);
+	}
+#endif /* !__DEBUG_QEMU__ */
 	*cache_hit = hit;
 	*cache_line = line;
 	addr = line->value.ept02_ctx.ctx.root_pa;
