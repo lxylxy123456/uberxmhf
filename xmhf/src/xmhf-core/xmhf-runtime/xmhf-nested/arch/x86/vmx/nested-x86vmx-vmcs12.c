@@ -488,6 +488,16 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 													  &cache_line);
 			vmcs12_info->guest_ept_cache_line = cache_line;
 			vmcs12_info->guest_ept_root = ept12;
+#ifdef __DEBUG_QEMU__
+			/*
+			 * Workaround a KVM bug (TODO: document this bug)
+			 * Looks like KVM has a problem setting CR0.PG when nested guest's PDPTEs
+			 * are not in guest hypervisor's EPT. So we always make sure the EPT entry
+			 * is available. This is done similarly by calling
+			 * xmhf_nested_arch_x86vmx_handle_ept02_exit() with guest2_paddr = CR3.
+			 */
+			xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu, vmcs12_info, cache_line, vmcs12->guest_CR3, HPT_PROTS_RW);
+#endif /* !__DEBUG_QEMU__ */
 		} else {
 			/* Guest does not use EPT, just use XMHF's EPT */
 			vmcs12_info->guest_ept_enable = 0;
