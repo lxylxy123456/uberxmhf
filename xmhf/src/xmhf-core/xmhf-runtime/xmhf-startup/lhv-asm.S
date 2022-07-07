@@ -121,6 +121,9 @@ lhv_disable_enable_paging:
 	/* Argument %rdi is pointer to string to print */
 	movq	%rdi, %rcx
 
+	/* Disable interrupts */
+	cli
+
 	/* Jump to compatibility mode */
 	pushq	$(__CS32)
 	pushq	$1f
@@ -176,6 +179,10 @@ lhv_disable_enable_paging:
 	lretl
 1:
 .code64
+
+	/* Enable interrupts */
+	sti
+
 	/* Done */
 	ret
 #endif /* __AMD64__ */
