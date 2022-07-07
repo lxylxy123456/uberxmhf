@@ -480,7 +480,252 @@ this does not happend when disabling paging in LHV hypervsior.
 
 SDM says that when unrestricted guest is 0, MOV CR0 will `#GP` if unset CR0.PG.
 
-TODO: implement unrestricted guest
+Actually, after some rebuild, this problem is mysteriously solved. Maybe the
+unrestricted guest bit was not set properly due to build cache problems.
+
+However, `lhv 73a70bf6e` cannot run properly in `xmhf64-nest 2b1b23cf0`. The
+guest can correctly disable paging, but when enable paging, the guest see
+`#GP`.
+
+In `xmhf64-nest-dev a3bd8576e` and `lhv-dev b699e994a`, use VMCALL in LHV to
+notify XMHF to dump the VMCS. The results are in `20220706130634`. Use the
+following script to compare VMCS
+```sh
+diff <(grep ':guest:' 20220706130634 | cut -d : -f 1-2,4-) \
+	<(grep ':host :' 20220706130634 | cut -d : -f 1-2,4-)
+```
+
+In `lhv-dev 80a91b614` and `xmhf64-nest-dev e7a54bccb`, modify guest VMCS02 so
+that it is almost identical to host VMCS01. Can see that the problem happens in
+EPT. Since EPT changes a little bit, the behavior also changes.
+
+The expected behavior is
+```
+...
+CPU(0x00): (0x6c1c) :guest:host_IA32_INTERRUPT_SSP_TABLE_ADDR = unavailable
+CPU(0x00): LHV guest can enable paging
+```
+
+The actual behavior is
+```
+CPU(0x00): (0x6c1c) :guest:host_IA32_INTERRUPT_SSP_TABLE_ADDR = unavailable
+CPU(0x00): EPT: 0x08214078 0x08214000 0x08214000 RIP=0x0820c4a6
+CPU(0x00): EPT: 0x08200c31 0x08200000 0x08200000 RIP=0x08200c31
+
+Fatal: Halting! Condition 'vmcs12->control_IO_BitmapA_address == __vmx_vmread64(0x2000)' failed, line 207, file arch/x86/vmx/nested-x86vmx-vmcs12-fields.h
+```
+
+The LHV build result is compressed and saved in `lhv-80a91b614.img.xz`.
+Note `LHV_OPT = 0x000000000000003c`.
+
+The 2 EPT violations happen due to the exception. The guest is accessing IDTR
+(`0x08214078`) and the first instruction of exception handler (`0x08200c31`).
+Then a VMEXIT happens that should go to L1. But since VMCS02 is corrupted, the
+nested virtualization code halts. In the expected behavior, there is no VMEXITs
+of any kind.
+
+Now we need to bisect the EPT in some way. In `xmhf64-nest-dev 59515e525`,
+after working on EPT, looks like the problem is solved when page `0x8b69000` is
+mapped. Other mapped pages are `0x08b6a000` and `0x08b95000`. The lower bits of
+page table entries are all `0x037`.
+
+Page `0x8b69000` needs read and write. That is, `0x8b69037` and `0x8b69033` can
+work. Bug `0x8b69032` and `0x8b69031` cannot.
+
+By searching in VMCS dump, it is clear that the page is
+`guest_CR3 = 0x08b69000`. So the question now is that why there is no EPT
+violation when accessing `guest_CR3`. We need to start suspecting that KVM has
+a bug.
+
+In `xmhf64-nest-dev aab39541f`, do not modify unrelated VMCS fields, so that
+the program can reproduce on Bochs. On Bochs, the result is
+```
+CPU(0x00): (0x6c1a) :guest:host_SSP = unavailable
+CPU(0x00): (0x6c1c) :guest:host_IA32_INTERRUPT_SSP_TABLE_ADDR = unavailable
+CPU(0x00): EPT: 0x08b69000 0x08b69000 0x08b69000 RIP=0x0820c4a6
+CPU(0x00): LHV guest can enable paging
+```
+
+This means that it is likely that KVM has a bug.
+
+### Reproducing KVM bug in LHV
+
+In `lhv-dev 2061cd367`, able to reproduce this problem with LHV only. This
+makes testing on Bochs faster. Also, print the result on screen so that it is
+possible to test on real hardware without serial port. Use `LHV_OPT = 0x3e`.
+
+Tested on Bochs. Bochs prints "GOOD" on serial, but QEMU prints "BAD". Serial
+port output in both cases look reasonable.
+
+Tested on Thinkpad, also prints "GOOD". Tested on HP 840's KVM, also BAD (with
+reasonable serial port output). So we can confirm that this is a KVM bug.
+
+When reporting the bug, can use `lhv-dev 231a25f7f`. A copy of the compiled
+image is in `lhv-231a25f7f.img.xz`.
+
+### Workaround
+
+In `xmhf64-nest-dev b91f26d6b..4e4a752cc`, workaround this bug by always
+setting nested guest CR3 in EPT. Squash the commits to
+`xmhf64-nest 2b1b23cf0..fdf1ce506`.
+
+### Debugging KVM
+
+Now we try to guess what is happening in KVM. By reading code, I think what
+happened is:
+```
+handle_set_cr0()
+	is_guest_mode() -> true
+	kvm_set_cr0()
+		load_pdptrs()
+			kvm_read_guest_page_mmu() -> fail
+```
+
+`bug_078` contains knowledge about debugging KVM. I guess that using nested
+virtualization and GDB to debug KVM is likely not going to work. So we should
+use print debugging. See `#### Compile first` in `bug_078`.
+
+Here is the process to compile Linux, most from `bug_078`
+
+```
+wget https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-5.18.9.tar.xz
+tar xaf linux-5.18.9.tar.xz
+cd linux-5.18.9/
+make nconfig
+	# Cryptographic API: Remove key ring
+make clean
+time make deb-pkg -j `nproc`
+	# 32 min 36.344 src, 4.2G
+sudo apt-get install ../linux-image-5.18.9_5.18.9-1_amd64.deb
+
+# Reboot using new Linux kernel
+# cd to previous directory
+# At this point `sudo insmod ./arch/x86/kvm/kvm.ko` etc should work
+
+cd ..
+mkdir kvm
+cd kvm
+tar xaf ../linux-5.18.9.tar.xz
+cd linux-5.18.9/
+cp ../../linux-5.18.9/.config .
+make oldconfig
+```
+
+Now modify KVM source code. Print debugging looks like
+
+```c
+	printk(KERN_ERR "LXY: %s:%d: %s():", __FILE__, __LINE__, __func__);
+```
+
+Then to compile and install, use
+
+```sh
+time make modules_prepare -j `nproc`
+time make M=arch/x86/kvm -j `nproc`
+ls arch/x86/kvm/kvm.ko
+
+sudo rmmod kvm_intel
+sudo rmmod kvm
+sudo insmod arch/x86/kvm/kvm.ko
+sudo insmod arch/x86/kvm/kvm-intel.ko
+lsmod | grep kvm
+```
+
+View result in dmesg
+
+```sh
+sudo dmesg -w | grep LXY
+```
+
+By print debugging, we can confirm that the guessed stack trace above is
+correct (the one with `load_pdptrs()`). Now it's time to report the bug.
+
+Looks like
+<https://lore.kernel.org/all/CABdb7371mXnseJWHYwmnz6rHCzjr=gBrHy1yumRVomeDraNxxg@mail.gmail.com/T/>
+is very similar to this bug. However, I think it is a different bug.
+
+Bug reported in <https://bugzilla.kernel.org/show_bug.cgi?id=216212>. Bug
+report text in `bug_216212.txt`. Bugs are tracked in `bug_076`.
+
+### Unrestricted guest in AMD64
+
+At `xmhf64-nest ad5e4a7c0`, try to run unrestricted guest in AMD64. In AMD64,
+need to switch CS to 32 bits and run 32-bit code, so write most functionality
+in assembly. `lhv 73a70bf6e..1a35764bb` makes it possible to disable paging
+in 64-bit mode. Running it in KVM looks fine.
+
+Running `lhv 1a35764bb` in XMHF first fails because the 64-bit flag in VMENTRY
+control fields may change. This is solved in
+`xmhf64-nest ad5e4a7c0..ea7e59c79`.
+
+However, now when running LHV in XMHF for a long time, see strange
+`L2 -> L0 -> L1` EPT error. This is reproducible when only 1 CPU, but looks
+to reproduce faster when multiple CPUs. The serial port shows:
+
+```
+...
+CPU(0x00): EPT: 0x0821c130 0x0821c000 0x0821c000
+CPU(0x00): EPT: 0x08220910 0x08220000 0x08220000
+CPU(0x00): EPT: 0x08216110 0x08216000 0x08216000
+CPU(0x00): EPT: 0x082011ad 0x08201000 0x08201000
+HPT[3]:.../xmhf/src/libbaremetal/libxmhfutil/hptw.c:hptw_checked_get_pmeo:384: EU_CHK( ((access_type & hpt_pmeo_getprot(pmeo)) == access_type) && (cpl == HPTW_CPL0 || hpt_pmeo_getuser(pmeo))) failed
+HPT[3]:.../xmhf/src/libbaremetal/libxmhfutil/hptw.c:hptw_checked_get_pmeo:384: req-priv:3 req-cpl:0 priv:0 user-accessible:1
+CPU(0x00): nested vmexit 48
+```
+
+Then there is a deadlock between LHV hypervisor wanting to print unknown EPT
+violation and the LHV guest already holding the printf lock.
+
+Looks like the EPT violation is very strange. The `paddr` is the 0th page, and
+RIP points to some benign-looking instruction.
+
+```
+(gdb) up 4
+#4  0x000000000820908e in vmexit_handler (vcpu=0x8217da0 <g_vcpubuffers>, r=0x96dbf78 <g_cpustacks+65400>) at lhv-vmx.c:501
+501				printf("CPU(0x%02x): ept: 0x%08lx\n", vcpu->id, q);
+(gdb) x/i vcpu->vmcs.guest_RIP
+   0x82011c5 <XtRtmIdtStub10+24>:	addl   $0x20,0x58(%rsp)
+(gdb) p vcpu->vmcall_exit_count
+$15 = 699
+(gdb) p/x r->rsp
+$16 = 0x96dbfd8
+(gdb) p/x paddr
+$17 = 0x73
+(gdb) p/x vaddr
+$18 = 0x73
+(gdb) p/x vcpu->vmcs.guest_RSP
+$19 = 0x8d9bf7c
+(gdb) 
+```
+
+Still reporducible in `lhv-dev 375ffac4d` and `xmhf64-nest-dev b17ddaa0a`. We
+get a VMCS dump in XMHF (L0). Notice that `guest_RSP` is not 16-bytes aligned.
+Also remember that `guest_TR_base = 0` because we were lazy. Also note that we
+are in `XtRtmIdtStub10`, which is the exception handler for `#TS Invalid TSS`.
+So I guess that when disabling paging, an interrupt caused the problem. For
+example:
+
+```
+	/* Jump to long mode */
+	pushl	$(__CS)
+								// Interrupt hits here
+	pushl	$1f
+	lretl
+1:
+```
+
+I do not have a full story of how this happens (because detailed RSP value may
+vary). But for now, it is better to disable interrupts in
+`lhv_disable_enable_paging()`.
+
+In `lhv-dev 375ffac4d..fa58f9b58`, implemented disabling interrupts. With
+`xmhf64-nest-dev b17ddaa0a`, it looks like problem is solved.
+
+The production versions are `xmhf64-nest ea7e59c79` and `lhv 15dd393c4`. Looks
+good. Also, the KVM problem no longer happens in AMD64, so it is likely that
+only PAE paging has the KVM problem. This is expected.
+
+TODO: implement real mode guest
 TODO: study KVM code, maybe use older version
 TODO: study shadow page table, maybe use Xen code
 TODO: encountering memory size limit: on QEMU currently runtime has to < 256M

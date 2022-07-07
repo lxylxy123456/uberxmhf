@@ -478,6 +478,7 @@ $
 However, even fixing the version string, install still fails.
 
 Asking on <https://stackoverflow.com/questions/72419524/>
+`->` <https://superuser.com/questions/1723629/>
 
 #### Compile first
 

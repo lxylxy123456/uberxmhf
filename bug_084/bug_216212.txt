@@ -1,0 +1,67 @@
+Summary: KVM does not handle nested guest enable PAE paging correctly when CR3 is not mapped in EPT
+
+CPU model: 11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz
+Host kernel version: 5.18.9
+Host kernel arch: x86_64
+Guest: a micro-hypervisor (called LHV, 32-bits), which runs a 32-bit guest (called "nested guest").
+QEMU command line: qemu-system-x86_64 -m 256M -smp 1 -cpu Haswell,vmx=yes -enable-kvm -serial stdio -drive media=disk,file=lhv-231a25f7f.img,index=1
+This bug still exists if using -machine kernel_irqchip=off
+This problem cannot be tested with -accel tcg , because the guest requires nested virtualization
+
+How to reproduce:
+
+1. Download lhv-231a25f7f.img (attached with this bug). Source code of this LHV image is in https://github.com/lxylxy123456/uberxmhf/tree/231a25f7f49589618be0faac77a39bc593a62758 .
+
+2. Run the QEMU command line above
+
+3. See "BAD" printed in the VGA screen at row 20 column 0-2. The last line of serial output is:
+
+Fatal: Halting! Condition '0 && "Guest received #UD (incorrect behavior)"' failed, line 26, file lhv-guest.c
+
+Expected behavior (reproducible on real hardware and Bochs):
+
+See "GOOD" printed in the VGA screen at row 21 column 0-3. The last line of serial output should be:
+
+Fatal: Halting! Condition '0 && "hypervisor receives CR3 EPT (correct behavior)"' failed, line 375, file lhv-vmx.c
+
+
+Explanation:
+
+In KVM terms, KVM is L0, LHV is L1, nested guest is L2.
+
+LHV runs the nested guest with:
+
+* EPT enabled.
+* Unrestricted guest enabled.
+* CR0 guest/host mask (VMCS encoding 0x6000) does NOT set CR0_PG bit.
+* Most of EPT is identity mapping, but the page pointed to by nested guest's CR3 is not present in EPT.
+* The nested guest uses PAE paging.
+* Let the nested guest enable paging by setting CR0.PG.
+
+When the nested guest enables paging, LHV should receive an EPT violation (correct behavior), because enabling paging requires reading CR3. However, in KVM, the nested guest receives an #GP exception, as if the MOV CR0 instruction fails.
+
+
+Likely stack trace and cause of this bug (Linux source code version is 5.18.9):
+
+Stack trace:
+
+handle_cr
+    kvm_set_cr0
+        load_pdptrs
+            kvm_translate_gpa
+    kvm_complete_insn_gp
+        kvm_inject_gp
+
+What happened:
+
+* When nested guest sets CR0.PG, handle_cr() in KVM is called.
+* handle_cr() calls handle_set_cr0().
+* is_guest_mode(vcpu) is true, so kvm_set_cr0() is called.
+* kvm_set_cr0() calls load_pdptrs().
+* load_pdptrs() calls kvm_translate_gpa().
+* Since LHV does not set the page for CR3 in EPT, kvm_translate_gpa() fails.
+* load_pdptrs() returns 0.
+* kvm_set_cr0() returns 1.
+* handle_set_cr0() returns 1.
+* handle_cr() receives an error, so it injects #GP to the nested guest.
+
