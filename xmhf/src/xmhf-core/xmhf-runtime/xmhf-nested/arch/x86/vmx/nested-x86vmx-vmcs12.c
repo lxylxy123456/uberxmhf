@@ -344,7 +344,8 @@ static u32 _vmcs12_get_ctls(VCPU * vcpu, struct nested_vmcs12 *vmcs12,
 	{
 		u32 val = 0;
 		u32 fixed0 = vcpu->vmx_nested_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR];
-		u32 fixed1 = vcpu->vmx_nested_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR] >> 32;
+		u32 fixed1 =
+			vcpu->vmx_nested_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR] >> 32;
 		/* Check whether guest enables secondary controls */
 		if (_vmx_hasctl_activate_secondary_controls(ctls)) {
 			val = vmcs12->control_VMX_seccpu_based;
@@ -490,10 +491,13 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 			vmcs12_info->guest_ept_root = ept12;
 #ifdef __DEBUG_QEMU__
 			/*
-			 * Workaround a KVM bug (TODO: document this bug)
+			 * Workaround a KVM bug:
+			 * https://bugzilla.kernel.org/show_bug.cgi?id=216212
+			 *
 			 * Looks like KVM has a problem setting CR0.PG when nested guest's
 			 * PDPTEs are not in guest hypervisor's EPT. So we always make sure
-			 * the EPT entry is available. This is done similarly by calling
+			 * the EPT entry for PDPTEs is available. To achieve this effect,
+			 * simulating a EPT violation by calling
 			 * xmhf_nested_arch_x86vmx_handle_ept02_exit() with guest2_paddr =
 			 * CR3.
 			 */
@@ -521,7 +525,7 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 				HALT_ON_ERRORCOND(0 && "Unknown status");
 				break;
 			}
-#endif /* !__DEBUG_QEMU__ */
+#endif							/* !__DEBUG_QEMU__ */
 		} else {
 			/* Guest does not use EPT, just use XMHF's EPT */
 			vmcs12_info->guest_ept_enable = 0;
@@ -1129,8 +1133,12 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		}
 	}
 	{
-		HALT_ON_ERRORCOND(vmcs12->control_VM_entry_controls ==
-						  __vmx_vmread32(VMCSENC_control_VM_entry_controls));
+		u32 val = __vmx_vmread32(VMCSENC_control_VM_entry_controls);
+		/* mask is bits that cannot change */
+		u32 mask = ~(1U << VMX_VMENTRY_IA_32E_MODE_GUEST);
+		HALT_ON_ERRORCOND((vmcs12->control_VM_entry_controls & mask) ==
+						  (val & mask));
+		vmcs12->control_VM_entry_controls = val;
 	}
 	{
 		/* VMCS02 needs to always process the same fields as VMCS01 */
