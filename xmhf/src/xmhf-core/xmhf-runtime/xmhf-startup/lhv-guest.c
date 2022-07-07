@@ -22,7 +22,6 @@ void lhv_guest_main(ulong_t cpu_id)
 			asm volatile ("hlt");
 		}
 		asm volatile ("vmcall");
-#if 0
 		if (__LHV_OPT__ & LHV_USE_EPT) {
 			u32 a = 0xdeadbeef;
 			u32 *p = (u32 *)0x12340000;
@@ -43,11 +42,10 @@ void lhv_guest_main(ulong_t cpu_id)
 				HALT_ON_ERRORCOND((u8) (a >> 24) == vcpu->ept_num);
 			}
 		}
-#endif
 		if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
 #ifdef __AMD64__
 			extern void lhv_disable_enable_paging(char *);
-			if (!"quiet") {
+			if ("quiet") {
 				lhv_disable_enable_paging("");
 			} else {
 				lhv_disable_enable_paging("LHV guest can disable paging\n");
