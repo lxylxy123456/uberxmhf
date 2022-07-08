@@ -725,8 +725,23 @@ The production versions are `xmhf64-nest ea7e59c79` and `lhv 15dd393c4`. Looks
 good. Also, the KVM problem no longer happens in AMD64, so it is likely that
 only PAE paging has the KVM problem. This is expected.
 
-TODO: implement real mode guest
-TODO: study KVM code, maybe use older version
-TODO: study shadow page table, maybe use Xen code
-TODO: encountering memory size limit: on QEMU currently runtime has to < 256M
+### Real mode (deprecated)
+
+It looks like setting up real mode in LHV is too complicated. Especially
+supporting it in SMP. So we skip ahead and try running XMHF in XMHF.
+
+### Untried ideas
+
+* study KVM code, maybe use older version
+* study shadow page table, maybe use Xen code
+* encountering memory size limit: on QEMU currently runtime has to < 256M
+	* Actually memory growth is not that much
+
+## Fix
+
+`acad9ef02..eecb1ffce`
+* Support EPT etc in XMHF nested
+
+`d6eea8116..6a8866c1e`
+* Add EPT etc to LHV
 
