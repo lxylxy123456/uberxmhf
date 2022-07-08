@@ -65,8 +65,13 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_control_VMX_pin_based,
 				vcpu->vmx_msrs[INDEX_IA32_VMX_PINBASED_CTLS_MSR]);
 	//activate secondary processor controls
-	vmcs_vmwrite(vcpu, VMCS_control_VMX_cpu_based,
-				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS_MSR] | (1 << 31));
+	{
+		u32 proc_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS_MSR];
+		proc_ctls |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
+		proc_ctls &= ~(1U << VMX_PROCBASED_CR3_LOAD_EXITING);
+		proc_ctls &= ~(1U << VMX_PROCBASED_CR3_STORE_EXITING);
+		vmcs_vmwrite(vcpu, VMCS_control_VMX_cpu_based, proc_ctls);
+	}
 	{
 		u32 vmexit_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR];
 #ifdef __AMD64__
@@ -504,8 +509,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		}
 	default:
 		{
-			printf("CPU(0x%02x): vmexit: 0x%lx\n", vcpu->id, vmexit_reason);
-			printf("CPU(0x%02x): r->eax = 0x%x\n", vcpu->id, r->eax);
+			printf("CPU(0x%02x): unknown vmexit %d\n", vcpu->id, vmexit_reason);
 			printf("CPU(0x%02x): rip = 0x%x\n", vcpu->id, guest_rip);
 			vmcs_dump(vcpu, 0);
 			HALT_ON_ERRORCOND(0);
