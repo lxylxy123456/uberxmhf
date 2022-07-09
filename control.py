@@ -8,16 +8,19 @@ files = os.listdir('./tools/ci/boot/grub/i386-pc/')
 
 def test(file_set):
 	print(*file_set, file=open('mods.txt', 'w'))
-	if os.system('python3 -u ./tools/ci/grub.py --subarch i386 --xmhf-bin . '
-				'--work-dir ./tmp/ --boot-dir ./tools/ci/boot'
+	if os.system('python3 -u ./tools/ci/grub.py --subarch windows --xmhf-bin . '
+				'--work-dir ./win-tmp/ --boot-dir ./tools/ci/boot'
 				' > /dev/null 2> /dev/null'
 				) != 0:
 		return 'ERROR'
+	if os.system('cp win-tmp/grub/c.img tools/ci/windows/grub_windows.img'
+				) != 0:
+		return 'ERROR 2'
 	if os.system('python3 -u ./tools/ci/test4.py --guest-subarch i386 '
 				'--qemu-image /var/lib/jenkins/workspace/xmhf64-windows/'
-				'cache/win7x86-j.qcow2'
-				'--work-dir ./tmp/ --qemu-timeout 60 '
-				'--no-display'
+				'cache/win7x86-j.qcow2 '
+				'--work-dir ./tmp/ --qemu-timeout 20 '
+#				'--no-display'
 				' > /dev/null 2> /dev/null'
 				) == 0:
 		return 'GOOD'
