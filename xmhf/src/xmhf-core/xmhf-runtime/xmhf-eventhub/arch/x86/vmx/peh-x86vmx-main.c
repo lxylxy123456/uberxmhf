@@ -1079,9 +1079,16 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * is for quiescing (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION),
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
-//	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
-//		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
-//	}
+	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION ||
+		((u32)vcpu->vmcs.info_vmexit_interrupt_information & INTR_INFO_VECTOR_MASK) != 0x2) {
+		HALT_ON_ERRORCOND(vcpu->id == 0);
+		printf("VMEXIT %d CR0=0x%08lx RIP=0x%08lx\n",
+				(u32)vcpu->vmcs.info_vmexit_reason,
+				vcpu->vmcs.guest_CR0,
+				vcpu->vmcs.guest_RIP);
+	} else {
+		HALT_ON_ERRORCOND(0 && "disabled");
+	}
 
 	//handle intercepts
 	switch((u32)vcpu->vmcs.info_vmexit_reason){
