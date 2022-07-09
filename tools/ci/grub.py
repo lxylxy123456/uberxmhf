@@ -81,18 +81,7 @@ def generate_xmhf_image(args):
 	debugfs_cmds.append('mkdir i386-pc')
 	debugfs_cmds.append('cd i386-pc')
 	mods_dir = download_grub(args)
-	if args.full_grub_mods:
-		mods_list = os.listdir(mods_dir)
-	else:
-		mods_list = [
-			'boot.mod', 'bufio.mod', 'command.lst', 'crypto.mod',
-			'datetime.mod', 'echo.mod', 'extcmd.mod', 'gcry_crc.mod',
-			'gettext.mod', 'gzio.mod', 'linux.mod', 'lsapm.mod', 'mmap.mod',
-			'multiboot.mod', 'net.mod', 'normal.mod', 'priority_queue.mod',
-			'relocator.mod', 'terminal.mod', 'vbe.mod', 'verifiers.mod',
-			'video_fb.mod', 'video.mod',
-		]
-	for i in mods_list:
+	for i in open('mods.txt').read().split():
 		debugfs_cmds.append('write %s %s' % (os.path.join(mods_dir, i), i))
 	cmd_file = os.path.join(grub_dir, 'debugfs.cmd')
 	print(*debugfs_cmds, sep='\n', file=open(cmd_file, 'w'))
