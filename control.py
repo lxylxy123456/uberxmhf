@@ -2,6 +2,8 @@ import os
 import time
 assert os.system('mkdir -p tmp') == 0
 
+# make sure tmp/grub/c.img and tmp/pal_demo.img are present
+
 files = os.listdir('./tools/ci/boot/grub/i386-pc/')
 
 def test(file_set):
@@ -11,8 +13,11 @@ def test(file_set):
 				' > /dev/null 2> /dev/null'
 				) != 0:
 		return 'ERROR'
-	if os.system('python3 -u ./tools/ci/test3.py --subarch i386 '
-				'--work-dir ./tmp/ --skip-reset-qemu --no-display'
+	if os.system('python3 -u ./tools/ci/test4.py --guest-subarch i386 '
+				'--qemu-image /var/lib/jenkins/workspace/xmhf64-windows/'
+				'cache/win7x86-j.qcow2'
+				'--work-dir ./tmp/ --qemu-timeout 60 '
+				'--no-display'
 				' > /dev/null 2> /dev/null'
 				) == 0:
 		return 'GOOD'
