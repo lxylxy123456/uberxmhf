@@ -1125,6 +1125,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		break;
 
 		case VMX_VMEXIT_EPT_VIOLATION:{
+			HALT_ON_ERRORCOND(0 && "EPT disabled");
 			_vmx_handle_intercept_eptviolation(vcpu, r);
 		}
 		break;
