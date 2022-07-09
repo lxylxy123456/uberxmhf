@@ -14,6 +14,7 @@
 #                (Note: in LHV, this is always set)
 #   --no-bl-hash: skip bootloader hashing (--enable-skip-bootloader-hash)
 #                 (Note: in LHV, this is always set)
+#   --sl-base BASE: set SL+RT base to BASE instead of 256M (--with-sl-base)
 #   fast: equivalent to --no-rt-bss --no-bl-hash (For running XMHF quickly)
 #   release: equivalent to --drt --dmap --no-dbg (For GitHub actions)
 #   debug: ignored (For GitHub actions)
@@ -43,6 +44,7 @@ CIRCLE_CI="n"
 NO_X2APIC="n"
 NO_RT_BSS="y"	# Always set in LHV
 NO_BL_HASH="y"	# Always set in LHV
+SL_BASE="0x8000000"
 OPT=""
 LHV_OPT="0"
 
@@ -117,6 +119,10 @@ while [ "$#" -gt 0 ]; do
 			;;
 		--no-bl-hash)
 			NO_BL_HASH="y"
+			;;
+		--sl-base)
+			SL_BASE="$2"
+			shift
 			;;
 		fast)
 			NO_RT_BSS="y"
@@ -209,6 +215,8 @@ fi
 if [ "$NO_BL_HASH" == "y" ]; then
 	CONF+=("--enable-skip-bootloader-hash")
 fi
+
+CONF+=("--with-sl-base=$SL_BASE")
 
 if [ "$CIRCLE_CI" == "y" ]; then
 	CONF+=("--enable-optimize-nested-virt")
