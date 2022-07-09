@@ -392,6 +392,7 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	}
 
 	printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
+	xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":L2:");
 
 	/* From now on, cannot fail */
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
