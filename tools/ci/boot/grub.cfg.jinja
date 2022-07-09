@@ -49,6 +49,6 @@ menuentry "{{ menuentry }}" {
 	echo "Loading ${kernel}..."
 	multiboot ${kernel} serial=115200,8n1,0x3f8 boot_drive=${boot_drive}
 	module /boot/hypervisor-x86-{{ subarch }}.bin.gz
-	module --nounzip ${new_grub}
+	# module --nounzip ${new_grub}
 	{%- endif %}
 }
