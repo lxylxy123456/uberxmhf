@@ -3,7 +3,7 @@
 '''
 
 from subprocess import Popen, check_call
-import argparse, os, re
+import argparse, os, re, jinja2
 
 def parse_args():
 	parser = argparse.ArgumentParser()
@@ -18,6 +18,9 @@ def parse_args():
 						help='Contain /boot and MBR image to generate GRUB')
 	parser.add_argument('--full-grub-mods', action='store_true',
 						help='Copy all GRUB module files')
+	parser.add_argument('--grub-timeout', type=int, default=0)
+	parser.add_argument('--grub-menuentry', default='')
+	parser.add_argument('--grub-menu-bg', default='blue')
 	args = parser.parse_args()
 	return args
 
@@ -43,6 +46,28 @@ def download_grub(args):
 				count += 1
 		assert count >= 284
 	return mods_dir
+
+def generate_grub_cfg(args, grub_dir):
+	template_str = open(os.path.join(args.boot_dir, 'grub.cfg.jinja')).read()
+	template = jinja2.Template(template_str)
+	if args.subarch in ['i386', 'amd64']:
+		menuentry = 'XMHF-%s' % args.subarch
+	elif args.subarch == 'windows':
+		menuentry = 'Windows'
+	else:
+		raise Exception('Unknown subarch: %s' % repr(args.subarch))
+	if args.grub_menuentry:
+		menuentry = args.grub_menuentry
+	dict_render = {
+		'subarch': args.subarch,
+		'menuentry': menuentry,
+		'timeout': args.grub_timeout,
+		'menu_bg': args.grub_menu_bg,
+	}
+	content = template.render(**dict_render)
+	cfg_file_path = os.path.join(grub_dir, 'grub.cfg')
+	open(cfg_file_path, 'w').write(content)
+	return cfg_file_path
 
 def generate_xmhf_image(args):
 	grub_dir = os.path.join(args.work_dir, 'grub')
@@ -75,9 +100,7 @@ def generate_xmhf_image(args):
 		raise Exception('Unknown subarch: %s' % repr(args.subarch))
 	debugfs_cmds.append('mkdir grub')
 	debugfs_cmds.append('cd grub')
-	debugfs_cmds.append('write %s grub.cfg' %
-						os.path.join(args.boot_dir,
-									'grub.cfg.%s' % args.subarch))
+	debugfs_cmds.append('write %s grub.cfg' % generate_grub_cfg(args, grub_dir))
 	debugfs_cmds.append('mkdir i386-pc')
 	debugfs_cmds.append('cd i386-pc')
 	mods_dir = download_grub(args)
@@ -90,8 +113,15 @@ def generate_xmhf_image(args):
 			'gettext.mod', 'gzio.mod', 'linux.mod', 'lsapm.mod', 'mmap.mod',
 			'multiboot.mod', 'net.mod', 'normal.mod', 'priority_queue.mod',
 			'relocator.mod', 'terminal.mod', 'vbe.mod', 'verifiers.mod',
-			'video_fb.mod', 'video.mod',
+			'video_fb.mod', 'video.mod', 'test.mod',
 		]
+		if args.subarch == 'windows':
+			mods_list += [
+				'ntfs.mod', 'parttool.mod', 'drivemap.mod', 'chain.mod',
+				'parttool.lst',
+			]
+			# TODO: some more mods are needed to make GRUB work
+			raise NotImplementedError
 	for i in mods_list:
 		debugfs_cmds.append('write %s %s' % (os.path.join(mods_dir, i), i))
 	cmd_file = os.path.join(grub_dir, 'debugfs.cmd')
