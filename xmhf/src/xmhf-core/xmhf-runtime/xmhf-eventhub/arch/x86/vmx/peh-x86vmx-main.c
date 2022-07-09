@@ -1098,6 +1098,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 
 		case VMX_VMEXIT_VMCALL:{
 			//if INT 15h E820 hypercall, then let the xmhf-core handle it
+			HALT_ON_ERRORCOND(0 && "VMCALL disabled");
 			if(vcpu->vmcs.guest_CS_base == (VMX_UG_E820HOOK_CS << 4) &&
 				vcpu->vmcs.guest_RIP == VMX_UG_E820HOOK_IP){
 				//we need to be either in real-mode or in protected
