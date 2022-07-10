@@ -1131,10 +1131,8 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			u64 *entry;
 			entry = table + (vcpu->vmcs.guest_paddr >> 12);
 			if ((*entry) & (1ULL << 11)) {
+				char *idt = "   ";
 				(*entry) = ((*entry) & ~0x800ULL) | 0x7ULL;
-				printf("EPT: 0x%08llx RIP=0x%08lx RSP=0x%08lx\n",
-						vcpu->vmcs.guest_paddr, vcpu->vmcs.guest_RIP,
-						vcpu->vmcs.guest_RSP);
 				if (vcpu->vmcs.info_IDT_vectoring_information & 0x80000000) {
 					vcpu->vmcs.control_VM_entry_interruption_information =
 						vcpu->vmcs.info_IDT_vectoring_information;
@@ -1142,11 +1140,28 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 						vcpu->vmcs.info_IDT_vectoring_error_code;
 					vcpu->vmcs.info_IDT_vectoring_information = 0;
 					vcpu->vmcs.info_IDT_vectoring_error_code = 0;
+					idt = "IDT";
+				}
+				HALT_ON_ERRORCOND(!(vcpu->vmcs.guest_CR0 & 0x80000000));
+				if (vcpu->vmcs.guest_CR0 & 0x1) {
+					HALT_ON_ERRORCOND(vcpu->vmcs.guest_CS_base == 0);
+					printf("EPT: 0x%08llx    RIP=0x%08lx    RSP=0x%08lx %s\n",
+							vcpu->vmcs.guest_paddr,
+							vcpu->vmcs.guest_RIP,
+							vcpu->vmcs.guest_RSP, idt);
+				} else {
+					printf("EPT: 0x%08llx CS:RIP=0x%08lx SS:RSP=0x%08lx %s\n",
+							vcpu->vmcs.guest_paddr,
+							vcpu->vmcs.guest_CS_base + vcpu->vmcs.guest_RIP,
+							vcpu->vmcs.guest_SS_base + vcpu->vmcs.guest_RSP,
+							idt);
 				}
 				break;
 			} else {
 				printf("EPT unhandled: 0x%08llx RIP=0x%08lx entry=0x%016llx\n",
-						vcpu->vmcs.guest_paddr, vcpu->vmcs.guest_RIP, *entry);
+						vcpu->vmcs.guest_paddr,
+						vcpu->vmcs.guest_CS_base + vcpu->vmcs.guest_RIP,
+						*entry);
 			}
 			// vcpu->vmcs.info_exit_qualification
 			// vcpu->vmcs.control_EPT_pointer
