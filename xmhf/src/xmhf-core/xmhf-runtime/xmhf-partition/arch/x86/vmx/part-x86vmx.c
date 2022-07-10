@@ -637,6 +637,8 @@ static void _vmx_start_hvm(VCPU *vcpu, u32 vmcs_phys_addr){
 //initialize partition monitor for a given CPU
 void xmhf_partition_arch_x86vmx_initializemonitor(VCPU *vcpu){
 
+*(u64*)0x8000 = 0x5a5a5a5a5a5a5a5aULL;
+
   //initialize VT
   _vmx_initVT(vcpu);
 
