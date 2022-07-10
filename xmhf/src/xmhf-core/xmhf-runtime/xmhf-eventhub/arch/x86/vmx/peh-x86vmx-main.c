@@ -1156,7 +1156,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 							vcpu->vmcs.guest_SS_base + vcpu->vmcs.guest_RSP,
 							idt);
 				}
-				printf(" *0x8000=0x%04x", * (u16 *) 0x8000);
+				printf(" *0x8000=0x%016llx", * (u64 *) 0x8000);
 				printf(" *0x70000=0x%016llx\n", * (u64 *) 0x70000);
 				break;
 			} else {
