@@ -361,10 +361,8 @@ static void _vmx_setupEPT(VCPU *vcpu){
 			if ((paddr >= (rpb->XtVmmRuntimePhysBase - PA_PAGE_SIZE_2M)) &&
 				(paddr < (rpb->XtVmmRuntimePhysBase + rpb->XtVmmRuntimeSize))) {
 				lower = 0x0;	/* not present */
-			} else if (paddr < 0x1000) {
+			} else if (paddr != 0x8000 && paddr != 0x1000) {
 				lower = 0x7;	/* present */
-			} else if (paddr < 0x100000 && paddr >= 0xf000) {
-				lower = 0x7;
 			} else {
 				lower = (1ULL << 11);	// Present bit for software
 			}

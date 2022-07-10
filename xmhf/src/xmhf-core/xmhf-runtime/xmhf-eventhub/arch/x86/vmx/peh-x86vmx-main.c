@@ -1082,7 +1082,8 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION ||
 		((u32)vcpu->vmcs.info_vmexit_interrupt_information & INTR_INFO_VECTOR_MASK) != 0x2) {
 		HALT_ON_ERRORCOND(vcpu->id == 0);
-		if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EPT_VIOLATION) {
+		if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EPT_VIOLATION &&
+			vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_VMCALL) {
 			printf("VMEXIT %d CR0=0x%08lx RIP=0x%08lx\n",
 					(u32)vcpu->vmcs.info_vmexit_reason,
 					vcpu->vmcs.guest_CR0,
@@ -1100,7 +1101,20 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 
 		case VMX_VMEXIT_VMCALL:{
 			//if INT 15h E820 hypercall, then let the xmhf-core handle it
-			HALT_ON_ERRORCOND(0 && "VMCALL disabled");
+			if (vcpu->vmcs.guest_CS_base + vcpu->vmcs.guest_RIP != 0x4ac) {
+				HALT_ON_ERRORCOND(!(vcpu->vmcs.guest_CR0 & 0x80000000));
+				if (vcpu->vmcs.guest_CR0 & 0x1) {
+					HALT_ON_ERRORCOND(vcpu->vmcs.guest_CS_base == 0);
+					HALT_ON_ERRORCOND(0 && "not implemented");
+				} else {
+					printf("VMCALL: 0x%08llx CS:EIP=0x%08lx",
+							vcpu->vmcs.guest_paddr,
+							vcpu->vmcs.guest_CS_base + vcpu->vmcs.guest_RIP);
+					printf(" *0x8000=0x%016llx\n", * (u64 *) 0x8000);
+					HALT();
+				}
+			}
+			//HALT_ON_ERRORCOND(0 && "VMCALL disabled");
 			if(vcpu->vmcs.guest_CS_base == (VMX_UG_E820HOOK_CS << 4) &&
 				vcpu->vmcs.guest_RIP == VMX_UG_E820HOOK_IP){
 				//we need to be either in real-mode or in protected
@@ -1131,7 +1145,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			u64 *entry;
 			entry = table + (vcpu->vmcs.guest_paddr >> 12);
 			if ((*entry) & (1ULL << 11)) {
-				char *idt = "   ";
+				//char *idt = "   ";
 				(*entry) = ((*entry) & ~0x800ULL) | 0x7ULL;
 				if (vcpu->vmcs.info_IDT_vectoring_information & 0x80000000) {
 					vcpu->vmcs.control_VM_entry_interruption_information =
@@ -1140,21 +1154,37 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 						vcpu->vmcs.info_IDT_vectoring_error_code;
 					vcpu->vmcs.info_IDT_vectoring_information = 0;
 					vcpu->vmcs.info_IDT_vectoring_error_code = 0;
-					idt = "IDT";
+					//idt = "IDT";
+					//HALT_ON_ERRORCOND(0);
 				}
 				HALT_ON_ERRORCOND(!(vcpu->vmcs.guest_CR0 & 0x80000000));
 				if (vcpu->vmcs.guest_CR0 & 0x1) {
 					HALT_ON_ERRORCOND(vcpu->vmcs.guest_CS_base == 0);
-					printf("EPT: 0x%08llx    EIP=0x%08lx %s",
+					printf("EPT: 0x%08llx    EIP=0x%08lx",
 							vcpu->vmcs.guest_paddr,
-							vcpu->vmcs.guest_RIP, idt);
+							vcpu->vmcs.guest_RIP);
 				} else {
-					printf("EPT: 0x%08llx CS:EIP=0x%08lx %s",
+					printf("EPT:    0x%08llx CS:EIP=0x%08lx",
 							vcpu->vmcs.guest_paddr,
-							vcpu->vmcs.guest_CS_base + vcpu->vmcs.guest_RIP,
-							idt);
+							vcpu->vmcs.guest_CS_base + vcpu->vmcs.guest_RIP);
 				}
-				printf(" *0x8000=0x%016llx\n", * (u64 *) 0x8000);
+				printf(" *0x8000=0x%016llx", * (u64 *) 0x8000);
+				if (vcpu->vmcs.guest_paddr == 0x8000) {
+					uintptr_t p0 = vcpu->vmcs.guest_RIP +
+									vcpu->vmcs.guest_CS_base;
+					uintptr_t p1 = p0 + vcpu->vmcs.info_vmexit_instruction_length;
+					HALT_ON_ERRORCOND(vcpu->vmcs.guest_CS_base == 0xf0000);
+					HALT_ON_ERRORCOND(vcpu->vmcs.info_vmexit_instruction_length == 3);
+					printf(" (inst %02x %02x %02x)\n",
+							*(u8 *)(p0 + 0), *(u8 *)(p0 + 1), *(u8 *)(p0 + 2));
+					if ("modify to VMCALL") {
+						*(u8 *)(p1 + 0) = 0x0f;
+						*(u8 *)(p1 + 1) = 0x01;
+						*(u8 *)(p1 + 2) = 0xc1;
+					}
+				} else {
+					printf("\n");
+				}
 				break;
 			} else {
 				printf("EPT unhandled: 0x%08llx RIP=0x%08lx entry=0x%016llx\n",
