@@ -139,6 +139,8 @@ _custom_bootloader_start:
 
 .align 16
 	cli
+
+#if 0	/* VGA */
 	movw	$0xb800, %ax
 	movw	%ax, %fs
 	movw	$2000, %cx
@@ -152,8 +154,9 @@ _custom_bootloader_start:
 	decw	%cx
 	jmp		1b
 2:
+#endif
 
-#if 0
+#if 0	/* Access memory before rep insl */
 	movl	$0x800, %ebx
 	movw	%bx, %es
 	movl	%es:(%ebx), %ebx
@@ -170,6 +173,7 @@ _custom_bootloader_start:
 	jmp		3b
 4:
 
+#if 0	/* VGA */
 	movw	$16, %ax
 	movb	$'L', %fs:(%eax)
 	incw	%ax
@@ -184,6 +188,7 @@ _custom_bootloader_start:
 	incw	%ax
 	incw	%ax
 	movb	$'L', %fs:(%eax)
+#endif
 
 	incl	0x1234
 
