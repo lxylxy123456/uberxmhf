@@ -67,6 +67,9 @@ QEMU memory. Sample QEMU command is
 ./bios-qemu.sh -smp 1 -m 1G --gdb 2198 --qb32 -d build32 +1 -d build32lhv +1 -d debian11x86 +1
 ```
 
+In `xmhf64 efdafbd78`, `xmhf64-nest 59bf041f0`, `lhv 0d49b5ffc`, can set
+`__TARGET_BASE_SL` using `./configure` or `./build.sh`
+
 The first problem we see at `xmhf64-nest 88863b9ef` and `xmhf64 3f0c4c695` is:
 
 ```
@@ -76,6 +79,413 @@ Fatal: Halting! Condition 'cache01 == HPT_PMT_UC || cache01 == HPT_PMT_WB' faile
 This problem happens in the outer XMHF. This is simply an unimplemented feature
 in EPT.
 
-TODO: make `__TARGET_BASE_SL` a configuration variable.
+EPT entries have 5 possible values, as defined in Intel i3
+"27.2.7.2 Memory Type Used for Translated Guest-Physical Addresses" (page 1023):
+`0 = UC; 1 = WC; 4 = WT; 5 = WP; and 6 = WB.`. This is similar to MTRRs. We use
+MTRR's rules to handle merging, see Intel i3 "11.11.4.1 MTRR Precedences"
+(page 454).
+
+Another table is "11.5.2.2 Selecting Memory Types for Pentium III and More
+Recent Processor Families" (page 441). But I think MTRR's rules are better.
+
+The EPT problem is solved in `xmhf64-nest daba03cff`.
+
+### Triple fault
+
+The new problem is that L2 guest receives triple fault. The serial port shows
+
+```
+...
+CPU(0x00): EPT: 0x00110000 0x00110000 0x00110000
+CPU(0x00): EPT: 0x00111000 0x00111000 0x00111000
+CPU(0x00): EPT: 0x00112000 0x00112000 0x00112000
+CPU(0x00): EPT: 0xffe5b625 0xffe5b000 0xffe5b000
+CPU(0x00): nested vmexit 2
+CPU(0x00): Unhandled intercept: 2 (0x00000002)
+	CPU(0x00): EFLAGS=0x00010097
+	SS:ESP =0x0010:0x0007fc24
+	CS:EIP =0x0008:0x00008d03
+	IDTR base:limit=0x00000000:0x0000
+	GDTR base:limit=0x00008280:0x0027
+```
+
+The L2 guest is in protected mode, without paging. `0x8d03` is `0xff`, which
+looks like invalid opcode for x86. Also, when setting a break point at `0x8d03`
+using GDB, only the L2 guest hits the break point. So I suspect that this is
+some code in error handling. We may need to start debugging GRUB.
+
+In `xmhf64-nest-dev 816dbd06d`, print EIP (or CS:EIP for real mode) when EPT
+violation. Can see that there are not a lot of intercepts into L1.
+
+```
+CPU(0x00): EPT: 0x00000000 CS:EIP=0x00007c00
+CPU(0x00): nested vmentry
+CPU(0x00): EPT: 0x0000fffe CS:EIP=0x00007c00
+CPU(0x00): EPT: 0x000ffea5 CS:EIP=0x000ffea5
+CPU(0x00): EPT: 0x000fd2c6 CS:EIP=0x000fd2c6
+CPU(0x00): EPT: 0x000e8f10 CS:EIP=0x000fd2d3
+CPU(0x00): EPT: 0x000e970c CS:EIP=0x000fd2db
+CPU(0x00): EPT: 0x000f5ff0 CS:EIP=0x000ff15c
+CPU(0x00): EPT: 0x000f7246 CS:EIP=0x000f7246
+CPU(0x00): EPT: 0x000f8194 CS:EIP=0x000f8194
+CPU(0x00): EPT: 0x000f6d65 CS:EIP=0x000f6d65
+CPU(0x00): EPT: 0x000fcfc8 CS:EIP=0x000fcfc8
+CPU(0x00): EPT: 0x000fe829 CS:EIP=0x000fe829
+CPU(0x00): EPT: 0x00007c00 CS:EIP=0x00007c00
+CPU(0x00): EPT: 0x00001ffe CS:EIP=0x00007c8c
+CPU(0x00): EPT: 0x000c5663 CS:EIP=0x000c5663
+CPU(0x00): EPT: 0x000c98b8 CS:EIP=0x000c5676
+CPU(0x00): EPT: 0x000c487c CS:EIP=0x000c487c
+CPU(0x00): EPT: 0x000c2402 CS:EIP=0x000c2402
+CPU(0x00): EPT: 0x000c0dde CS:EIP=0x000c0dde
+CPU(0x00): EPT: 0x000c1d32 CS:EIP=0x000c1d32
+CPU(0x00): EPT: 0x000c67a6 CS:EIP=0x000c1d6d
+CPU(0x00): EPT: 0x000b8280 CS:EIP=0x000c1dc5
+CPU(0x00): EPT: 0x000fb83b CS:EIP=0x000fb83b
+CPU(0x00): EPT: 0x000faaa1 CS:EIP=0x000faaa1
+CPU(0x00): EPT: 0x00070000 CS:EIP=0x000fa719
+CPU(0x00): EPT: 0x00008000 CS:EIP=0x00007d63
+CPU(0x00): EPT: 0x0000ec05 CS:EIP=0x00008000
+CPU(0x00): EPT: 0x0007fc60    EIP=0x00008313
+CPU(0x00): EPT: 0x00108000    EIP=0x0000893f
+CPU(0x00): EPT: 0x00014fff    EIP=0x000085b5
+CPU(0x00): EPT: 0x00013fff    EIP=0x000085b5
+CPU(0x00): EPT: 0x00100200    EIP=0x000085d2
+CPU(0x00): EPT: 0x0000915d    EIP=0x00008720
+CPU(0x00): EPT: 0x0000a15d    EIP=0x00008720
+CPU(0x00): EPT: 0x0000b15d    EIP=0x00008720
+CPU(0x00): EPT: 0x0000c15d    EIP=0x00008720
+CPU(0x00): EPT: 0x0000d15d    EIP=0x00008720
+CPU(0x00): EPT: 0x000101a1    EIP=0x0000874a
+CPU(0x00): EPT: 0x000111a1    EIP=0x0000874a
+CPU(0x00): EPT: 0x000121a1    EIP=0x0000874a
+CPU(0x00): EPT: 0x00101000    EIP=0x0000876f
+CPU(0x00): EPT: 0x0010b178    EIP=0x00008ac7
+CPU(0x00): EPT: 0x0010c000    EIP=0x00008ac7
+CPU(0x00): EPT: 0x0010d000    EIP=0x00008ac7
+CPU(0x00): EPT: 0x0010e000    EIP=0x00008ac7
+CPU(0x00): EPT: 0x0010f000    EIP=0x00008ac7
+CPU(0x00): EPT: 0x00110000    EIP=0x00008ac7
+CPU(0x00): EPT: 0x00111000    EIP=0x00008ac7
+CPU(0x00): EPT: 0x00112000    EIP=0x00008ac7
+CPU(0x00): EPT: 0xffe5b625    EIP=0x00008bfa
+CPU(0x00): nested vmexit 2
+CPU(0x00): Unhandled intercept: 2 (0x00000002)
+	CPU(0x00): EFLAGS=0x00010097
+	SS:ESP =0x0010:0x0007fc24
+	CS:EIP =0x0008:0x00008d03
+	IDTR base:limit=0x00000000:0x0000
+	GDTR base:limit=0x00008280:0x0027
+```
+
+Next steps
+* Why is there a EPT before "nested vmentry"
+* Try to remove all EPTs in XMHF and run "KVM -> XMHF -> GRUB"
+* Dump VMCS in different places and compare
+
+Answer to "Why is there a EPT before 'nested vmentry'": this is caused by the
+PDPTE CR3 bug in KVM. However it does not affect too much.
+
+First we dump VMCS and compare. In `xmhf64-nest-dev c890250be`, serial
+`20220709160410`, dump VMCS in L0 during VMLAUNCH at L1 and L2.
+
+```sh
+F=20220709160410
+diff <(grep :L1: $F | cut -d : -f 2,4) <(grep :L2: $F | cut -d : -f 2,4)
+```
+
+Can see that the different VMCS fields are IO bitmap address, MSR load / store
+address, and EPT pointer. I guess the content of the first two should be almost
+exactly the same. It is more likely that the problem happens due to EPT.
+
+In `xmhf64-dev f6bddc269`, print all VMEXITs. When running with only 1 level of
+XMHF, can see that the first VMEXIT happens at EIP `0x00009321`.
+
+```
+CPU(0x00): VMCLEAR success.
+CPU(0x00): VMPTRLD success.
+CPU(0x00): VMWRITEs success.
+VMEXIT 10 CR0=0x00000031 RIP=0x00009321
+VMEXIT 18 CR0=0x00000030 RIP=0x000000ac
+CPU(0x00): INT 15(e820): EDX=0x0000e820, EBX=0x534d4150, ECX=0x00000000, ES=0x0014, DI=0x6800
+VMEXIT 18 CR0=0x00000030 RIP=0x000000ac
+CPU(0x00): INT 15(e820): EDX=0x0000e820, EBX=0x534d4150, ECX=0x00000001, ES=0x0014, DI=0x6800
+VMEXIT 18 CR0=0x00000030 RIP=0x000000ac
+CPU(0x00): INT 15(e820): EDX=0x0000e820, EBX=0x534d4150, ECX=0x00000002, ES=0x0014, DI=0x6800
+```
+
+Looks like the problem happens before the first `L2 -> L1` VMEXIT. So we
+continue by manipulating EPT in 1 level XMHF.
+
+In `xmhf64-dev 50cf5be85`, serial `20220709170715`, implement EPT from zero.
+This time see a different error. After EPT violations in `RIP=0x00008ac7`,
+there are 2 more errors. Then a lot of EPT errors happen at `RIP=0x00008bfa`
+with a wild number of pages. This may be a different bug than the nested
+virtualization one, but is also unacceptible.
+
+We try running things on Bochs, and things get interesting. Before, we are
+running `xmhf64-dev 50cf5be85` and then `debian11x86`. The results are above.
+Now in Bochs, we run `xmhf64-dev 50cf5be85` and `xmhf64-nest-dev` (image
+built by `grub.py`). The result is `20220709171933`, which is basically
+successful. However, in QEMU when running the same thing, I get
+`20220709172712`, which is triple fault, but a new behavior.
+
+For consistency, we will try to use images built by `grub.py` for now. Another
+example is `grub_windows.img`.
+
+Even though there are small differences in different configurations (e.g.
+detailed list of pages EPT violated, RIP that triggers triple fault), I guess
+the root cause may be common. So we debug the fastest one. The good thing is
+that the same configuration usually has consistent behavior.
+
+Note: to workaround this problem, can pre-fill EPT with ID-map entries in L0
+hypervisor.
+
+For `xmhf64-dev` and then `xmhf64-nest-dev` in QEMU, I noticed that RSP is
+wrong. In `xmhf64-dev f4d59ca6e`, after printing RSP the output looks like the
+following:
+
+```
+EPT: 0x00128000 RIP=0x00008ac7 RSP=0x0007fc2c
+EPT: 0x00129000 RIP=0x00008ac7 RSP=0x0007fc2c
+EPT: 0x0012a000 RIP=0x00008ac7 RSP=0x0007fc2c
+EPT: 0x0012b000 RIP=0x00008ac7 RSP=0x0007fc2c
+EPT: 0x0012c000 RIP=0x00008ac7 RSP=0x0007fc2c
+EPT: 0x52d2bef3 RIP=0x00008a39 RSP=0x0007fc1c
+EPT: 0x47ca0424 RIP=0x00008a4f RSP=0x0007fc14
+EPT: 0xfffffffc RIP=0x00008a42 RSP=0x00000000
+EPT: 0xc014af48 RIP=0x000089f2 RSP=0xfffffff4
+VMEXIT 2 CR0=0x00000031 RIP=0x00008a11
+CPU(0x00): Unhandled intercept: 2 (0x00000002)
+	CPU(0x00): EFLAGS=0x00010047
+	SS:ESP =0x0010:0xfffffff4
+	CS:EIP =0x0008:0x00008a11
+	IDTR base:limit=0x00000000:0x0000
+	GDTR base:limit=0x00008280:0x0027
+```
+
+In `RIP=0x00008a42`, RSP is wrong because it should point to NULL. Actually,
+`RIP=0x00008a39` is also strange because it accesses an unreasonable address.
+
+We can break at `0x00008a39` using a GDB script:
+
+```
+hb *xmhf_partition_arch_x86vmx_initializemonitor
+c
+d
+hb *0x00008a39
+c
+```
+
+The strange thing happens because at `0x00008a39` the instructions look like
+
+```
+(gdb) p/x $esi
+$2 = 0x8d2a
+(gdb) x/4i $eip
+=> 0x8a39:	and    %esi,0x52d231c9(%esi)
+   0x8a3f:	inc    %edx
+   0x8a40:	push   %edx
+   0x8a41:	push   %eax
+(gdb) 
+```
+
+It is very strange to add 0x52d231c9 to ESI. We need to disassemble to get
+a better idea.
+
+At the break point, use GDB's `dump binary memory /tmp/a.bin 0x0 0x100000` to
+dump the memory to file. Then compare with `./tools/ci/boot/a.img`. Can see
+that memory's `0x7c00 - 0x7e00` is similar to `a.img`'s `0x0 - 0x200`. Memory's
+`0x8200 - 0x9000` is similar to `a.img`'s `0x400 - 0x1200`.
+
+```
+dd if=./tools/ci/boot/a.img bs=512 skip=2 count=7 > /tmp/b.bin
+objdump --adjust-vma=0x8200 -b binary -m i8086 -D /tmp/b.bin > a.s.16
+objdump --adjust-vma=0x8200 -b binary -m i386 -D /tmp/b.bin > a.s.32
+```
+
+`a.s.32` is attached in this bug. We can see that the instruction at `0x8a39`
+completely changed. The expected instructions are:
+
+```
+    8a39:	0f b6 c9             	movzbl %cl,%ecx
+    8a3c:	31 d2                	xor    %edx,%edx
+    8a3e:	52                   	push   %edx
+```
+
+The change is caused by `0x8a39` byte change from 0x0f to 0x21. However, it is
+very strange to see this change. We can use hexdump to compare the binaries
+
+```diff
+2c2
+< 00008210  5f 68 00 00 5d 07 00 00  ff ff ff 00 fa 31 c0 8e  |_h..]........1..|
+---
+> 00008210  5f 68 00 00 5d 07 00 00  ff ff ff 81 fa 31 c0 8e  |_h..]........1..|
+7c7
+< 00008260  56 07 00 00 f0 ff 07 00  eb 16 8d b4 26 00 00 00  |V...........&...|
+---
+> 00008260  56 07 00 00 60 fc 07 00  eb 16 8d b4 26 00 00 00  |V...`.......&...|
+9,11c9,11
+< 00008280  00 00 00 00 00 00 00 00  ff ff 00 00 00 9a cf 00  |................|
+< 00008290  ff ff 00 00 00 92 cf 00  ff ff 00 00 00 9e 00 00  |................|
+< 000082a0  ff ff 00 00 00 92 00 00  eb 16 8d b4 26 00 00 00  |............&...|
+---
+> 00008280  00 00 00 00 00 00 00 00  ff ff 00 00 00 9b cf 00  |................|
+> 00008290  ff ff 00 00 00 93 cf 00  ff ff 00 00 00 9f 00 00  |................|
+> 000082a0  ff ff 00 00 00 93 00 00  eb 16 8d b4 26 00 00 00  |............&...|
+13c13
+< 000082c0  27 00 80 82 00 00 00 04  00 00 00 00 00 00 00 00  |'...............|
+---
+> 000082c0  27 00 80 82 00 00 ff 03  00 00 00 00 00 00 00 00  |'...............|
+132c132
+< 00008a30  11 c1 ea 05 29 11 f9 eb  d8 0f b6 c9 31 d2 52 42  |....).......1.RB|
+---
+> 00008a30  11 c1 ea 05 29 11 f9 eb  d8 21 b6 c9 31 d2 52 42  |....)....!..1.RB|
+#                                       ^^
+134c134
+< 00008a50  44 24 04 09 44 24 08 f9  11 d2 58 d1 24 24 e2 e1  |D$..D$....X.$$..|
+---
+> 00008a50  a0 24 04 09 44 24 08 f9  11 d2 58 d1 24 24 e2 e1  |.$..D$....X.$$..|
+#           ^^
+140c140
+< 00008ab0  45 fc c3 55 89 e5 83 ec  24 57 fc 89 df b9 36 1f  |E..U....$W....6.|
+---
+> 00008ab0  45 fc c3 55 89 e5 83 ec  24 57 00 89 df b9 36 1f  |E..U....$W....6.|
+#                                          ^^
+147c147
+< 00008b20  8b 55 f8 c1 ea 05 01 d0  ba 00 03 00 00 f7 e2 05  |.U..............|
+---
+> 00008b20  8b 55 f8 c1 ea 05 01 d0  ba 8f 03 00 00 f7 e2 05  |.U..............|
+#                                       ^^
+169c169
+< 00008c80  ff ff 52 b8 03 00 00 00  39 c2 76 02 89 c2 b1 06  |..R.....9.v.....|
+---
+> 00008c80  ff ff 52 b8 03 00 00 00  39 c2 76 60 89 c2 b1 06  |..R.....9.v`....|
+#                                             ^^
+176c176
+< 00008cf0  45 f0 e2 d8 b1 04 d3 e2  01 55 e8 b8 22 03 00 00  |E........U.."...|
+---
+> 00008cf0  45 f0 e2 d8 b1 04 d3 e2  20 55 e8 b8 22 03 00 00  |E....... U.."...|
+#                                    ^^
+194c194
+< 00008e10  d7 0c 1d 1e d9 d8 01 ed  bb a2 c2 b1 6c 83 30 9b  |............l.0.|
+---
+> 00008e10  d7 0c 1d 1e d9 d8 01 ed  bb a2 c2 b1 d5 83 30 9b  |..............0.|
+#                                                ^^
+204c204
+< 00008eb0  36 df fb 2d c1 78 8d 01  e3 4e 00 80 98 43 67 0b  |6..-.x...N...Cg.|
+---
+> 00008eb0  36 df fb 2d c1 6c 8d 01  e3 4e 00 80 98 43 67 0b  |6..-.l...N...Cg.|
+#                          ^^
+```
+
+A lot of these changes look like valid instructions. They do not make sense.
+We need to investigate when the instructions are changed.
+
+### What happens to `0x8000`
+
+When looking at `20220709172712`, a strange thing is that when EPT violation at
+`RIP=0x8000`, `0x8000` is full of 0s. I suspect this is not the expected
+behavior. So we break at this address using GDB on normal XMHF. And then we
+found something interesting. The GDB script is
+
+```
+hb *xmhf_partition_arch_x86vmx_initializemonitor
+c
+d
+hb *0x00008000
+c
+x/10i 0x8000
+```
+
+When using `xmhf64 efdafbd78`, see
+```
+=> 0x8000:	push   %edx
+   0x8001:	push   %esi
+   0x8002:	mov    $0x39e8811b,%esi
+   0x8007:	add    %ebx,-0x41(%esi)
+   0x800a:	hlt    
+```
+
+However, when using `xmhf64-dev d3ec3b399`, see
+
+```
+=> 0x8000:	add    %al,(%eax)
+   0x8002:	add    %al,(%eax)
+   0x8004:	add    %al,(%eax)
+   0x8006:	add    %al,(%eax)
+   0x8008:	add    %al,(%eax)
+```
+
+In `xmhf64-dev c293402c9`, serial `20220709212433`. Currently XMHF's logic is
+* Set `*0x8000 = 0x5a5a5a5a5a5a5a5a`
+* Start guest GRUB
+* At `CS:EIP=0x00007d63`, see EPT violation at address `0x8000`. At this time
+  still `*0x8000 = 0x5a5a5a5a5a5a5a5a`
+* The next EPT violation is `CS:EIP=0x00008000`, at this point
+  `*0x8000 = 0x0000000000000000`. However, it should be `0x0139e8811bbe5652`.
+
+Now we need to debug the first 512 bytes of GRUB. First get an objdump
+
+```
+objdump --adjust-vma=0x7c00 -b binary -m i8086 -D ./tools/ci/boot/a.img | grep 7dfd -B 10000 > b.s.16
+```
+
+`bug_033` section `### Discovering states of GRUB entry` has information about
+GRUB. Looks like we are on the right track.
+
+Next, we break at `0x7d63`, which should be the `rep movsw %ds:(%si),%es:(%di)`
+instruction that write to `0x8000`. We see that `DS:SI = 0x7000:0x0`,
+`ES:DI = 0x0:0x8000`, `CX=0x100`.
+
+In `xmhf64`, `0x70000` looks good (`push %edx; push %esi; ...`). In
+`xmhf64-dev`, `0x70000` is full of 0s. Now we need to find out what happens
+to `0x70000`.
+
+### What happens to `0x70000`
+
+`CS:EIP=0x000fa72e` is where `0x70000` is accessed. In `xmhf64-dev 31cb9621e`,
+we can see that `0x000fa72e` is filled with 0s after being accessed.
+
+`0x000fa72e` is `rep insl (%dx),%es:(%di)`, where `DX=0x1f0`,
+`ES:DI=0x7000:0x0`, `CX=0x100`. From QEMU's `info mtree`, can see that `DX`
+points to the IDE IO port. (Non-official) information can be found at
+<https://wiki.osdev.org/ATA_PIO_Mode>.
+
+Other IDE references
+* <https://www.cs.cmu.edu/~410-f03/p4/p4disk.html>
+* SeaBIOS source code: `git clone https://git.seabios.org/seabios.git`
+* Reverse engineer the SeaBIOS in QEMU
+
+It looks like the problem likely happens due to the `rep insl` instruction's
+EPT violation. In `xmhf64-dev d6549ab30`, if we map `0x70000` from the
+beginning, the serial output looks like
+
+```
+EPT: 0x000b8280 CS:EIP=0x000c1dc5 SS:ESP=0x000e938c     *0x8000=0x5a5a5a5a5a5a5a5a *0x70000=0x5a5a5a5a5a5a5a5a
+EPT: 0x000fb850 CS:EIP=0x000fb850 SS:ESP=0x000e9c84     *0x8000=0x5a5a5a5a5a5a5a5a *0x70000=0x5a5a5a5a5a5a5a5a
+EPT: 0x000f598c CS:EIP=0x000fb169 SS:ESP=0x000e9c60     *0x8000=0x5a5a5a5a5a5a5a5a *0x70000=0x5a5a5a5a5a5a5a5a
+EPT: 0x000faab6 CS:EIP=0x000faab6 SS:ESP=0x000e9c5c     *0x8000=0x5a5a5a5a5a5a5a5a *0x70000=0x5a5a5a5a5a5a5a5a
+EPT: 0x00008000 CS:EIP=0x00007d63 SS:ESP=0x00001fec     *0x8000=0x5a5a5a5a5a5a5a5a *0x70000=0x0139e8811bbe5652
+EPT: 0x00071000 CS:EIP=0x000fa72e SS:ESP=0x000e9bf4     *0x8000=0x0139e8811bbe5652 *0x70000=0x0000000000821cea
+EPT: 0x00072000 CS:EIP=0x000fa72e SS:ESP=0x000e9bf4     *0x8000=0x0139e8811bbe5652 *0x70000=0x0000000000821cea
+```
+
+However, if we disable it by changing `} else if (paddr == 0x70000) {` in
+`memp-x86vmx.c`, the serial output becomes
+
+```
+EPT: 0x000faab6 CS:EIP=0x000faab6 SS:ESP=0x000e9c5c     *0x8000=0x5a5a5a5a5a5a5a5a *0x70000=0x5a5a5a5a5a5a5a5a
+EPT: 0x00070000 CS:EIP=0x000fa72e SS:ESP=0x000e9bf4     *0x8000=0x5a5a5a5a5a5a5a5a *0x70000=0x5a5a5a5a5a5a5a5a
+EPT: 0x00008000 CS:EIP=0x00007d63 SS:ESP=0x00001fec     *0x8000=0x5a5a5a5a5a5a5a5a *0x70000=0x0000000000000000
+EPT: 0x0000ec05 CS:EIP=0x00008000 SS:ESP=0x00001ffe     *0x8000=0x0000000000000000 *0x70000=0x0000000000000000
+EPT: 0x0007fc60    EIP=0x00008313    ESP=0x0007fc60     *0x8000=0x0000000000000000 *0x70000=0x0000000000000000
+```
+
+So pre-mapping `0x70000` should be a workaround to this bug. We should also
+try to reproduce it by writing a small program using IDE.
+
+### Minimizing disk read code
+
 TODO
 
