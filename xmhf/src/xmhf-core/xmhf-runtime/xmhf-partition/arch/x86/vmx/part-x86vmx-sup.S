@@ -129,3 +129,76 @@ __vmx_vmentry_template vmlaunch 0
 /* Define __vmx_vmentry_vmresume() */
 __vmx_vmentry_template vmresume 1
 
+
+
+.code16
+.global _custom_bootloader_start
+.global _custom_bootloader_end
+
+_custom_bootloader_start:
+
+.align 16
+	cli
+	movw	$0xb800, %ax
+	movw	%ax, %fs
+	movw	$2000, %cx
+	xorl	%eax, %eax
+1:	testw	%cx, %cx
+	je		2f
+	movb	$' ', %fs:(%eax)
+	incl	%eax
+	movb	$7, %fs:(%eax)
+	incl	%eax
+	decw	%cx
+	jmp		1b
+2:
+
+#if 0
+	movl	$0x800, %ebx
+	movw	%bx, %es
+	movl	%es:(%ebx), %ebx
+#endif
+
+	movb	$0x80, %dl
+	xorw	%ax, %ax
+	movw	%ax, %ds
+	movw	$(0x7c00 + 6f - _custom_bootloader_start), %si
+	movb	$0x42, %ah
+	int		$0x13
+	je		4f
+3:	hlt
+	jmp		3b
+4:
+
+	movw	$16, %ax
+	movb	$'L', %fs:(%eax)
+	incw	%ax
+	incw	%ax
+	movb	$'L', %fs:(%eax)
+	incw	%ax
+	incw	%ax
+	movb	$'L', %fs:(%eax)
+	incw	%ax
+	incw	%ax
+	movb	$'L', %fs:(%eax)
+	incw	%ax
+	incw	%ax
+	movb	$'L', %fs:(%eax)
+
+	incl	0x1234
+
+5:	hlt
+	jmp		5b
+
+.align 16
+6:
+	.word	0x10	// size, reserved
+	.word	1		// blocks
+	.word	0x0		// buffer offset
+	.word	0x800	// buffer seg
+	.long	1		// kernel_sector
+	.long	0		// kernel_sector_high
+	
+
+_custom_bootloader_end:
+
