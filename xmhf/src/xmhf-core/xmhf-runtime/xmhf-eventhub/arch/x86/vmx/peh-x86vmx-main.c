@@ -1082,10 +1082,12 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION ||
 		((u32)vcpu->vmcs.info_vmexit_interrupt_information & INTR_INFO_VECTOR_MASK) != 0x2) {
 		HALT_ON_ERRORCOND(vcpu->id == 0);
-		printf("VMEXIT %d CR0=0x%08lx RIP=0x%08lx\n",
-				(u32)vcpu->vmcs.info_vmexit_reason,
-				vcpu->vmcs.guest_CR0,
-				vcpu->vmcs.guest_RIP);
+		if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EPT_VIOLATION) {
+			printf("VMEXIT %d CR0=0x%08lx RIP=0x%08lx\n",
+					(u32)vcpu->vmcs.info_vmexit_reason,
+					vcpu->vmcs.guest_CR0,
+					vcpu->vmcs.guest_RIP);
+		}
 	} else {
 		HALT_ON_ERRORCOND(0 && "disabled");
 	}
@@ -1125,6 +1127,28 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		break;
 
 		case VMX_VMEXIT_EPT_VIOLATION:{
+			u64 *table = (u64 *) vcpu->vmx_vaddr_ept_p_tables;
+			u64 *entry;
+			entry = table + (vcpu->vmcs.guest_paddr >> 12);
+			if ((*entry) & (1ULL << 11)) {
+				(*entry) = ((*entry) & ~0x800ULL) | 0x7ULL;
+				printf("EPT: 0x%08llx RIP=0x%08lx 0x%016llx\n",
+						vcpu->vmcs.guest_paddr, vcpu->vmcs.guest_RIP, *entry);
+				if (vcpu->vmcs.info_IDT_vectoring_information & 0x80000000) {
+					vcpu->vmcs.control_VM_entry_interruption_information =
+						vcpu->vmcs.info_IDT_vectoring_information;
+					vcpu->vmcs.control_VM_entry_exception_errorcode =
+						vcpu->vmcs.info_IDT_vectoring_error_code;
+					vcpu->vmcs.info_IDT_vectoring_information = 0;
+					vcpu->vmcs.info_IDT_vectoring_error_code = 0;
+				}
+				break;
+			} else {
+				printf("EPT unhandled: 0x%08llx RIP=0x%08lx entry=0x%016llx\n",
+						vcpu->vmcs.guest_paddr, vcpu->vmcs.guest_RIP, *entry);
+			}
+			// vcpu->vmcs.info_exit_qualification
+			// vcpu->vmcs.control_EPT_pointer
 			HALT_ON_ERRORCOND(0 && "EPT disabled");
 			_vmx_handle_intercept_eptviolation(vcpu, r);
 		}

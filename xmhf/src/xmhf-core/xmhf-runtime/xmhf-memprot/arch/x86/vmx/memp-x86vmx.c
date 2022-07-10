@@ -362,7 +362,8 @@ static void _vmx_setupEPT(VCPU *vcpu){
 				(paddr < (rpb->XtVmmRuntimePhysBase + rpb->XtVmmRuntimeSize))) {
 				lower = 0x0;	/* not present */
 			} else {
-				lower = 0x7;	/* present */
+				// lower = 0x7;	/* present */
+				lower = (1ULL << 11);	// Present bit for software
 			}
 			p_entry[i] = paddr | (memorytype << 3) | lower;
 		}
