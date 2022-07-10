@@ -1132,8 +1132,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			entry = table + (vcpu->vmcs.guest_paddr >> 12);
 			if ((*entry) & (1ULL << 11)) {
 				(*entry) = ((*entry) & ~0x800ULL) | 0x7ULL;
-				printf("EPT: 0x%08llx RIP=0x%08lx 0x%016llx\n",
-						vcpu->vmcs.guest_paddr, vcpu->vmcs.guest_RIP, *entry);
+				printf("EPT: 0x%08llx RIP=0x%08lx RSP=0x%08lx\n",
+						vcpu->vmcs.guest_paddr, vcpu->vmcs.guest_RIP,
+						vcpu->vmcs.guest_RSP);
 				if (vcpu->vmcs.info_IDT_vectoring_information & 0x80000000) {
 					vcpu->vmcs.control_VM_entry_interruption_information =
 						vcpu->vmcs.info_IDT_vectoring_information;
