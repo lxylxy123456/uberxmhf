@@ -16,8 +16,8 @@ menuentry "{{ menuentry }}" {
 	{%- endif %}
 	if [ "${root}" = "hd0,msdos1" ] ; then
 		set new_root='hd1,msdos1'
-		set boot_drive='0x81'
-		set new_grub='(hd1)+1'
+		set boot_drive='0x80'
+		set new_grub='(hd0)+1'
 	fi
 	if [ "${root}" = "hd1,msdos1" ] ; then
 		set new_root='hd2,msdos1'
