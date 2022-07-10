@@ -1145,19 +1145,16 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				HALT_ON_ERRORCOND(!(vcpu->vmcs.guest_CR0 & 0x80000000));
 				if (vcpu->vmcs.guest_CR0 & 0x1) {
 					HALT_ON_ERRORCOND(vcpu->vmcs.guest_CS_base == 0);
-					printf("EPT: 0x%08llx    EIP=0x%08lx    ESP=0x%08lx %s",
+					printf("EPT: 0x%08llx    EIP=0x%08lx %s",
 							vcpu->vmcs.guest_paddr,
-							vcpu->vmcs.guest_RIP,
-							vcpu->vmcs.guest_RSP, idt);
+							vcpu->vmcs.guest_RIP, idt);
 				} else {
-					printf("EPT: 0x%08llx CS:EIP=0x%08lx SS:ESP=0x%08lx %s",
+					printf("EPT: 0x%08llx CS:EIP=0x%08lx %s",
 							vcpu->vmcs.guest_paddr,
 							vcpu->vmcs.guest_CS_base + vcpu->vmcs.guest_RIP,
-							vcpu->vmcs.guest_SS_base + vcpu->vmcs.guest_RSP,
 							idt);
 				}
-				printf(" *0x8000=0x%016llx", * (u64 *) 0x8000);
-				printf(" *0x70000=0x%016llx\n", * (u64 *) 0x70000);
+				printf(" *0x8000=0x%016llx\n", * (u64 *) 0x8000);
 				break;
 			} else {
 				printf("EPT unhandled: 0x%08llx RIP=0x%08lx entry=0x%016llx\n",
