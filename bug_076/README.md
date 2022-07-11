@@ -306,4 +306,6 @@ This page will be used to track various bugs reported to QEMU / KVM
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216091>
 * `bug_084`: L2 guest get #UD when enable PAE paging with unmapped CR3
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216212>
+* `bug_085`: L2 guest REP INS gets zero page when EPT violation
+	* <https://bugzilla.kernel.org/show_bug.cgi?id=216234>
 

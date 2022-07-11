@@ -1,0 +1,55 @@
+Summary: KVM guest memory is zeroed when nested guest's REP INS instruction encounters page fault
+
+CPU model: 11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz
+Host kernel version: 5.18.9
+Host kernel arch: x86_64
+Guest: a micro-hypervisor (called XMHF, 32-bits), which runs a real mode L2 nested guest (similar to GRUB's boot.img).
+QEMU command line: qemu-system-x86_64 -m 512M -gdb tcp::2198 -smp 1 -cpu Haswell,vmx=yes -enable-kvm -serial stdio -drive media=disk,file=e.img,index=1
+This bug still exists if using -machine kernel_irqchip=off
+This problem cannot be tested with -accel tcg , because the guest requires nested virtualization
+
+How to reproduce:
+
+1. Download e.img (attached with this bug). Source code of this LHV image is in https://github.com/lxylxy123456/uberxmhf/tree/0596d7e0ebf89a37ca896846f1d2569d2c816aff .
+
+2. Run the QEMU command line above
+
+3. See the following 2 lines:
+
+EPT:    0x00008000 CS:EIP=0x000fa591 *0x8000=0x5a5a5a5a5a5a5a5a (inst 67 f3 6d)
+VMCALL: 0x00008000 CS:EIP=0x000fa594 *0x8000=0x0000000000000000
+
+Expected behavior:
+
+See the following 2 lines:
+
+EPT:    0x00008000 CS:EIP=0x000fa591 *0x8000=0x5a5a5a5a5a5a5a5a (inst 67 f3 6d)
+VMCALL: 0x00008000 CS:EIP=0x000fa594 *0x8000=0x0139e8811bbe5652
+
+Explanation
+
+In KVM terms, KVM is L0, XMHF is L1, nested guest is L2.
+
+The nested guest (L2) calls BIOS INT $0x13 with AH=0x42, which reads a disk block. The destination of the read is 0x0800:0x0000. If interested, the assembly code is at https://github.com/lxylxy123456/uberxmhf/blob/0596d7e0ebf89a37ca896846f1d2569d2c816aff/xmhf/src/xmhf-core/xmhf-runtime/xmhf-partition/arch/x86/vmx/part-x86vmx-sup.S#L134 .
+
+The default SeaBIOS used by QEMU / KVM will interact with IDE using the REP INS instruction. In my BIOS this instruction is at 0x000fa591. After this instruction completes, 0x8000 should be filled with the data read from the disk (0x0139e8811bbe5652).
+
+The XMHF (L1)'s logic is:
+* Copy the nested guest (L2) to 0x7c00
+* Write 0x5a5a5a5a5a5a5a5a to 0x8000
+* Initialize EPT with identity mapping, but do not map the 4K page at 0x8000
+* Start the nested guest (L2)
+* Receive a VMEXIT due to EPT violation at guest CS:EIP=0x000fa591, print the first line, identity map the 4K page at 0x8000, change the instruction at 0x000fa594 to VMCALL
+* Receive a VMEXIT due to VMCALL at guest CS:EIP=0x000fa591, print the second line, see that 0x8000=0x0000000000000000
+
+The correct behavior is that 0x8000 is written with the data on disk, which is 0x0139e8811bbe5652.
+
+Explanation of the two lines printed by XMHF:
+* 0x00008000 in the first line is Guest-physical address of the EPT exit
+* 0x000fa591 in the first line is guest CS base * 16 + EIP. The second line is similar
+* 0x5a5a5a5a5a5a5a5a in the first line is the first 8 bytes at address 0x8000, as uint64_t. The second line is similar
+* 67 f3 6d in the first line is 3 bytes at CS:EIP, in this case the instruction is "rep insw (%dx),%es:(%edi)"
+* 0x00008000 in the second line has no meaning
+
+In vmx.c function handle_io(), looks like the I/O instruction is emulated when the instruction starts with REP. I guess it may be related to the cause of this bug.
+

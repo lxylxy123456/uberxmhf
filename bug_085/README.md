@@ -485,7 +485,253 @@ EPT: 0x0007fc60    EIP=0x00008313    ESP=0x0007fc60     *0x8000=0x00000000000000
 So pre-mapping `0x70000` should be a workaround to this bug. We should also
 try to reproduce it by writing a small program using IDE.
 
+### Calling BIOS
+
+We first replace GRUB with code that we control to access BIOS. We use GRUB
+source code at
+<https://git.savannah.gnu.org/cgit/grub.git/tree/grub-core/boot/i386/pc/boot.S>
+and reverse engineer GRUB running in QEMU and XMHF.
+
+GRUB calls `int $0x13` at `0x7cd5`. GDB shows:
+```
+(gdb) x/10lx $si
+0x7c05:	0x00010010	0x70000000	0x00000001	0x00000000
+0x7c15:	0x00b90600	0xeaa4f302	0x00000621	0x3807bebe
+0x7c25:	0x830b7504	0xfe8110c6
+(gdb) info registers 
+eax            0x4201              16897
+edx            0x81                129
+esp            0x1ffe              0x1ffe
+ebp            0x0                 0x0
+esi            0x7c05              31749
+cs             0x0                 0
+ds             0x0                 0
+(gdb) 
+```
+
+The call should be: `AH = 0x42`, `DL = 0x81`, `*(DS:SI + 0) = 0x10`,
+`*(DS:SI + 1) = 0x0`, `*(DS:SI + 2) = 0x0001`, `*(DS:SI + 4) = 0x0` (offset),
+`*(DS:SI + 6) = 0x7000` (segment), `*(DS:SI + 8) = 0x00000001` (LBA low),
+`*(DS:SI + 12) = 0x00000000` (LBA high).
+
+In `xmhf64-dev 51f41b5b9`, wrote a simple real mode program to replace GRUB's
+first sector. This program asks the BIOS to copy the disk to 0x8000, then
+accesses 0x1234 to trigger an EPT so that 0x8000 is printed to the serial.
+The result is:
+
+```
+...
+EPT: 0x00007c00 CS:EIP=0x00007c00     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x000b8000 CS:EIP=0x00007c12     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x000fb850 CS:EIP=0x000fb850     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x000f598c CS:EIP=0x000fb169     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x000faab6 CS:EIP=0x000faab6     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x00008000 CS:EIP=0x000fa72e     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x00001234 CS:EIP=0x00007c59     *0x8000=0x0000000000000000
+```
+
+However, if we access 0x8000 beforehand (remove `#ifdef 0` in
+`part-x86vmx-sup.S`) to trigger an EPT before BIOS, the behavior is correct:
+
+```
+...
+EPT: 0x00007c00 CS:EIP=0x00007c00     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x000b8000 CS:EIP=0x00007c12     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x00008800 CS:EIP=0x00007c2b     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x000fb850 CS:EIP=0x000fb850     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x000f598c CS:EIP=0x000fb169     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x000faab6 CS:EIP=0x000faab6     *0x8000=0x5a5a5a5a5a5a5a5a
+EPT: 0x00001234 CS:EIP=0x00007c66     *0x8000=0x0139e8811bbe5652
+```
+
+This means that we are on the right direction. The next step is to remove BIOS
+code and control IDE directly.
+
+In `xmhf64-dev 17ee097c3`, simplify the code even more. VGA code are removed.
+Now the logic is:
+* Remove 0x8000 and 0x1000 from EPT
+* Start guest
+* EPT violation at 0x8000 due to `rep ins`. Change the next instruction to
+  VMCALL
+* VMCALL prints 0x8000.
+
+The bad behavior is:
+
+```
+EPT:    0x00008000 CS:EIP=0x000fa719 *0x8000=0x5a5a5a5a5a5a5a5a (inst 67 f3 6d)
+VMCALL: 0x00008000 CS:EIP=0x000fa71c *0x8000=0x0000000000000000
+```
+
+For the good behavior in QEMU, there will be no VMCALL:
+
+```
+EPT:    0x00008800 CS:EIP=0x00007c0b *0x8000=0x5a5a5a5a5a5a5a5a
+EPT:    0x00001234 CS:EIP=0x00007c22 *0x8000=0x0139e8811bbe5652
+```
+
+In Bochs, for some reason modifying the instruction to VMCALL does not work.
+So will see
+
+```
+EPT:    0x00008000 CS:EIP=0x000f2c49 *0x8000=0x5a5a5a5a5a5a5a5a (inst f3 66 6d)
+EPT:    0x00001234 CS:EIP=0x00007c15 *0x8000=0x0139e8811bbe5652
+```
+
+Note on disassemble:
+
+```
+   0:	f3 66 6d             	rep insl (%dx),%es:(%di)
+   3:	cc                   	int3   
+   4:	67 f3 6d             	rep insw (%dx),%es:(%edi)
+   7:	cc                   	int3   
+```
+
 ### Minimizing disk read code
+
+Looks like IDE is too complicated. May going to drop this step
+
+### Debugging KVM
+
+By reading code, I guess the related call stack should be:
+
+```
+vmx_handle_exit()
+	nested_vmx_reflect_vmexit()
+	handle_io()
+		/* Notice that string = 1, which is special for this bug */
+		kvm_emulate_instruction()
+			x86_emulate_instruction()
+				x86_emulate_insn() ?
+					...
+						em_in()
+							pio_in_emulated()
+```
+
+Use `bug_084`'s notes to print debug KVM. `vmcs_readl(GUEST_RIP)` can be used
+to read the VMCS.
+
+This bug is reproducible on Debian Linux `5.18.9` (self-compiled).
+
+First add the following to `__vmx_handle_exit()`. Then grep for `nest 1`.
+
+```
+	printk(KERN_ERR "LXY: %s:%d: %s(): exit reason% 3d, RIP 0x%08lx, nest %d",
+			__FILE__, __LINE__, __func__, vmcs_read32(VM_EXIT_REASON),
+			vmcs_readl(GUEST_CS_BASE) + vmcs_readl(GUEST_RIP),
+			(int) is_guest_mode(vcpu));
+```
+
+We can see the following:
+
+```
+...
+.../vmx.c:6083: __vmx_handle_exit(): exit reason 30, RIP 0x000fa404, nest 1
+.../vmx.c:6083: __vmx_handle_exit(): exit reason 30, RIP 0x000fa404, nest 1
+.../vmx.c:6083: __vmx_handle_exit(): exit reason 30, RIP 0x000fa404, nest 1
+.../vmx.c:6083: __vmx_handle_exit(): exit reason 30, RIP 0x000fa591, nest 1
+.../vmx.c:6083: __vmx_handle_exit(): exit reason 30, RIP 0x000fa591, nest 1
+.../vmx.c:6083: __vmx_handle_exit(): exit reason 30, RIP 0x000fa591, nest 1
+.../vmx.c:6083: __vmx_handle_exit(): exit reason 18, RIP 0x000fa594, nest 1
+```
+
+QEMU serial shows
+
+```
+EPT:    0x00008000 CS:EIP=0x000fa591 *0x8000=0x5a5a5a5a5a5a5a5a (inst 67 f3 6d)
+VMCALL: 0x00008000 CS:EIP=0x000fa594 *0x8000=0x0000000000000000
+```
+
+`0xfa591` is the place where `rep insw` is called. Looks like only the last 4
+`L2 -> L0` VMEXITs are interested. Actually after the first VMEXIT, `L1`
+handles the EPT (because there are a lot of VMEXITs with `nest 0`).
+
+When running the good version (i.e. access 0x8000 beforehand), the latter 2
+VMEXITs on 0x000fa591 are the same. The first VMEXIT is gone.
+
+Using `dump_stack()` in Linux can print a function's call stack. Updated call
+stack:
+
+```
+...
+	kvm_arch_vcpu_ioctl_run()
+		vcpu_run()
+			...
+			vcpu_enter_guest() // kvm_x86_ops.handle_exit is vmx_handle_exit
+				vmx_handle_exit() // RIP 0x000fa591, nest 1, reason IO
+					handle_io()
+						kvm_emulate_instruction()
+							x86_emulate_instruction()
+								x86_emulate_insn()
+									?
+										emulator_pio_in() ?
+											__emulator_pio_in() ?
+												emulator_pio_in_out()
+													kernel_pio()
+														kvm_io_bus_read()
+															__kvm_io_bus_read()
+																kvm_iodevice_read()
+								vcpu->arch.complete_userspace_io = complete_emulated_pio
+kvm_vcpu_ioctl() // ioctl=KVM_RUN
+	kvm_arch_vcpu_ioctl_run()
+		complete_emulated_pio() // vcpu->arch.complete_userspace_io
+			complete_emulated_pio()
+				complete_emulated_io()
+					kvm_emulate_instruction()
+						x86_emulate_instruction()
+							x86_emulate_insn()
+							// ctxt->have_exception
+							inject_emulated_exception()
+								kvm_inject_emulated_page_fault()
+kvm_vcpu_ioctl() // ioctl=KVM_RUN
+	// L1
+kvm_vcpu_ioctl() // ioctl=KVM_RUN
+	kvm_arch_vcpu_ioctl_run()
+		vcpu_run()
+			vcpu_enter_guest()
+				vmx_handle_exit() // RIP 0x000fa591, nest 1, reason IO
+					handle_io()
+						kvm_emulate_instruction()
+							x86_emulate_instruction()
+								x86_emulate_insn()
+								vcpu->arch.complete_userspace_io = complete_emulated_pio
+kvm_vcpu_ioctl() // ioctl=KVM_RUN
+	kvm_arch_vcpu_ioctl_run()
+		complete_emulated_pio() // vcpu->arch.complete_userspace_io
+			complete_emulated_pio()
+				complete_emulated_io()
+					kvm_emulate_instruction()
+						x86_emulate_instruction()
+							x86_emulate_insn()
+		vcpu_run()
+			vcpu_enter_guest()
+				vmx_handle_exit() // RIP 0x000fa591, nest 1, reason IO
+					handle_io()
+						kvm_emulate_instruction()
+							x86_emulate_instruction()
+								x86_emulate_insn()
+			vcpu_enter_guest()
+				vmx_handle_exit() // RIP 0x000fa594, nest 1, reason VMCALL
+					...
+			...
+```
+
+This problem looks too complicated, giving up. Also, it is painful to debug
+with print debugging. It may be possible to reproduce this problem with KVM in
+KVM, but it would require a complicated setup. For now just report the bug to
+KVM.
+
+Using `xmhf64-dev 0596d7e0e` for bug report. Image attached as
+`xmhf64-dev-0596d7e0e.img.xz`
+
+Reported KVM bug at <https://bugzilla.kernel.org/show_bug.cgi?id=216234>. Text
+saved at `bug_216234.txt`. KVM bugs are tracked in `bug_076`.
+
+### Workaround
+
+In `xmhf64-nest bca582be3`, workaround by hardcoding EPT02. There are code to
+hardcode EPT and code to detect REP INS when EPT violation. Only
+`0x69000 - 0x7cfff` are observed to be used for REP INS. However, now there
+are too many things printed on the screen, and Linux takes too long to boot.
 
 TODO
 
