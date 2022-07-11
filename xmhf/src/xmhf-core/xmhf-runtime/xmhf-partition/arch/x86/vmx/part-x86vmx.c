@@ -483,16 +483,7 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	if(vcpu->isbsp){
 		printf("BSP(0x%02x): copying boot-module to boot guest\n", vcpu->id);
 		#ifndef __XMHF_VERIFICATION__
-		if (0) {
-			memcpy((void *)__GUESTOSBOOTMODULE_BASE, (void *)rpb->XtGuestOSBootModuleBase, rpb->XtGuestOSBootModuleSize);
-		} else {
-			void _custom_bootloader_start(void);
-			void _custom_bootloader_end(void);
-			memcpy((void *)__GUESTOSBOOTMODULE_BASE,
-				   (void *)_custom_bootloader_start,
-				   (void *)_custom_bootloader_end -
-				   (void *)_custom_bootloader_start);
-		}
+		memcpy((void *)__GUESTOSBOOTMODULE_BASE, (void *)rpb->XtGuestOSBootModuleBase, rpb->XtGuestOSBootModuleSize);
 		#endif
 		vcpu->vmcs.guest_CS_selector = 0;
 		vcpu->vmcs.guest_CS_base = 0;
@@ -645,9 +636,6 @@ static void _vmx_start_hvm(VCPU *vcpu, u32 vmcs_phys_addr){
 
 //initialize partition monitor for a given CPU
 void xmhf_partition_arch_x86vmx_initializemonitor(VCPU *vcpu){
-
-*(u64*)0x8000 = 0x5a5a5a5a5a5a5a5aULL;
-*(u64*)0x70000 = 0x5a5a5a5a5a5a5a5aULL;
 
   //initialize VT
   _vmx_initVT(vcpu);
