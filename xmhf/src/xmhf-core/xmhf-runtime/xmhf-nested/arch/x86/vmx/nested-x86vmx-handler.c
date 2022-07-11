@@ -392,7 +392,6 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	}
 
 	printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
-	xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":L2:");
 
 	/* From now on, cannot fail */
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
@@ -594,7 +593,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		(__vmx_vmread32(VMCSENC_info_vmexit_interrupt_information) &
 		 INTR_INFO_VECTOR_MASK) == 0x2) {
 		/* NMI received by L2 guest */
-		HALT_ON_ERRORCOND("NMI occurred");
 		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu)) {
 			xmhf_smpguest_arch_x86vmx_unblock_nmi();
 			/*

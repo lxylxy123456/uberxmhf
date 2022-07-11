@@ -630,10 +630,6 @@ static void _vmx_start_hvm(VCPU *vcpu, u32 vmcs_phys_addr){
       cpuid(0x80000001U, &_eax, &_ebx, &_ecx, &_edx);
       r.edx = 0x00000600U | (0x000f0000U & _eax);
     }
-	{
-		void xmhf_nested_arch_x86vmx_vmread_all(VCPU * vcpu, char *prefix);
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":L1:");
-	}
     __vmx_vmentry_vmlaunch(&r);
     HALT_ON_ERRORCOND(0 && "__vmx_vmentry_vmlaunch() should never return");
   }

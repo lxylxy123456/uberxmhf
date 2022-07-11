@@ -488,24 +488,7 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	/* Put page map entry into EPT02 */
 	HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&cache_line->value.ept02_ctx.ctx,
 											 &pmeo02, guest2_paddr) == 0);
-	{
-		// tmp check for identity mapped EPT
-		HALT_ON_ERRORCOND(guest1_paddr == xmhf_paddr);
-		HALT_ON_ERRORCOND(guest1_paddr == PA_PAGE_ALIGN_4K(guest2_paddr));
-	}
-	{
-		ulong_t cr0 = __vmx_vmreadNW(VMCSENC_guest_CR0);
-		ulong_t csb = __vmx_vmreadNW(VMCSENC_guest_CS_base);
-		ulong_t eip = __vmx_vmreadNW(VMCSENC_guest_RIP);
-		HALT_ON_ERRORCOND((cr0 & 0x80000000) == 0);
-		if (cr0 & 1) {
-			HALT_ON_ERRORCOND(csb == 0);
-			printf("CPU(0x%02x): EPT: 0x%08llx    EIP=0x%08lx\n", vcpu->id,
-				   guest2_paddr, eip);
-		} else {
-			printf("CPU(0x%02x): EPT: 0x%08llx CS:EIP=0x%08lx\n", vcpu->id,
-				   guest2_paddr, csb + eip);
-		}
-	}
+	printf("CPU(0x%02x): EPT: 0x%08llx 0x%08llx 0x%08llx\n", vcpu->id,
+		   guest2_paddr, guest1_paddr, xmhf_paddr);
 	return 1;
 }
