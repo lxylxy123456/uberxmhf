@@ -733,5 +733,38 @@ hardcode EPT and code to detect REP INS when EPT violation. Only
 `0x69000 - 0x7cfff` are observed to be used for REP INS. However, now there
 are too many things printed on the screen, and Linux takes too long to boot.
 
+In `xmhf64-nest 1bf106823`, slightly optimize workaround code to make things
+run faster. However, Linux is still taking too long to load. One measure
+is to use `--enable-optimize-nested-virt` in L2 XMHF (L0 = KVM, L1 = XMHF,
+L2 = XMHF, L3 = Linux). This makes VMEXIT caused by L3 a little bit faster.
+However, looks like Linux still stucks at WRMSR to `IA32_TSC_DEADLINE`. We
+probably need to make XMHF much faster.
+
+### GRUB keyboard problem
+
+In `xmhf64-nest 117389b8f` (L1) and `xmhf64 efdafbd78` (L2), L3 GRUB does not
+respond to keyboard events (e.g. press down arrow) correctly. It looks like it
+is stuck on VMCALL events forever. The VMCALL event is generated because L2
+uses it in E820 handler.
+
+If the code modifying BDA memory in `_vmx_int15_initializehook()` is removed,
+GRUB becomes normal, but there are still VMEXITs due to VMCALL, which is
+strange.
+
+After some thinking, I realize the problem. Suppose the original BIOS's INT 15h
+handler is at 0xf000:0x5678. When L1 XMHF loads, it changes IVT to 0x40:0xac.
+The original BIOS handler is saved at 4 bytes starting at 0x4b0. When L2 XMHF
+loads, it saves 0x40:0xac to 0x4b0. So when there is a Non-e820 BIOS call, the
+L2 XMHF will call 0x4ac forever.
+
+To solve this problem, XMHF should check the value in IVT. If it is already
+0x40:0xac, simply skip. Bug fixed in `xmhf64 3d916a673`. However, GRUB is still
+very slow in responding to keyboard input. This can be a good way to measure
+the efficiency of nested VMEXIT / VMENTRY efficiency.
+
+TODO: optimize VMWRITE and VMREAD in L1 XMHF
+TODO: try on newer computer
+TODO: Linux stuck on `IA32_TSC_DEADLINE`. Modify the value written by WRMSR?
+TODO: implement VMCS shadowing
 TODO
 
