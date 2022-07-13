@@ -762,9 +762,25 @@ To solve this problem, XMHF should check the value in IVT. If it is already
 very slow in responding to keyboard input. This can be a good way to measure
 the efficiency of nested VMEXIT / VMENTRY efficiency.
 
-TODO: optimize VMWRITE and VMREAD in L1 XMHF
+In `xmhf64-nest bf5a8d0de`, decrease number of VMREAD and VMWRITE during nested
+VMREAD / VMWRITE. After this commit, GRUB responds to keyboard events much
+faster. However, booting Linux is still slow.
+
+### Running LHV as nested guest
+
+Linux is considered too heavy-weight at this point. So we run
+`KVM -> XMHF -> XMHF -> LHV` first. The two XMHF's need to both support nested
+virtualization. When single CPU, LHV can run correctly, but is very slow. When
+2 or more CPUs, APs see `#GP` when executing VMXON.
+
+This problem happens because XMHF performs INIT-SIPI-SIPI two times during SMP,
+see `### INIT two times` in `bug_075`. We can reference code written in
+`lhv 10afe107c`.
+
+TODO: add configuration option to prevent XMHF from performing INIT-SIPI-SIPI twice
+TODO: see whether removing printfs make things faster
 TODO: try on newer computer
-TODO: Linux stuck on `IA32_TSC_DEADLINE`. Modify the value written by WRMSR?
+TODO: Linux stuck on `IA32_TSC_DEADLINE`. Modify the value written by WRMSR or TSC multiplier?
 TODO: implement VMCS shadowing
 TODO
 
