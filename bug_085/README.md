@@ -775,10 +775,38 @@ virtualization. When single CPU, LHV can run correctly, but is very slow. When
 
 This problem happens because XMHF performs INIT-SIPI-SIPI two times during SMP,
 see `### INIT two times` in `bug_075`. We can reference code written in
-`lhv 10afe107c`.
+`lhv 10afe107c` (notes in `bug_075`). Fixed in `xmhf64-nest f9d68ee45` by
+adding a command line argument. However, looks like this may be a security
+vulnerability in XMHF. Need to investigate more in the future.
 
-TODO: add configuration option to prevent XMHF from performing INIT-SIPI-SIPI twice
+### SMP XMHF XMHF LHV results in triple fault
+
+When QEMU is configured to run
+`KVM -> L1 XMHF (0x10000000) -> L2 XMHF (0x20000000) -> L3 LHV (0x08000000)`, a
+triple fault happens when LHV is booting the AP and is captured by L2 XMHF. The
+RIP of LHV is `0x10091`, which is `movl %eax, %cr0` in
+`bplt-x86-i386-smptrampoline.S`.
+
+In `xmhf64-nest-dev 237af6412`, if we pre-map the following EPT entries in
+`xmhf_nested_arch_x86vmx_get_ept02()`, the problem is gone:
+* `for (i = 0x00000000ULL; i < 0x02000000ULL; i += PA_PAGE_SIZE_4K)`
+* `for (i = 0x08000000ULL; i < 0x09800000ULL; i += PA_PAGE_SIZE_4K)`
+* `for (i = 0x1fe00000ULL; i < 0x20000000ULL; i += PA_PAGE_SIZE_4K)`
+
+In `xmhf64-nest-dev bacd45d3a`, only pre-map the EPT entry for `x_3level_pdpt`
+in LHV (`0x08b67000` in my case), then the problem is solved.
+
+Looks like this problem is still the `#GP` KVM bug found in `bug_084`. Since AP
+sets CR3 quickly and then sets CR0, there is no chance for the original
+workaround code to update EPT. We need to think of another way to workaround.
+Or maybe we can give up running LHV in a so nested environment. Or just run
+64-bits.
+
+TODO: try 64-bits KVM XMHF XMHF LHV
+TODO: think about how to workaround
+TODO: XMHF security: can reboot an AP and get out of VMX nonroot mode
 TODO: see whether removing printfs make things faster
+TODO: support large pages
 TODO: try on newer computer
 TODO: Linux stuck on `IA32_TSC_DEADLINE`. Modify the value written by WRMSR or TSC multiplier?
 TODO: implement VMCS shadowing
