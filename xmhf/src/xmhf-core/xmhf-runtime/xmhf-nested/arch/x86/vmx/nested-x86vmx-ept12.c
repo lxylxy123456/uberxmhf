@@ -392,7 +392,14 @@ spa_t xmhf_nested_arch_x86vmx_get_ept02(VCPU * vcpu, gpa_t ept12,
 		 */
 		{
 			u64 i;
-			for (i = 68000ULL; i < 0x80000ULL; i += PA_PAGE_SIZE_4K) {
+			//for (i = 68000ULL; i < 0x80000ULL; i += PA_PAGE_SIZE_4K) {
+			for (i = 0x00000000ULL; i < 0x02000000ULL; i += PA_PAGE_SIZE_4K) {
+				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
+			}
+			for (i = 0x08000000ULL; i < 0x09800000ULL; i += PA_PAGE_SIZE_4K) {
+				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
+			}
+			for (i = 0x1fe00000ULL; i < 0x20000000ULL; i += PA_PAGE_SIZE_4K) {
 				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
 			}
 		}
@@ -434,7 +441,8 @@ u16 xmhf_nested_arch_x86vmx_get_vpid02(VCPU * vcpu, u16 vpid12, bool *cache_hit)
 int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 											  ept02_cache_line_t * cache_line,
 											  u64 guest2_paddr,
-											  ulong_t qualification)
+											  ulong_t qualification,
+											  int verbose)
 {
 	ept12_ctx_t *ept12_ctx;
 	gpa_t guest1_paddr;
@@ -501,8 +509,10 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	/* Put page map entry into EPT02 */
 	HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&cache_line->value.ept02_ctx.ctx,
 											 &pmeo02, guest2_paddr) == 0);
-	printf("CPU(0x%02x): EPT: L2=0x%08llx L1=0x%08llx L0=0x%08llx\n", vcpu->id,
-		   guest2_paddr, guest1_paddr, xmhf_paddr);
+	if (verbose) {
+		printf("CPU(0x%02x): EPT: L2=0x%08llx L1=0x%08llx L0=0x%08llx\n",
+			   vcpu->id, guest2_paddr, guest1_paddr, xmhf_paddr);
+	}
 	return 1;
 }
 
@@ -513,7 +523,7 @@ void xmhf_nested_arch_x86vmx_hardcode_ept(VCPU * vcpu,
 {
 	switch (xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu, cache_line,
 													  guest2_paddr,
-													  HPT_PROTS_RW)) {
+													  HPT_PROTS_RW, 0)) {
 	case 1:
 		/* Everything is well */
 		break;
