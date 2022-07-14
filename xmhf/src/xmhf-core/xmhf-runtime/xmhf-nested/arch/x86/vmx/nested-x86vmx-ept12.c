@@ -392,16 +392,12 @@ spa_t xmhf_nested_arch_x86vmx_get_ept02(VCPU * vcpu, gpa_t ept12,
 		 */
 		{
 			u64 i;
-			//for (i = 68000ULL; i < 0x80000ULL; i += PA_PAGE_SIZE_4K) {
-			for (i = 0x00000000ULL; i < 0x02000000ULL; i += PA_PAGE_SIZE_4K) {
+			for (i = 68000ULL; i < 0x80000ULL; i += PA_PAGE_SIZE_4K) {
 				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
 			}
-			for (i = 0x08000000ULL; i < 0x09800000ULL; i += PA_PAGE_SIZE_4K) {
-				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
-			}
-			for (i = 0x1fe00000ULL; i < 0x20000000ULL; i += PA_PAGE_SIZE_4K) {
-				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
-			}
+			// x_3level_pdpt
+			i = 0x08b67000ULL;
+			xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
 		}
 #endif							/* !__DEBUG_QEMU__ */
 	}

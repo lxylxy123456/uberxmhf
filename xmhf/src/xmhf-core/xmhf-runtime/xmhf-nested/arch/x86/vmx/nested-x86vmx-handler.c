@@ -688,7 +688,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 															   cache_line,
 															   guest2_paddr,
 															   qualification,
-															   1);
+															   0);
 		}
 		switch (status) {
 		case 1:
