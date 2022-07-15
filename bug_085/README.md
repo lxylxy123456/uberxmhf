@@ -802,13 +802,77 @@ workaround code to update EPT. We need to think of another way to workaround.
 Or maybe we can give up running LHV in a so nested environment. Or just run
 64-bits.
 
-TODO: try 64-bits KVM XMHF XMHF LHV
-TODO: think about how to workaround
-TODO: XMHF security: can reboot an AP and get out of VMX nonroot mode
-TODO: see whether removing printfs make things faster
-TODO: support large pages
-TODO: try on newer computer
-TODO: Linux stuck on `IA32_TSC_DEADLINE`. Modify the value written by WRMSR or TSC multiplier?
-TODO: implement VMCS shadowing
-TODO
+The problem disappears when everything runs in 64-bit. Also, in
+`xmhf64-nest-dev 143ee52b4`, after removing printf during the following, things
+become much more efficient:
+* EPT violations
+* Nested VMENTRY
+* Nexted VMEXIT
+
+So nested XMHF can run LHV well, tested on SMP. Now try running Linux in UP.
+
+After removing printfs, Linux can boot in nested XMHF if everything is i386:
+`KVM -smp 1 -> i386 XMHF -> i386 XMHF -> i386 Debian 11`
+
+Note:
+* L1 is built with: `./build.sh i386 fast circleci && gr`
+* L2 is built with:
+  `./build.sh i386 fast --sl-base 0x20000000 circleci --no-init-smp && gr`
+
+Test results:
+* Good: `KVM -smp 1 -> i386 XMHF -> i386 XMHF -> i386 Debian 11`
+* Good: `KVM -smp 1 -> amd64 XMHF -> i386 XMHF -> i386 Debian 11`
+* Good: `KVM -smp 1 -> amd64 XMHF -> amd64 XMHF -> i386 Debian 11`
+* Good: `KVM -smp 1 -> amd64 XMHF -> amd64 XMHF -> amd64 Debian 11`
+  (need to increase `EPT02_PAGE_POOL_SIZE` from 128 to 192)
+
+When running with multiple cores, Linux seems to be stuck. This is because that
+Linux is accessing the APIC EOI register a lot (paddr 0xfee000b0), which
+is intercepted by L2 XMHF and hptw library prints a lot of error messages:
+```
+HPT[3]:...:hptw_checked_get_pmeo:384: EU_CHK( ((access_type & hpt_pmeo_getprot(pmeo)) == access_type) && (cpl == HPTW_CPL0 || hpt_pmeo_getuser(pmeo))) failed
+HPT[3]:...:hptw_checked_get_pmeo:384: req-priv:2 req-cpl:0 priv:0 user-accessible:1
+HPT[3]:...:hptw_checked_get_pmeo:384: EU_CHK( ((access_type & hpt_pmeo_getprot(pmeo)) == access_type) && (cpl == HPTW_CPL0 || hpt_pmeo_getuser(pmeo))) failed
+HPT[3]:...:hptw_checked_get_pmeo:384: req-priv:2 req-cpl:0 priv:0 user-accessible:1
+```
+
+I realized that it is possible to use GDB/s `add-symbol-file` to add multiple
+symbol files to GDB. This is very helpful when dealing with multiple XMHFs and
+Linux. The usage is similar to `symbol-file`.
+
+In `xmhf64 a17801cc6`, `xmhf64-nest 4b50506a3`, `xmhf64-nest-dev 9fcf52cf4`,
+reduce hpt and TrustVisor output. However, i386 Linux SMP still cannot boot.
+
+In `xmhf64-nest-dev 353d845fd`, see that there are a huge number of EPT cache
+misses. This is caused by LAPIC handling code in XMHF.
+
+```
+vmx_lapic_changemapping
+	xmhf_memprot_arch_x86vmx_flushmappings
+		__vmx_invept(VMX_INVEPT_SINGLECONTEXT, vcpu->vmcs.control_EPT_pointer)
+```
+
+This becomes unfortunate, because INVEPT has to invalidate all guest physical
+addresses in the EPT. In this case it is incorrect to use INVVPID. One possible
+optimization is to cache historical EPT violation addresses, so that when L2
+XMHF invalidates EPT, L1 XMHF can reconstruct most of the entries quickly,
+without future `L3 -> L1 -> L3` VMEXITs.
+
+Also, another possibility is to use x2APIC, which does not have EPT problems.
+Maybe we should start a new bug.
+
+Untried ideas
+* Linux stuck on `IA32_TSC_DEADLINE`. Modify the value written by WRMSR or TSC
+  multiplier?
+	* Not a clean solution, because we do not want to deal with device drivers.
+* Try on newer computer
+* Support large pages in EPT
+* Implement VMCS shadowing
+
+## Fix
+
+`eecb1ffce..1a2b8b266`
+* Implement `ept_merge_hpt_pmt()`
+* Workaround KVM bugs
+* Remove printf code to be faster
 
