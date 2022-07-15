@@ -687,8 +687,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			status = xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu,
 															   cache_line,
 															   guest2_paddr,
-															   qualification,
-															   0);
+															   qualification);
 		}
 		switch (status) {
 		case 1:
