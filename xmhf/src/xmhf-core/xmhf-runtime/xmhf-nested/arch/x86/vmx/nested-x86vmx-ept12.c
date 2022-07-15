@@ -397,6 +397,7 @@ spa_t xmhf_nested_arch_x86vmx_get_ept02(VCPU * vcpu, gpa_t ept12,
 			}
 		}
 #endif							/* !__DEBUG_QEMU__ */
+		printf("CPU(0x%02x): warning: cache miss\n", vcpu->id);
 	}
 	*cache_hit = hit;
 	*cache_line = line;
