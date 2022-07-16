@@ -5,20 +5,57 @@
 static u8 user_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 
-u64 user_pdpt[MAX_VCPU_ENTRIES][4]
+#ifdef __AMD64__
+static u64 user_pml4t[MAX_VCPU_ENTRIES][P4L_NPLM4T * 512]
+__attribute__(( section(".bss.palign_data") ));
+
+static u64 user_pdpt[MAX_VCPU_ENTRIES][P4L_NPDPT * 512]
+__attribute__(( section(".bss.palign_data") ));
+
+static u64 user_pdt[MAX_VCPU_ENTRIES][P4L_NPDT * 512]
+__attribute__(( section(".bss.palign_data") ));
+
+static u64 user_pt[MAX_VCPU_ENTRIES][P4L_NPT * 512]
+__attribute__(( section(".bss.palign_data") ));
+#elif defined(__I386__)
+static u64 user_pdpt[MAX_VCPU_ENTRIES][4]
 __attribute__ ((aligned (32)));
 
-u64 user_pd[MAX_VCPU_ENTRIES][4][512]
+static u64 user_pd[MAX_VCPU_ENTRIES][4][512]
 __attribute__(( section(".bss.palign_data") ));
 
-u64 user_pt[MAX_VCPU_ENTRIES][4][512][512]
+static u64 user_pt[MAX_VCPU_ENTRIES][4][512][512]
 __attribute__(( section(".bss.palign_data") ));
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
 
 static void set_user_mode_page_table(VCPU *vcpu)
 {
 #ifdef __AMD64__
-	// TODO: maybe setup page table
-	(void) vcpu;
+	u64 i = 0;
+	u64 paddr = (uintptr_t) user_pdpt[vcpu->idx];
+	for (i = 0; i < P4L_NPDPT; i++) {
+		user_pml4t[vcpu->idx][i] = 7 | paddr;
+		paddr += PAGE_SIZE_4K;
+	}
+	paddr = (uintptr_t) user_pdt[vcpu->idx];
+	for (i = 0; i < P4L_NPDT; i++) {
+		user_pdpt[vcpu->idx][i] = 7 | paddr;
+		paddr += PAGE_SIZE_4K;
+	}
+	paddr = (uintptr_t) user_pt[vcpu->idx];
+	for (i = 0; i < P4L_NPT; i++) {
+		user_pdt[vcpu->idx][i] = 7 | paddr;
+		paddr += PAGE_SIZE_4K;
+	}
+	paddr = 0;
+	for (i = 0; i < PA_PAGE_ALIGN_UP_NOCHK_4K(MAX_PHYS_ADDR) >> PAGE_SHIFT_4K;
+		 i++) {
+		user_pt[vcpu->idx][i] = 7 | paddr;
+		paddr += PAGE_SIZE_4K;
+	}
+	write_cr3((uintptr_t) user_pml4t[vcpu->idx]);
 #elif defined(__I386__)
 	u32 i, j, k;
 	u64 paddr = 0;

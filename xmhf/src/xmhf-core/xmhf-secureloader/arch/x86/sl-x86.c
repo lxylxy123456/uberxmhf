@@ -115,21 +115,21 @@ u64 xmhf_sl_arch_x86_setup_runtime_paging(RPB *rpb, spa_t runtime_spa, hva_t run
     printf("\tpa xpml4=0x%p, xpdpt=0x%p, xpdt=0x%p\n", xpml4, xpdpt, xpdt);
 
     /* PML4E -> PDPT */
-    default_flags = (u64)(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER);
+    default_flags = (u64)(_PAGE_PRESENT | _PAGE_RW);
     for (i = 0; i < (PAGE_ALIGN_UP_512G(MAX_PHYS_ADDR) >> PAGE_SHIFT_512G); i++) {
         u64 pdpt_spa = sla2spa((void *)xpdpt) + (i << PAGE_SHIFT_4K);
         xpml4[i] = p4l_make_plm4e(pdpt_spa, default_flags);
     }
 
     /* PDPTE -> PDT */
-    default_flags = (u64)(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER);
+    default_flags = (u64)(_PAGE_PRESENT | _PAGE_RW);
     for (i = 0; i < (PAGE_ALIGN_UP_1G(MAX_PHYS_ADDR) >> PAGE_SHIFT_1G); i++) {
         u64 pdt_spa = sla2spa((void *)xpdt) + (i << PAGE_SHIFT_4K);
         xpdpt[i] = p4l_make_pdpe(pdt_spa, default_flags);
     }
 
     /* PDE -> 2 MiB page */
-    default_flags = (u64)(_PAGE_PRESENT | _PAGE_RW | _PAGE_PSE | _PAGE_USER);
+    default_flags = (u64)(_PAGE_PRESENT | _PAGE_RW | _PAGE_PSE);
     for(i = 0; i < (PAGE_ALIGN_UP_2M(MAX_PHYS_ADDR) >> PAGE_SHIFT_2M); i++) {
         hva_t hva = i << PAGE_SHIFT_2M;
         spa_t spa = hva2spa((void *)hva);
