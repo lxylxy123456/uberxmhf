@@ -36,13 +36,17 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 		.eax=arg,
 		.eip=(uintptr_t) user_main,
 		.cs=__CS_R3,
-		.eflags=2 | (3 << 12),
+		.eflags=2 | 0x200 | (3 << 12),
 		.esp=(uintptr_t) (&stack[-3]),
 		.ss=__DS_R3,
 	};
 	stack[-1] = arg;
 	stack[-2] = (uintptr_t) vcpu;
 	stack[-3] = 0xdeadbeef;
+	/* Setup TSS */
+	// TODO: TR and TSS per CPU
+	*(u32 *)(g_runtime_TSS + 4) = vcpu->esp;
+	*(u16 *)(g_runtime_TSS + 8) = __DS;
 	/* Setup page table */
 	for (i = 0; i < 4; i++) {
 		user_pdpt[vcpu->idx][i] = 1 | (uintptr_t) user_pd[vcpu->idx][i];
@@ -87,12 +91,12 @@ static inline uintptr_t vmcall(uintptr_t eax, uintptr_t ecx, uintptr_t edx,
 
 /* Above are for pal_demo */
 
-static u32 state_lock = 1;
-static u32 state0;
-static u32 state1;
-uintptr_t pal_addr;
+__attribute__((__noreturn__)) void leave_user_mode(void) {
+	asm volatile ("movl $0xdeaddead, %eax; int $0x23;");
+	HALT_ON_ERRORCOND(0 && "system call returned");
+}
 
-void user_main_cpu0(VCPU *vcpu, ulong_t arg)
+void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 {
 	struct tv_pal_sections sections = {
 		num_sections: 4,
@@ -120,9 +124,6 @@ void user_main_cpu0(VCPU *vcpu, ulong_t arg)
 		TV_HC_REG, (uintptr_t)&sections, 0, (uintptr_t)&params, pal_entry));
 	HALT_ON_ERRORCOND(pal_func(0x11111111) == 0x2345bcde);
 
-	// pal_addr = pal_entry;
-	pal_addr = (uintptr_t) pal_demo_stack[vcpu->idx];
-
 	if (0 && "invalid access") {
 		printf("", *(u32*)pal_entry);
 	}
@@ -133,109 +134,13 @@ void user_main_cpu0(VCPU *vcpu, ulong_t arg)
 		printf("", *(u32*)pal_entry);
 	}
 
-	printf("LXY 0 completed first PAL\n");
-
-	spin_lock(&state_lock);
-	state0 = 1;
-	spin_unlock(&state_lock);
-
-	while (1) {
-		u32 s;
-		spin_lock(&state_lock);
-		s = state1;
-		spin_unlock(&state_lock);
-		if (s >= 1) {
-			break;
-		}
-	}
-
-	printf("LXY 0 starting second PAL\n");
-
-	HALT_ON_ERRORCOND(!vmcall(
-		TV_HC_REG, (uintptr_t)&sections, 0, (uintptr_t)&params, pal_entry));
-
-	printf("LXY 0 registered second PAL");
-
-	spin_lock(&state_lock);
-	state0 = 2;
-	spin_unlock(&state_lock);
-
-	for (u32 i = 0; ; i += 10) {
-		if (i == 0) {
-			printf("0 ended\n");
-		}
-	}
-	(void)arg;
-}
-
-void user_main_cpu1(VCPU *vcpu, ulong_t arg)
-{
-	while (1) {
-		u32 s;
-		spin_lock(&state_lock);
-		s = state0;
-		spin_unlock(&state_lock);
-		if (s >= 1) {
-			break;
-		}
-	}
-
-	printf("LXY 1 starting heating TLB\n");
-
-	HALT_ON_ERRORCOND(pal_addr);
-	for (u32 i = 0; i < 10000; i++) {
-		if (*(volatile u32 *)pal_addr == 0) {
-			continue;
-		}
-	}
-
-	printf("LXY 1 heated TLB\n");
-
-	spin_lock(&state_lock);
-	state1 = 1;
-	spin_unlock(&state_lock);
-
-	while (1) {
-		u32 s;
-		spin_lock(&state_lock);
-		s = state0;
-		spin_unlock(&state_lock);
-		if (s >= 2) {
-			break;
-		}
-	}
-
-	printf("LXY 1 accessing second PAL\n");
-
-	for (u32 i = 0; i < 10; i++) {
-		if (*(volatile u32 *)pal_addr == 0) {
-			continue;
-		}
-	}
-
-
-
-	for (u32 i = 0; ; i += 10) {
-		if (i == 0) {
-			printf("1 ended\n");
-		}
-	}
-	(void)vcpu;
+	printf("CPU(0x%02x): completed PAL\n", vcpu->id);
 	(void)arg;
 }
 
 void user_main(VCPU *vcpu, ulong_t arg)
 {
-	switch (vcpu->idx) {
-	case 0:
-		user_main_cpu0(vcpu, arg);
-		break;
-	case 1:
-		user_main_cpu1(vcpu, arg);
-		break;
-	default:
-		break;
-	}
-	HALT();
+	leave_user_mode();
+	user_main_pal_demo(vcpu, arg);
 }
 

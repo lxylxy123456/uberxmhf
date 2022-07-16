@@ -109,6 +109,10 @@ void xmhf_xcphandler_arch_initialize(void){
         idtentry->count = 0x0;  // for now, set IST to 0
         idtentry->type = 0x8E;  // 32-bit / 64-bit interrupt gate
                                 // present=1, DPL=00b, system=0, type=1110b
+        /* For 0x23, set DPL to 11b because it is used for syscall */
+        if (i == 0x23) {
+            idtentry->type |= 0x60;
+        }
     }
 
     printf("%s: IDT setup done.\n", __FUNCTION__);
@@ -151,6 +155,10 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
 
 	case 0x22:
 		handle_timer_interrupt(vcpu, vector, 0);
+		break;
+
+	case 0x23:
+		handle_lhv_syscall(vcpu, vector, r);
 		break;
 
     default:

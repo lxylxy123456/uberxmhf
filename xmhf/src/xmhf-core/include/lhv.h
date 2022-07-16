@@ -27,6 +27,10 @@ typedef struct {
 /* xcph-x86.c */
 VCPU *_svm_and_vmx_getvcpu(void);
 
+/* lhv.c */
+void lhv_main(VCPU *vcpu);
+void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r);
+
 /* lhv-console.c */
 void console_cursor_clear(void);
 void console_clear(console_vc_t *vc);
