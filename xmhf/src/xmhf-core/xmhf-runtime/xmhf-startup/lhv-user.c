@@ -45,8 +45,8 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 	stack[-3] = 0xdeadbeef;
 	/* Setup TSS */
 	// TODO: TR and TSS per CPU
-	*(u32 *)(g_runtime_TSS + 4) = vcpu->esp;
-	*(u16 *)(g_runtime_TSS + 8) = __DS;
+	*(u32 *)(g_runtime_TSS[vcpu->idx] + 4) = vcpu->esp;
+	*(u16 *)(g_runtime_TSS[vcpu->idx] + 8) = __DS;
 	/* Setup page table */
 	for (i = 0; i < 4; i++) {
 		user_pdpt[vcpu->idx][i] = 1 | (uintptr_t) user_pd[vcpu->idx][i];

@@ -54,4 +54,4 @@
 
 
 //runtime TSS
-u8 g_runtime_TSS[PAGE_SIZE_4K] __attribute__(( section(".data") ));
+u8 g_runtime_TSS[MAX_VCPU_ENTRIES][PAGE_SIZE_4K] __attribute__(( section(".data") ));

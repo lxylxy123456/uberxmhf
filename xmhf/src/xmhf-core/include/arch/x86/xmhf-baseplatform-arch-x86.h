@@ -130,6 +130,8 @@ struct _memorytype {
 #define NUM_FIXED_MTRRS 11
 #define MAX_VARIABLE_MTRR_PAIRS 10
 
+#define XMHF_GDT_SIZE 10
+
 
 //---platform
 
@@ -369,7 +371,7 @@ typedef struct {
 
 
 //runtime TSS
-extern u8 g_runtime_TSS[PAGE_SIZE_4K] __attribute__(( section(".data") ));
+extern u8 g_runtime_TSS[MAX_VCPU_ENTRIES][PAGE_SIZE_4K] __attribute__(( section(".data") ));
 
 //this is the start of the real-mode AP bootstrap code (bplt-x86-smptrampoline.S)
 extern u32 _ap_bootstrap_start[];
