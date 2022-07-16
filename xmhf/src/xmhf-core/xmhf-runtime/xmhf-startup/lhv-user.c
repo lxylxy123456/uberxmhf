@@ -14,40 +14,14 @@ __attribute__(( section(".bss.palign_data") ));
 u64 user_pt[MAX_VCPU_ENTRIES][4][512][512]
 __attribute__(( section(".bss.palign_data") ));
 
-void enter_user_mode(VCPU *vcpu, ulong_t arg)
+static void set_user_mode_page_table(VCPU *vcpu)
 {
 #ifdef __AMD64__
+	// TODO: maybe setup page table
 	(void) vcpu;
-	(void) arg;
-	HALT_ON_ERRORCOND(0 && "64-bit not supported (yet?)");
-#else
-	uintptr_t stack_top = ((uintptr_t) user_stack[vcpu->idx]) + PAGE_SIZE_4K;
-	u32 *stack = (u32 *)stack_top;
+#elif defined(__I386__)
 	u32 i, j, k;
 	u64 paddr = 0;
-	ureg_t ureg = {
-		.edi=0,
-		.esi=0,
-		.ebp=0,
-		.zero=0,
-		.ebx=0,
-		.edx=0,
-		.ecx=0,
-		.eax=arg,
-		.eip=(uintptr_t) user_main,
-		.cs=__CS_R3,
-		.eflags=2 | 0x200 | (3 << 12),
-		.esp=(uintptr_t) (&stack[-3]),
-		.ss=__DS_R3,
-	};
-	stack[-1] = arg;
-	stack[-2] = (uintptr_t) vcpu;
-	stack[-3] = 0xdeadbeef;
-	/* Setup TSS */
-	// TODO: TR and TSS per CPU
-	*(u32 *)(g_runtime_TSS[vcpu->idx] + 4) = vcpu->esp;
-	*(u16 *)(g_runtime_TSS[vcpu->idx] + 8) = __DS;
-	/* Setup page table */
 	for (i = 0; i < 4; i++) {
 		user_pdpt[vcpu->idx][i] = 1 | (uintptr_t) user_pd[vcpu->idx][i];
 		for (j = 0; j < 512; j++) {
@@ -59,8 +33,44 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 		}
 	}
 	write_cr3((uintptr_t) user_pdpt[vcpu->idx]);
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+}
+
+void enter_user_mode(VCPU *vcpu, ulong_t arg)
+{
+	uintptr_t stack_top = ((uintptr_t) user_stack[vcpu->idx]) + PAGE_SIZE_4K;
+	uintptr_t *stack = (uintptr_t *)stack_top;
+	ureg_t ureg = {
+		.r={},
+		.eip=(uintptr_t) user_main,
+		.cs=__CS_R3,
+		.eflags=2 | 0x200 | (3 << 12),
+		.esp=(uintptr_t) (&stack[-3]),
+		.ss=__DS_R3,
+	};
+	memset(&ureg.r, 0, sizeof(ureg.r));
+#ifdef __AMD64__
+	ureg.r.rsi = arg;
+	ureg.r.rdi = (uintptr_t) vcpu;
+	stack[-3] = 0xdeadbeef;
+	/* Setup TSS */
+	*(u64 *)(g_runtime_TSS[vcpu->idx] + 4) = vcpu->rsp;
+#elif defined(__I386__)
+	stack[-1] = arg;
+	stack[-2] = (uintptr_t) vcpu;
+	stack[-3] = 0xdeadbeef;
+	/* Setup TSS */
+	*(u32 *)(g_runtime_TSS[vcpu->idx] + 4) = vcpu->esp;
+	*(u16 *)(g_runtime_TSS[vcpu->idx] + 8) = __DS;
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+	/* Setup page table */
+	set_user_mode_page_table(vcpu);
+	/* Iret to user mode */
 	enter_user_mode_asm(&ureg);
-#endif
 }
 
 /* Below are for pal_demo */
