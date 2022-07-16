@@ -34,3 +34,28 @@ in the best case, we do not need to do anything special. Otherwise, we can try:
 We can use `lhv-dev`'s previous work on guest mode to write the malicious OS,
 this allows us to demonstrate TrustVisor being hacked.
 
+Previous LHV work that supports user mode (ring 3) is in `bug_084` at
+`lhv-dev 77c71f01b..ba6290f05` (base is `lhv 5eb712013`). This is re-applyed
+in `lhv-dev 12533871a`.
+
+Back in `bug_084`, user to kernel mode transition was not supported, because it
+is not needed. When user mode receives an interrupt / exception, triple fault
+happens. Now we support it to make it more clean. Looks like we just need to
+place the correct values in TSS.
+
+In `lhv-dev 70e5a8a66`, set correct TSS and solve the triple fault problem.
+Also set up system call to allow the guest go back to supervisor cleanly.
+However, for some reason after going to guest mode then back, VMLAUNCH fails
+with error code 8 (VMENTRY with invalid host state).
+
+We also need to have different ESP0 for each CPU. So this means each CPU has
+its own TSS and TR. For XMHF we can easily create 10 entries in GDT. In 15410
+there is one unique GDT per CPU.
+
+Nest steps:
+* Solve VMENTRY problem
+* One TSS and TR per CPU to be able to run guest mode in SMP
+
+TODO: LHV cannot VMLAUNCH correctly after entering guest mode
+TODO: one TSS and TR per CPU
+
