@@ -35,10 +35,10 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 		.ecx=0,
 		.eax=arg,
 		.eip=(uintptr_t) user_main,
-		.cs=0x2b,
+		.cs=__CS_R3,
 		.eflags=2 | (3 << 12),
 		.esp=(uintptr_t) (&stack[-3]),
-		.ss=0x33,
+		.ss=__DS_R3,
 	};
 	stack[-1] = arg;
 	stack[-2] = (uintptr_t) vcpu;

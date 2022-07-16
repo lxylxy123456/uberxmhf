@@ -346,10 +346,14 @@ bool xmhf_baseplatform_arch_x86_cpuhasxsavefeature(void);
 #define 	__DS 	0x0018 	//runtime data segment selector
 #define 	__CS32 	0x0010 	//runtime 32-bit code segment selector
 #define 	__TRSEL 0x0020  //runtime TSS (task) selector
+#define 	__CS_R3 0x0033  //runtime user mode code segment selector
+#define 	__DS_R3 0x003b  //runtime user mode data segment selector
 #elif defined(__I386__)
 #define 	__CS 	0x0008 	//runtime code segment selector
 #define 	__DS 	0x0010 	//runtime data segment selector
 #define 	__TRSEL 0x0018  //runtime TSS (task) selector
+#define 	__CS_R3 0x0023  //runtime user mode code segment selector
+#define 	__DS_R3 0x002b  //runtime user mode data segment selector
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
