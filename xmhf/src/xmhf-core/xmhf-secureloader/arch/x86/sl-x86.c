@@ -75,7 +75,7 @@ void xmhf_setup_sl_paging(u32 baseaddr) {
      * The first page (contains sl code and stack) is set up by assembly.
      * This function sets up paging for the rest virtual pages (up to 4 GiB).
      */
-    default_flags = (u64)(_PAGE_PRESENT | _PAGE_RW | _PAGE_PSE);
+    default_flags = (u64)(_PAGE_PRESENT | _PAGE_RW | _PAGE_PSE | _PAGE_USER);
     for (u64 i = 1; i < (PAGE_ALIGN_UP_2M(ADDR_4GB) >> PAGE_SHIFT_2M); i++) {
         u64 sla = (i << PAGE_SHIFT_2M);
         u64 hva = sla + (u64)baseaddr;

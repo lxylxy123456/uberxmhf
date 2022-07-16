@@ -75,6 +75,28 @@ void vmcs_load(VCPU *vcpu);
 void lhv_guest_entry(void);
 void lhv_guest_xcphandler(uintptr_t vector, struct regs *r);
 
+/* lhv-user.c */
+typedef struct ureg_t {
+	u32 edi;
+	u32 esi;
+	u32 ebp;
+	u32 zero;
+	u32 ebx;
+	u32 edx;
+	u32 ecx;
+	u32 eax;
+	u32 eip;
+	u32 cs;
+	u32 eflags;
+	u32 esp;
+	u32 ss;
+} ureg_t;
+void enter_user_mode(VCPU *vcpu, ulong_t arg);
+void user_main(VCPU *vcpu, ulong_t arg);
+
+/* lhv-user-asm.S */
+void enter_user_mode_asm(ureg_t *ureg);
+
 /* LAPIC */
 #define LAPIC_DEFAULT_BASE    0xfee00000
 #define IOAPIC_DEFAULT_BASE   0xfec00000
