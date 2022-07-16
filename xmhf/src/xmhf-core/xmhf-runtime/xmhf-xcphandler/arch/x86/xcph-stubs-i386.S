@@ -76,6 +76,9 @@
 
         movw    $(__DS), %ax
         movw    %ax, %ds            //load DS
+        movw    %ax, %es            //load ES
+        movw    %ax, %fs            //load FS
+        movw    %ax, %gs            //load GS
         movl    %esp, %eax          //EAX = struct regs *
 
         pushl   %eax                //struct regs *r
