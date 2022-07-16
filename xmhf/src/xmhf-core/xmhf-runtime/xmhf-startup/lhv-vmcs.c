@@ -43,11 +43,14 @@ void vmcs_dump(VCPU *vcpu, int verbose)
 				break;													\
 			}															\
 			if (sizeof(vcpu->vmcs.name) == 4) {							\
-				printf("CPU(0x%02x): vcpu->vmcs." #name "=0x%08lx\n",	\
+				printf("CPU(0x%02x): vcpu->vmcs." #name "=0x%08x\n",	\
 						vcpu->id, vcpu->vmcs.name);						\
 			} else if (sizeof(vcpu->vmcs.name) == 8) {					\
 				printf("CPU(0x%02x): vcpu->vmcs." #name "=0x%016lx\n",	\
 						vcpu->id, vcpu->vmcs.name);						\
+			} else if (sizeof(vcpu->vmcs.name) == 2) {					\
+				printf("CPU(0x%02x): vcpu->vmcs." #name "=0x%04x\n",	\
+						vcpu->id, (u32) vcpu->vmcs.name);				\
 			} else {													\
 				HALT_ON_ERRORCOND(0);									\
 			}															\
