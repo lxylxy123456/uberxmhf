@@ -54,7 +54,7 @@ def generate_xmhf_image(args):
 	if args.full_grub_mods:
 		ext4_size_kb = 1024 * 7
 	else:
-		ext4_size_kb = 1024 * 7
+		ext4_size_kb = 768
 
 	# Construct ext4, prepare command file
 	b_img = os.path.join(grub_dir, 'b.img')
@@ -81,7 +81,18 @@ def generate_xmhf_image(args):
 	debugfs_cmds.append('mkdir i386-pc')
 	debugfs_cmds.append('cd i386-pc')
 	mods_dir = download_grub(args)
-	for i in open('mods.txt').read().split():
+	if args.full_grub_mods:
+		mods_list = os.listdir(mods_dir)
+	else:
+		mods_list = [
+			'boot.mod', 'bufio.mod', 'command.lst', 'crypto.mod',
+			'datetime.mod', 'echo.mod', 'extcmd.mod', 'gcry_crc.mod',
+			'gettext.mod', 'gzio.mod', 'linux.mod', 'lsapm.mod', 'mmap.mod',
+			'multiboot.mod', 'net.mod', 'normal.mod', 'priority_queue.mod',
+			'relocator.mod', 'terminal.mod', 'vbe.mod', 'verifiers.mod',
+			'video_fb.mod', 'video.mod',
+		]
+	for i in mods_list:
 		debugfs_cmds.append('write %s %s' % (os.path.join(mods_dir, i), i))
 	cmd_file = os.path.join(grub_dir, 'debugfs.cmd')
 	print(*debugfs_cmds, sep='\n', file=open(cmd_file, 'w'))
