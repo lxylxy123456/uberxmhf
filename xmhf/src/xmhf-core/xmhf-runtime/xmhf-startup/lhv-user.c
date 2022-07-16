@@ -2,7 +2,7 @@
 #include <lhv.h>
 #include "trustvisor.h"
 
-u8 user_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+static u8 user_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 
 void enter_user_mode(VCPU *vcpu, ulong_t arg)
@@ -48,13 +48,13 @@ uintptr_t my_pal(uintptr_t arg1) {
 
 void end_pal_c(void) {}
 
-u8 pal_demo_code[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+static u8 pal_demo_code[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
-u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+static u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
-u8 pal_demo_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+static u8 pal_demo_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
-u8 pal_demo_param[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+static u8 pal_demo_param[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 
 static inline uintptr_t vmcall(uintptr_t eax, uintptr_t ecx, uintptr_t edx,
@@ -71,7 +71,7 @@ __attribute__((__noreturn__)) void leave_user_mode(void) {
 	HALT_ON_ERRORCOND(0 && "system call returned");
 }
 
-void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
+static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 {
 	struct tv_pal_sections sections = {
 		num_sections: 4,
