@@ -41,8 +41,10 @@ void lhv_main(VCPU *vcpu)
 		asm volatile ("sti");
 	}
 
-	/* Test TrustVisor */
-	enter_user_mode(vcpu, 0);
+	/* Enter user mode (e.g. test TrustVisor) */
+	if (__LHV_OPT__ & LHV_USER_MODE) {
+		enter_user_mode(vcpu, 0);
+	}
 
 	/* Start VT related things */
 	lhv_vmx_main(vcpu);
