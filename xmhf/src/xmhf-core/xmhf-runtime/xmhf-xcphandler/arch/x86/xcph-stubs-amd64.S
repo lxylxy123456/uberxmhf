@@ -73,6 +73,12 @@
         // push GPR values on stack to construct struct regs *r
         PUSHAQ
 
+        movw    $(__DS), %ax
+        movw    %ax, %ds            //load DS
+        movw    %ax, %es            //load ES
+        movw    %ax, %fs            //load FS
+        movw    %ax, %gs            //load GS
+
         movq    %rsp, %rsi          // RSI (second argument) = struct regs *
         movq    $0x&vector&, %rdi   // RDI (first argument) = vector
         call    xmhf_xcphandler_hub // call C-land hub
