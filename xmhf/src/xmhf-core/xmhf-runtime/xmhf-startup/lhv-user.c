@@ -83,10 +83,13 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 		.r={},
 		.eip=(uintptr_t) user_main,
 		.cs=__CS_R3,
-		.eflags=2 | 0x200 | (3 << 12),
+		.eflags=2 | (3 << 12),
 		.esp=(uintptr_t) (&stack[-3]),
 		.ss=__DS_R3,
 	};
+	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+		ureg.eflags |= EFLAGS_IF;
+	}
 	memset(&ureg.r, 0, sizeof(ureg.r));
 #ifdef __AMD64__
 	ureg.r.rsi = arg;
@@ -187,7 +190,7 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 
 void user_main(VCPU *vcpu, ulong_t arg)
 {
-	leave_user_mode();
 	user_main_pal_demo(vcpu, arg);
+	leave_user_mode();
 }
 

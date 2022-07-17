@@ -61,7 +61,7 @@ u64 x_gdt_start[MAX_VCPU_ENTRIES][XMHF_GDT_SIZE] __attribute__(( section(".data"
 	0x00cf92000000ffffULL,  /* 0x18: 32-bit DATA selector */
 	0x0000000000000000ULL,  /* 0x20: TSS low (set by secure loader) */
 	0x0000000000000000ULL,  /* 0x28: TSS high (set by secure loader) */
-	0x00cffa000000ffffULL,  /* 0x33: User mode CS */
+	0x00affa000000ffffULL,  /* 0x33: User mode CS */
 	0x00cff2000000ffffULL   /* 0x3b: User mode DS */
 #elif defined(__I386__)
 	0x0000000000000000ULL,  /* 0x00: NULL selector */
