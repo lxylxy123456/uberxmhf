@@ -74,17 +74,28 @@
         //struct regs *r
         pushal
 
-        movw    $(__DS), %ax
-        movw    %ax, %ds            //load DS
-        movw    %ax, %es            //load ES
-        movw    %ax, %fs            //load FS
-        movw    %ax, %gs            //load GS
         movl    %esp, %eax          //EAX = struct regs *
+
+        pushl   %ds
+        pushl   %es
+        pushl   %fs
+        pushl   %gs
+
+        movw    $(__DS), %dx
+        movw    %dx, %ds            //load DS
+        movw    %dx, %es            //load ES
+        movw    %dx, %fs            //load FS
+        movw    %dx, %gs            //load GS
 
         pushl   %eax                //struct regs *r
         pushl   $0x&vector&         //vector
         call    xmhf_xcphandler_hub //call C-land hub
         addl    $0x08, %esp         //remove params from stack
+
+        popl    %gs
+        popl    %fs
+        popl    %es
+        popl    %ds
 
         //restore GPRs
         popal
