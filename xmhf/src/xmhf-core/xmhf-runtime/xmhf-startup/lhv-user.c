@@ -166,6 +166,7 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 	uintptr_t pal_entry = dst_begin - src_begin + (uintptr_t) my_pal;
 	typeof(&my_pal) pal_func = (typeof(&my_pal)) pal_entry;
 	memcpy((void *)dst_begin, (void *)src_begin, code_size);
+	printf("CPU(0x%02x): starting PAL\n", vcpu->id);
 	HALT_ON_ERRORCOND(!vmcall(
 		TV_HC_REG, (uintptr_t)&sections, 0, (uintptr_t)&params, pal_entry));
 	HALT_ON_ERRORCOND(pal_func(0x11111111) == 0x2345bcde);
@@ -186,7 +187,30 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 
 void user_main(VCPU *vcpu, ulong_t arg)
 {
+	static u32 lock = 1;
+	static volatile u32 available = 3;
+	/* Acquire semaphore */
+	{
+		while (1) {
+			spin_lock(&lock);
+			if (available) {
+				available--;
+				spin_unlock(&lock);
+				break;
+			} else {
+				u32 i;
+				spin_unlock(&lock);
+				for (i = 0; i < 4096 && !available; i++) {
+					asm volatile ("pause");		/* Save energy when waiting */
+				}
+			}
+		}
+	}
 	user_main_pal_demo(vcpu, arg);
+	/* Release semaphore */
+	spin_lock(&lock);
+	available++;
+	spin_unlock(&lock);
 	leave_user_mode();
 }
 
