@@ -16,9 +16,10 @@ possible.
 
 ## Debugging
 
-Possible solutions from `bug_085`:
+Possible solutions (mostly from `bug_085`):
 * Support large pages in EPT
 * Implement VMCS shadowing
 * Use x2APIC
 * Cache EPT violation history
+* For L2 XMHF, change EPT pointer instead of modifying EPT
 
