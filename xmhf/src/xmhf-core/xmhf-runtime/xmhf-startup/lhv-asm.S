@@ -157,3 +157,19 @@ lhv_disable_enable_paging:
 	ret
 #endif /* __AMD64__ */
 
+.code16
+.global exploit_real_start
+.global exploit_real_end
+
+exploit_real_start:
+
+	cli
+	movw	$0xb800, %ax
+	movw	%ax, %fs
+1:	incb	%fs:120
+	movb	$0xc, %fs:121
+	pause
+	jmp		1b
+
+exploit_real_end:
+
