@@ -39,7 +39,7 @@ static void lhv_exploit(VCPU *vcpu)
 		*icr_high = 0x01000000U;
 		*icr_low = 0x00004500U;
 		printf("INIT\n");
-		xmhf_baseplatform_arch_x86_udelay(10000);
+		xmhf_baseplatform_arch_x86_udelay(1);
 		while ((*icr_low) & 0x1000U) {
 			asm volatile ("pause");     /* Save energy when waiting */
 		}
@@ -64,7 +64,7 @@ static void lhv_exploit(VCPU *vcpu)
 		if (i) {
 			break;
 		}
-		xmhf_baseplatform_arch_x86_udelay(10000);
+		xmhf_baseplatform_arch_x86_udelay(200);
 		while ((*icr_low) & 0x1000U) {
 			asm volatile ("pause");     /* Save energy when waiting */
 		}
