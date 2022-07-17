@@ -35,8 +35,14 @@ static void lhv_exploit(VCPU *vcpu)
 	}
 
 	/* Send INIT to AP */
+	*icr_high = 0x01000000U;
+	for (i = 0; i < 0x10000; i++) {
+		*icr_low = 0x00004500U;
+		while ((*icr_low) & 0x1000U) {
+		}
+	}
+
 	{
-		*icr_high = 0x01000000U;
 		*icr_low = 0x00004500U;
 		printf("INIT\n");
 		xmhf_baseplatform_arch_x86_udelay(1);
