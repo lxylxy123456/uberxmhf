@@ -1,6 +1,8 @@
 #include <xmhf.h>
 #include <lhv.h>
 
+extern volatile u32 xmhf_baseplatform_arch_x86_smpinitialize_commonstart_flag;
+
 static void lhv_exploit(VCPU *vcpu)
 {
 	uintptr_t apic_page = PA_PAGE_ALIGN_4K(rdmsr64(MSR_APIC_BASE));
@@ -27,10 +29,15 @@ static void lhv_exploit(VCPU *vcpu)
 
 	/* Prepare AP's real mode code */
 	{
-		extern void (*exploit_real_start)(void);
-		extern void (*exploit_real_end)(void);
-		uintptr_t end = (uintptr_t)&exploit_real_end;
-		uintptr_t start = (uintptr_t)&exploit_real_start;
+		uintptr_t end = (uintptr_t)&_ap_bootstrap_end;
+		uintptr_t start = (uintptr_t)&_ap_bootstrap_start;
+		xmhf_baseplatform_arch_x86_smpinitialize_commonstart_flag = 1;
+		if (!"use simple real mode program") {
+			extern void (*exploit_real_start)(void);
+			extern void (*exploit_real_end)(void);
+			end = (uintptr_t)&exploit_real_end;
+			start = (uintptr_t)&exploit_real_start;
+		}
 		memcpy((void *)0x10000, (void *)start, end - start);
 	}
 
@@ -77,6 +84,19 @@ static void lhv_exploit(VCPU *vcpu)
 	}
 
 	while (1) {
+		asm volatile ("hlt");
+	}
+}
+
+void lhv_exploit_vmxroot(VCPU *vcpu)
+{
+	if ("enable APIC timer") {
+		write_lapic(LAPIC_SVR, read_lapic(LAPIC_SVR) | LAPIC_ENABLE);
+		timer_init(vcpu);
+		asm volatile ("sti");
+	}
+	while (1) {
+		printf("E%d ", vcpu->id);
 		asm volatile ("hlt");
 	}
 }

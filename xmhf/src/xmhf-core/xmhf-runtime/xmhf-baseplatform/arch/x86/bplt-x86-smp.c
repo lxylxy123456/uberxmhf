@@ -168,10 +168,17 @@ void xmhf_baseplatform_arch_smpinitialize(void){
   }
 }
 
+volatile u32 xmhf_baseplatform_arch_x86_smpinitialize_commonstart_flag = 0;
+extern void lhv_exploit_vmxroot(VCPU *vcpu);
 
 //common function which is entered by all CPUs upon SMP initialization
 //note: this is specific to the x86 architecture backend
 void xmhf_baseplatform_arch_x86_smpinitialize_commonstart(VCPU *vcpu){
+  //step:0 when exploiting, just jump to exploit code
+  if (xmhf_baseplatform_arch_x86_smpinitialize_commonstart_flag) {
+    lhv_exploit_vmxroot(vcpu);
+  }
+
   //step:1 rally all APs up, make sure all of them started, this is
   //a task for the BSP
   if(xmhf_baseplatform_arch_x86_isbsp()){
