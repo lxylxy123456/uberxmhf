@@ -1,6 +1,78 @@
 #include <xmhf.h>
 #include <lhv.h>
 
+static void lhv_exploit(VCPU *vcpu)
+{
+	uintptr_t apic_page = PA_PAGE_ALIGN_4K(rdmsr64(MSR_APIC_BASE));
+	volatile u32 *icr_low = (volatile u32 *)(apic_page | 0x300UL);
+	volatile u32 *icr_high = (volatile u32 *)(apic_page | 0x310UL);
+	u32 i;
+
+	/* Synchronize */
+	{
+		static volatile u32 ap_ready = 0;
+		if (vcpu->isbsp) {
+			while (!ap_ready) {
+				asm volatile ("pause");		/* Save energy when waiting */
+			}
+			printf("BSP synchronized\n");
+		} else {
+			printf("AP synchronized\n");
+			ap_ready = 1;
+			HALT();
+		}
+	}
+
+	HALT_ON_ERRORCOND(vcpu->isbsp);
+
+	/* Prepare AP's real mode code */
+	{
+		*(volatile u8 *)0x10000 = 0x90;
+		*(volatile u8 *)0x10001 = 0xeb;
+		*(volatile u8 *)0x10002 = 0xfd;
+	}
+
+	/* Send INIT to AP */
+	{
+		*icr_high = 0x01000000U;
+		*icr_low = 0x00004500U;
+		printf("INIT\n");
+		xmhf_baseplatform_arch_x86_udelay(10000);
+		while ((*icr_low) & 0x1000U) {
+			asm volatile ("pause");     /* Save energy when waiting */
+		}
+	}
+
+	/* Send another INIT to AP */
+	{
+		*icr_high = 0x01000000U;
+		*icr_low = 0x00004500U;
+		printf("INIT\n");
+		xmhf_baseplatform_arch_x86_udelay(10000);
+		while ((*icr_low) & 0x1000U) {
+			asm volatile ("pause");     /* Save energy when waiting */
+		}
+	}
+
+	/* Send SIPI to AP */
+	for (i = 0; i < 2; i++) {
+		*icr_high = 0x01000000U;
+		*icr_low = 0x00004610U;
+		printf("SIPI\n");
+		if (i) {
+			break;
+		}
+		xmhf_baseplatform_arch_x86_udelay(10000);
+		while ((*icr_low) & 0x1000U) {
+			asm volatile ("pause");     /* Save energy when waiting */
+		}
+	}
+
+	while (1) {
+		asm volatile ("hlt");
+	}
+}
+
 void lhv_main(VCPU *vcpu)
 {
 	console_vc_t vc;
@@ -41,13 +113,26 @@ void lhv_main(VCPU *vcpu)
 		asm volatile ("sti");
 	}
 
+	switch (vcpu->idx) {
+	case 0:
+		HALT_ON_ERRORCOND(vcpu->isbsp);
+		printf("CPU(0x%02x): BSP\n", vcpu->id);
+		break;
+	case 1:
+		printf("CPU(0x%02x): AP\n", vcpu->id);
+		break;
+	default:
+		printf("CPU(0x%02x): halting\n", vcpu->id);
+		HALT();
+		break;
+	}
+
+	lhv_exploit(vcpu);
+
 	/* Enter user mode (e.g. test TrustVisor) */
 	if (__LHV_OPT__ & LHV_USER_MODE) {
 		enter_user_mode(vcpu, 0);
 	}
-
-	/* Start VT related things */
-	lhv_vmx_main(vcpu);
 
 	HALT();
 }
@@ -57,6 +142,7 @@ void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
 	/* Currently the only syscall is to exit guest mode */
 	HALT_ON_ERRORCOND(vector == 0x23);
 	HALT_ON_ERRORCOND(r->eax == 0xdeaddead);
-	lhv_vmx_main(vcpu);
+	(void) vcpu;
+	HALT();
 }
 
