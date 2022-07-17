@@ -75,7 +75,34 @@
 
         movq    %rsp, %rsi          // RSI (second argument) = struct regs *
         movq    $0x&vector&, %rdi   // RDI (first argument) = vector
+
+        xorq    %rax, %rax
+        movw    %ds, %ax
+        pushq   %rax                //save DS
+        movw    %es, %ax
+        pushq   %rax                //save ES
+        movw    %fs, %ax
+        pushq   %rax                //save FS
+        movw    %gs, %ax
+        pushq   %rax                //save GS
+
+        movw    $(__DS), %ax
+        movw    %ax, %ds            //load DS
+        movw    %ax, %es            //load ES
+        movw    %ax, %fs            //load FS
+        movw    %ax, %gs            //load GS
+
         call    xmhf_xcphandler_hub // call C-land hub
+
+        movw    %ds, %ax
+        popq    %rax
+        movw    %ax, %gs            //restore GS
+        popq    %rax
+        movw    %ax, %fs            //restore FS
+        popq    %rax
+        movw    %ax, %es            //restore ES
+        popq    %rax
+        movw    %ax, %ds            //restore DS
 
         // pop GPR values, except RSP
         POPAQ

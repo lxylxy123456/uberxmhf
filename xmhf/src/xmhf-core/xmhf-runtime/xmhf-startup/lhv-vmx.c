@@ -21,7 +21,7 @@ __attribute__((aligned(16)));
 static msr_entry_t vmentry_msrload_entries[MAX_VCPU_ENTRIES][MAX_GUESTS][MAX_MSR_LS]
 __attribute__((aligned(16)));
 
-extern u32 x_gdt_start[];
+extern u64 x_gdt_start[MAX_VCPU_ENTRIES][XMHF_GDT_SIZE];
 
 static void lhv_vmx_vmcs_init(VCPU *vcpu)
 {
@@ -36,10 +36,10 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_host_GS_selector, read_segreg_gs());
 	vmcs_vmwrite(vcpu, VMCS_host_SS_selector, read_segreg_ss());
 	vmcs_vmwrite(vcpu, VMCS_host_TR_selector, read_tr_sel());
-	vmcs_vmwrite(vcpu, VMCS_host_GDTR_base, (u64)(hva_t)x_gdt_start);
+	vmcs_vmwrite(vcpu, VMCS_host_GDTR_base, (u64)(hva_t)x_gdt_start[vcpu->idx]);
 	vmcs_vmwrite(vcpu, VMCS_host_IDTR_base,
 					(u64)(hva_t)xmhf_xcphandler_get_idt_start());
-	vmcs_vmwrite(vcpu, VMCS_host_TR_base, (u64)(hva_t)g_runtime_TSS);
+	vmcs_vmwrite(vcpu, VMCS_host_TR_base, (u64)(hva_t)g_runtime_TSS[vcpu->idx]);
 	vmcs_vmwrite(vcpu, VMCS_host_RIP, (u64)(hva_t)vmexit_asm);
 
 	//store vcpu at TOS

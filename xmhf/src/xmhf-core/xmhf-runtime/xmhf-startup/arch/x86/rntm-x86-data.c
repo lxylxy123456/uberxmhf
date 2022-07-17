@@ -53,28 +53,32 @@
 #include <xmhf.h>
 
 //runtime GDT
-u64 x_gdt_start[] __attribute__(( section(".data"), aligned(16) )) = {
+u64 x_gdt_start[MAX_VCPU_ENTRIES][XMHF_GDT_SIZE] __attribute__(( section(".data"), aligned(16) )) = {{
 #ifdef __AMD64__
 	0x0000000000000000ULL,  /* 0x00: NULL selector */
 	0x00af9a000000ffffULL,  /* 0x08: 64-bit CODE selector */
 	0x00cf9a000000ffffULL,  /* 0x10: 32-bit CODE selector */
 	0x00cf92000000ffffULL,  /* 0x18: 32-bit DATA selector */
 	0x0000000000000000ULL,  /* 0x20: TSS low (set by secure loader) */
-	0x0000000000000000ULL   /* 0x28: TSS high (set by secure loader) */
+	0x0000000000000000ULL,  /* 0x28: TSS high (set by secure loader) */
+	0x00affa000000ffffULL,  /* 0x33: User mode CS */
+	0x00cff2000000ffffULL   /* 0x3b: User mode DS */
 #elif defined(__I386__)
-	0x0000000000000000ULL,
-	0x00cf9a000000ffffULL,
-	0x00cf92000000ffffULL,
-	0x0000000000000000ULL
+	0x0000000000000000ULL,  /* 0x00: NULL selector */
+	0x00cf9a000000ffffULL,  /* 0x08: 32-bit CODE selector */
+	0x00cf92000000ffffULL,  /* 0x10: 32-bit DATA selector */
+	0x0000000000000000ULL,  /* 0x18: TSS (set by secure loader) */
+	0x00cffa000000ffffULL,  /* 0x23: User mode CS */
+	0x00cff2000000ffffULL   /* 0x2b: User mode DS */
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
-};
+}};
 
 //runtime GDT descriptor
 arch_x86_gdtdesc_t x_gdt __attribute__(( section(".data"), aligned(16) )) = {
-	.size=sizeof(x_gdt_start)-1,
-	.base=(uintptr_t)&x_gdt_start,
+	.size=sizeof(x_gdt_start[0])-1,
+	.base=(uintptr_t)&x_gdt_start[0],
 };
 
 

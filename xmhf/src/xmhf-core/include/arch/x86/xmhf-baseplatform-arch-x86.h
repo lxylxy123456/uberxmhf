@@ -130,6 +130,8 @@ struct _memorytype {
 #define NUM_FIXED_MTRRS 11
 #define MAX_VARIABLE_MTRR_PAIRS 10
 
+#define XMHF_GDT_SIZE 10
+
 
 //---platform
 
@@ -346,10 +348,14 @@ bool xmhf_baseplatform_arch_x86_cpuhasxsavefeature(void);
 #define 	__DS 	0x0018 	//runtime data segment selector
 #define 	__CS32 	0x0010 	//runtime 32-bit code segment selector
 #define 	__TRSEL 0x0020  //runtime TSS (task) selector
+#define 	__CS_R3 0x0033  //runtime user mode code segment selector
+#define 	__DS_R3 0x003b  //runtime user mode data segment selector
 #elif defined(__I386__)
 #define 	__CS 	0x0008 	//runtime code segment selector
 #define 	__DS 	0x0010 	//runtime data segment selector
 #define 	__TRSEL 0x0018  //runtime TSS (task) selector
+#define 	__CS_R3 0x0023  //runtime user mode code segment selector
+#define 	__DS_R3 0x002b  //runtime user mode data segment selector
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
@@ -365,7 +371,7 @@ typedef struct {
 
 
 //runtime TSS
-extern u8 g_runtime_TSS[PAGE_SIZE_4K] __attribute__(( section(".data") ));
+extern u8 g_runtime_TSS[MAX_VCPU_ENTRIES][PAGE_SIZE_4K] __attribute__(( section(".data") ));
 
 //this is the start of the real-mode AP bootstrap code (bplt-x86-smptrampoline.S)
 extern u32 _ap_bootstrap_start[];

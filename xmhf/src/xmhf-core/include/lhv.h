@@ -23,9 +23,14 @@ typedef struct {
 #define LHV_USE_SWITCH_EPT			0x0000000000000008ULL
 #define LHV_USE_VPID				0x0000000000000010ULL
 #define LHV_USE_UNRESTRICTED_GUEST	0x0000000000000020ULL
+#define LHV_USER_MODE				0x0000000000000040ULL
 
 /* xcph-x86.c */
 VCPU *_svm_and_vmx_getvcpu(void);
+
+/* lhv.c */
+void lhv_main(VCPU *vcpu);
+void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r);
 
 /* lhv-console.c */
 void console_cursor_clear(void);
@@ -74,6 +79,21 @@ void vmcs_load(VCPU *vcpu);
 /* lhv-guest-asm.S */
 void lhv_guest_entry(void);
 void lhv_guest_xcphandler(uintptr_t vector, struct regs *r);
+
+/* lhv-user.c */
+typedef struct ureg_t {
+	struct regs r;
+	uintptr_t eip;
+	uintptr_t cs;
+	uintptr_t eflags;
+	uintptr_t esp;
+	uintptr_t ss;
+} ureg_t;
+void enter_user_mode(VCPU *vcpu, ulong_t arg);
+void user_main(VCPU *vcpu, ulong_t arg);
+
+/* lhv-user-asm.S */
+void enter_user_mode_asm(ureg_t *ureg);
 
 /* LAPIC */
 #define LAPIC_DEFAULT_BASE    0xfee00000

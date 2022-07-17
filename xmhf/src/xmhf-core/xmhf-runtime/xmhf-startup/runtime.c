@@ -251,7 +251,7 @@ void xmhf_runtime_entry(void){
 }
 
 extern void lhv_main(VCPU *vcpu);
-extern u32 x_gdt_start[];
+extern u64 x_gdt_start[MAX_VCPU_ENTRIES][XMHF_GDT_SIZE];
 
 //we get control here in the context of *each* physical CPU core
 //vcpu->isbsp = 1 if the core is a BSP or 0 if its an AP
@@ -260,9 +260,20 @@ extern u32 x_gdt_start[];
 void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 	HALT_ON_ERRORCOND(isEarlyInit);
 
+	{
+		arch_x86_gdtdesc_t gdt __attribute__((aligned(16))) = {
+			.size=sizeof(x_gdt_start[vcpu->idx])-1,
+			.base=(uintptr_t)&x_gdt_start[vcpu->idx],
+		};
+		asm volatile("lgdt %0;"
+			:
+			: "m"(gdt));
+	}
+
+
 	// Set TR, from _vmx_initVT()
 	{
-		hva_t gdtstart = (hva_t)&x_gdt_start;
+		hva_t gdtstart = (hva_t)&x_gdt_start[vcpu->idx];
 		u16 trselector = __TRSEL;
 #ifdef __AMD64__
 		asm volatile("movq %0, %%rdi\r\n"
