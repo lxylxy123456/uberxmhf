@@ -27,9 +27,11 @@ static void lhv_exploit(VCPU *vcpu)
 
 	/* Prepare AP's real mode code */
 	{
-		*(volatile u8 *)0x10000 = 0x90;
-		*(volatile u8 *)0x10001 = 0xeb;
-		*(volatile u8 *)0x10002 = 0xfd;
+		extern void (*exploit_real_start)(void);
+		extern void (*exploit_real_end)(void);
+		uintptr_t end = (uintptr_t)&exploit_real_end;
+		uintptr_t start = (uintptr_t)&exploit_real_start;
+		memcpy((void *)0x10000, (void *)start, end - start);
 	}
 
 	/* Send INIT to AP */
