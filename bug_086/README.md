@@ -107,6 +107,49 @@ devices. Also I am not sure whether the behavior will differ when running under
 TXT. We also need to be careful that when printfs are removed, things run
 faster and may produce different results.
 
-TODO: try on real hardware
-TODO: remove printf and see behavior
+This exploit is effective when tested on Thinkpad. A slightly detailed way to
+reproduce is
+* Compile `xmhf64-nest 9840519b6` with `./build.sh i386 fast`
+* Compile `lhv-dev 521d60775` with `./build.sh i386`
+* Boot `xmhf64-nest` first, then `lhv-dev`. See the red char at VGA column 60
+
+If we add `--disable-debug-serial` to both XMHF and LHV, the bug is still
+reproducible on QEMU. Looks like also reproducible on Bochs. On Thinkpad, looks
+like AP will be faster and will cause all CPUs to reboot (i.e. not
+reproducible).
+
+However, in `lhv-dev abcf9be61`, when we send INIT signals as fast as possible,
+the exploit becomes exploitable on Thinkpad. The changes are
+* Before there was a 1 us delay between INIT signals, now we remove the delay
+* While waiting for LAPIC to show that the INIT signal is sent, we do not
+  PAUSE in the busy wait loop
+* We send a lot of INIT signals, instead of 2
+
+Now we can write some exploit programs. We can reuse the code in
+`bplt-x86-i386-smptrampoline.S` (real mode code between `_ap_bootstrap_start`
+and `_ap_bootstrap_end`) to go from real mode to protected mode at function
+`xmhf_baseplatform_arch_x86_smpinitialize_commonstart()`. So now just need to
+make `xmhf_baseplatform_arch_x86_smpinitialize_commonstart()` call exploit when
+executed the second time. Implemented this in `lhv-dev 93c163f2b`.
+
+In `lhv-dev 12ade0a3b`, let BSP enter user mode and call TrustVisor. In the
+mean time, AP steals data out. Tested on Thinkpad and see that this is
+reproducible. This basically means that the bug is valid.
+
+Note that after compiling XMHF, some addresses of global variables need to be
+put into LHV's `lhv_exploit_nmi_handler()`.
+
+We have been testing on `xmhf64-dev 9840519b6`. We should try to reproduce it
+in earlier version of XMHF.
+
+Future steps
+* Try on older version of XMHF, preferrably v0.2.2 (need to compile on old
+  Ubuntu)
+* Try with DRT on (need real hardware)
+
+## Result
+
+This is extremely likely a valid security bug of XMHF.
+
+Exploit code in `lhv-dev 14339e362..12ade0a3b`
 
