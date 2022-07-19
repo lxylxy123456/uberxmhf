@@ -119,8 +119,79 @@ if (can_accept_nmi) {
 Note that the above logic assumes that calling `handle_nmi` once or twice have
 the same effect. This is true for the current logic.
 
-The code is implemented in `xmhf64 c01a32408`.
+The code is implemented in `xmhf64 1dde5ac37..39bfa074f`. Testing using Jenkins
+looks fine. We also use `bug_018/qemu_inject_nmi.py` to test on QEMU.
 
-TODO: use atomic instructions to prevent losing NMIs in `vmx_guest_nmi_visited`
-TODO: test more
+To use `bug_018/qemu_inject_nmi.py`, add
+`-qmp tcp:localhost:4444,server,nowait` to command line, and then
+`python3 bug_018/qemu_inject_nmi.py 4444 0.1`
+
+To make test more efficient, remove TrustVisor output in
+`xmhf64-dev fd47fbe44`. However, when testing in this configuration, see that
+NMI is likely injected into PALs. The following issue is observed with amd64
+XMHF running `test_args32`, `test_args64` and `qemu_inject_nmi.py`, in 4 CPUs
+KVM:
+```
+VMEXIT-EXCEPTION:
+control_exception_bitmap=0xffffffff
+interruption information=0x80000b0e
+errorcode=0x00000000
+	CPU(0x00): RFLAGS=0x0000000000010006
+	SS:RSP =0x002b:0x00007ff76df70fc8
+	CS:RIP =0x0033:0x00007ff76df9b0f3
+	IDTR base:limit=0xfffffe0000000000:0x0fff
+	GDTR base:limit=0xfffffe0000001000:0x007f
+CPU(0x00): HALT; Nested events unhandled 0x80000202
+```
+
+This problem is also reproducible on i386 with otherwise same settings. But
+looks like it takes a long time to reproduce. So need to be patient.
+```
+VMEXIT-EXCEPTION:
+control_exception_bitmap=0xffffffff
+interruption information=0x80000b0e
+errorcode=0x00000000
+	CPU(0x00): EFLAGS=0x00010092
+	SS:ESP =0x007b:0xb7f2cfc4
+	CS:EIP =0x0073:0xb7f5f01d
+	IDTR base:limit=0xff400000:0x07ff
+	GDTR base:limit=0xff401000:0x00ff
+CPU(0x00): HALT; Nested events unhandled 0x80000202
+```
+
+Looks like `0xb7f5f01d` is at the start of a PAL.
+
+This is also reproducible on i386 with one CPU and one `./test_args32` process.
+It is likely that we can reproduce this bug by adding some HLT instructions
+and inject NMI deterministically.
+
+This is caused by incorrectly assuming that `xmhf_smpguest_arch_nmi_block()`
+can write to hardware VMCS. However, actually this function is always called in
+intercept handlers, and the hardware VMCS will always be overwritten. Fixed in
+`xmhf64 3297ae84b`. So the final commits are `xmhf64 1dde5ac37..3297ae84b`
+
+### PAL re-entry bug
+
+While testing more on `xmhf64-dev 6d85380ee` in 64-bit KVM SMP=4, with 2
+threads running `./test_args32 7 700000 7` and 1 thread running
+`bug_018/inject_qemu_nmi.py 4444 1`, see the following bug after 117 NMIs.
+
+Note that NMIs are injected very infrequently.
+
+```
+TV[3]:scode.c:hpt_scode_npf:1359:                  EU_CHK( ((whitelist[*curr].entry_v == rip) && (whitelist[*curr].entry_p == gpaddr))) failed
+TV[3]:scode.c:hpt_scode_npf:1359:                  Invalid entry point
+```
+
+For this bug, CPU 0 produces the error. `scode_curr[*] = -1`,
+`whitelist[1].gcr3 = vcpu->vmcs.guest_CR3`.
+`vcpu->vmcs.guest_RIP = 0xf7fc108b`, which is body of `pal_10_int()`, but
+`whitelist[1].entry_v = 0xf7fc101d`, which is start of `pal_10_int()`.
+Similarly, `vcpu->vmcs.guest_paddr = 0xd50708b` and
+`whitelist[1].entry_p = 0xd50701d`.
+
+We need to reproduce this bug in different settings. I guess this may be
+unrelated to NMI.
+
+TODO: try to reproduce the bug above
 

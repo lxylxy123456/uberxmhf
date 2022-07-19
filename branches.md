@@ -301,7 +301,7 @@
 * Remove x2APIC from CI (`bug_078`)
 
 ### `xmhf64-dev`: development workarounds
-* `59b3fd053`: Quiet TrustVisor output
+* `fd47fbe44`: Quiet TrustVisor output
 * `0d7e0599d`: Handle VMCALL `KVM_HC_VAPIC_POLL_IRQ` (run WinXP SP3 on QEMU)
 * `fded7ace5`: Add monitor trap and breakpoint support
 
