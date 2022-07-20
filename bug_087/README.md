@@ -191,7 +191,40 @@ Similarly, `vcpu->vmcs.guest_paddr = 0xd50708b` and
 `whitelist[1].entry_p = 0xd50701d`.
 
 We need to reproduce this bug in different settings. I guess this may be
-unrelated to NMI.
+unrelated to NMI. Unfortunately, this bug is very hard to reproduce, even with
+the same configurations. Also, we should prioritize correctness on real
+hardware. So skip for now.
 
-TODO: try to reproduce the bug above
+### Virtualize NMIs
 
+Let's think about a story of L1 guest hypervisor running L2, where L0 is XMHF.
+1. L1 calls VMENTRY (VMLAUNCH or VMRESUME), trap to L0
+2. L0 converts VMCS12 to VMCS02, enter L2
+3. L2 runs, page fault
+4. L0 handles page fault, go back to L2
+5. L2 runs, CPUID
+6. L0 converts VMCS02 to VMCS12, enter L1
+7. L1 handles L2's VMEXIT
+8. ..., L2 runs again
+9. L2 gets NMI, cause NMI VMEXIT (not due to quiesce)
+
+I thought about the previous comment that "For VMENTRY handler, pretend that
+the NMI hits L2's VMLAUNCH / VMRESUME instruction". Now I think that this is a
+bad idea because it is hard for L0's NMI interrupt handler to distinguish
+between step 2 and step 6.
+
+The most of L0 should be NMI disabled using the
+`xmhf_smpguest_arch_x86vmx_mhv_nmi_disable()` function we just wrote. However,
+we need to add logic during context switch between serving L1 and L2.
+
+Still, enumerate all cases using `bug_018` section `### NMI Write up`
+
+* NMI Exiting = 0, virtual NMIs = 0
+	* During VMCS translation, copy "Blocking by NMI" and "NMI-window exiting"
+	* `vcpu->vmx_guest_nmi_cfg` is shared, no need to copy, though
+	* Step 2: if NMI visited L0, set "NMI-window exiting" bit of L2. Should
+	  be able to reuse `xmhf_smpguest_arch_x86vmx_inject_nmi()`.
+	* Step 4: same as step 2
+	* Step 6: similar to step 2 and to normal L1 handling
+* NMI Exiting = 1, virtual NMIs = 0
+* NMI Exiting = 1, virtual NMIs = 1
