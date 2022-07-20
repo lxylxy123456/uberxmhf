@@ -271,26 +271,40 @@ static void	_vmx_int15_initializehook(VCPU *vcpu){
 		/* 32-bit CS:IP for IVT INT 15 handler */
 		volatile u16 *ivt_int15 = (volatile u16 *)(0x54);
 
-		printf("CPU(0x%02x): original INT 15h handler at 0x%04x:0x%04x\n", vcpu->id,
-			ivt_int15[1], ivt_int15[0]);
+		if (ivt_int15[0] == 0x00AC && ivt_int15[1] == 0x0040) {
+			/*
+			 * If another XMHF loads me, the IVT for INT 15h will read as
+			 * 0xac:0x40. In this case we should leave the IVT as is, otherwise
+			 * there will be an infinite loop of VMCALLs when a non-e820 INT
+			 * 15 happens.
+			 */
+			printf("CPU(0x%02x): likely loaded as nested XMHF\n", vcpu->id);
+			HALT_ON_ERRORCOND(bdamemory[0] == 0x0f);
+			HALT_ON_ERRORCOND(bdamemory[1] == 0x01);
+			HALT_ON_ERRORCOND(bdamemory[2] == 0xc1);
+			HALT_ON_ERRORCOND(bdamemory[3] == 0xcf);
+		} else {
+			printf("CPU(0x%02x): original INT 15h handler at 0x%04x:0x%04x\n",
+				vcpu->id, ivt_int15[1], ivt_int15[0]);
 
-		//we need 8 bytes (4 for the VMCALL followed by IRET and 4 for the
-		//original IVT INT 15h handler address
+			//we need 8 bytes (4 for the VMCALL followed by IRET and 4 for the
+			//original IVT INT 15h handler address
 
-		//implant VMCALL followed by IRET at 0040:04AC
-		bdamemory[0]= 0x0f;	//VMCALL
-		bdamemory[1]= 0x01;
-		bdamemory[2]= 0xc1;
-		bdamemory[3]= 0xcf;	//IRET
+			//implant VMCALL followed by IRET at 0040:04AC
+			bdamemory[0]= 0x0f;	//VMCALL
+			bdamemory[1]= 0x01;
+			bdamemory[2]= 0xc1;
+			bdamemory[3]= 0xcf;	//IRET
 
-		//store original INT 15h handler CS:IP following VMCALL and IRET
-		*((volatile u16 *)(&bdamemory[4])) = ivt_int15[0];	//original INT 15h IP
-		*((volatile u16 *)(&bdamemory[6])) = ivt_int15[1];	//original INT 15h CS
+			//store original INT 15h handler CS:IP following VMCALL and IRET
+			*((volatile u16 *)(&bdamemory[4])) = ivt_int15[0];	//original IP
+			*((volatile u16 *)(&bdamemory[6])) = ivt_int15[1];	//original CS
 
 
-		//point IVT INT15 handler to the VMCALL instruction
-		ivt_int15[0]=0x00AC;
-		ivt_int15[1]=0x0040;
+			//point IVT INT15 handler to the VMCALL instruction
+			ivt_int15[0]=0x00AC;
+			ivt_int15[1]=0x0040;
+		}
 	}
 }
 
@@ -549,11 +563,11 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	//setup NMI intercept for core-quiescing
 	vcpu->vmcs.control_VMX_pin_based |= (1U << VMX_PINBASED_NMI_EXITING);
 	vcpu->vmcs.control_VMX_pin_based |= (1U << VMX_PINBASED_VIRTUAL_NMIS);
-	vcpu->vmx_guest_vmcs_nmi_window_set = false;
-	vcpu->vmx_guest_vmcs_nmi_window_clear = false;
-	vcpu->vmx_guest_nmi_blocking_modified = false;
+	vcpu->vmx_guest_nmi_disable = false;
+	vcpu->vmx_guest_nmi_visited = false;
+	vcpu->vmx_guest_nmi_handler_arg = SMPG_VMX_NMI_INJECT;
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_block = false;
-	vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = false;
+	vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = 0;
 
 	//trap access to CR0 fixed 1-bits
 	// Make sure to change vmx_handle_intercept_cr0access_ug() if changing
