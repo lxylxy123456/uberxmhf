@@ -221,10 +221,42 @@ Still, enumerate all cases using `bug_018` section `### NMI Write up`
 
 * NMI Exiting = 0, virtual NMIs = 0
 	* During VMCS translation, copy "Blocking by NMI" and "NMI-window exiting"
+	  from VMCS01 to VMCS02
 	* `vcpu->vmx_guest_nmi_cfg` is shared, no need to copy, though
 	* Step 2: if NMI visited L0, set "NMI-window exiting" bit of L2. Should
 	  be able to reuse `xmhf_smpguest_arch_x86vmx_inject_nmi()`.
 	* Step 4: same as step 2
 	* Step 6: similar to step 2 and to normal L1 handling
 * NMI Exiting = 1, virtual NMIs = 0
+	* L1 owns "Blocking by NMI" and "NMI-window exiting" in VMCS12, copy to
+	  VMCS02 (except when needing L2 to run a few instructions).
+	* `vcpu->vmx_guest_nmi_cfg` is ignored in some sense when L0 is running L2.
+	* Step 2: if NMI visits L0, convert VMCS02 back to VMCS12 and NMI exit.
+	  May need to let L2 run a few instructions when VMCS02 contains an event
+	  injection (need experiment)
+	* Step 4: same as step 2
+	* Step 6: go to normal L1 handling (i.e. inject NMI to L1)
 * NMI Exiting = 1, virtual NMIs = 1
+	* Same as NMI Exiting = 1, virtual NMIs = 0
+
+We need to experimentally test how different NMI configurations behave, because
+the SDM is not very straight forward. In the best case, the experiments should
+be automated.
+
+* NMI Exiting = 0, virtual NMIs = 0: when L2 does not block NMI. If L2 receives
+  an NMI, it invokes L2's exception handler.
+* NMI Exiting = 0, virtual NMIs = 0: when L1 blocks NMI, L2 does not block. If
+  L1 receives an NMI, then VMENTRY to L2, will L2 get the NMI?
+* NMI Exiting = 0, virtual NMIs = 0: when L1 does not block NMI, set VMCS so
+  that L2 blocks. After L2 VMEXIT to L1, will L1 also block NMI?
+* NMI Exiting = 0, virtual NMIs = 0: when L1 does not block NMI, L2 blocks. If
+  L2 receives an NMI, then VMEXIT to L1 (L1 may need to IRET), will L1 get the
+  NMI?
+* NMI Exiting = 1, virtual NMIs = 0: when L2 does not block NMI, if L2 receives
+  NMI, VMEXIT happens.
+* NMI Exiting = 1, virtual NMIs = 0: when L2 blocks NMI, if L2 receives NMI,
+  VMEXIT happens.
+* NMI Exiting = 1, virtual NMIs = 0: when L1 blocks NMI, L2 any configuration.
+  If L1 receives an NMI, then VMENTRY to L2, will L2 VMEXIT to L1?
+* ...
+
