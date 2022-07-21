@@ -13,6 +13,9 @@ void lhv_main(VCPU *vcpu)
 			int *a = (int *) 0xf0f0f0f0f0f0f0f0;
 			printf("%d", *a);
 		}
+		HALT_ON_ERRORCOND(g_midtable_numentries >= 2);
+	} else if (vcpu->idx != 1) {
+		HALT();
 	}
 	timer_init(vcpu);
 	assert(vc.height >= 2);
@@ -47,7 +50,13 @@ void lhv_main(VCPU *vcpu)
 	}
 
 	/* Start VT related things */
-	lhv_vmx_main(vcpu);
+	if (vcpu->isbsp) {
+		while (1) {
+			asm volatile ("hlt");
+		}
+	} else {
+		lhv_vmx_main(vcpu);
+	}
 
 	HALT();
 }

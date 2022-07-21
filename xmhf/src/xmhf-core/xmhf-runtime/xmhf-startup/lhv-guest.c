@@ -1,7 +1,99 @@
 #include <xmhf.h>
 #include <lhv.h>
+#include <lhv-pic.h>
+
+#define INTERRUPT_PERIOD 20
+
+static volatile u32 l2_ready = 0;
+
+void handle_nmi_interrupt(VCPU *vcpu, int vector, int guest)
+{
+	HALT_ON_ERRORCOND(!vcpu->isbsp);
+	HALT_ON_ERRORCOND(vector == 0x2);
+	printf("NMI %d\n", guest);
+}
+
+void handle_timer_interrupt(VCPU *vcpu, int vector, int guest)
+{
+	if (vcpu->isbsp) {
+		HALT_ON_ERRORCOND(vector == 0x20);
+		HALT_ON_ERRORCOND(guest == 0);
+		if (l2_ready) {
+			static u32 count = 0;
+			volatile u32 *icr_high = (volatile u32 *)(0xfee00310);
+			volatile u32 *icr_low = (volatile u32 *)(0xfee00300);
+			*icr_high = 0x01000000U;
+			switch ((count++) % (INTERRUPT_PERIOD * 2)) {
+			case 0:
+				printf("Inject NMI\n");
+				*icr_low = 0x00004400U;
+				break;
+			case INTERRUPT_PERIOD:
+				printf("Inject interrupt\n");
+				*icr_low = 0x00004022U;
+				break;
+			default:
+				break;
+			}
+		}
+		outb(INT_ACK_CURRENT, INT_CTL_PORT);
+	} else {
+		HALT_ON_ERRORCOND(vector == 0x22);
+		printf("TIMER %d\n", guest);
+		write_lapic(LAPIC_EOI, 0);
+	}
+}
+
+void vmexit_handler(VCPU *vcpu, struct regs *r)
+{
+	ulong_t vmexit_reason = vmcs_vmread(vcpu, VMCS_info_vmexit_reason);
+	ulong_t guest_rip = vmcs_vmread(vcpu, VMCS_guest_RIP);
+	ulong_t inst_len = vmcs_vmread(vcpu, VMCS_info_vmexit_instruction_length);
+	HALT_ON_ERRORCOND(vcpu == _svm_and_vmx_getvcpu());
+	switch (vmexit_reason) {
+	case VMX_VMEXIT_CPUID:
+		{
+			u32 old_eax = r->eax;
+			asm volatile ("cpuid\r\n"
+				  :"=a"(r->eax), "=b"(r->ebx), "=c"(r->ecx), "=d"(r->edx)
+				  :"a"(r->eax), "c" (r->ecx));
+			if (old_eax == 0x1) {
+				/* Clear VMX capability */
+				r->ecx &= ~(1U << 5);
+			}
+			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+			break;
+		}
+	case VMX_VMEXIT_VMCALL:
+		printf("VMCALL\n");
+		HALT_ON_ERRORCOND(0 && "TODO frontier");
+		vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+		break;
+	default:
+		{
+			printf("CPU(0x%02x): unknown vmexit %d\n", vcpu->id, vmexit_reason);
+			printf("CPU(0x%02x): rip = 0x%x\n", vcpu->id, guest_rip);
+			vmcs_dump(vcpu, 0);
+			HALT_ON_ERRORCOND(0);
+			break;
+		}
+	}
+	vmresume_asm(r);
+}
 
 void lhv_guest_main(ulong_t cpu_id)
+{
+	(void) cpu_id;
+	l2_ready = 1;
+	while (1) {
+		asm volatile ("sti");
+		asm volatile ("hlt");
+	}
+	asm volatile ("vmcall");
+}
+
+#if 0
+void lhv_guest_main_old(ulong_t cpu_id)
 {
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	console_vc_t vc;
@@ -65,11 +157,15 @@ void lhv_guest_main(ulong_t cpu_id)
 		}
 	}
 }
+#endif
 
 void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 {
 	(void) r;
 	switch (vector) {
+	case 0x2:
+    	handle_nmi_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
+    	break;
 	case 0x20:
 		handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
 		break;
