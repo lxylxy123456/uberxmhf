@@ -132,8 +132,17 @@ extern uint8_t _end_xcph_table[];
 //EMHF exception handler hub
 void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
     VCPU *vcpu;
+	uintptr_t rip;
 
     vcpu = _svm_and_vmx_getvcpu();
+
+#ifdef __AMD64__
+	rip = *(uintptr_t *)r->rsp;
+#elif defined(__I386__)
+	rip = *(uintptr_t *)r->esp;
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
 
     /*
      * Cannot print anything before event handler returns if this exception
@@ -142,17 +151,22 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
      */
 
     switch(vector){
-    case CPU_EXCEPTION_NMI:
-        //xmhf_smpguest_arch_x86_eventhandler_nmiexception(vcpu, r, 0);
-        {
-        	extern void handle_nmi_interrupt(VCPU *vcpu, int vector, int guest);
-        	handle_nmi_interrupt(vcpu, vector, 0);
-        }
-        // HALT_ON_ERRORCOND(0);	// TODO: not implemented
-        break;
+	case CPU_EXCEPTION_NMI:
+		//xmhf_smpguest_arch_x86_eventhandler_nmiexception(vcpu, r, 0);
+		{
+			extern void handle_nmi_interrupt(VCPU *vcpu, int vector, int guest,
+											 uintptr_t rip);
+			handle_nmi_interrupt(vcpu, vector, 0, rip);
+		}
+		// HALT_ON_ERRORCOND(0);	// TODO: not implemented
+		break;
 
 	case 0x20:
-		handle_timer_interrupt(vcpu, vector, 0);
+		{
+			extern void handle_timer_interrupt(VCPU *vcpu, int vector,
+											   int guest, uintptr_t rip);
+			handle_timer_interrupt(vcpu, vector, 0, rip);
+		}
 		break;
 
 	case 0x21:
@@ -160,7 +174,11 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
 		break;
 
 	case 0x22:
-		handle_timer_interrupt(vcpu, vector, 0);
+		{
+			extern void handle_timer_interrupt(VCPU *vcpu, int vector,
+											   int guest, uintptr_t rip);
+			handle_timer_interrupt(vcpu, vector, 0, rip);
+		}
 		break;
 
 	case 0x23:

@@ -4,16 +4,62 @@
 
 #define INTERRUPT_PERIOD 20
 
-static volatile u32 l2_ready = 0;
+/*
+ * An interrupt handler or VMEXIT handler will see exit_source. If it sees
+ * other than EXIT_IGNORE or EXIT_MEASURE, it will error. If it sees
+ * EXIT_MEASURE, it will put one of EXIT_NMI, EXIT_TIMER, or EXIT_VMEXIT to
+ * exit_source.
+ */
+#define EXIT_IGNORE		0	/* Ignore the interrupt */
+#define EXIT_MEASURE	1	/* Measure the interrupt */
+#define EXIT_NMI		2	/* Interrupt comes from NMI interrupt handler */
+#define EXIT_TIMER		3	/* Interrupt comes from timer interrupt handler */
+#define EXIT_VMEXIT		4	/* Interrupt comes from NMI VMEXIT handler */
 
-void handle_nmi_interrupt(VCPU *vcpu, int vector, int guest)
+static volatile u32 l2_ready = 0;
+static volatile u32 master_fail = 0;
+static volatile u32 experiment_no = 0;
+static volatile u32 state_no = 0;
+static volatile u32 exit_source = EXIT_IGNORE;
+static volatile uintptr_t exit_rip = 0;
+
+#define TEST_ASSERT(_p) \
+    do { \
+        if ( !(_p) ) { \
+            master_fail = __LINE__; \
+            printf("\nTEST_ASSERT '%s' failed, line %d, file %s\n", #_p , __LINE__, __FILE__); \
+            HALT(); \
+        } \
+    } while (0)
+
+void handle_interrupt_cpu1(u32 source, uintptr_t rip)
+{
+	HALT_ON_ERRORCOND(!master_fail);
+	switch (exit_source) {
+	case EXIT_IGNORE:
+		printf("Interrupt %d ignored\n", source);
+		break;
+	case EXIT_MEASURE:
+		printf("Interrupt %d recorded\n", source);
+		exit_source = source;
+		exit_rip = rip;
+		break;
+	default:
+		TEST_ASSERT(0 && "Fail: unexpected exit_source");
+		break;
+	}
+}
+
+void handle_nmi_interrupt(VCPU *vcpu, int vector, int guest, uintptr_t rip)
 {
 	HALT_ON_ERRORCOND(!vcpu->isbsp);
 	HALT_ON_ERRORCOND(vector == 0x2);
-	printf("NMI %d\n", guest);
+	handle_interrupt_cpu1(EXIT_NMI, rip);
+	// printf("NMI %d\n", guest);
+	(void) guest;
 }
 
-void handle_timer_interrupt(VCPU *vcpu, int vector, int guest)
+void handle_timer_interrupt(VCPU *vcpu, int vector, int guest, uintptr_t rip)
 {
 	if (vcpu->isbsp) {
 		HALT_ON_ERRORCOND(vector == 0x20);
@@ -39,7 +85,8 @@ void handle_timer_interrupt(VCPU *vcpu, int vector, int guest)
 		outb(INT_ACK_CURRENT, INT_CTL_PORT);
 	} else {
 		HALT_ON_ERRORCOND(vector == 0x22);
-		printf("TIMER %d\n", guest);
+		handle_interrupt_cpu1(EXIT_TIMER, rip);
+		// printf("TIMER %d\n", guest);
 		write_lapic(LAPIC_EOI, 0);
 	}
 }
@@ -65,8 +112,17 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			break;
 		}
 	case VMX_VMEXIT_VMCALL:
-		printf("VMCALL\n");
-		HALT_ON_ERRORCOND(0 && "TODO frontier");
+		// printf("VMCALL\n");
+		{
+			void lhv_vmcall_main(void);
+			lhv_vmcall_main();
+		}
+		vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+		break;
+	case VMX_VMEXIT_EXCEPTION:
+		TEST_ASSERT((vmcs_vmread(vcpu, VMCS_info_vmexit_interrupt_information) &
+					 INTR_INFO_VECTOR_MASK) == 0x2);
+		handle_interrupt_cpu1(EXIT_VMEXIT, guest_rip + inst_len);
 		vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 		break;
 	default:
@@ -81,15 +137,94 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	vmresume_asm(r);
 }
 
+void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi)
+{
+	{
+		u32 ctl_pin_base = vmcs_vmread(NULL, VMCS_control_VMX_pin_based);
+		ctl_pin_base &= ~0x28U;
+		if (nmi_exiting) {
+			ctl_pin_base |= 0x8U;
+		}
+		if (virtual_nmis) {
+			ctl_pin_base |= 0x20U;
+		}
+		vmcs_vmwrite(NULL, VMCS_control_VMX_pin_based, ctl_pin_base);
+	}
+	{
+		u32 guest_int = vmcs_vmread(NULL, VMCS_guest_interruptibility);
+		guest_int &= ~0x8U;
+		if (blocking_by_nmi) {
+			guest_int |= 0x8U;
+		}
+		vmcs_vmwrite(NULL, VMCS_guest_interruptibility, guest_int);
+	}
+}
+
+void hlt_wait(u32 source)
+{
+	uintptr_t rip;
+	TEST_ASSERT(exit_rip == 0);
+	TEST_ASSERT(exit_source == EXIT_IGNORE);
+	exit_source = EXIT_MEASURE;
+	l2_ready = 1;
+	asm volatile ("hlt; 1: leal 1b, %0;" : "=g"(rip));
+	l2_ready = 0;
+	TEST_ASSERT(rip == exit_rip);
+	TEST_ASSERT(exit_source == source);
+	exit_source = EXIT_IGNORE;
+	exit_rip = 0;
+}
+
+void lhv_vmcall_main(void)
+{
+	switch (experiment_no) {
+	case 1:
+		set_state(0, 0, 0);
+		break;
+	case 2:
+		set_state(0, 0, 1);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected experiment");
+		break;
+	}
+}
+
 void lhv_guest_main(ulong_t cpu_id)
 {
-	(void) cpu_id;
-	l2_ready = 1;
-	while (1) {
-		asm volatile ("sti");
-		asm volatile ("hlt");
+	TEST_ASSERT(cpu_id == 1);
+	asm volatile ("sti");
+	if ("experiment 1") {
+		/*
+		 * Experiment 1: NMI Exiting = 0, virtual NMIs = 0
+		 * NMI will cause NMI interrupt handler in guest.
+		 */
+		experiment_no = 1;
+		asm volatile ("vmcall");
+		/* Make sure NMI hits HLT */
+		hlt_wait(EXIT_NMI);
+		/* Reset state by letting Timer hit HLT */
+		hlt_wait(EXIT_TIMER);
+		exit_source = EXIT_IGNORE;
 	}
-	asm volatile ("vmcall");
+	if ("experiment 2") {
+		/*
+		 * Experiment 2: NMI Exiting = 0, virtual NMIs = 0
+		 * L2 (guest) blocks NMI, L1 (LHV) does not. L2 receives NMI, then
+		 * VMENTRY to L1.
+		 */
+		experiment_no = 2;
+		asm volatile ("vmcall");
+		/* An NMI should be blocked, then a timer hits HLT */
+		// hlt_wait(EXIT_TIMER);
+		// TODO
+	}
+	{
+		TEST_ASSERT(!master_fail);
+		printf("TEST PASS\nTEST PASS\nTEST PASS\n");
+		l2_ready = 0;
+		HALT();
+	}
 }
 
 #if 0
@@ -161,19 +296,40 @@ void lhv_guest_main_old(ulong_t cpu_id)
 
 void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 {
+	uintptr_t rip;
 	(void) r;
+#ifdef __AMD64__
+	rip = *(uintptr_t *)r->rsp;
+#elif defined(__I386__)
+	rip = *(uintptr_t *)r->esp;
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+
 	switch (vector) {
 	case 0x2:
-    	handle_nmi_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
-    	break;
+		{
+			extern void handle_nmi_interrupt(VCPU *vcpu, int vector, int guest,
+											 uintptr_t rip);
+			handle_nmi_interrupt(_svm_and_vmx_getvcpu(), vector, 1, rip);
+		}
+		break;
 	case 0x20:
-		handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
+		{
+			extern void handle_timer_interrupt(VCPU *vcpu, int vector,
+											   int guest, uintptr_t rip);
+			handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector, 1, rip);
+		}
 		break;
 	case 0x21:
 		handle_keyboard_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
 		break;
 	case 0x22:
-		handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
+		{
+			extern void handle_timer_interrupt(VCPU *vcpu, int vector,
+											   int guest, uintptr_t rip);
+			handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector, 1, rip);
+		}
 		break;
 	default:
 		printf("Guest: interrupt / exception vector %ld\n", vector);
