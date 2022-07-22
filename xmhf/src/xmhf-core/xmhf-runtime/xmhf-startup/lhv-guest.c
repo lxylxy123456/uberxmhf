@@ -27,6 +27,7 @@ static volatile uintptr_t exit_rip = 0;
     do { \
         if ( !(_p) ) { \
             master_fail = __LINE__; \
+            l2_ready = 0; \
             printf("\nTEST_ASSERT '%s' failed, line %d, file %s\n", #_p , __LINE__, __FILE__); \
             HALT(); \
         } \
@@ -45,6 +46,7 @@ void handle_interrupt_cpu1(u32 source, uintptr_t rip)
 		exit_rip = rip;
 		break;
 	default:
+		printf("exit_source: %d\n", exit_source);
 		TEST_ASSERT(0 && "Fail: unexpected exit_source");
 		break;
 	}
@@ -75,8 +77,8 @@ void handle_timer_interrupt(VCPU *vcpu, int vector, int guest, uintptr_t rip)
 				*icr_low = 0x00004400U;
 				break;
 			case INTERRUPT_PERIOD:
-				printf("Inject interrupt\n");
-				*icr_low = 0x00004022U;
+//				printf("Inject interrupt\n");
+//				*icr_low = 0x00004022U;
 				break;
 			default:
 				break;
@@ -194,7 +196,7 @@ void lhv_guest_main(ulong_t cpu_id)
 {
 	TEST_ASSERT(cpu_id == 1);
 	asm volatile ("sti");
-	if ("experiment 1") {
+	if (!"experiment 1") {
 		/*
 		 * Experiment 1: NMI Exiting = 0, virtual NMIs = 0
 		 * NMI will cause NMI interrupt handler in guest.
@@ -216,7 +218,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		experiment_no = 2;
 		asm volatile ("vmcall");
 		/* An NMI should be blocked, then a timer hits HLT */
-		// hlt_wait(EXIT_TIMER);
+		hlt_wait(EXIT_TIMER);
 		// TODO
 	}
 	{
