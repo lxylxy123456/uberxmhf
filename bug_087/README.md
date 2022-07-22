@@ -260,3 +260,14 @@ be automated.
   If L1 receives an NMI, then VMENTRY to L2, will L2 VMEXIT to L1?
 * ...
 
+### Possible KVM bug
+
+While writing tests, found a possible KVM bug. Reproduce in
+`lhv-dev 82773f901`. To reproduce this bug, set VMCS to NMI Exiting = 0,
+virtual NMIs = 0, Blocking by NMI = 1. Then let L2 halt using HLT and send only
+NMIs to L2. KVM shows that L2 will be interrupted by NMI. However, Bochs shows
+that L2 will never be interrupted.
+
+I am worried that KVM cannot be relied on for this purpose. Bochs should be
+used instead. Should run Bochs on newer machines to make it fast.
+
