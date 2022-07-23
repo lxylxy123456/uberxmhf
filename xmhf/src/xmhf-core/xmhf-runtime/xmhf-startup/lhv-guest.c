@@ -259,7 +259,7 @@ static void assert_measure(u32 source, uintptr_t rip)
 void hlt_wait(u32 source)
 {
 	uintptr_t rip;
-	printf("    hlt_wait() called, source = %s\n", exit_source_str[source]);
+	printf("    hlt_wait() begin, source =  %s\n", exit_source_str[source]);
 	prepare_measure();
 	exit_source = EXIT_MEASURE;
 	l2_ready = 1;
@@ -271,19 +271,19 @@ loop:
 	}
 	l2_ready = 0;
 	assert_measure(source, rip);
-	printf("    hlt_wait() succeeded\n");
+	printf("    hlt_wait() end\n");
 }
 
 /* Execute IRET and expect interrupt to hit on the instruction */
 void iret_wait(u32 source)
 {
 	uintptr_t rip;
-	printf("    iret_wait() called, source = %s\n", exit_source_str[source]);
+	printf("    iret_wait() begin, source = %s\n", exit_source_str[source]);
 	prepare_measure();
 	exit_source = EXIT_MEASURE;
 	rip = xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
 	assert_measure(source, rip);
-	printf("    iret_wait() succeeded\n");
+	printf("    iret_wait() end\n");
 }
 
 void lhv_vmcall_main(void)
@@ -389,9 +389,12 @@ void lhv_guest_main(ulong_t cpu_id)
 {
 	TEST_ASSERT(cpu_id == 1);
 	asm volatile ("sti");
-	experiment_1();
-	experiment_2();
-	experiment_3();
+	// python3 -c $'import random\nfor i in range(100): print("\texperiment_%d(); TEST_ASSERT(!master_fail);" % random.randint(1, 3))'
+	if (0) {
+		experiment_1();
+		experiment_2();
+		experiment_3();
+	}
 	{
 		TEST_ASSERT(!master_fail);
 		printf("TEST PASS\nTEST PASS\nTEST PASS\n");
