@@ -51,6 +51,14 @@ static volatile uintptr_t exit_rip = 0;
         } \
     } while (0)
 
+/* https://zh.wikipedia.org/wiki/%E4%BC%AA%E9%9A%8F%E6%9C%BA%E6%80%A7 */
+u32 rand(void)
+{
+	static u32 seed = 12;
+	seed = seed * 1103515245 + 12345;
+	return (seed / 65536) % 32768;
+}
+
 void handle_interrupt_cpu1(u32 source, uintptr_t rip)
 {
 	HALT_ON_ERRORCOND(!master_fail);
@@ -325,6 +333,21 @@ void lhv_vmcall_main(void)
 			break;
 		}
 		break;
+	case 4:
+		switch (state_no) {
+		case 0:
+			set_state(0, 0, 1);
+			break;
+		case 1:
+			hlt_wait(EXIT_TIMER_H);
+			iret_wait(EXIT_NMI_H);
+			iret_wait(EXIT_MEASURE);
+			break;
+		default:
+			TEST_ASSERT(0 && "unexpected state");
+			break;
+		}
+		break;
 	default:
 		TEST_ASSERT(0 && "unexpected experiment");
 		break;
@@ -374,6 +397,7 @@ void experiment_2(void)
  * L1 (guest) blocks NMI, L2 (LHV) does not. L1 receives NMI, then VMENTRY to
  * L2. Result: L2 receives NMI after VMENTRY.
  * This test does not work on Bochs.
+ * This test does not work on QEMU ("experiment_3(); experiment_3();" fails).
  */
 void experiment_3(void)
 {
@@ -385,15 +409,82 @@ void experiment_3(void)
 	xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
 }
 
+/*
+ * Experiment 4: NMI Exiting = 0, virtual NMIs = 0
+ * L1 (guest) does not block NMI, sets VMCS to make L2 (LHV) block NMI. Then
+ * L2 VMEXIT to L1, and L1 expects an interrupt. Result: L1 does not get NMI.
+ * This test does not work on QEMU.
+ */
+void experiment_4(void)
+{
+	printf("Experiment: %d\n", (experiment_no = 4));
+	state_no = 0;
+	asm volatile ("vmcall");
+	state_no = 1;
+	asm volatile ("vmcall");
+	xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
+}
+
+static struct {
+	void (*f)(void);
+	bool support_qemu;
+	bool support_bochs;
+} experiments[] = {
+	{NULL, true, true},
+	{experiment_1, true, true},
+	{experiment_2, false, true},
+	{experiment_3, false, false},
+	{experiment_4, false, true},
+};
+
+static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
+
+static bool in_qemu = false;
+static bool in_bochs = false;
+
+void run_experiment(u32 i)
+{
+	if (in_qemu && !experiments[i].support_qemu) {
+		printf("Skipping experiments[%d] due to QEMU\n", i);
+		return;
+	}
+	if (in_bochs && !experiments[i].support_bochs) {
+		printf("Skipping experiments[%d] due to Bochs\n", i);
+		return;
+	}
+	if (experiments[i].f) {
+		experiments[i].f();
+	}
+	TEST_ASSERT(!master_fail);
+}
+
 void lhv_guest_main(ulong_t cpu_id)
 {
 	TEST_ASSERT(cpu_id == 1);
+	{
+#ifndef __DEBUG_VGA__
+		u32 eax, ebx, ecx, edx;
+		cpuid(0x1, &eax, &ebx, &ecx, &edx);
+		if (ecx & 0x80000000U) {
+			in_qemu = true;
+		} else {
+			in_bochs = true;
+		}
+#endif
+	}
 	asm volatile ("sti");
-	// python3 -c $'import random\nfor i in range(100): print("\texperiment_%d(); TEST_ASSERT(!master_fail);" % random.randint(1, 3))'
-	if (0) {
-		experiment_1();
-		experiment_2();
-		experiment_3();
+	if (0 && "sequential") {
+		for (u32 i = 0; i < nexperiments; i++) {
+			run_experiment(i);
+		}
+	}
+	if (0 && "random") {
+		for (u32 i = 0; i < 100000; i++) {
+			run_experiment(rand() % nexperiments);
+		}
+	}
+	{
+		experiment_4();
 	}
 	{
 		TEST_ASSERT(!master_fail);
