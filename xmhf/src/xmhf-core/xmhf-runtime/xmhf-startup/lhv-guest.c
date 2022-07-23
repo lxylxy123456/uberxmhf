@@ -151,7 +151,8 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	vmresume_asm(r);
 }
 
-void xmhf_smpguest_arch_x86vmx_unblock_nmi(void) {
+uintptr_t xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip(void) {
+	uintptr_t rip;
 #ifdef __AMD64__
     asm volatile (
         "movq    %%rsp, %%rsi   \r\n"
@@ -165,8 +166,8 @@ void xmhf_smpguest_arch_x86vmx_unblock_nmi(void) {
         "pushq   %%rax          \r\n"
         "pushq   $1f            \r\n"
         "iretq                  \r\n"
-        "1: nop                 \r\n"
-        : // no output
+        "1: leaq 1b, %0         \r\n"
+        : "=g"(rip)
         : // no input
         : "%rax", "%rsi", "cc", "memory");
 #elif defined(__I386__)
@@ -177,16 +178,23 @@ void xmhf_smpguest_arch_x86vmx_unblock_nmi(void) {
         "pushl   %%eax          \r\n"
         "pushl   $1f            \r\n"
         "iretl                  \r\n"
-        "1: nop                 \r\n"
-        : // no output
+        "1: leal 1b, %0         \r\n"
+        : "=g"(rip)
         : // no input
         : "%eax", "cc", "memory");
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
+	return rip;
 }
 
-void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi)
+static bool get_blocking_by_nmi(void)
+{
+	u32 guest_int = vmcs_vmread(NULL, VMCS_guest_interruptibility);
+	return (guest_int & 0x8U);
+}
+
+static void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi)
 {
 	{
 		u32 ctl_pin_base = vmcs_vmread(NULL, VMCS_control_VMX_pin_based);
@@ -209,6 +217,7 @@ void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi)
 	}
 }
 
+/* Execute HLT and expect interrupt to hit on the instruction */
 void hlt_wait(u32 source)
 {
 	uintptr_t rip;
@@ -217,13 +226,30 @@ void hlt_wait(u32 source)
 	exit_source = EXIT_MEASURE;
 	l2_ready = 1;
 loop:
-	asm volatile ("hlt; 1: leal 1b, %0;" : "=g"(rip));
+	asm volatile ("pushf; sti; hlt; 1: leal 1b, %0; popf" : "=g"(rip));
 	if ("qemu workaround" && exit_source == EXIT_MEASURE) {
+		printf("Strange wakeup from HLT\n");
 		goto loop;
 	}
 	l2_ready = 0;
 	TEST_ASSERT(exit_source == source);
 	TEST_ASSERT(rip == exit_rip);
+	exit_source = EXIT_IGNORE;
+	exit_rip = 0;
+}
+
+/* Execute IRET and expect interrupt to hit on the instruction */
+void iret_wait(u32 source)
+{
+	uintptr_t rip;
+	TEST_ASSERT(exit_rip == 0);
+	TEST_ASSERT(exit_source == EXIT_IGNORE);
+	exit_source = EXIT_MEASURE;
+	rip = xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
+	TEST_ASSERT(exit_source == source);
+	if (exit_source != EXIT_MEASURE) {
+		TEST_ASSERT(rip == exit_rip);
+	}
 	exit_source = EXIT_IGNORE;
 	exit_rip = 0;
 }
@@ -240,10 +266,13 @@ void lhv_vmcall_main(void)
 			set_state(0, 0, 1);
 			break;
 		case 1:
-			// TODO: looks like NMI is also blocked on host.
-			printf(".\n");
-			asm volatile ("hlt");
-			printf(".\n");
+			printf("Entered host\n");
+			TEST_ASSERT(get_blocking_by_nmi());
+			TEST_ASSERT(exit_source == EXIT_MEASURE);
+			exit_source = EXIT_IGNORE;
+			hlt_wait(EXIT_TIMER_H);
+			/* Looks like NMI is also blocked on host. */
+			printf("Leaving host\n");
 			break;
 		default:
 			TEST_ASSERT(0 && "unexpected state");
@@ -265,16 +294,16 @@ void experiment_1(void) {
 	asm volatile ("vmcall");
 	/* Make sure NMI hits HLT */
 	hlt_wait(EXIT_NMI_G);
-	xmhf_smpguest_arch_x86vmx_unblock_nmi();
+	xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
 	/* Reset state by letting Timer hit HLT */
 	hlt_wait(EXIT_TIMER_G);
-	exit_source = EXIT_IGNORE;
 }
 
 /*
  * Experiment 2: NMI Exiting = 0, virtual NMIs = 0
  * L2 (guest) blocks NMI, L1 (LHV) does not. L2 receives NMI, then VMENTRY to
- * L1.
+ * L1. L1 does not receive NMI.
+ * This test does not work on QEMU.
  */
 void experiment_2(void) {
 	experiment_no = 2;
@@ -286,15 +315,16 @@ void experiment_2(void) {
 	exit_source = EXIT_MEASURE;
 	state_no = 1;
 	asm volatile ("vmcall");
-	// TODO
-	HALT_ON_ERRORCOND(0);
+	/* Unblock NMI. There are 2 NMIs, but only 1 delivered due to blocking. */
+	iret_wait(EXIT_NMI_G);
+	iret_wait(EXIT_MEASURE);
 }
 
 void lhv_guest_main(ulong_t cpu_id)
 {
 	TEST_ASSERT(cpu_id == 1);
 	asm volatile ("sti");
-	// experiment_1();
+	experiment_1();
 	experiment_2();
 	{
 		TEST_ASSERT(!master_fail);
