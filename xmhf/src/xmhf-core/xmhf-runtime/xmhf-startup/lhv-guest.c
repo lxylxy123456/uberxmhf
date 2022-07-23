@@ -20,6 +20,20 @@ enum exit_source {
 	EXIT_VMEXIT,	/* Interrupt comes from NMI VMEXIT handler */
 };
 
+const char *exit_source_str[] = {
+	"EXIT_IGNORE  (0)",
+	"EXIT_MEASURE (1)",
+	"EXIT_NMI_G   (2)",
+	"EXIT_TIMER_G (3)",
+	"EXIT_NMI_H   (4)",
+	"EXIT_TIMER_H (5)",
+	"EXIT_VMEXIT  (6)",
+	"OVERFLOW",
+	"OVERFLOW",
+	"OVERFLOW",
+	"OVERFLOW",
+};
+
 static volatile u32 l2_ready = 0;
 static volatile u32 master_fail = 0;
 static volatile u32 experiment_no = 0;
@@ -42,15 +56,16 @@ void handle_interrupt_cpu1(u32 source, uintptr_t rip)
 	HALT_ON_ERRORCOND(!master_fail);
 	switch (exit_source) {
 	case EXIT_IGNORE:
-		printf("Interrupt %d ignored\n", source);
+		printf("      Interrupt ignored:        %s\n", exit_source_str[source]);
 		break;
 	case EXIT_MEASURE:
-		printf("Interrupt %d recorded\n", source);
+		printf("      Interrupt recorded:       %s\n", exit_source_str[source]);
 		exit_source = source;
 		exit_rip = rip;
 		break;
 	default:
-		printf("exit_source: %d; ", exit_source);
+		printf("source:      %s; ", exit_source_str[source]);
+		printf("exit_source: %s; ", exit_source_str[exit_source]);
 		TEST_ASSERT(0 && "Fail: unexpected exit_source");
 		break;
 	}
@@ -81,11 +96,11 @@ void handle_timer_interrupt(VCPU *vcpu, int vector, int guest, uintptr_t rip)
 			*icr_high = 0x01000000U;
 			switch ((count++) % (INTERRUPT_PERIOD * 2)) {
 			case 0:
-				printf("Inject NMI\n");
+				printf("      Inject NMI\n");
 				*icr_low = 0x00004400U;
 				break;
 			case INTERRUPT_PERIOD:
-				printf("Inject interrupt\n");
+				printf("      Inject interrupt\n");
 				*icr_low = 0x00004022U;
 				break;
 			default:
@@ -221,6 +236,7 @@ static void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi)
 void hlt_wait(u32 source)
 {
 	uintptr_t rip;
+	printf("    hlt_wait() called, source = %s\n", exit_source_str[source]);
 	TEST_ASSERT(exit_rip == 0);
 	TEST_ASSERT(exit_source == EXIT_IGNORE);
 	exit_source = EXIT_MEASURE;
@@ -228,7 +244,7 @@ void hlt_wait(u32 source)
 loop:
 	asm volatile ("pushf; sti; hlt; 1: leal 1b, %0; popf" : "=g"(rip));
 	if ("qemu workaround" && exit_source == EXIT_MEASURE) {
-		printf("Strange wakeup from HLT\n");
+		printf("      Strange wakeup from HLT\n");
 		goto loop;
 	}
 	l2_ready = 0;
@@ -236,12 +252,14 @@ loop:
 	TEST_ASSERT(rip == exit_rip);
 	exit_source = EXIT_IGNORE;
 	exit_rip = 0;
+	printf("    hlt_wait() succeeded\n");
 }
 
 /* Execute IRET and expect interrupt to hit on the instruction */
 void iret_wait(u32 source)
 {
 	uintptr_t rip;
+	printf("    iret_wait() called, source = %s\n", exit_source_str[source]);
 	TEST_ASSERT(exit_rip == 0);
 	TEST_ASSERT(exit_source == EXIT_IGNORE);
 	exit_source = EXIT_MEASURE;
@@ -252,10 +270,12 @@ void iret_wait(u32 source)
 	}
 	exit_source = EXIT_IGNORE;
 	exit_rip = 0;
+	printf("    iret_wait() succeeded\n");
 }
 
 void lhv_vmcall_main(void)
 {
+	printf("  Enter host, exp=%d, state=%d\n", experiment_no, state_no);
 	switch (experiment_no) {
 	case 1:
 		set_state(0, 0, 0);
@@ -266,13 +286,28 @@ void lhv_vmcall_main(void)
 			set_state(0, 0, 1);
 			break;
 		case 1:
-			printf("Entered host\n");
 			TEST_ASSERT(get_blocking_by_nmi());
 			TEST_ASSERT(exit_source == EXIT_MEASURE);
 			exit_source = EXIT_IGNORE;
 			hlt_wait(EXIT_TIMER_H);
 			/* Looks like NMI is also blocked on host. */
-			printf("Leaving host\n");
+			break;
+		default:
+			TEST_ASSERT(0 && "unexpected state");
+			break;
+		}
+		break;
+	case 3:
+		switch (state_no) {
+		case 0:
+			hlt_wait(EXIT_NMI_H);
+			/* Do not unblock NMI */
+			hlt_wait(EXIT_TIMER_H);
+			hlt_wait(EXIT_TIMER_H);
+			set_state(0, 0, 0);
+			/* Expecting EXIT_NMI_G after VMENTRY */
+			TEST_ASSERT(exit_source == EXIT_IGNORE);
+			exit_source = EXIT_MEASURE;
 			break;
 		default:
 			TEST_ASSERT(0 && "unexpected state");
@@ -283,14 +318,16 @@ void lhv_vmcall_main(void)
 		TEST_ASSERT(0 && "unexpected experiment");
 		break;
 	}
+	printf("  Leave host\n");
 }
 
 /*
  * Experiment 1: NMI Exiting = 0, virtual NMIs = 0
  * NMI will cause NMI interrupt handler in guest.
  */
-void experiment_1(void) {
-	experiment_no = 1;
+void experiment_1(void)
+{
+	printf("Experiment: %d\n", (experiment_no = 1));
 	asm volatile ("vmcall");
 	/* Make sure NMI hits HLT */
 	hlt_wait(EXIT_NMI_G);
@@ -301,12 +338,13 @@ void experiment_1(void) {
 
 /*
  * Experiment 2: NMI Exiting = 0, virtual NMIs = 0
- * L2 (guest) blocks NMI, L1 (LHV) does not. L2 receives NMI, then VMENTRY to
- * L1. L1 does not receive NMI.
+ * L2 (guest) blocks NMI, L1 (LHV) does not. L2 receives NMI, then VMEXIT to
+ * L1. Result: L1 does not receive NMI.
  * This test does not work on QEMU.
  */
-void experiment_2(void) {
-	experiment_no = 2;
+void experiment_2(void)
+{
+	printf("Experiment: %d\n", (experiment_no = 2));
 	state_no = 0;
 	asm volatile ("vmcall");
 	/* An NMI should be blocked, then a timer hits HLT */
@@ -320,12 +358,30 @@ void experiment_2(void) {
 	iret_wait(EXIT_MEASURE);
 }
 
+/*
+ * Experiment 3: NMI Exiting = 0, virtual NMIs = 0
+ * L1 (guest) blocks NMI, L2 (LHV) does not. L1 receives NMI, then VMENTRY to
+ * L2. Result: L2 receives NMI after VMENTRY
+ */
+void experiment_3(void)
+{
+	uintptr_t rip;
+	printf("Experiment: %d\n", (experiment_no = 3));
+	state_no = 0;
+	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
+	TEST_ASSERT(exit_source == EXIT_NMI_G);
+	TEST_ASSERT(exit_rip == rip);
+	exit_source = EXIT_IGNORE;
+	exit_rip = 0;
+}
+
 void lhv_guest_main(ulong_t cpu_id)
 {
 	TEST_ASSERT(cpu_id == 1);
 	asm volatile ("sti");
 	experiment_1();
 	experiment_2();
+	experiment_3();
 	{
 		TEST_ASSERT(!master_fail);
 		printf("TEST PASS\nTEST PASS\nTEST PASS\n");
