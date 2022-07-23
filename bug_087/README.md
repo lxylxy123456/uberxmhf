@@ -267,7 +267,14 @@ While writing tests, found a possible KVM bug. Reproduce in
 virtual NMIs = 0, Blocking by NMI = 1. Then let L2 halt using HLT and send only
 NMIs to L2. KVM shows that L2 will be interrupted by NMI. However, Bochs shows
 that L2 will never be interrupted.
+* Note: later, it looks like L2 NMI handler is not raised, but CPU resumes from
+  HLT instruction.
 
 I am worried that KVM cannot be relied on for this purpose. Bochs should be
 used instead. Should run Bochs on newer machines to make it fast.
+
+Then when writing `lhv-dev 8c235cd81`, I realized that QEMU does not raise any
+interrupt handler. Instead, it just resumes the HLT handler. So to workaround
+this QEMU problem, we can simply make HLT a conditional loop. See
+`lhv-dev 8fd86d991`.
 
