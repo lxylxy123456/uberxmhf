@@ -38,7 +38,7 @@ static volatile u32 l2_ready = 0;
 static volatile u32 master_fail = 0;
 static volatile u32 experiment_no = 0;
 static volatile u32 state_no = 0;
-static volatile enum exit_source exit_source = EXIT_IGNORE;
+static volatile enum exit_source exit_source = EXIT_MEASURE;
 static volatile uintptr_t exit_rip = 0;
 
 #define TEST_ASSERT(_p) \
@@ -57,6 +57,7 @@ void handle_interrupt_cpu1(u32 source, uintptr_t rip)
 	switch (exit_source) {
 	case EXIT_IGNORE:
 		printf("      Interrupt ignored:        %s\n", exit_source_str[source]);
+		TEST_ASSERT(0 && "Should not ignore interrupt");
 		break;
 	case EXIT_MEASURE:
 		printf("      Interrupt recorded:       %s\n", exit_source_str[source]);
@@ -64,8 +65,8 @@ void handle_interrupt_cpu1(u32 source, uintptr_t rip)
 		exit_rip = rip;
 		break;
 	default:
-		printf("source:      %s; ", exit_source_str[source]);
-		printf("exit_source: %s; ", exit_source_str[exit_source]);
+		printf("\nsource:      %s", exit_source_str[source]);
+		printf("\nexit_source: %s", exit_source_str[exit_source]);
 		TEST_ASSERT(0 && "Fail: unexpected exit_source");
 		break;
 	}
@@ -232,13 +233,34 @@ static void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi)
 	}
 }
 
+/* Prepare for assert_measure() */
+static void prepare_measure(void)
+{
+	TEST_ASSERT(exit_source == EXIT_MEASURE);
+	TEST_ASSERT(exit_rip == 0);
+}
+
+/* Assert an interrupt source happens at rip */
+static void assert_measure(u32 source, uintptr_t rip)
+{
+	if (exit_source != source) {
+		printf("\nsource:      %s", exit_source_str[source]);
+		printf("\nexit_source: %s", exit_source_str[exit_source]);
+		TEST_ASSERT(0 && (exit_source == source));
+	}
+	if (exit_source != EXIT_MEASURE) {
+		TEST_ASSERT(rip == exit_rip);
+	}
+	exit_source = EXIT_MEASURE;
+	exit_rip = 0;
+}
+
 /* Execute HLT and expect interrupt to hit on the instruction */
 void hlt_wait(u32 source)
 {
 	uintptr_t rip;
 	printf("    hlt_wait() called, source = %s\n", exit_source_str[source]);
-	TEST_ASSERT(exit_rip == 0);
-	TEST_ASSERT(exit_source == EXIT_IGNORE);
+	prepare_measure();
 	exit_source = EXIT_MEASURE;
 	l2_ready = 1;
 loop:
@@ -248,10 +270,7 @@ loop:
 		goto loop;
 	}
 	l2_ready = 0;
-	TEST_ASSERT(exit_source == source);
-	TEST_ASSERT(rip == exit_rip);
-	exit_source = EXIT_IGNORE;
-	exit_rip = 0;
+	assert_measure(source, rip);
 	printf("    hlt_wait() succeeded\n");
 }
 
@@ -260,16 +279,10 @@ void iret_wait(u32 source)
 {
 	uintptr_t rip;
 	printf("    iret_wait() called, source = %s\n", exit_source_str[source]);
-	TEST_ASSERT(exit_rip == 0);
-	TEST_ASSERT(exit_source == EXIT_IGNORE);
+	prepare_measure();
 	exit_source = EXIT_MEASURE;
 	rip = xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
-	TEST_ASSERT(exit_source == source);
-	if (exit_source != EXIT_MEASURE) {
-		TEST_ASSERT(rip == exit_rip);
-	}
-	exit_source = EXIT_IGNORE;
-	exit_rip = 0;
+	assert_measure(source, rip);
 	printf("    iret_wait() succeeded\n");
 }
 
@@ -287,8 +300,7 @@ void lhv_vmcall_main(void)
 			break;
 		case 1:
 			TEST_ASSERT(get_blocking_by_nmi());
-			TEST_ASSERT(exit_source == EXIT_MEASURE);
-			exit_source = EXIT_IGNORE;
+			assert_measure(EXIT_MEASURE, 0);
 			hlt_wait(EXIT_TIMER_H);
 			/* Looks like NMI is also blocked on host. */
 			break;
@@ -306,8 +318,7 @@ void lhv_vmcall_main(void)
 			hlt_wait(EXIT_TIMER_H);
 			set_state(0, 0, 0);
 			/* Expecting EXIT_NMI_G after VMENTRY */
-			TEST_ASSERT(exit_source == EXIT_IGNORE);
-			exit_source = EXIT_MEASURE;
+			prepare_measure();
 			break;
 		default:
 			TEST_ASSERT(0 && "unexpected state");
@@ -361,7 +372,8 @@ void experiment_2(void)
 /*
  * Experiment 3: NMI Exiting = 0, virtual NMIs = 0
  * L1 (guest) blocks NMI, L2 (LHV) does not. L1 receives NMI, then VMENTRY to
- * L2. Result: L2 receives NMI after VMENTRY
+ * L2. Result: L2 receives NMI after VMENTRY.
+ * This test does not work on Bochs.
  */
 void experiment_3(void)
 {
@@ -369,10 +381,8 @@ void experiment_3(void)
 	printf("Experiment: %d\n", (experiment_no = 3));
 	state_no = 0;
 	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
-	TEST_ASSERT(exit_source == EXIT_NMI_G);
-	TEST_ASSERT(exit_rip == rip);
-	exit_source = EXIT_IGNORE;
-	exit_rip = 0;
+	assert_measure(EXIT_NMI_G, rip);
+	xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
 }
 
 void lhv_guest_main(ulong_t cpu_id)
