@@ -294,87 +294,14 @@ void iret_wait(u32 source)
 	printf("    iret_wait() end\n");
 }
 
-void lhv_vmcall_main(void)
-{
-	printf("  Enter host, exp=%d, state=%d\n", experiment_no, state_no);
-	switch (experiment_no) {
-	case 1:
-		set_state(0, 0, 0);
-		break;
-	case 2:
-		switch (state_no) {
-		case 0:
-			set_state(0, 0, 1);
-			break;
-		case 1:
-			TEST_ASSERT(get_blocking_by_nmi());
-			assert_measure(EXIT_MEASURE, 0);
-			hlt_wait(EXIT_TIMER_H);
-			/* Looks like NMI is also blocked on host. */
-			break;
-		default:
-			TEST_ASSERT(0 && "unexpected state");
-			break;
-		}
-		break;
-	case 3:
-		switch (state_no) {
-		case 0:
-			hlt_wait(EXIT_NMI_H);
-			/* Do not unblock NMI */
-			hlt_wait(EXIT_TIMER_H);
-			hlt_wait(EXIT_TIMER_H);
-			set_state(0, 0, 0);
-			/* Expecting EXIT_NMI_G after VMENTRY */
-			prepare_measure();
-			break;
-		default:
-			TEST_ASSERT(0 && "unexpected state");
-			break;
-		}
-		break;
-	case 4:
-		switch (state_no) {
-		case 0:
-			set_state(0, 0, 1);
-			break;
-		case 1:
-			hlt_wait(EXIT_TIMER_H);
-			iret_wait(EXIT_NMI_H);
-			iret_wait(EXIT_MEASURE);
-			break;
-		default:
-			TEST_ASSERT(0 && "unexpected state");
-			break;
-		}
-		break;
-	case 5:
-		switch (state_no) {
-		case 0:
-			set_state(1, 0, 0);
-			break;
-		case 1:
-			xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
-			break;
-		default:
-			TEST_ASSERT(0 && "unexpected state");
-			break;
-		}
-		break;
-	default:
-		TEST_ASSERT(0 && "unexpected experiment");
-		break;
-	}
-	printf("  Leave host\n");
-}
-
 /*
  * Experiment 1: NMI Exiting = 0, virtual NMIs = 0
  * NMI will cause NMI interrupt handler in guest.
  */
-void experiment_1(void)
+static void experiment_1(void)
 {
 	printf("Experiment: %d\n", (experiment_no = 1));
+	state_no = 0;
 	asm volatile ("vmcall");
 	/* Make sure NMI hits HLT */
 	hlt_wait(EXIT_NMI_G);
@@ -383,13 +310,25 @@ void experiment_1(void)
 	hlt_wait(EXIT_TIMER_G);
 }
 
+static void experiment_1_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		set_state(0, 0, 0);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 /*
  * Experiment 2: NMI Exiting = 0, virtual NMIs = 0
  * L2 (guest) blocks NMI, L1 (LHV) does not. L2 receives NMI, then VMEXIT to
  * L1. Result: L1 does not receive NMI.
  * This test does not work on QEMU.
  */
-void experiment_2(void)
+static void experiment_2(void)
 {
 	printf("Experiment: %d\n", (experiment_no = 2));
 	state_no = 0;
@@ -405,6 +344,24 @@ void experiment_2(void)
 	iret_wait(EXIT_MEASURE);
 }
 
+static void experiment_2_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		set_state(0, 0, 1);
+		break;
+	case 1:
+		TEST_ASSERT(get_blocking_by_nmi());
+		assert_measure(EXIT_MEASURE, 0);
+		hlt_wait(EXIT_TIMER_H);
+		/* Looks like NMI is also blocked on host. */
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 /*
  * Experiment 3: NMI Exiting = 0, virtual NMIs = 0
  * L1 (guest) blocks NMI, L2 (LHV) does not. L1 receives NMI, then VMENTRY to
@@ -412,7 +369,7 @@ void experiment_2(void)
  * This test does not work on Bochs.
  * This test does not work on QEMU ("experiment_3(); experiment_3();" fails).
  */
-void experiment_3(void)
+static void experiment_3(void)
 {
 	uintptr_t rip;
 	printf("Experiment: %d\n", (experiment_no = 3));
@@ -422,13 +379,31 @@ void experiment_3(void)
 	xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
 }
 
+static void experiment_3_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		hlt_wait(EXIT_NMI_H);
+		/* Do not unblock NMI */
+		hlt_wait(EXIT_TIMER_H);
+		hlt_wait(EXIT_TIMER_H);
+		set_state(0, 0, 0);
+		/* Expecting EXIT_NMI_G after VMENTRY */
+		prepare_measure();
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 /*
  * Experiment 4: NMI Exiting = 0, virtual NMIs = 0
  * L1 (guest) does not block NMI, sets VMCS to make L2 (LHV) block NMI. Then
  * L2 VMEXIT to L1, and L1 expects an interrupt. Result: L1 does not get NMI.
  * This test does not work on QEMU.
  */
-void experiment_4(void)
+static void experiment_4(void)
 {
 	printf("Experiment: %d\n", (experiment_no = 4));
 	state_no = 0;
@@ -438,13 +413,30 @@ void experiment_4(void)
 	xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
 }
 
+static void experiment_4_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		set_state(0, 0, 1);
+		break;
+	case 1:
+		hlt_wait(EXIT_TIMER_H);
+		iret_wait(EXIT_NMI_H);
+		iret_wait(EXIT_MEASURE);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 /*
  * Experiment 5: NMI Exiting = 1, virtual NMIs = 0
  * L2 (guest) does not block NMI. When NMI hits L2, VMEXIT should happen.
  * Result: VMEXIT happens.
- * This test does not work on Bochs ("experiment_5(); experiment_1();" fails).
+ * This test may not work on Bochs ("experiment_5(); experiment_1();" fails).
  */
-void experiment_5(void)
+static void experiment_5(void)
 {
 	printf("Experiment: %d\n", (experiment_no = 5));
 	state_no = 0;
@@ -455,17 +447,33 @@ void experiment_5(void)
 	hlt_wait(EXIT_TIMER_G);
 }
 
+static void experiment_5_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		set_state(1, 0, 0);
+		break;
+	case 1:
+		xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 static struct {
 	void (*f)(void);
+	void (*vmcall)(void);
 	bool support_qemu;
 	bool support_bochs;
 } experiments[] = {
-	{NULL, true, true},
-	{experiment_1, true, true},
-	{experiment_2, false, true},
-	{experiment_3, false, false},
-	{experiment_4, false, true},
-	{experiment_5, true, false},
+	{NULL, NULL, true, true},
+	{experiment_1, experiment_1_vmcall, true, true},
+	{experiment_2, experiment_2_vmcall, false, true},
+	{experiment_3, experiment_3_vmcall, false, false},
+	{experiment_4, experiment_4_vmcall, false, true},
+	{experiment_5, experiment_5_vmcall, true, false},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
@@ -523,6 +531,15 @@ void lhv_guest_main(ulong_t cpu_id)
 		l2_ready = 0;
 		HALT();
 	}
+}
+
+void lhv_vmcall_main(void)
+{
+	printf("  Enter host, exp=%d, state=%d\n", experiment_no, state_no);
+	TEST_ASSERT(experiment_no < nexperiments);
+	TEST_ASSERT(experiments[experiment_no].vmcall);
+	experiments[experiment_no].vmcall();
+	printf("  Leave host\n");
 }
 
 #if 0
