@@ -160,7 +160,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	case VMX_VMEXIT_EXCEPTION:
 		TEST_ASSERT((vmcs_vmread(vcpu, VMCS_info_vmexit_interrupt_information) &
 					 INTR_INFO_VECTOR_MASK) == 0x2);
-		handle_interrupt_cpu1(EXIT_VMEXIT, guest_rip + inst_len);
+		handle_interrupt_cpu1(EXIT_VMEXIT, guest_rip);
 		vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 		break;
 	default:
@@ -348,6 +348,19 @@ void lhv_vmcall_main(void)
 			break;
 		}
 		break;
+	case 5:
+		switch (state_no) {
+		case 0:
+			set_state(1, 0, 0);
+			break;
+		case 1:
+			xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
+			break;
+		default:
+			TEST_ASSERT(0 && "unexpected state");
+			break;
+		}
+		break;
 	default:
 		TEST_ASSERT(0 && "unexpected experiment");
 		break;
@@ -425,6 +438,23 @@ void experiment_4(void)
 	xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
 }
 
+/*
+ * Experiment 5: NMI Exiting = 1, virtual NMIs = 0
+ * L2 (guest) does not block NMI. When NMI hits L2, VMEXIT should happen.
+ * Result: VMEXIT happens.
+ * This test does not work on Bochs ("experiment_5(); experiment_1();" fails).
+ */
+void experiment_5(void)
+{
+	printf("Experiment: %d\n", (experiment_no = 5));
+	state_no = 0;
+	asm volatile ("vmcall");
+	hlt_wait(EXIT_VMEXIT);
+	state_no = 1;
+	asm volatile ("vmcall");
+	hlt_wait(EXIT_TIMER_G);
+}
+
 static struct {
 	void (*f)(void);
 	bool support_qemu;
@@ -435,6 +465,7 @@ static struct {
 	{experiment_2, false, true},
 	{experiment_3, false, false},
 	{experiment_4, false, true},
+	{experiment_5, true, false},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
@@ -484,7 +515,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		}
 	}
 	{
-		experiment_4();
+		experiment_5();
 	}
 	{
 		TEST_ASSERT(!master_fail);
