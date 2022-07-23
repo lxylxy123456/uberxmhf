@@ -46,7 +46,7 @@ void handle_interrupt_cpu1(u32 source, uintptr_t rip)
 		exit_rip = rip;
 		break;
 	default:
-		printf("exit_source: %d\n", exit_source);
+		printf("exit_source: %d; ", exit_source);
 		TEST_ASSERT(0 && "Fail: unexpected exit_source");
 		break;
 	}
@@ -77,8 +77,8 @@ void handle_timer_interrupt(VCPU *vcpu, int vector, int guest, uintptr_t rip)
 				*icr_low = 0x00004400U;
 				break;
 			case INTERRUPT_PERIOD:
-//				printf("Inject interrupt\n");
-//				*icr_low = 0x00004022U;
+				printf("Inject interrupt\n");
+				*icr_low = 0x00004022U;
 				break;
 			default:
 				break;
@@ -139,6 +139,41 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	vmresume_asm(r);
 }
 
+void xmhf_smpguest_arch_x86vmx_unblock_nmi(void) {
+#ifdef __AMD64__
+    asm volatile (
+        "movq    %%rsp, %%rsi   \r\n"
+        "xorq    %%rax, %%rax   \r\n"
+        "movw    %%ss, %%ax     \r\n"
+        "pushq   %%rax          \r\n"
+        "pushq   %%rsi          \r\n"
+        "pushfq                 \r\n"
+        "xorq    %%rax, %%rax   \r\n"
+        "movw    %%cs, %%ax     \r\n"
+        "pushq   %%rax          \r\n"
+        "pushq   $1f            \r\n"
+        "iretq                  \r\n"
+        "1: nop                 \r\n"
+        : // no output
+        : // no input
+        : "%rax", "%rsi", "cc", "memory");
+#elif defined(__I386__)
+    asm volatile (
+        "pushfl                 \r\n"
+        "xorl    %%eax, %%eax   \r\n"
+        "movw    %%cs, %%ax     \r\n"
+        "pushl   %%eax          \r\n"
+        "pushl   $1f            \r\n"
+        "iretl                  \r\n"
+        "1: nop                 \r\n"
+        : // no output
+        : // no input
+        : "%eax", "cc", "memory");
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+}
+
 void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi)
 {
 	{
@@ -171,8 +206,8 @@ void hlt_wait(u32 source)
 	l2_ready = 1;
 	asm volatile ("hlt; 1: leal 1b, %0;" : "=g"(rip));
 	l2_ready = 0;
-	TEST_ASSERT(rip == exit_rip);
 	TEST_ASSERT(exit_source == source);
+	TEST_ASSERT(rip == exit_rip);
 	exit_source = EXIT_IGNORE;
 	exit_rip = 0;
 }
@@ -205,6 +240,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		asm volatile ("vmcall");
 		/* Make sure NMI hits HLT */
 		hlt_wait(EXIT_NMI);
+		xmhf_smpguest_arch_x86vmx_unblock_nmi();
 		/* Reset state by letting Timer hit HLT */
 		hlt_wait(EXIT_TIMER);
 		exit_source = EXIT_IGNORE;
