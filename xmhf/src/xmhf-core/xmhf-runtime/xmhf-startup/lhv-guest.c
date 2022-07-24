@@ -481,6 +481,38 @@ static void experiment_5_vmcall(void)
 	}
 }
 
+/*
+ * Experiment 6: NMI Exiting = 1, virtual NMIs = 0
+ * L2 (guest) blocks NMI. When NMI hits L2, VMEXIT should happen.
+ * Result: VMEXIT happens.
+ * This test does not work on Bochs.
+ */
+static void experiment_6(void)
+{
+	printf("Experiment: %d\n", (experiment_no = 6));
+	state_no = 0;
+	asm volatile ("vmcall");
+	hlt_wait(EXIT_VMEXIT);
+	state_no = 1;
+	asm volatile ("vmcall");
+	hlt_wait(EXIT_TIMER_G);
+}
+
+static void experiment_6_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		set_state(1, 0, 1);
+		break;
+	case 1:
+		xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 static struct {
 	void (*f)(void);
 	void (*vmcall)(void);
@@ -492,7 +524,8 @@ static struct {
 	{experiment_2, experiment_2_vmcall, false, true},
 	{experiment_3, experiment_3_vmcall, false, false},
 	{experiment_4, experiment_4_vmcall, false, true},
-	{experiment_5, experiment_5_vmcall, true, false},
+	{experiment_5, experiment_5_vmcall, true, true},
+	{experiment_6, experiment_6_vmcall, true, false},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
@@ -542,7 +575,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		}
 	}
 	{
-		experiment_5();
+		experiment_6();
 	}
 	{
 		TEST_ASSERT(!master_fail);
