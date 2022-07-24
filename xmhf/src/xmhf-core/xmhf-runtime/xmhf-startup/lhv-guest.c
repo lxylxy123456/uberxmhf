@@ -289,8 +289,7 @@ void hlt_wait(u32 source)
 	exit_source = EXIT_MEASURE;
 	l2_ready = 1;
 loop:
-	/* NMI VMEXIT may incorrectly increase RIP for QEMU. Add NOP to be safe. */
-	asm volatile ("pushf; sti; hlt; 1: nop; leal 1b, %0; popf" : "=g"(rip));
+	asm volatile ("pushf; sti; hlt; 1: leal 1b, %0; popf" : "=g"(rip));
 	if ("qemu workaround" && exit_source == EXIT_MEASURE) {
 		printf("      Strange wakeup from HLT\n");
 		goto loop;
@@ -323,7 +322,7 @@ static void experiment_1(void)
 	asm volatile ("vmcall");
 	/* Make sure NMI hits HLT */
 	hlt_wait(EXIT_NMI_G);
-	xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
+	iret_wait(EXIT_MEASURE);
 	/* Reset state by letting Timer hit HLT */
 	hlt_wait(EXIT_TIMER_G);
 }
@@ -394,7 +393,7 @@ static void experiment_3(void)
 	state_no = 0;
 	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
 	assert_measure(EXIT_NMI_G, rip);
-	xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
+	iret_wait(EXIT_MEASURE);
 }
 
 static void experiment_3_vmcall(void)
@@ -428,7 +427,7 @@ static void experiment_4(void)
 	asm volatile ("vmcall");
 	state_no = 1;
 	asm volatile ("vmcall");
-	xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
+	iret_wait(EXIT_MEASURE);
 }
 
 static void experiment_4_vmcall(void)
@@ -472,7 +471,7 @@ static void experiment_5_vmcall(void)
 		set_state(1, 0, 0);
 		break;
 	case 1:
-		xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
+		iret_wait(EXIT_MEASURE);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
@@ -577,7 +576,7 @@ static void experiment_8_vmcall(void)
 		set_state(1, 1, 0);
 		break;
 	case 1:
-		xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
+		iret_wait(EXIT_MEASURE);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
