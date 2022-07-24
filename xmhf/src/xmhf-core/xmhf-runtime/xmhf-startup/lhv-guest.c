@@ -655,7 +655,7 @@ static void experiment_10_vmcall(void)
 /*
  * Experiment 11: NMI Exiting = 1, virtual NMIs = 1
  * L1 (host) blocks NMI, NMI hits L1. L2 (guest) blocks virtual NMI in VMCS.
- * L1 VMENTRY to L2 (guest), Result: TODO L2 receives NMI VMEXIT.
+ * L1 VMENTRY to L2 (guest), Result: L2 receives NMI VMEXIT.
  * This test does not work on Bochs.
  */
 static void experiment_11(void)
@@ -689,6 +689,39 @@ static void experiment_11_vmcall(void)
 	}
 }
 
+/*
+ * Experiment 12: NMI Exiting = 1, virtual NMIs = 1
+ * L2 (guest) blocks virtual NMI in VMCS, then executes IRET.
+ * Result: L2 no longer blocks virtual NMI.
+ */
+static void experiment_12(void)
+{
+	printf("Experiment: %d\n", (experiment_no = 12));
+	state_no = 0;
+	asm volatile ("vmcall");
+	iret_wait(EXIT_MEASURE);
+	state_no = 1;
+	asm volatile ("vmcall");
+}
+
+static void experiment_12_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		set_state(1, 1, 1);
+		break;
+	case 1:
+		TEST_ASSERT(!get_blocking_by_nmi());
+		hlt_wait(EXIT_NMI_H);
+		iret_wait(EXIT_MEASURE);
+		hlt_wait(EXIT_TIMER_H);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 static struct {
 	void (*f)(void);
 	void (*vmcall)(void);
@@ -708,6 +741,7 @@ static struct {
 	{experiment_9, experiment_9_vmcall, true, true, true},
 	{experiment_10, experiment_10_vmcall, true, true, false},
 	{experiment_11, experiment_11_vmcall, true, true, false},
+	{experiment_12, experiment_12_vmcall, true, true, true},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
@@ -756,7 +790,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		}
 	}
 	{
-		experiment_11();
+		experiment_12();
 	}
 	if (1 && "random") {
 		for (u32 i = 0; i < 100000; i++) {
