@@ -244,20 +244,23 @@ the SDM is not very straight forward. In the best case, the experiments should
 be automated.
 
 * NMI Exiting = 0, virtual NMIs = 0: when L2 does not block NMI. If L2 receives
-  an NMI, it invokes L2's exception handler.
+  an NMI, it invokes L2's exception handler. `experiment_1()`: correct
 * NMI Exiting = 0, virtual NMIs = 0: when L1 blocks NMI, L2 does not block. If
   L1 receives an NMI, then VMENTRY to L2, will L2 get the NMI?
+  `experiment_3()`: yes
 * NMI Exiting = 0, virtual NMIs = 0: when L1 does not block NMI, set VMCS so
   that L2 blocks. After L2 VMEXIT to L1, will L1 also block NMI?
+  `experiment_4()`: yes
 * NMI Exiting = 0, virtual NMIs = 0: when L1 does not block NMI, L2 blocks. If
   L2 receives an NMI, then VMEXIT to L1 (L1 may need to IRET), will L1 get the
-  NMI?
+  NMI? `experiment_2()`: no
 * NMI Exiting = 1, virtual NMIs = 0: when L2 does not block NMI, if L2 receives
-  NMI, VMEXIT happens.
+  NMI, VMEXIT happens. `experiment_5()`: correct
 * NMI Exiting = 1, virtual NMIs = 0: when L2 blocks NMI, if L2 receives NMI,
-  VMEXIT happens.
+  VMEXIT happens. `experiment_6()`: correct
 * NMI Exiting = 1, virtual NMIs = 0: when L1 blocks NMI, L2 any configuration.
   If L1 receives an NMI, then VMENTRY to L2, will L2 VMEXIT to L1?
+  `experiment_7()`: yes
 * ...
 
 ### Possible KVM bug
@@ -277,4 +280,74 @@ Then when writing `lhv-dev 8c235cd81`, I realized that QEMU does not raise any
 interrupt handler. Instead, it just resumes the HLT handler. So to workaround
 this QEMU problem, we can simply make HLT a conditional loop. See
 `lhv-dev 8fd86d991`.
+
+Then, I realized that Bochs may also have bugs. In `lhv-dev 35f7d6fb9`,
+`experiment_3()` fails on Bochs, but succeeds on QEMU and Thinkpad. So from now
+on we need to be careful when testing on both QEMU and Bochs.
+
+KVM / Bochs bugs
+* Make sure all experiments can run
+	* Some experiments in Bochs are not stable
+* When NMI hits HLT instruction, VMCS is different from Thinkpad
+	* Common RIP: immediately after the HLT instruction
+	* Thinkpad: Activity state = 1, VMEXIT inst length = 1
+	* KVM: Activity state = 0, VMEXIT inst length = 1
+	* Bochs: Activity state = 0, VMEXIT inst length = 0
+	* To reproduce, run `experiment_5()` and print VMCS in NMI VMEXIT handler.
+
+### Conclusion of experiments
+
+After implementing 13 experiments in `lhv-dev aa8d89b1c..254e7d222`, we
+summarize the VMX behavior related to NMI below. Note that looks like there are
+a lot of bugs in KVM and Bochs. So KVM and Bochs can only be used to debug the
+experiment code. The results on real hardware is the ground truth.
+
+* Non VMX related
+	* In host, IRET removes NMI blocking
+	* If NMI pending and host does not block NMI, host NMI interrupt handler is
+	  executed
+* NMI Exiting = 0, virtual NMIs = 0
+	* When VMENTRY, guest's NMI blocking status is determined by VMCS
+	* When non-NMI VMEXIT, host's NMI blocking is determined by guest's NMI
+	  blocking status (i.e. does not change)
+	* In guest, IRET removes NMI blocking
+	* If NMI pending and guest does not block NMI, guest NMI interrupt handler
+	  is executed
+* NMI Exiting = 1, virtual NMIs = 0
+	* When VMENTRY, guest's NMI blocking status is determined by VMCS
+	* When non-NMI VMEXIT, host's NMI blocking is determined by guest's NMI
+	  blocking status (i.e. does not change)
+	* In guest, IRET does not change NMI blocking status
+	* If NMI pending and guest does not block NMI, NMI VMEXIT to host
+* NMI Exiting = 1, virtual NMIs = 1
+	* When VMENTRY, guest's virtual NMI blocking status is determined by VMCS
+	* When VMENTRY, guest's NMI blocking status is (does not matter)
+	* When non-NMI VMEXIT, host's NMI blocking status is not blocking
+	* In guest, IRET changes virtual NMI blocking status
+	* If NMI pending and always, NMI VMEXIT to host
+
+We can rephrase the above:
+* When VMENTRY,
+	* Guest NMI blocking is
+		* If virtual NMIs = 0, determined by VMCS
+		* If virtual NMIs = 1, not blocking
+	* Guest virtual NMI blocking is
+		* (Assert virtual NMIs = 1), determined by VMCS
+* When non-NMI VMEXIT,
+	* Host NMI blocking is
+		* The same as guest NMI blocking (i.e. does not change)
+* When guest executes IRET
+	* If NMI Exiting = 0, virtual NMIs = 0, remove NMI blocking
+	* If NMI Exiting = 1, virtual NMIs = 0, no effect
+	* If NMI Exiting = 1, virtual NMIs = 1, remove virtual NMI blocking
+* When NMI pending and guest does not block NMI,
+	* If NMI Exiting = 0, execute guest NMI interrupt handler
+	* If NMI Exiting = 1, VMEXIT
+
+For now, we can start writing XMHF code. In the future, may need to add some
+experiments for NMI window exiting.
+
+TODO: new experiment: L1 block NMI, receive NMI, VMENTRY to L2, but also inject a page fault or similar. See whether page fault comes first or NMI comes first.
+TODO: write XMHF NMI handling code
+TODO: report KVM and Bochs bugs
 
