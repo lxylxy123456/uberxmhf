@@ -132,6 +132,18 @@ typedef struct vmcs12_info {
 	void *guest_ept_cache_line;
 	/* When guest_ept_enable, pointer to EPT12 root */
 	gpa_t guest_ept_root;
+	/* "NMI exiting" in VMCS */
+	bool guest_nmi_exiting;
+	/* "Virtual NMIs" in VMCS */
+	bool guest_virtual_nmis;
+	/* "NMI-window exiting" in VMCS */
+	bool guest_nmi_window_exiting;
+	/*
+	 * When "NMI exiting" = 1, whether the guest is blocking NMIs.
+	 * Note: when "NMI exiting" = 0, this field is undefined. Use guest
+	 * interruptibility field in VMCS02.
+	 */
+	bool guest_block_nmi;
 } vmcs12_info_t;
 
 size_t xmhf_nested_arch_x86vmx_vmcs_field_find(ulong_t encoding);

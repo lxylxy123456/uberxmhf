@@ -591,6 +591,12 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 	/* 32-Bit Control Fields */
 	{
 		u32 val = vmcs12->control_VMX_pin_based;
+		/* Check for relationship between "NMI exiting" and "virtual NMIs" */
+		vmcs12_info->guest_nmi_exiting = _vmx_hasctl_nmi_exiting(&ctls);
+		vmcs12_info->guest_virtual_nmis = _vmx_hasctl_virtual_nmis(&ctls);
+		if (!vmcs12_info->guest_nmi_exiting && vmcs12_info->guest_virtual_nmis) {
+			return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
+		}
 		/* Enable NMI exiting because needed by quiesce */
 		val |= (1U << VMX_PINBASED_NMI_EXITING);
 		val |= (1U << VMX_PINBASED_VIRTUAL_NMIS);
@@ -598,6 +604,16 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 	}
 	{
 		u32 val = vmcs12->control_VMX_cpu_based;
+		/*
+		 * Check for relationship between "virtual NMIs" and "NMI-window
+		 * exiting"
+		 */
+		vmcs12_info->guest_nmi_window_exiting =
+			_vmx_hasctl_nmi_window_exiting(&ctls);
+		if (!vmcs12_info->guest_virtual_nmis &&
+			vmcs12_info->guest_nmi_window_exiting) {
+			return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
+		}
 		/* XMHF needs to activate secondary controls because of EPT */
 		val |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
 		__vmx_vmwrite32(VMCSENC_control_VMX_cpu_based, val);
@@ -728,6 +744,21 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 	/* 32-Bit Read-Only Data Fields: skipped */
 
 	/* 32-Bit Guest-State Fields */
+	{
+		u32 val = vmcs12->guest_interruptibility;
+		if (vmcs12_info->guest_nmi_exiting) {
+			if (vmcs12_info->guest_virtual_nmis) {
+				/* NMI Exiting = 1, virtual NMIs = 1 */
+				vmcs12_info->guest_block_nmi = false;
+			} else {
+				/* NMI Exiting = 1, virtual NMIs = 0 */
+				vmcs12_info->guest_block_nmi = val & (1U << 3);
+			}
+		} else {
+			/* NMI Exiting = 0, virtual NMIs = 0, guest_block_nmi is ignored */
+		}
+		__vmx_vmwrite32(VMCSENC_guest_interruptibility, val);
+	}
 
 	/* 32-Bit Host-State Field */
 
@@ -984,9 +1015,16 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		HALT_ON_ERRORCOND(val == __vmx_vmread32(VMCSENC_control_VMX_pin_based));
 	}
 	{
-		u32 val = vmcs12->control_VMX_cpu_based;
-		val |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
-		HALT_ON_ERRORCOND(val == __vmx_vmread32(VMCSENC_control_VMX_cpu_based));
+		u32 val12 = vmcs12->control_VMX_cpu_based;
+		u32 val02 = __vmx_vmread32(VMCSENC_control_VMX_cpu_based);
+		/* Secondary controls are always required in VMCS02 for EPT */
+		val12 |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
+		/* If VMCS12 does not set NMI exiting, NMI window exiting may change */
+		if (!vmcs12_info->guest_nmi_exiting) {
+			val12 &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+			val02 &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+		}
+		HALT_ON_ERRORCOND(val12 == val02);
 	}
 	{
 		// TODO: in the future, need to merge with host's exception bitmap
@@ -1141,6 +1179,33 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 	/* 32-Bit Read-Only Data Fields */
 
 	/* 32-Bit Guest-State Fields */
+	{
+		u32 val = __vmx_vmread32(VMCSENC_guest_interruptibility);
+		if (vmcs12_info->guest_nmi_exiting) {
+			/* Copy guest NMI blocking to host (VMCS01) */
+			if (vmcs12_info->guest_block_nmi) {
+				vcpu->vmcs.guest_interruptibility |= (1U << 3);
+			} else {
+				vcpu->vmcs.guest_interruptibility &= ~(1U << 3);
+			}
+			/* Set guest interruptibility state in VMCS12 */
+			if (!vmcs12_info->guest_virtual_nmis) {
+				if (vmcs12_info->guest_block_nmi) {
+					val |= (1U << 3);
+				} else {
+					val &= ~(1U << 3);
+				}
+			}
+		} else {
+			/* Copy guest NMI blocking to host (VMCS01) */
+			if (val & (1U << 3)) {
+				vcpu->vmcs.guest_interruptibility |= (1U << 3);
+			} else {
+				vcpu->vmcs.guest_interruptibility &= ~(1U << 3);
+			}
+		}
+		vmcs12->guest_interruptibility = val;
+	}
 
 	/* 32-Bit Host-State Field */
 

@@ -674,13 +674,13 @@ u32 xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(VCPU *vcpu) {
 }
 
 /* Return whether NMI for XMHF's intercept handler is temporarily blocked */
-static bool xmhf_smpguest_arch_x86vmx_mhv_nmi_disabled(VCPU *vcpu)
+bool xmhf_smpguest_arch_x86vmx_mhv_nmi_disabled(VCPU *vcpu)
 {
 	return vcpu->vmx_guest_nmi_disable;
 }
 
 /* Handle NMI for the guest received in XMHF's NMI interrupt handler */
-void xmhf_smpguest_arch_x86vmx_mhv_nmi_handle(VCPU *vcpu)
+void xmhf_smpguest_arch_x86vmx_mhv_nmi_handle(VCPU *vcpu, struct regs *r)
 {
 	HALT_ON_ERRORCOND(xmhf_smpguest_arch_x86vmx_mhv_nmi_disabled(vcpu));
 
@@ -688,10 +688,18 @@ void xmhf_smpguest_arch_x86vmx_mhv_nmi_handle(VCPU *vcpu)
 	case SMPG_VMX_NMI_INJECT:
 		xmhf_smpguest_arch_x86vmx_inject_nmi(vcpu);
 		break;
+#ifdef __NESTED_VIRTUALIZATION__
+	case SMPG_VMX_NMI_NESTED:
+		xmhf_nested_arch_x86vmx_handle_nmi(vcpu, r);
+		break;
+#endif /* __NESTED_VIRTUALIZATION__ */
 	default:
 		HALT_ON_ERRORCOND(0 && "Unexpected vcpu->vmx_guest_nmi_handler_arg");
 		break;
 	}
+#ifndef __NESTED_VIRTUALIZATION__
+	(void)r;
+#endif /* !__NESTED_VIRTUALIZATION__ */
 }
 
 /*
@@ -733,7 +741,7 @@ void xmhf_smpguest_arch_x86vmx_mhv_nmi_disable(VCPU *vcpu)
 }
 
 /* Unblock NMI in XMHF's intercept handler */
-void xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(VCPU *vcpu)
+void xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(VCPU *vcpu, struct regs *r)
 {
 	HALT_ON_ERRORCOND(vcpu->vmx_guest_nmi_disable);
 	vcpu->vmx_guest_nmi_disable = false;
@@ -742,7 +750,7 @@ void xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(VCPU *vcpu)
 		asm volatile ("lock decl %0" : "+m"(vcpu->vmx_guest_nmi_visited) : :
 					  "cc");
 		vcpu->vmx_guest_nmi_disable = true;
-		xmhf_smpguest_arch_x86vmx_mhv_nmi_handle(vcpu);
+		xmhf_smpguest_arch_x86vmx_mhv_nmi_handle(vcpu, r);
 		vcpu->vmx_guest_nmi_disable = false;
 	}
 	HALT_ON_ERRORCOND(!vcpu->vmx_guest_nmi_disable);
@@ -781,8 +789,8 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(VCPU *vcpu, struct regs
 			 * handler, NMIs are blocked by hardware.
 			 */
 			xmhf_smpguest_arch_x86vmx_mhv_nmi_disable(vcpu);
-			xmhf_smpguest_arch_x86vmx_mhv_nmi_handle(vcpu);
-			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
+			xmhf_smpguest_arch_x86vmx_mhv_nmi_handle(vcpu, r);
+			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu, r);
 		}
 	}
 
@@ -889,6 +897,26 @@ u8 * xmhf_smpguest_arch_x86vmx_walk_pagetables(VCPU *vcpu, u32 vaddr){
   }
 }
 
+// Update NMI window exiting bit in VMCS control_VMX_cpu_based
+void xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(VCPU *vcpu,
+														 u32 *procctl)
+{
+	/* Compute the bit's value */
+	bool nmi_window_exiting = false;
+	if (vcpu->vmx_guest_nmi_cfg.guest_nmi_block) {
+		nmi_window_exiting = false;
+	} else if (vcpu->vmx_guest_nmi_cfg.guest_nmi_pending) {
+		nmi_window_exiting = true;
+	}
+	/* Update the bit */
+	if (nmi_window_exiting) {
+		*procctl |= (1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+	} else {
+		*procctl &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+	}
+}
+
+
 // Inject NMI to the guest when the guest is ready to receive it (i.e. when the
 // guest is not running NMI handler)
 // The NMI window VMEXIT is used to make sure the guest is able to receive NMIs
@@ -931,7 +959,9 @@ void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU *vcpu)
 	{
 		u32 __ctl_VM_entry_intr_info = __vmx_vmread32(0x4016);
 		if ((__ctl_VM_entry_intr_info & INTR_INFO_VALID_MASK) &&
-			(__ctl_VM_entry_intr_info & INTR_INFO_VECTOR_MASK) == NMI_VECTOR) {
+			(__ctl_VM_entry_intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI) {
+			HALT_ON_ERRORCOND((__ctl_VM_entry_intr_info & INTR_INFO_VECTOR_MASK) ==
+							  NMI_VECTOR);
 			nmi_pending_limit = 1;
 		}
 	}
@@ -944,10 +974,10 @@ void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU *vcpu)
 	}
 
 	/* Set NMI windowing bit as required */
-	if (!vcpu->vmx_guest_nmi_cfg.guest_nmi_block) {
-		u32 __control_VMX_cpu_based = __vmx_vmread32(0x4002);
-		__control_VMX_cpu_based |= (1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
-		__vmx_vmwrite32(0x4002, __control_VMX_cpu_based);
+	{
+		u32 procctl = __vmx_vmread32(0x4002);
+		xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(vcpu, &procctl);
+		__vmx_vmwrite32(0x4002, procctl);
 	}
 }
 
@@ -962,8 +992,9 @@ void xmhf_smpguest_arch_x86vmx_nmi_block(VCPU *vcpu)
 	/* Set NMI block bit in VCPU */
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_block = true;
 
-	/* Remove NMI windowing bit in VMCS */
-	vcpu->vmcs.control_VMX_cpu_based &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+	/* Remove NMI windowing bit in VMCS as needed */
+	xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(
+		vcpu, &vcpu->vmcs.control_VMX_cpu_based);
 }
 
 // Unblock NMIs using software
@@ -977,8 +1008,7 @@ void xmhf_smpguest_arch_x86vmx_nmi_unblock(VCPU *vcpu)
 	/* Clear NMI block bit in VCPU */
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_block = false;
 
-	/* Set NMI windowing bit in VMCS */
-	if (vcpu->vmx_guest_nmi_cfg.guest_nmi_pending) {
-		vcpu->vmcs.control_VMX_cpu_based |= (1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
-	}
+	/* Set NMI windowing bit in VMCS as needed */
+	xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(
+		vcpu, &vcpu->vmcs.control_VMX_cpu_based);
 }

@@ -269,7 +269,7 @@ static vmcs12_info_t *find_active_vmcs12(VCPU * vcpu, gpa_t vmcs_ptr)
 }
 
 /* Add a new VMCS12 to the array of actives. Initializes underlying VMCS02 */
-static void new_active_vmcs12(VCPU * vcpu, gpa_t vmcs_ptr, u32 rev)
+static vmcs12_info_t *new_active_vmcs12(VCPU * vcpu, gpa_t vmcs_ptr, u32 rev)
 {
 	vmcs12_info_t *vmcs12_info;
 	HALT_ON_ERRORCOND(vmcs_ptr != CUR_VMCS_PTR_INVALID);
@@ -290,7 +290,11 @@ static void new_active_vmcs12(VCPU * vcpu, gpa_t vmcs_ptr, u32 rev)
 		   sizeof(vmcs12_info->vmcs02_vmentry_msr_load_area));
 	vmcs12_info->guest_ept_enable = 0;
 	vmcs12_info->guest_ept_root = 0;
-	/* vmcs12_info->ept02_ctx is initialized when guest uses EPT */
+	vmcs12_info->guest_nmi_exiting = false;
+	vmcs12_info->guest_virtual_nmis = false;
+	vmcs12_info->guest_nmi_window_exiting = false;
+	vmcs12_info->guest_block_nmi = false;
+	return vmcs12_info;
 }
 
 /*
@@ -300,11 +304,15 @@ static void new_active_vmcs12(VCPU * vcpu, gpa_t vmcs_ptr, u32 rev)
  */
 static vmcs12_info_t *find_current_vmcs12(VCPU * vcpu)
 {
-	vmcs12_info_t *ans;
+	vmcs12_info_t *ans = vcpu->vmx_nested_current_vmcs12_info;
 	gpa_t vmcs_ptr = vcpu->vmx_nested_current_vmcs_pointer;
 	HALT_ON_ERRORCOND(vmcs_ptr != CUR_VMCS_PTR_INVALID);
-	ans = find_active_vmcs12(vcpu, vmcs_ptr);
 	HALT_ON_ERRORCOND(ans != NULL);
+	HALT_ON_ERRORCOND(ans->vmcs12_ptr == vmcs_ptr);
+	/*
+	 * An expensive but optional check:
+	 * HALT_ON_ERRORCOND(ans == find_active_vmcs12(vcpu, vmcs_ptr));
+	 */
 	return ans;
 }
 
@@ -361,6 +369,36 @@ static u32 _vmx_check_physical_addr_width(VCPU * vcpu, u64 addr)
 	return (addr & ~paddrmask) == 0;
 }
 
+static void _update_nested_nmi(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
+							   struct regs *r)
+{
+	/* Compute the bit's value */
+	bool nmi_pending = false;
+	if (vcpu->vmx_guest_nmi_cfg.guest_nmi_block) {
+		nmi_pending = false;
+	} else if (vcpu->vmx_guest_nmi_cfg.guest_nmi_pending) {
+		nmi_pending = true;
+	}
+
+	/* Update VMCS / VMEXIT as required */
+	if (vmcs12_info->guest_nmi_exiting) {
+		if (nmi_pending && !vmcs12_info->guest_block_nmi) {
+			// TODO
+			HALT_ON_ERRORCOND(0 && "TODO: NMI VMEXIT to L1");
+		}
+	} else {
+		u32 procctl = __vmx_vmread32(0x4002);
+		if (nmi_pending) {
+			procctl |= (1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+		} else {
+			procctl &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+		}
+		__vmx_vmwrite32(0x4002, procctl);
+	}
+
+	(void)r;
+}
+
 /*
  * Perform VMENTRY. Never returns if succeed. If controls / host state check
  * fails, return error code for _vmx_nested_vm_fail().
@@ -398,7 +436,13 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	/* From now on, cannot fail */
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
 
-	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
+	/* Process NMI */
+	_update_nested_nmi(vcpu, vmcs12_info, r);
+
+	/* Change NMI handler from L1 to L2 */
+	HALT_ON_ERRORCOND(vcpu->vmx_guest_nmi_handler_arg == SMPG_VMX_NMI_INJECT);
+	vcpu->vmx_guest_nmi_handler_arg = SMPG_VMX_NMI_NESTED;
+	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu, r);
 
 	if (vmcs12_info->launched) {
 		__vmx_vmentry_vmresume(r);
@@ -486,6 +530,7 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 	vcpu->vmx_nested_vmxon_pointer = 0;
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
 	vcpu->vmx_nested_current_vmcs_pointer = CUR_VMCS_PTR_INVALID;
+	vcpu->vmx_nested_current_vmcs12_info = NULL;
 
 	/* Compute MSRs for the guest */
 	for (i = 0; i < IA32_VMX_MSRCOUNT; i++) {
@@ -583,6 +628,55 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 	xmhf_nested_arch_x86vmx_vpid_init(vcpu);
 }
 
+/* Handle NMI interrupt when XMHF is interacting with nested guest */
+void xmhf_nested_arch_x86vmx_handle_nmi(VCPU * vcpu, struct regs *r)
+{
+	vmcs12_info_t *vmcs12_info = find_current_vmcs12(vcpu);
+	u32 nmi_pending_limit;
+
+	HALT_ON_ERRORCOND(xmhf_smpguest_arch_x86vmx_mhv_nmi_disabled(vcpu));
+
+	/* Calculate the maximum value of guest_nmi_pending */
+	nmi_pending_limit = 2;
+
+	/* When the guest OS is blocking NMI, max of guest_nmi_pending is 1 */
+	if (vmcs12_info->guest_nmi_exiting) {
+		if (vmcs12_info->guest_block_nmi) {
+			nmi_pending_limit = 1;
+		}
+	} else {
+		u32 guest_int = __vmx_vmread32(VMCSENC_guest_interruptibility);
+		if (guest_int & (1U << 3)) {
+			nmi_pending_limit = 1;
+		}
+	}
+
+	/*
+	 * When XMHF is injecting NMI to guest OS, the guest OS will soon be
+	 * blocking NMI. So this case is the same as previous one. Max of
+	 * guest_nmi_pending is 1.
+	 */
+	if (!vmcs12_info->guest_nmi_exiting) {
+		u32 __ctl_VM_entry_intr_info =
+			__vmx_vmread32(VMCSENC_control_VM_entry_interruption_information);
+		if ((__ctl_VM_entry_intr_info & INTR_INFO_VALID_MASK)
+			&& (__ctl_VM_entry_intr_info & INTR_INFO_VECTOR_MASK) == NMI_VECTOR) {
+			nmi_pending_limit = 1;
+		}
+	}
+
+	HALT_ON_ERRORCOND(vcpu->vmx_guest_nmi_cfg.guest_nmi_pending <=
+					  nmi_pending_limit);
+
+	/* Increment guest_nmi_pending, but not exceeding limit */
+	if (vcpu->vmx_guest_nmi_cfg.guest_nmi_pending < nmi_pending_limit) {
+		vcpu->vmx_guest_nmi_cfg.guest_nmi_pending++;
+	}
+
+	/* Set NMI windowing bit as required */
+	_update_nested_nmi(vcpu, vmcs12_info, r);
+}
+
 /* Handle VMEXIT from nested guest */
 void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
@@ -595,44 +689,76 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	 * Check whether this VMEXIT is for quiescing. If so, printing before the
 	 * quiesce is completed will result in deadlock.
 	 */
-	if (vmexit_reason == VMX_VMEXIT_EXCEPTION &&
-		(__vmx_vmread32(VMCSENC_info_vmexit_interrupt_information) &
-		 INTR_INFO_VECTOR_MASK) == 0x2) {
-		/* NMI received by L2 guest */
-		if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu)) {
-			xmhf_smpguest_arch_x86vmx_unblock_nmi();
-			/*
-			 * Make sure that there is no interruption. (Not implemented if
-			 * there is one. In this case re-injecting the event is likely the
-			 * correct thing to do.)
-			 */
-			{
-				u32 idt_info;
-				u16 encoding = VMCSENC_info_IDT_vectoring_information;
-				idt_info = __vmx_vmread32(encoding);
-				HALT_ON_ERRORCOND((idt_info & 0x80000000U) == 0);
+	if (vmexit_reason == VMX_VMEXIT_EXCEPTION) {
+		u32 intr_info =
+			__vmx_vmread32(VMCSENC_info_vmexit_interrupt_information);
+		HALT_ON_ERRORCOND(intr_info & INTR_INFO_VALID_MASK);
+		if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI) {
+			HALT_ON_ERRORCOND((intr_info & INTR_INFO_VECTOR_MASK) ==
+							  NMI_VECTOR);
+			/* NMI received by L2 guest */
+			if (xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(vcpu)) {
+				xmhf_smpguest_arch_x86vmx_unblock_nmi();
+				/*
+				 * Make sure that there is no interruption. (Not implemented if
+				 * there is one. In this case re-injecting the event is likely
+				 * the correct thing to do.)
+				 */
+				{
+					u32 idt_info;
+					u16 encoding = VMCSENC_info_IDT_vectoring_information;
+					idt_info = __vmx_vmread32(encoding);
+					HALT_ON_ERRORCOND((idt_info & INTR_INFO_VALID_MASK) == 0);
+				}
+			} else {
+				xmhf_smpguest_arch_x86vmx_unblock_nmi();
+				/*
+				 * Note that xmhf_nested_arch_x86vmx_handle_nmi() may decide to
+				 * perform L2 -> L0 -> L1. In this case the function never
+				 * returns.
+				 */
+				xmhf_nested_arch_x86vmx_handle_nmi(vcpu, r);
 			}
 			/*
 			 * This is the rare case where we have L2 -> L0 -> L2. Usually it
 			 * is L2 -> L0 -> L1.
 			 */
-			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
+			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu, r);
 			__vmx_vmentry_vmresume(r);
 			HALT_ON_ERRORCOND(0 && "VMRESUME should not return");
-		} else {
-			/*
-			 * TODO: Need to check guest's setting about virtual NMI etc
-			 *
-			 * Likely should move this logic to after
-			 * xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12().
-			 */
-			HALT_ON_ERRORCOND(0 && "Nested guest NMI handling not implemented");
-			/* You probably want the following */
-			xmhf_smpguest_arch_x86vmx_unblock_nmi();
 		}
 	}
 
 	vmcs12_info = find_current_vmcs12(vcpu);
+
+	if (vmexit_reason == VMX_VMEXIT_NMI_WINDOW) {
+		/*
+		 * When "NMI exiting" = 0 in VMCS12, NMI windowing is used by L0 XMHF
+		 * to inject NMI to L2 nested guest. This is similar to injecting to
+		 * L1 guest when there is no nested virtualization.
+		 */
+		if (!vmcs12_info->guest_nmi_exiting) {
+			/* Inject NMI to L2 */
+			u16 encoding;
+			u32 idt_info;
+			encoding = VMCSENC_info_IDT_vectoring_information;
+			idt_info = __vmx_vmread32(encoding);
+			HALT_ON_ERRORCOND(!(idt_info & INTR_INFO_VALID_MASK));
+			idt_info = NMI_VECTOR | INTR_TYPE_NMI | INTR_INFO_VALID_MASK;
+			encoding = VMCSENC_control_VM_entry_interruption_information;
+			__vmx_vmwrite32(encoding, idt_info);
+			encoding = VMCSENC_control_VM_entry_exception_errorcode;
+			__vmx_vmwrite32(encoding, 0U);
+			/* Update NMI windowing */
+			HALT_ON_ERRORCOND(vcpu->vmx_guest_nmi_cfg.guest_nmi_pending > 0);
+			vcpu->vmx_guest_nmi_cfg.guest_nmi_pending--;
+			_update_nested_nmi(vcpu, vmcs12_info, r);
+			/* VMRESUME */
+			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu, r);
+			__vmx_vmentry_vmresume(r);
+			HALT_ON_ERRORCOND(0 && "VMRESUME should not return");
+		}
+	}
 
 	/*
 	 * Check whether this VMEXIT is caused by EPT violation.
@@ -716,7 +842,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 				__vmx_vmwrite32(encoding, idt_errcode);
 			}
 			/* Call VMRESUME */
-			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
+			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu, r);
 			__vmx_vmentry_vmresume(r);
 			HALT_ON_ERRORCOND(0 && "VMRESUME should not return");
 			break;
@@ -770,9 +896,20 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	/* Prepare VMRESUME to guest hypervisor */
 	HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa((void *)vcpu->vmx_vmcs_vaddr)));
 	xmhf_baseplatform_arch_x86vmx_putVMCS(vcpu);
-	// TODO: handle vcpu->vmx_guest_inject_nmi?
 	vcpu->vmx_nested_is_vmx_root_operation = 1;
-	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
+
+	/* NMI status be changed during L2, so update L1's NMI window exiting */
+	{
+		u32 procctl = __vmx_vmread32(0x4002);
+		xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(vcpu, &procctl);
+		__vmx_vmwrite32(0x4002, procctl);
+	}
+
+	/* Change NMI handler from L2 to L1 */
+	HALT_ON_ERRORCOND(vcpu->vmx_guest_nmi_handler_arg == SMPG_VMX_NMI_NESTED);
+	vcpu->vmx_guest_nmi_handler_arg = SMPG_VMX_NMI_INJECT;
+	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu, r);
+
 	__vmx_vmentry_vmresume(r);
 }
 
@@ -952,6 +1089,7 @@ void xmhf_nested_arch_x86vmx_handle_vmclear(VCPU * vcpu, struct regs *r)
 							   PAGE_SIZE_4K);
 			if (vmcs_ptr == vcpu->vmx_nested_current_vmcs_pointer) {
 				vcpu->vmx_nested_current_vmcs_pointer = CUR_VMCS_PTR_INVALID;
+				vcpu->vmx_nested_current_vmcs12_info = NULL;
 			}
 			_vmx_nested_vm_succeed(vcpu);
 		}
@@ -1034,9 +1172,10 @@ void xmhf_nested_arch_x86vmx_handle_vmptrld(VCPU * vcpu, struct regs *r)
 			} else {
 				vmcs12_info_t *vmcs12_info = find_active_vmcs12(vcpu, vmcs_ptr);
 				if (vmcs12_info == NULL) {
-					new_active_vmcs12(vcpu, vmcs_ptr, rev);
+					vmcs12_info = new_active_vmcs12(vcpu, vmcs_ptr, rev);
 				}
 				vcpu->vmx_nested_current_vmcs_pointer = vmcs_ptr;
+				vcpu->vmx_nested_current_vmcs12_info = vmcs12_info;
 				_vmx_nested_vm_succeed(vcpu);
 			}
 		}
@@ -1202,6 +1341,7 @@ void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU * vcpu, struct regs *r)
 					vcpu->vmx_nested_is_vmx_root_operation = 1;
 					vcpu->vmx_nested_current_vmcs_pointer =
 						CUR_VMCS_PTR_INVALID;
+					vcpu->vmx_nested_current_vmcs12_info = NULL;
 					active_vmcs12_array_init(vcpu);
 					_vmx_nested_vm_succeed(vcpu);
 				}
