@@ -483,19 +483,20 @@ static void experiment_5_vmcall(void)
 
 /*
  * Experiment 6: NMI Exiting = 1, virtual NMIs = 0
- * L2 (guest) blocks NMI. When NMI hits L2, VMEXIT should happen.
- * Result: VMEXIT happens.
- * This test does not work on Bochs.
+ * L2 (guest) blocks NMI. When NMI hits L2. Result: VMEXIT does not happen.
+ * Then, execute IRET in guest: Result: VMEXIT still does not happen
+ * Then, execute IRET in host: Result: VMEXIT happen in host when IRET
+ * This test does not work on QEMU.
  */
 static void experiment_6(void)
 {
 	printf("Experiment: %d\n", (experiment_no = 6));
 	state_no = 0;
 	asm volatile ("vmcall");
-	hlt_wait(EXIT_VMEXIT);
+	hlt_wait(EXIT_TIMER_G);
+	iret_wait(EXIT_MEASURE);
 	state_no = 1;
 	asm volatile ("vmcall");
-	hlt_wait(EXIT_TIMER_G);
 }
 
 static void experiment_6_vmcall(void)
@@ -505,7 +506,8 @@ static void experiment_6_vmcall(void)
 		set_state(1, 0, 1);
 		break;
 	case 1:
-		xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
+		TEST_ASSERT(get_blocking_by_nmi());
+		iret_wait(EXIT_NMI_H);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
@@ -525,7 +527,7 @@ static struct {
 	{experiment_3, experiment_3_vmcall, false, false},
 	{experiment_4, experiment_4_vmcall, false, true},
 	{experiment_5, experiment_5_vmcall, true, true},
-	{experiment_6, experiment_6_vmcall, true, false},
+	{experiment_6, experiment_6_vmcall, false, true},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
