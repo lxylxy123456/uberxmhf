@@ -170,7 +170,6 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		switch (vmcs_vmread(vcpu, VMCS_guest_activity_state)) {
 		case 0:
 			/* CPU is active */
-			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 			break;
 		case 1:
 			/* Wake CPU from HLT state */
@@ -508,6 +507,44 @@ static void experiment_6_vmcall(void)
 	case 1:
 		TEST_ASSERT(get_blocking_by_nmi());
 		iret_wait(EXIT_NMI_H);
+		iret_wait(EXIT_MEASURE);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
+/*
+ * Experiment 7: NMI Exiting = 1, virtual NMIs = 0
+ * L1 (host) blocks NMI, NMI hits L1. L2 (guest) does not block NMI in VMCS.
+ * L1 VMENTRY to L2 (guest), Result: L2 receives NMI VMEXIT.
+ * This test does not work on Bochs.
+ */
+static void experiment_7(void)
+{
+	uintptr_t rip;
+	printf("Experiment: %d\n", (experiment_no = 7));
+	state_no = 0;
+	prepare_measure();
+	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
+	assert_measure(EXIT_VMEXIT, rip);
+	state_no = 1;
+	asm volatile ("vmcall");
+}
+
+static void experiment_7_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		hlt_wait(EXIT_NMI_H);
+		hlt_wait(EXIT_TIMER_H);
+		hlt_wait(EXIT_TIMER_H);
+		set_state(1, 0, 0);
+		break;
+	case 1:
+		TEST_ASSERT(!get_blocking_by_nmi());
+		iret_wait(EXIT_MEASURE);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
@@ -518,16 +555,18 @@ static void experiment_6_vmcall(void)
 static struct {
 	void (*f)(void);
 	void (*vmcall)(void);
+	bool supported;
 	bool support_qemu;
 	bool support_bochs;
 } experiments[] = {
-	{NULL, NULL, true, true},
-	{experiment_1, experiment_1_vmcall, true, true},
-	{experiment_2, experiment_2_vmcall, false, true},
-	{experiment_3, experiment_3_vmcall, false, false},
-	{experiment_4, experiment_4_vmcall, false, true},
-	{experiment_5, experiment_5_vmcall, true, true},
-	{experiment_6, experiment_6_vmcall, false, true},
+	{NULL, NULL, false, false, false},
+	{experiment_1, experiment_1_vmcall, true, true, true},
+	{experiment_2, experiment_2_vmcall, true, false, true},
+	{experiment_3, experiment_3_vmcall, true, false, false},
+	{experiment_4, experiment_4_vmcall, true, false, true},
+	{experiment_5, experiment_5_vmcall, true, true, true},
+	{experiment_6, experiment_6_vmcall, true, false, true},
+	{experiment_7, experiment_7_vmcall, true, true, false},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
@@ -537,6 +576,10 @@ static bool in_bochs = false;
 
 void run_experiment(u32 i)
 {
+	if (!experiments[i].supported) {
+		printf("Skipping experiments[%d] due to global settings\n", i);
+		return;
+	}
 	if (in_qemu && !experiments[i].support_qemu) {
 		printf("Skipping experiments[%d] due to QEMU\n", i);
 		return;
@@ -577,7 +620,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		}
 	}
 	{
-		experiment_6();
+		experiment_7();
 	}
 	{
 		TEST_ASSERT(!master_fail);
