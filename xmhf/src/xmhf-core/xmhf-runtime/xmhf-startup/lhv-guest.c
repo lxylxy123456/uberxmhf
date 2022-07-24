@@ -508,6 +508,7 @@ static void experiment_6_vmcall(void)
 		TEST_ASSERT(get_blocking_by_nmi());
 		iret_wait(EXIT_NMI_H);
 		iret_wait(EXIT_MEASURE);
+		set_state(1, 0, 0);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
