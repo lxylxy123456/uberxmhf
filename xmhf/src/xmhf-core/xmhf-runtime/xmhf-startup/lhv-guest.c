@@ -161,7 +161,25 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		TEST_ASSERT((vmcs_vmread(vcpu, VMCS_info_vmexit_interrupt_information) &
 					 INTR_INFO_VECTOR_MASK) == 0x2);
 		handle_interrupt_cpu1(EXIT_VMEXIT, guest_rip);
-		vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+		if (0) {
+			u32 activ_state = vmcs_vmread(vcpu, VMCS_guest_activity_state);
+			printf("Activity state: %d\n", activ_state);
+			printf("Inst len:       %d\n", inst_len);
+			printf("Guest RIP:      0x%08x\n", guest_rip);
+		}
+		switch (vmcs_vmread(vcpu, VMCS_guest_activity_state)) {
+		case 0:
+			/* CPU is active */
+			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
+			break;
+		case 1:
+			/* Wake CPU from HLT state */
+			vmcs_vmwrite(vcpu, VMCS_guest_activity_state, 0);
+			break;
+		default:
+			TEST_ASSERT(0 && "Unknown activity state");
+			break;
+		}
 		break;
 	default:
 		{
@@ -272,7 +290,8 @@ void hlt_wait(u32 source)
 	exit_source = EXIT_MEASURE;
 	l2_ready = 1;
 loop:
-	asm volatile ("pushf; sti; hlt; 1: leal 1b, %0; popf" : "=g"(rip));
+	/* NMI VMEXIT may incorrectly increase RIP for QEMU. Add NOP to be safe. */
+	asm volatile ("pushf; sti; hlt; 1: nop; leal 1b, %0; popf" : "=g"(rip));
 	if ("qemu workaround" && exit_source == EXIT_MEASURE) {
 		printf("      Strange wakeup from HLT\n");
 		goto loop;
