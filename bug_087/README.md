@@ -295,7 +295,7 @@ KVM / Bochs bugs
 	* Bochs: Activity state = 0, VMEXIT inst length = 0
 	* To reproduce, run `experiment_5()` and print VMCS in NMI VMEXIT handler.
 
-### Conclusion of experiments
+### Conclusion of experiments 1 - 13
 
 After implementing 13 experiments in `lhv-dev aa8d89b1c..254e7d222`, we
 summarize the VMX behavior related to NMI below. Note that looks like there are
@@ -347,7 +347,33 @@ We can rephrase the above:
 For now, we can start writing XMHF code. In the future, may need to add some
 experiments for NMI window exiting.
 
+We need to design how NMI blocking are tracked
+* Host NMI blocking is always tracked in VMCS01's guest interruptibility
+* Guest NMI blocking
+	* If NMI Exiting = 0, virtual NMIs = 0, use VMCS02's guest interruptibility
+	* If NMI Exiting = 1, virtual NMIs = 0, use a new variable (copy from host)
+	* If NMI Exiting = 1, virtual NMIs = 1, use a new variable (set to 0)
+* Guest virtual NMI blocking: use VMCS02's guest interruptibility
+* L0 injecting NMI to L2
+	* If NMI Exiting = 0, use NMI window exiting bit in VMCS02
+	* If NMI Exiting = 1, manually check the "new variable" above
+
+In `xmhf64-nest 044fa9b95`, implemented logic that passes the first 4
+experiments, which are all experiments for NMI Exiting = 0, virtual NMIs = 0.
+Testing on QEMU looks good.
+
+In `xmhf64-nest-dev 6b6187186..47f04cc0f`, able to pass experiment 1 - 5.
+However, I think the way to pass experiment 5 is not clean. So not committing
+to `xmhf64-nest` for now.
+
+The alternative implementation is in `xmhf64-nest 40ae1ef3b..03cb5dd3e`. In
+this implementation, NMI windowing exits prefix all NMI VMEXITs. Though it may
+be slow, this makes sure that NMI VMEXITs will not overwrite interruption
+information / IDT vectoring information etc. This implementation passes
+all existing experiment (1 - 14).
+
 TODO: new experiment: L1 block NMI, receive NMI, VMENTRY to L2, but also inject a page fault or similar. See whether page fault comes first or NMI comes first.
-TODO: write XMHF NMI handling code
+TODO: add tests on number of NMIs delivered when NMI is blocked for a long time (some NMIs should be lost)
+TODO: add tests on whether NMI injection from host affects guest NMI blocking
 TODO: report KVM and Bochs bugs
 
