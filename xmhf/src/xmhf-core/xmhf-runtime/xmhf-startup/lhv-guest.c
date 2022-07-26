@@ -920,6 +920,8 @@ static void experiment_17_vmcall(void)
  * Experiment 18: NMI Exiting = 0, virtual NMIs = 0
  * L1 (host) does not block NMI. L2 (guest) does not block NMI. L1 injects an
  * NMI during VMENTRY to L2. Result: L2 does not blocks NMI after injection.
+ * This test does not work on Bochs.
+ * This test does not work on QEMU.
  */
 static void experiment_18(void)
 {
@@ -1001,7 +1003,6 @@ static void experiment_19_vmcall(void)
  * L1 (host) does not block NMI. L2 (guest) does not block virtual NMI. L1
  * injects an NMI during VMENTRY to L2. Result: L2 blocks virtual NMI after
  * injection.
- * This test does not work on Bochs.
  */
 static void experiment_20(void)
 {
@@ -1062,9 +1063,9 @@ static struct {
 	{experiment_15, experiment_15_vmcall, true, true, false},
 	{experiment_16, experiment_16_vmcall, true, true, false},
 	{experiment_17, experiment_17_vmcall, true, true, false},
-	{experiment_18, experiment_18_vmcall, true, true, true},
+	{experiment_18, experiment_18_vmcall, true, false, false},
 	{experiment_19, experiment_19_vmcall, true, false, false},
-	{experiment_20, experiment_20_vmcall, true, true, false},
+	{experiment_20, experiment_20_vmcall, true, true, true},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
