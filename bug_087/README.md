@@ -1,4 +1,4 @@
-# Running SMP Linux in XMHF in XMHF
+# Running SMP Linux in XMHF in XMHF (Solve NMI problems)
 
 ## Scope
 * KVM
@@ -372,8 +372,27 @@ be slow, this makes sure that NMI VMEXITs will not overwrite interruption
 information / IDT vectoring information etc. This implementation passes
 all existing experiment (1 - 14).
 
-TODO: new experiment: L1 block NMI, receive NMI, VMENTRY to L2, but also inject a page fault or similar. See whether page fault comes first or NMI comes first.
+### New experiments
+
+* Experiment 14 - 17: L1 block NMI, receive NMI, VMENTRY to L2 (not blocking
+  NMI) but also inject a keyboard interrupt. Result: The injected interrupt
+  comes first before NMI guest interrupt / NMI VMEXIT.
+* Experiment 18 - 20: L1 inject NMI to L2, observe whether L2 blocks NMI.
+  Result: NMIs are not blocked; virtual NMIs (when available) are blocked.
+	* Looks like Bochs and QEMU have a bug on this. We may end up also need to
+	  have this bug.
+
+The above experiments are implemented in `lhv-dev a770d519a..f3eef2219`.
+Thinkpad passes all the experiments. As predicted, `xmhf64-nest cc49ab14a`
+passes all except 18. For now, we let XMHF panic when experiment 18 is
+detected. Implemented in `xmhf64-nest cc49ab14a..ab678ccba`.
+
+TODO: add tests on NMI window exiting
+	* It happens when NMI blocking = 0
+	* It does not happen when NMI blocking = 1
+	* It happens when NMI blocking = 1 and then IRET
+	* Its priority compared to NMI VMEXIT
+TODO: try KVM XMHF XMHF Debian
 TODO: add tests on number of NMIs delivered when NMI is blocked for a long time (some NMIs should be lost)
-TODO: add tests on whether NMI injection from host affects guest NMI blocking
 TODO: report KVM and Bochs bugs
 
