@@ -919,7 +919,7 @@ static void experiment_17_vmcall(void)
 /*
  * Experiment 18: NMI Exiting = 0, virtual NMIs = 0
  * L1 (host) does not block NMI. L2 (guest) does not block NMI. L1 injects an
- * NMI during VMENTRY to L2. Result: L2 blocks NMI after injection.
+ * NMI during VMENTRY to L2. Result: L2 does not blocks NMI after injection.
  */
 static void experiment_18(void)
 {
@@ -945,7 +945,7 @@ static void experiment_18_vmcall(void)
 		prepare_measure();
 		break;
 	case 1:
-		TEST_ASSERT(get_blocking_by_nmi());
+		TEST_ASSERT(!get_blocking_by_nmi());
 		iret_wait(EXIT_MEASURE);
 		set_state(0, 0, 0);
 		break;
@@ -958,7 +958,7 @@ static void experiment_18_vmcall(void)
 /*
  * Experiment 19: NMI Exiting = 1, virtual NMIs = 0
  * L1 (host) does not block NMI. L2 (guest) does not block NMI. L1 injects an
- * NMI during VMENTRY to L2. Result: L2 blocks NMI after injection.
+ * NMI during VMENTRY to L2. Result: L2 does not block NMI after injection.
  * This test does not work on Bochs.
  * This test does not work on QEMU.
  */
@@ -985,6 +985,47 @@ static void experiment_19_vmcall(void)
 	case 1:
 		TEST_ASSERT(!get_blocking_by_nmi());
 		/* Make sure that host also does not block NMI */
+		hlt_wait(EXIT_NMI_H);
+		iret_wait(EXIT_MEASURE);
+		hlt_wait(EXIT_TIMER_H);
+		set_state(0, 0, 0);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
+/*
+ * Experiment 20: NMI Exiting = 1, virtual NMIs = 1
+ * L1 (host) does not block NMI. L2 (guest) does not block virtual NMI. L1
+ * injects an NMI during VMENTRY to L2. Result: L2 blocks virtual NMI after
+ * injection.
+ * This test does not work on Bochs.
+ */
+static void experiment_20(void)
+{
+	uintptr_t rip;
+	printf("Experiment: %d\n", (experiment_no = 20));
+	state_no = 0;
+	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
+	assert_measure(EXIT_NMI_G, rip);
+	state_no = 1;
+	asm volatile ("vmcall");
+}
+
+static void experiment_20_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		set_state(1, 1, 0);
+		vmcs_vmwrite(NULL, VMCS_control_VM_entry_interruption_information,
+					 0x80000202);
+		prepare_measure();
+		break;
+	case 1:
+		TEST_ASSERT(get_blocking_by_nmi());
+		/* Make sure that host does not block NMI */
 		hlt_wait(EXIT_NMI_H);
 		iret_wait(EXIT_MEASURE);
 		hlt_wait(EXIT_TIMER_H);
@@ -1023,6 +1064,7 @@ static struct {
 	{experiment_17, experiment_17_vmcall, true, true, false},
 	{experiment_18, experiment_18_vmcall, true, true, true},
 	{experiment_19, experiment_19_vmcall, true, false, false},
+	{experiment_20, experiment_20_vmcall, true, true, false},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
@@ -1066,7 +1108,7 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
-		experiment_19();
+		experiment_20();
 	}
 	if (1 && "sequential") {
 		for (u32 i = 0; i < nexperiments; i++) {
