@@ -68,6 +68,7 @@
     //   EIP    (32-bits)
     //   error-code (32-bits, depends on the exception)
 
+    .global XtRtmIdtStub&vector&
     XtRtmIdtStub&vector&:
 
         //push GPR values on stack to construct a
