@@ -799,8 +799,8 @@ static void experiment_14_vmcall(void)
 /*
  * Experiment 15: NMI Exiting = 0, virtual NMIs = 0
  * L1 (host) blocks NMI. L2 (guest) does not block NMI. L1 VMENTRY to L2, and
- * inject a page fault at the same time. See whether L2 gets NMI first or page
- * fault first.
+ * inject a keyboard interrupt at the same time. Result: L2 executes the first
+ * instruction of the keyboard interrupt before NMI.
  * This test does not work on Bochs.
  */
 static void experiment_15(void)
@@ -836,6 +836,46 @@ static void experiment_15_vmcall(void)
 	}
 }
 
+/*
+ * Experiment 16: NMI Exiting = 1, virtual NMIs = 0
+ * L1 (host) blocks NMI. L2 (guest) does not block NMI. L1 VMENTRY to L2, and
+ * inject a keyboard interrupt at the same time. Result: L2 executes the first
+ * instruction of the keyboard interrupt before NMI VMEXIT.
+ * This test does not work on Bochs.
+ */
+static void experiment_16(void)
+{
+	printf("Experiment: %d\n", (experiment_no = 16));
+	state_no = 0;
+	asm volatile ("vmcall");
+	assert_measure(EXIT_VMEXIT, (uintptr_t) XtRtmIdtStub21);
+	state_no = 1;
+	asm volatile ("vmcall");
+}
+
+static void experiment_16_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		hlt_wait(EXIT_NMI_H);
+		hlt_wait(EXIT_TIMER_H);
+		hlt_wait(EXIT_TIMER_H);
+		set_state(1, 0, 0);
+		vmcs_vmwrite(NULL, VMCS_control_VM_entry_interruption_information,
+					 0x80000021);
+		prepare_measure();
+		break;
+	case 1:
+		TEST_ASSERT(!get_blocking_by_nmi());
+		iret_wait(EXIT_MEASURE);
+		set_state(0, 0, 0);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 static struct {
 	void (*f)(void);
 	void (*vmcall)(void);
@@ -859,6 +899,7 @@ static struct {
 	{experiment_13, experiment_13_vmcall, true, false, false},
 	{experiment_14, experiment_14_vmcall, true, false, false},
 	{experiment_15, experiment_15_vmcall, true, true, false},
+	{experiment_16, experiment_16_vmcall, true, true, false},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
@@ -902,7 +943,7 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
-		experiment_15();
+		experiment_16();
 	}
 	if (1 && "sequential") {
 		for (u32 i = 0; i < nexperiments; i++) {
