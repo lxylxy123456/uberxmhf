@@ -18,6 +18,7 @@ enum exit_source {
 	EXIT_NMI_H,		/* Interrupt comes from host NMI interrupt handler */
 	EXIT_TIMER_H,	/* Interrupt comes from host timer interrupt handler */
 	EXIT_VMEXIT,	/* Interrupt comes from NMI VMEXIT handler */
+	EXIT_NMIWIND,	/* Interrupt comes from NMI Windowing handler */
 };
 
 const char *exit_source_str[] = {
@@ -28,7 +29,7 @@ const char *exit_source_str[] = {
 	"EXIT_NMI_H   (4)",
 	"EXIT_TIMER_H (5)",
 	"EXIT_VMEXIT  (6)",
-	"OVERFLOW",
+	"EXIT_NMIWIND (7)",
 	"OVERFLOW",
 	"OVERFLOW",
 	"OVERFLOW",
@@ -182,6 +183,16 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			break;
 		}
 		break;
+	case VMX_VMEXIT_NMI_WINDOW:
+		handle_interrupt_cpu1(EXIT_NMIWIND, guest_rip);
+		{
+			u32 ctl_cpu_base = vmcs_vmread(NULL, VMCS_control_VMX_cpu_based);
+			TEST_ASSERT(ctl_cpu_base &
+						(1U << VMX_PROCBASED_NMI_WINDOW_EXITING));
+			ctl_cpu_base &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+			vmcs_vmwrite(NULL, VMCS_control_VMX_cpu_based, ctl_cpu_base);
+		}
+		break;
 	default:
 		{
 			printf("CPU(0x%02x): unknown vmexit %d\n", vcpu->id, vmexit_reason);
@@ -235,6 +246,42 @@ static bool get_blocking_by_nmi(void)
 {
 	u32 guest_int = vmcs_vmread(NULL, VMCS_guest_interruptibility);
 	return (guest_int & 0x8U);
+}
+
+static void assert_state(bool nmi_exiting, bool virtual_nmis,
+						 bool blocking_by_nmi, bool nmi_windowing)
+{
+	{
+		u32 ctl_pin_base = vmcs_vmread(NULL, VMCS_control_VMX_pin_based);
+		if (nmi_exiting) {
+			TEST_ASSERT((ctl_pin_base & 0x8U) != 0);
+		} else {
+			TEST_ASSERT((ctl_pin_base & 0x8U) == 0);
+		}
+		if (virtual_nmis) {
+			TEST_ASSERT((ctl_pin_base & 0x20U) != 0);
+		} else {
+			TEST_ASSERT((ctl_pin_base & 0x20U) == 0);
+		}
+	}
+	{
+		u32 ctl_cpu_base = vmcs_vmread(NULL, VMCS_control_VMX_cpu_based);
+		if (nmi_windowing) {
+			TEST_ASSERT((ctl_cpu_base &
+						 (1U << VMX_PROCBASED_NMI_WINDOW_EXITING)) != 0);
+		} else {
+			TEST_ASSERT((ctl_cpu_base &
+						 (1U << VMX_PROCBASED_NMI_WINDOW_EXITING)) == 0);
+		}
+	}
+	{
+		u32 guest_int = vmcs_vmread(NULL, VMCS_guest_interruptibility);
+		if (blocking_by_nmi) {
+			TEST_ASSERT((guest_int & 0x8U) != 0);
+		} else {
+			TEST_ASSERT((guest_int & 0x8U) == 0);
+		}
+	}
 }
 
 static void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi,
@@ -374,6 +421,7 @@ static void experiment_2(void)
 	/* Now VMEXIT to L1 */
 	exit_source = EXIT_MEASURE;
 	state_no = 1;
+	prepare_measure();
 	asm volatile ("vmcall");
 	/* Unblock NMI. There are 2 NMIs, but only 1 delivered due to blocking. */
 	iret_wait(EXIT_NMI_G);
@@ -1052,6 +1100,43 @@ static void experiment_20_vmcall(void)
 	}
 }
 
+/*
+ * Experiment 21: NMI Exiting = 1, virtual NMIs = 1
+ * L2 (guest) does not block virtual NMI. L1 sets NMI windowing bit in VMCS.
+ * Result: after VMENTRY to L2, an NMI windowing exit happens.
+ */
+static void experiment_21(void)
+{
+	uintptr_t rip;
+	printf("Experiment: %d\n", (experiment_no = 21));
+	state_no = 0;
+	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
+	assert_measure(EXIT_NMIWIND, rip);
+	state_no = 1;
+	asm volatile ("vmcall");
+}
+
+static void experiment_21_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		set_state(1, 1, 0, 1);
+		prepare_measure();
+		break;
+	case 1:
+		assert_state(1, 1, 0, 0);
+		/* Make sure that host does not block NMI */
+		hlt_wait(EXIT_NMI_H);
+		iret_wait(EXIT_MEASURE);
+		hlt_wait(EXIT_TIMER_H);
+		set_state(0, 0, 0, 0);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 static struct {
 	void (*f)(void);
 	void (*vmcall)(void);
@@ -1080,6 +1165,7 @@ static struct {
 	{experiment_18, experiment_18_vmcall, true, false, false},
 	{experiment_19, experiment_19_vmcall, true, false, false},
 	{experiment_20, experiment_20_vmcall, true, true, true},
+	{experiment_21, experiment_21_vmcall, true, true, true},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
@@ -1123,7 +1209,7 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
-		experiment_20();
+		experiment_21();
 	}
 	if (1 && "sequential") {
 		for (u32 i = 0; i < nexperiments; i++) {
