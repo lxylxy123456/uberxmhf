@@ -387,11 +387,15 @@ Thinkpad passes all the experiments. As predicted, `xmhf64-nest cc49ab14a`
 passes all except 18. For now, we let XMHF panic when experiment 18 is
 detected. Implemented in `xmhf64-nest cc49ab14a..ab678ccba`.
 
-TODO: add tests on NMI window exiting
-	* It happens when NMI blocking = 0
-	* It does not happen when NMI blocking = 1
-	* It happens when NMI blocking = 1 and then IRET
-	* Its priority compared to NMI VMEXIT
+* Experiment 21 - 23: Test normal behavior of NMI windowing. These are straight
+  forward after reading the SDM. These experiments work on all platforms. These
+  tests are passed in XMHF.
+* Experiment 24 - 26: Test priority between NMI windowing, NMI injection to
+  guest, and NMI exiting. The conclusion is that NMI injection > NMI exiting >
+  NMI windowing.
+
+TODO: test experiment 24 - 26 on Thinkpad
+TODO: test experiment 24 - 26 on XMHF
 TODO: try KVM XMHF XMHF Debian
 TODO: add tests on number of NMIs delivered when NMI is blocked for a long time (some NMIs should be lost)
 TODO: report KVM and Bochs bugs
