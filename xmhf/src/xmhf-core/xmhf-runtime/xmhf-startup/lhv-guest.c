@@ -237,7 +237,8 @@ static bool get_blocking_by_nmi(void)
 	return (guest_int & 0x8U);
 }
 
-static void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi)
+static void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi,
+					  bool nmi_windowing)
 {
 	{
 		u32 ctl_pin_base = vmcs_vmread(NULL, VMCS_control_VMX_pin_based);
@@ -251,6 +252,14 @@ static void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi)
 		vmcs_vmwrite(NULL, VMCS_control_VMX_pin_based, ctl_pin_base);
 	}
 	{
+		u32 ctl_cpu_base = vmcs_vmread(NULL, VMCS_control_VMX_cpu_based);
+		ctl_cpu_base &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+		if (nmi_windowing) {
+			ctl_cpu_base |= (1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+		}
+		vmcs_vmwrite(NULL, VMCS_control_VMX_cpu_based, ctl_cpu_base);
+	}
+	{
 		u32 guest_int = vmcs_vmread(NULL, VMCS_guest_interruptibility);
 		guest_int &= ~0x8U;
 		if (blocking_by_nmi) {
@@ -258,6 +267,14 @@ static void set_state(bool nmi_exiting, bool virtual_nmis, bool blocking_by_nmi)
 		}
 		vmcs_vmwrite(NULL, VMCS_guest_interruptibility, guest_int);
 	}
+}
+
+static void set_inject_nmi(void)
+{
+	u32 val = vmcs_vmread(NULL, VMCS_control_VM_entry_interruption_information);
+	TEST_ASSERT((val & 0x80000000) == 0);
+	vmcs_vmwrite(NULL, VMCS_control_VM_entry_interruption_information,
+				 0x80000202);
 }
 
 /* Prepare for assert_measure() */
@@ -333,7 +350,7 @@ static void experiment_1_vmcall(void)
 {
 	switch (state_no) {
 	case 0:
-		set_state(0, 0, 0);
+		set_state(0, 0, 0, 0);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
@@ -367,7 +384,7 @@ static void experiment_2_vmcall(void)
 {
 	switch (state_no) {
 	case 0:
-		set_state(0, 0, 1);
+		set_state(0, 0, 1, 0);
 		break;
 	case 1:
 		TEST_ASSERT(get_blocking_by_nmi());
@@ -406,7 +423,7 @@ static void experiment_3_vmcall(void)
 		/* Do not unblock NMI */
 		hlt_wait(EXIT_TIMER_H);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(0, 0, 0);
+		set_state(0, 0, 0, 0);
 		/* Expecting EXIT_NMI_G after VMENTRY */
 		prepare_measure();
 		break;
@@ -436,7 +453,7 @@ static void experiment_4_vmcall(void)
 {
 	switch (state_no) {
 	case 0:
-		set_state(0, 0, 1);
+		set_state(0, 0, 1, 0);
 		break;
 	case 1:
 		hlt_wait(EXIT_TIMER_H);
@@ -470,7 +487,7 @@ static void experiment_5_vmcall(void)
 {
 	switch (state_no) {
 	case 0:
-		set_state(1, 0, 0);
+		set_state(1, 0, 0, 0);
 		break;
 	case 1:
 		iret_wait(EXIT_MEASURE);
@@ -503,13 +520,13 @@ static void experiment_6_vmcall(void)
 {
 	switch (state_no) {
 	case 0:
-		set_state(1, 0, 1);
+		set_state(1, 0, 1, 0);
 		break;
 	case 1:
 		TEST_ASSERT(get_blocking_by_nmi());
 		iret_wait(EXIT_NMI_H);
 		iret_wait(EXIT_MEASURE);
-		set_state(1, 0, 0);
+		set_state(1, 0, 0, 0);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
@@ -542,7 +559,7 @@ static void experiment_7_vmcall(void)
 		hlt_wait(EXIT_NMI_H);
 		hlt_wait(EXIT_TIMER_H);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(1, 0, 0);
+		set_state(1, 0, 0, 0);
 		break;
 	case 1:
 		TEST_ASSERT(!get_blocking_by_nmi());
@@ -575,7 +592,7 @@ static void experiment_8_vmcall(void)
 {
 	switch (state_no) {
 	case 0:
-		set_state(1, 1, 0);
+		set_state(1, 1, 0, 0);
 		break;
 	case 1:
 		iret_wait(EXIT_MEASURE);
@@ -605,7 +622,7 @@ static void experiment_9_vmcall(void)
 {
 	switch (state_no) {
 	case 0:
-		set_state(1, 1, 1);
+		set_state(1, 1, 1, 0);
 		break;
 	case 1:
 		TEST_ASSERT(get_blocking_by_nmi());
@@ -642,7 +659,7 @@ static void experiment_10_vmcall(void)
 		hlt_wait(EXIT_NMI_H);
 		hlt_wait(EXIT_TIMER_H);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(1, 1, 0);
+		set_state(1, 1, 0, 0);
 		break;
 	case 1:
 		TEST_ASSERT(!get_blocking_by_nmi());
@@ -679,7 +696,7 @@ static void experiment_11_vmcall(void)
 		hlt_wait(EXIT_NMI_H);
 		hlt_wait(EXIT_TIMER_H);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(1, 1, 1);
+		set_state(1, 1, 1, 0);
 		break;
 	case 1:
 		TEST_ASSERT(get_blocking_by_nmi());
@@ -710,7 +727,7 @@ static void experiment_12_vmcall(void)
 {
 	switch (state_no) {
 	case 0:
-		set_state(1, 1, 1);
+		set_state(1, 1, 1, 0);
 		break;
 	case 1:
 		TEST_ASSERT(!get_blocking_by_nmi());
@@ -746,7 +763,7 @@ static void experiment_13_vmcall(void)
 	case 0:
 		hlt_wait(EXIT_NMI_H);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(1, 1, 0);
+		set_state(1, 1, 0, 0);
 		break;
 	case 1:
 		TEST_ASSERT(!get_blocking_by_nmi());
@@ -782,7 +799,7 @@ static void experiment_14_vmcall(void)
 	case 0:
 		hlt_wait(EXIT_NMI_H);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(1, 1, 1);
+		set_state(1, 1, 1, 0);
 		break;
 	case 1:
 		TEST_ASSERT(get_blocking_by_nmi());
@@ -820,7 +837,7 @@ static void experiment_15_vmcall(void)
 		hlt_wait(EXIT_NMI_H);
 		hlt_wait(EXIT_TIMER_H);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(0, 0, 0);
+		set_state(0, 0, 0, 0);
 		vmcs_vmwrite(NULL, VMCS_control_VM_entry_interruption_information,
 					 0x80000021);
 		prepare_measure();
@@ -828,7 +845,7 @@ static void experiment_15_vmcall(void)
 	case 1:
 		TEST_ASSERT(get_blocking_by_nmi());
 		iret_wait(EXIT_MEASURE);
-		set_state(0, 0, 0);
+		set_state(0, 0, 0, 0);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
@@ -860,7 +877,7 @@ static void experiment_16_vmcall(void)
 		hlt_wait(EXIT_NMI_H);
 		hlt_wait(EXIT_TIMER_H);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(1, 0, 0);
+		set_state(1, 0, 0, 0);
 		vmcs_vmwrite(NULL, VMCS_control_VM_entry_interruption_information,
 					 0x80000021);
 		prepare_measure();
@@ -868,7 +885,7 @@ static void experiment_16_vmcall(void)
 	case 1:
 		TEST_ASSERT(!get_blocking_by_nmi());
 		iret_wait(EXIT_MEASURE);
-		set_state(0, 0, 0);
+		set_state(0, 0, 0, 0);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
@@ -900,7 +917,7 @@ static void experiment_17_vmcall(void)
 		hlt_wait(EXIT_NMI_H);
 		hlt_wait(EXIT_TIMER_H);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(1, 1, 1);
+		set_state(1, 1, 1, 0);
 		vmcs_vmwrite(NULL, VMCS_control_VM_entry_interruption_information,
 					 0x80000021);
 		prepare_measure();
@@ -908,7 +925,7 @@ static void experiment_17_vmcall(void)
 	case 1:
 		TEST_ASSERT(get_blocking_by_nmi());
 		iret_wait(EXIT_MEASURE);
-		set_state(0, 0, 0);
+		set_state(0, 0, 0, 0);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
@@ -941,15 +958,14 @@ static void experiment_18_vmcall(void)
 		hlt_wait(EXIT_NMI_H);
 		iret_wait(EXIT_MEASURE);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(0, 0, 0);
-		vmcs_vmwrite(NULL, VMCS_control_VM_entry_interruption_information,
-					 0x80000202);
+		set_state(0, 0, 0, 0);
+		set_inject_nmi();
 		prepare_measure();
 		break;
 	case 1:
 		TEST_ASSERT(!get_blocking_by_nmi());
 		iret_wait(EXIT_MEASURE);
-		set_state(0, 0, 0);
+		set_state(0, 0, 0, 0);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
@@ -979,9 +995,8 @@ static void experiment_19_vmcall(void)
 {
 	switch (state_no) {
 	case 0:
-		set_state(1, 0, 0);
-		vmcs_vmwrite(NULL, VMCS_control_VM_entry_interruption_information,
-					 0x80000202);
+		set_state(1, 0, 0, 0);
+		set_inject_nmi();
 		prepare_measure();
 		break;
 	case 1:
@@ -990,7 +1005,7 @@ static void experiment_19_vmcall(void)
 		hlt_wait(EXIT_NMI_H);
 		iret_wait(EXIT_MEASURE);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(0, 0, 0);
+		set_state(0, 0, 0, 0);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
@@ -1019,9 +1034,8 @@ static void experiment_20_vmcall(void)
 {
 	switch (state_no) {
 	case 0:
-		set_state(1, 1, 0);
-		vmcs_vmwrite(NULL, VMCS_control_VM_entry_interruption_information,
-					 0x80000202);
+		set_state(1, 1, 0, 0);
+		set_inject_nmi();
 		prepare_measure();
 		break;
 	case 1:
@@ -1030,7 +1044,7 @@ static void experiment_20_vmcall(void)
 		hlt_wait(EXIT_NMI_H);
 		iret_wait(EXIT_MEASURE);
 		hlt_wait(EXIT_TIMER_H);
-		set_state(0, 0, 0);
+		set_state(0, 0, 0, 0);
 		break;
 	default:
 		TEST_ASSERT(0 && "unexpected state");
