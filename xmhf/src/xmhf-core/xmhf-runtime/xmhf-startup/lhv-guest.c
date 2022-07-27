@@ -1174,6 +1174,44 @@ static void experiment_22_vmcall(void)
 	}
 }
 
+/*
+ * Experiment 23: NMI Exiting = 1, virtual NMIs = 1
+ * L2 (guest) blocks virtual NMI. L1 sets NMI windowing bit in VMCS. After
+ * VMENTRY to L2, L2 executes IRET. Result: NMI windowing happens right after
+ * IRET in L2.
+ */
+static void experiment_23(void)
+{
+	printf("Experiment: %d\n", (experiment_no = 23));
+	state_no = 0;
+	asm volatile ("vmcall");
+	assert_measure(EXIT_MEASURE, 0);
+	iret_wait(EXIT_NMIWIND);
+	state_no = 1;
+	asm volatile ("vmcall");
+}
+
+static void experiment_23_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		set_state(1, 1, 1, 1);
+		prepare_measure();
+		break;
+	case 1:
+		assert_state(1, 1, 0, 0);
+		/* Make sure that host does not block NMI */
+		hlt_wait(EXIT_NMI_H);
+		iret_wait(EXIT_MEASURE);
+		hlt_wait(EXIT_TIMER_H);
+		set_state(0, 0, 0, 0);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 static struct {
 	void (*f)(void);
 	void (*vmcall)(void);
@@ -1204,6 +1242,7 @@ static struct {
 	{experiment_20, experiment_20_vmcall, true, true, true},
 	{experiment_21, experiment_21_vmcall, true, true, true},
 	{experiment_22, experiment_22_vmcall, true, true, true},
+	{experiment_23, experiment_23_vmcall, true, true, true},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
@@ -1247,7 +1286,7 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
-		experiment_22();
+		experiment_23();
 	}
 	if (1 && "sequential") {
 		for (u32 i = 0; i < nexperiments; i++) {
