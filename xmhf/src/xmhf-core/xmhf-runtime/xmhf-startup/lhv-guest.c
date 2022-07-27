@@ -13,6 +13,7 @@
 enum exit_source {
 	EXIT_IGNORE,	/* Ignore the interrupt */
 	EXIT_MEASURE,	/* Measure the interrupt */
+	EXIT_MEAS_2,	/* Measure two interrupts */
 	EXIT_NMI_G,		/* Interrupt comes from guest NMI interrupt handler */
 	EXIT_TIMER_G,	/* Interrupt comes from guest timer interrupt handler */
 	EXIT_NMI_H,		/* Interrupt comes from host NMI interrupt handler */
@@ -24,12 +25,13 @@ enum exit_source {
 const char *exit_source_str[] = {
 	"EXIT_IGNORE  (0)",
 	"EXIT_MEASURE (1)",
-	"EXIT_NMI_G   (2)",
-	"EXIT_TIMER_G (3)",
-	"EXIT_NMI_H   (4)",
-	"EXIT_TIMER_H (5)",
-	"EXIT_VMEXIT  (6)",
-	"EXIT_NMIWIND (7)",
+	"EXIT_MEAS_2  (2)",
+	"EXIT_NMI_G   (3)",
+	"EXIT_TIMER_G (4)",
+	"EXIT_NMI_H   (5)",
+	"EXIT_TIMER_H (6)",
+	"EXIT_VMEXIT  (7)",
+	"EXIT_NMIWIND (8)",
 	"OVERFLOW",
 	"OVERFLOW",
 	"OVERFLOW",
@@ -41,6 +43,8 @@ static volatile u32 experiment_no = 0;
 static volatile u32 state_no = 0;
 static volatile enum exit_source exit_source = EXIT_MEASURE;
 static volatile uintptr_t exit_rip = 0;
+static volatile enum exit_source exit_source_old = EXIT_MEASURE;
+static volatile uintptr_t exit_rip_old = 0;
 
 #define TEST_ASSERT(_p) \
     do { \
@@ -74,6 +78,12 @@ void handle_interrupt_cpu1(u32 source, uintptr_t rip)
 		printf("      Interrupt recorded:       %s\n", exit_source_str[source]);
 		exit_source = source;
 		exit_rip = rip;
+		break;
+	case EXIT_MEAS_2:
+		printf("      Interrupt 1 recorded:     %s\n", exit_source_str[source]);
+		exit_source = EXIT_MEASURE;
+		exit_source_old = source;
+		exit_rip_old = rip;
 		break;
 	default:
 		printf("\nsource:      %s", exit_source_str[source]);
@@ -344,6 +354,43 @@ static void assert_measure(u32 source, uintptr_t rip)
 	}
 	exit_source = EXIT_MEASURE;
 	exit_rip = 0;
+}
+
+/* Prepare for assert_measure_2() */
+static void prepare_measure_2(void)
+{
+	TEST_ASSERT(exit_source == EXIT_MEASURE);
+	TEST_ASSERT(exit_rip == 0);
+	exit_source = EXIT_MEAS_2;
+	exit_rip = 0;
+	exit_source_old = EXIT_MEASURE;
+	exit_rip_old = 0;
+}
+
+/* Assert an interrupt source happens at rip */
+static void assert_measure_2(u32 source1, uintptr_t rip1, u32 source2,
+							 uintptr_t rip2)
+{
+	if (exit_source_old != source1) {
+		printf("\nsource1:         %s", exit_source_str[source1]);
+		printf("\nexit_source_old: %s", exit_source_str[exit_source_old]);
+		TEST_ASSERT(0 && (exit_source_old == source1));
+	}
+	if (exit_source_old != EXIT_MEASURE) {
+		TEST_ASSERT(rip1 == exit_rip_old);
+	}
+	if (exit_source != source2) {
+		printf("\nsource2:     %s", exit_source_str[source2]);
+		printf("\nexit_source: %s", exit_source_str[exit_source]);
+		TEST_ASSERT(0 && (exit_source == source2));
+	}
+	if (exit_source != EXIT_MEASURE) {
+		TEST_ASSERT(rip2 == exit_rip);
+	}
+	exit_source = EXIT_MEASURE;
+	exit_rip = 0;
+	exit_source_old = EXIT_MEASURE;
+	exit_rip_old = 0;
 }
 
 /* Execute HLT and expect interrupt to hit on the instruction */
@@ -1212,6 +1259,46 @@ static void experiment_23_vmcall(void)
 	}
 }
 
+/*
+ * Experiment 24: NMI Exiting = 1, virtual NMIs = 1
+ * L1 (LHV) blocks NMI. L2 (guest) does not block virtual NMI. L1 receives an
+ * NMI, then sets NMI windowing bit in VMCS and VMENTRY. See which event
+ * happens first. Result: VMEXIT happens first, then NMI windowing.
+ * This test does not work on Bochs.
+ */
+static void experiment_24(void)
+{
+	uintptr_t rip;
+	printf("Experiment: %d\n", (experiment_no = 24));
+	state_no = 0;
+	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
+	assert_measure_2(EXIT_VMEXIT, rip, EXIT_NMIWIND, rip);
+	state_no = 1;
+	asm volatile ("vmcall");
+}
+
+static void experiment_24_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		hlt_wait(EXIT_NMI_H);
+		hlt_wait(EXIT_TIMER_H);
+		hlt_wait(EXIT_TIMER_H);
+		set_state(1, 1, 0, 1);
+		prepare_measure_2();
+		break;
+	case 1:
+		assert_state(1, 1, 0, 0);
+		/* Make sure that host does not block NMI */
+		iret_wait(EXIT_MEASURE);
+		set_state(0, 0, 0, 0);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 static struct {
 	void (*f)(void);
 	void (*vmcall)(void);
@@ -1243,6 +1330,7 @@ static struct {
 	{experiment_21, experiment_21_vmcall, true, true, true},
 	{experiment_22, experiment_22_vmcall, true, true, true},
 	{experiment_23, experiment_23_vmcall, true, true, true},
+	{experiment_24, experiment_24_vmcall, true, true, false},
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
@@ -1286,7 +1374,7 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
-		experiment_23();
+		experiment_24();
 	}
 	if (1 && "sequential") {
 		for (u32 i = 0; i < nexperiments; i++) {
