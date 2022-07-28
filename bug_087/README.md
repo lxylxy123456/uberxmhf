@@ -391,12 +391,55 @@ detected. Implemented in `xmhf64-nest cc49ab14a..ab678ccba`.
   forward after reading the SDM. These experiments work on all platforms. These
   tests are passed in XMHF.
 * Experiment 24 - 26: Test priority between NMI windowing, NMI injection to
-  guest, and NMI exiting. The conclusion is that NMI injection > NMI exiting >
-  NMI windowing.
+  guest, and NMI exiting. The conclusion is that
+  `NMI injection > NMI windowing > NMI exiting`.
 
-TODO: test experiment 24 - 26 on Thinkpad
-TODO: test experiment 24 - 26 on XMHF
+XMHF on KVM fails experiment 24 and 26. For 24, KVM also fails the experiment.
+So I guess XMHF will pass when running on real hardware, so now worrying for
+now. For 26, XMHF's priority is that `NMI exiting > NMI windowing`.
+
+Experiment 26 is a limitation of current implementation of XMHF, similar to
+experiment 18. To solve this problem, we cannot rely on NMI windowing to
+implement "inject NMI to guest and VMEXIT immediately".
+
+One possible way is to implement using monitor trap. However, at least Circle
+CI's KVM does not support monitor trap.
+
+Another possible way is to use the `#DB` exception, as used in APIC
+virtualization. However, this solution is likely not going to work, because
+`#DB` requires changing EFLAGS.TF, but exception injection involves pushing
+EFLAGS to the stack.
+
+The final solution is to emulate the event injection. However, maybe we can
+live without the exact behavior as hardware.
+
+### Testing on KVM XMHF XMHF Debianx64
+
+As a review, the command we use to compile and run XMHF in this configuration
+are:
+
+```sh
+./build.sh amd64 fast --sl-base 0x20000000 circleci --no-init-smp && gr
+./build.sh amd64 fast circleci && gr
+(cd build32 && make -j 4 && gr) && (cd build64 && make -j 4 && gr) && tmp/bios-qemu.sh -smp 2 -m 1G --gdb 2198 -d build32 +1 -d build64 +1 -d debian11x64 +1
+```
+
+Need to modify XMHF so that it does not print things when nested VMEXIT /
+VMENTRY happens. Also, change `EPT02_PAGE_POOL_SIZE` from 128 to 192. Then
+KVM XMHF XMHF Debian x64 boots. When executing `./test_args32 7 7 7`, see the
+following exception
+
+```
+Fatal: Halting! Condition 'vmcs12->control_VM_entry_exception_errorcode == __vmx_vmread32(0x4018)' failed, line 443, file arch/x86/vmx/nested-x86vmx-vmcs12-fields.h
+```
+
+This basically means `control_VM_entry_exception_errorcode` cannot be
+`FIELD_PROP_SWWRONLY`, because it is used in functions such as
+`xmhf_nested_arch_x86vmx_handle_vmexit()` to inject NMIs.
+
+TODO: above
 TODO: try KVM XMHF XMHF Debian
+TODO: Pass experiments 18, 24, 26 on XMHF
 TODO: add tests on number of NMIs delivered when NMI is blocked for a long time (some NMIs should be lost)
 TODO: report KVM and Bochs bugs
 
