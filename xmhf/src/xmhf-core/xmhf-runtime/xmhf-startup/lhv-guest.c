@@ -1264,8 +1264,9 @@ static void experiment_23_vmcall(void)
  * Experiment 24: NMI Exiting = 1, virtual NMIs = 1
  * L1 (LHV) blocks NMI. L2 (guest) does not block virtual NMI. L1 receives an
  * NMI, then sets NMI windowing bit in VMCS and VMENTRY. See which event
- * happens first. Result: VMEXIT happens first, then NMI windowing.
+ * happens first. Result: NMI windowing happens first, then NMI hits the host.
  * This test does not work on Bochs.
+ * This test does not work on QEMU.
  */
 static void experiment_24(void)
 {
@@ -1273,7 +1274,12 @@ static void experiment_24(void)
 	printf("Experiment: %d\n", (experiment_no = 24));
 	state_no = 0;
 	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
-	assert_measure_2(EXIT_VMEXIT, rip, EXIT_NMIWIND, rip);
+	/*
+	 * Note: VMEXIT is recorded before NMI injection because after NMI
+	 * injection is completed, VMEXIT happens. After VMEXIT completes, the
+	 * first instruction of NMI injection is executed.
+	 */
+	assert_measure_2(EXIT_NMI_H, (uintptr_t) vmexit_asm, EXIT_NMIWIND, rip);
 	state_no = 1;
 	asm volatile ("vmcall");
 }
@@ -1418,7 +1424,7 @@ static struct {
 	{experiment_21, experiment_21_vmcall, true, true, true},
 	{experiment_22, experiment_22_vmcall, true, true, true},
 	{experiment_23, experiment_23_vmcall, true, true, true},
-	{experiment_24, experiment_24_vmcall, true, true, false},
+	{experiment_24, experiment_24_vmcall, true, false, false},
 	{experiment_25, experiment_25_vmcall, true, true, true},
 	{experiment_26, experiment_26_vmcall, true, true, false},
 };
@@ -1464,6 +1470,8 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
+		experiment_24();
+		experiment_25();
 		experiment_26();
 	}
 	if (1 && "sequential") {
