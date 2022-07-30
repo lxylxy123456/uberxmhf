@@ -1063,6 +1063,150 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			xmhf_nested_arch_x86vmx_handle_vmread(vcpu, r);
 			break;
 		case VMX_VMEXIT_VMWRITE:
+
+#include "../../../../xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12.h"
+
+#define GET_VMCS16(x) vcpu->vmcs.x = __vmx_vmread16(VMCSENC_##x)
+#define GET_VMCS32(x) vcpu->vmcs.x = __vmx_vmread32(VMCSENC_##x)
+#define GET_VMCS64(x) vcpu->vmcs.x = __vmx_vmread64(VMCSENC_##x)
+#define GET_VMCSNW(x) vcpu->vmcs.x = __vmx_vmreadNW(VMCSENC_##x)
+
+    GET_VMCS16(control_vpid);
+    GET_VMCS32(control_VMX_pin_based);
+    GET_VMCS32(control_VMX_cpu_based);
+    GET_VMCS32(control_VMX_seccpu_based);
+    GET_VMCS32(control_exception_bitmap);
+    GET_VMCS32(control_pagefault_errorcode_mask);
+    GET_VMCS32(control_pagefault_errorcode_match);
+    GET_VMCS32(control_CR3_target_count);
+    GET_VMCS32(control_VM_exit_controls);
+    GET_VMCS32(control_VM_exit_MSR_store_count);
+    GET_VMCS32(control_VM_exit_MSR_load_count);
+    GET_VMCS32(control_VM_entry_controls);
+    GET_VMCS32(control_VM_entry_MSR_load_count);
+    GET_VMCS32(control_VM_entry_interruption_information);
+    GET_VMCS32(control_VM_entry_exception_errorcode);
+    GET_VMCS32(control_VM_entry_instruction_length);
+    GET_VMCS32(control_Task_PRivilege_Threshold);
+    GET_VMCSNW(control_CR0_mask);
+    GET_VMCSNW(control_CR4_mask);
+    GET_VMCSNW(control_CR0_shadow);
+    GET_VMCSNW(control_CR4_shadow);
+#ifndef __DEBUG_QEMU__
+    GET_VMCSNW(control_CR3_target0);
+    GET_VMCSNW(control_CR3_target1);
+    GET_VMCSNW(control_CR3_target2);
+    GET_VMCSNW(control_CR3_target3);
+#endif /* !__DEBUG_QEMU__ */
+    GET_VMCS64(control_IO_BitmapA_address);
+    GET_VMCS64(control_IO_BitmapB_address);
+    GET_VMCS64(control_MSR_Bitmaps_address);
+    GET_VMCS64(control_VM_exit_MSR_store_address);
+    GET_VMCS64(control_VM_exit_MSR_load_address);
+    GET_VMCS64(control_VM_entry_MSR_load_address);
+#ifndef __DEBUG_QEMU__
+    GET_VMCS64(control_Executive_VMCS_pointer);
+#endif /* !__DEBUG_QEMU__ */
+    GET_VMCS64(control_TSC_offset);
+//    GET_VMCS64(control_virtual_APIC_page_address);
+    GET_VMCS64(control_EPT_pointer);
+    GET_VMCSNW(host_CR0);
+    GET_VMCSNW(host_CR3);
+    GET_VMCSNW(host_CR4);
+    GET_VMCSNW(host_FS_base);
+    GET_VMCSNW(host_GS_base);
+    GET_VMCSNW(host_TR_base);
+    GET_VMCSNW(host_GDTR_base);
+    GET_VMCSNW(host_IDTR_base);
+    GET_VMCSNW(host_SYSENTER_ESP);
+    GET_VMCSNW(host_SYSENTER_EIP);
+    GET_VMCSNW(host_RSP);
+    GET_VMCSNW(host_RIP);
+    GET_VMCS32(host_SYSENTER_CS);
+    GET_VMCS16(host_ES_selector);
+    GET_VMCS16(host_CS_selector);
+    GET_VMCS16(host_SS_selector);
+    GET_VMCS16(host_DS_selector);
+    GET_VMCS16(host_FS_selector);
+    GET_VMCS16(host_GS_selector);
+    GET_VMCS16(host_TR_selector);
+    GET_VMCSNW(guest_CR0);
+    GET_VMCSNW(guest_CR3);
+    GET_VMCSNW(guest_CR4);
+    GET_VMCSNW(guest_ES_base);
+    GET_VMCSNW(guest_CS_base);
+    GET_VMCSNW(guest_SS_base);
+    GET_VMCSNW(guest_DS_base);
+    GET_VMCSNW(guest_FS_base);
+    GET_VMCSNW(guest_GS_base);
+    GET_VMCSNW(guest_LDTR_base);
+    GET_VMCSNW(guest_TR_base);
+    GET_VMCSNW(guest_GDTR_base);
+    GET_VMCSNW(guest_IDTR_base);
+    GET_VMCSNW(guest_DR7);
+    GET_VMCSNW(guest_RSP);
+    GET_VMCSNW(guest_RIP);
+    GET_VMCSNW(guest_RFLAGS);
+    GET_VMCSNW(guest_pending_debug_x);
+    GET_VMCSNW(guest_SYSENTER_ESP);
+    GET_VMCSNW(guest_SYSENTER_EIP);
+    GET_VMCS32(guest_ES_limit);
+    GET_VMCS32(guest_CS_limit);
+    GET_VMCS32(guest_SS_limit);
+    GET_VMCS32(guest_DS_limit);
+    GET_VMCS32(guest_FS_limit);
+    GET_VMCS32(guest_GS_limit);
+    GET_VMCS32(guest_LDTR_limit);
+    GET_VMCS32(guest_TR_limit);
+    GET_VMCS32(guest_GDTR_limit);
+    GET_VMCS32(guest_IDTR_limit);
+    GET_VMCS32(guest_ES_access_rights);
+    GET_VMCS32(guest_CS_access_rights);
+    GET_VMCS32(guest_SS_access_rights);
+    GET_VMCS32(guest_DS_access_rights);
+    GET_VMCS32(guest_FS_access_rights);
+    GET_VMCS32(guest_GS_access_rights);
+    GET_VMCS32(guest_LDTR_access_rights);
+    GET_VMCS32(guest_TR_access_rights);
+    GET_VMCS32(guest_interruptibility);
+    GET_VMCS32(guest_activity_state);
+#ifndef __DEBUG_QEMU__
+    GET_VMCS32(guest_SMBASE);
+#endif /* !__DEBUG_QEMU__ */
+    GET_VMCS32(guest_SYSENTER_CS);
+    GET_VMCS16(guest_ES_selector);
+    GET_VMCS16(guest_CS_selector);
+    GET_VMCS16(guest_SS_selector);
+    GET_VMCS16(guest_DS_selector);
+    GET_VMCS16(guest_FS_selector);
+    GET_VMCS16(guest_GS_selector);
+    GET_VMCS16(guest_LDTR_selector);
+    GET_VMCS16(guest_TR_selector);
+    GET_VMCS64(guest_VMCS_link_pointer);
+    GET_VMCS64(guest_IA32_DEBUGCTL);
+    GET_VMCS64(guest_paddr);
+    GET_VMCS64(guest_PDPTE0);
+    GET_VMCS64(guest_PDPTE1);
+    GET_VMCS64(guest_PDPTE2);
+    GET_VMCS64(guest_PDPTE3);
+    GET_VMCS32(info_vminstr_error);
+    GET_VMCS32(info_vmexit_reason);
+    GET_VMCS32(info_vmexit_interrupt_information);
+    GET_VMCS32(info_vmexit_interrupt_error_code);
+    GET_VMCS32(info_IDT_vectoring_information);
+    GET_VMCS32(info_IDT_vectoring_error_code);
+    GET_VMCS32(info_vmexit_instruction_length);
+    GET_VMCS32(info_vmx_instruction_information);
+    GET_VMCSNW(info_exit_qualification);
+#ifndef __DEBUG_QEMU__
+    GET_VMCSNW(info_IO_RCX);
+    GET_VMCSNW(info_IO_RSI);
+    GET_VMCSNW(info_IO_RDI);
+    GET_VMCSNW(info_IO_RIP);
+#endif /* !__DEBUG_QEMU__ */
+    GET_VMCSNW(info_guest_linear_address);
+
+//			xmhf_baseplatform_arch_x86vmx_getVMCS(vcpu);
 			xmhf_nested_arch_x86vmx_handle_vmwrite(vcpu, r);
 			break;
 		default:
