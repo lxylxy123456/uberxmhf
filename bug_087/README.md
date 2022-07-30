@@ -437,7 +437,32 @@ This basically means `control_VM_entry_exception_errorcode` cannot be
 `FIELD_PROP_SWWRONLY`, because it is used in functions such as
 `xmhf_nested_arch_x86vmx_handle_vmexit()` to inject NMIs.
 
-TODO: above
+Now we review VMCS02 fields that are changed due to NMI handling
+* `guest_interruptibility`: NMI blocking
+* `control_VMX_pin_based`: NMI 
+* `control_VMX_cpu_based`: NMI windowing
+* `control_VM_entry_interruption_information`: inject NMI
+* `control_VM_entry_exception_errorcode`: inject NMI
+
+Looks like the first 3 are handled well in `nested-x86vmx-vmcs12.c`. However,
+the latter 2 are incorrect. Actually, this problem also happens in EPT
+handling, but does not trigger a bug.
+
+The problem is that VMCS02 will change
+`control_VM_entry_interruption_information` and
+`control_VM_entry_exception_errorcode` to virtualize EPT or NMI. However, this
+change should be invisible from VMCS12. We should consult the manual to see
+the correct behavior.
+
+The correct behavior is simple. In Intel v3
+"23.8.3 VM-Entry Controls for Event Injection":
+> VM exits clear the valid bit (bit 31) in the VM-entry
+> interruption-information field.
+
+So the correct behavior is to clear that bit in VMCS12, and ignore whether
+VMCS02 and VMCS12 match. Implemented in `xmhf64-nest bd7c46c83`. After the
+change, running KVM XMHF XMHF Debian x64 looks good.
+
 TODO: try KVM XMHF XMHF Debian
 TODO: Pass experiments 18, 24, 26 on XMHF
 TODO: add tests on number of NMIs delivered when NMI is blocked for a long time (some NMIs should be lost)
