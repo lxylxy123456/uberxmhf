@@ -1058,26 +1058,12 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		vcpu->vmcs.guest_RSP = __vmx_vmreadNW(0x681C);
 		vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
 		vcpu->vmcs.guest_RFLAGS = __vmx_vmreadNW(0x6820);
+		vcpu->vmcs.control_VM_entry_interruption_information = __vmx_vmread32(0x4016);
 		switch ((u32)vcpu->vmcs.info_vmexit_reason) {
 		case VMX_VMEXIT_VMREAD:
 			xmhf_nested_arch_x86vmx_handle_vmread(vcpu, r);
 			break;
 		case VMX_VMEXIT_VMWRITE:
-
-#include "../../../../xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12.h"
-
-#define GET_VMCS32(x) vcpu->vmcs.x = __vmx_vmread32(VMCSENC_##x)
-
-    GET_VMCS32(control_VM_exit_MSR_store_count);
-    GET_VMCS32(control_VM_exit_MSR_load_count);
-    GET_VMCS32(control_VM_entry_controls);
-    GET_VMCS32(control_VM_entry_MSR_load_count);
-    GET_VMCS32(control_VM_entry_interruption_information);
-    GET_VMCS32(control_VM_entry_exception_errorcode);
-    GET_VMCS32(control_VM_entry_instruction_length);
-    GET_VMCS32(control_Task_PRivilege_Threshold);
-
-//			xmhf_baseplatform_arch_x86vmx_getVMCS(vcpu);
 			xmhf_nested_arch_x86vmx_handle_vmwrite(vcpu, r);
 			break;
 		default:
