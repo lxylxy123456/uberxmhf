@@ -1066,10 +1066,10 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 
 #include "../../../../xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12.h"
 
-#define GET_VMCS16(x) vcpu->vmcs.x = __vmx_vmread16(VMCSENC_##x)
+#define GET_VMCS16(x)
 #define GET_VMCS32(x) vcpu->vmcs.x = __vmx_vmread32(VMCSENC_##x)
-#define GET_VMCS64(x) vcpu->vmcs.x = __vmx_vmread64(VMCSENC_##x)
-#define GET_VMCSNW(x) vcpu->vmcs.x = __vmx_vmreadNW(VMCSENC_##x)
+#define GET_VMCS64(x)
+#define GET_VMCSNW(x)
 
     GET_VMCS16(control_vpid);
     GET_VMCS32(control_VMX_pin_based);
@@ -1092,23 +1092,13 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
     GET_VMCSNW(control_CR4_mask);
     GET_VMCSNW(control_CR0_shadow);
     GET_VMCSNW(control_CR4_shadow);
-#ifndef __DEBUG_QEMU__
-    GET_VMCSNW(control_CR3_target0);
-    GET_VMCSNW(control_CR3_target1);
-    GET_VMCSNW(control_CR3_target2);
-    GET_VMCSNW(control_CR3_target3);
-#endif /* !__DEBUG_QEMU__ */
     GET_VMCS64(control_IO_BitmapA_address);
     GET_VMCS64(control_IO_BitmapB_address);
     GET_VMCS64(control_MSR_Bitmaps_address);
     GET_VMCS64(control_VM_exit_MSR_store_address);
     GET_VMCS64(control_VM_exit_MSR_load_address);
     GET_VMCS64(control_VM_entry_MSR_load_address);
-#ifndef __DEBUG_QEMU__
-    GET_VMCS64(control_Executive_VMCS_pointer);
-#endif /* !__DEBUG_QEMU__ */
     GET_VMCS64(control_TSC_offset);
-//    GET_VMCS64(control_virtual_APIC_page_address);
     GET_VMCS64(control_EPT_pointer);
     GET_VMCSNW(host_CR0);
     GET_VMCSNW(host_CR3);
@@ -1170,9 +1160,6 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
     GET_VMCS32(guest_TR_access_rights);
     GET_VMCS32(guest_interruptibility);
     GET_VMCS32(guest_activity_state);
-#ifndef __DEBUG_QEMU__
-    GET_VMCS32(guest_SMBASE);
-#endif /* !__DEBUG_QEMU__ */
     GET_VMCS32(guest_SYSENTER_CS);
     GET_VMCS16(guest_ES_selector);
     GET_VMCS16(guest_CS_selector);
@@ -1198,12 +1185,6 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
     GET_VMCS32(info_vmexit_instruction_length);
     GET_VMCS32(info_vmx_instruction_information);
     GET_VMCSNW(info_exit_qualification);
-#ifndef __DEBUG_QEMU__
-    GET_VMCSNW(info_IO_RCX);
-    GET_VMCSNW(info_IO_RSI);
-    GET_VMCSNW(info_IO_RDI);
-    GET_VMCSNW(info_IO_RIP);
-#endif /* !__DEBUG_QEMU__ */
     GET_VMCSNW(info_guest_linear_address);
 
 //			xmhf_baseplatform_arch_x86vmx_getVMCS(vcpu);
