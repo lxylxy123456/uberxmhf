@@ -1397,47 +1397,54 @@ static struct {
 	void (*f)(void);
 	void (*vmcall)(void);
 	bool supported;
+	bool support_xmhf;
 	bool support_qemu;
 	bool support_bochs;
-} experiments[] = {
-	{NULL, NULL, false, false, false},
-	{experiment_1, experiment_1_vmcall, true, true, true},
-	{experiment_2, experiment_2_vmcall, true, false, true},
-	{experiment_3, experiment_3_vmcall, true, false, false},
-	{experiment_4, experiment_4_vmcall, true, false, true},
-	{experiment_5, experiment_5_vmcall, true, true, true},
-	{experiment_6, experiment_6_vmcall, true, false, true},
-	{experiment_7, experiment_7_vmcall, true, true, false},
-	{experiment_8, experiment_8_vmcall, true, true, true},
-	{experiment_9, experiment_9_vmcall, true, true, true},
-	{experiment_10, experiment_10_vmcall, true, true, false},
-	{experiment_11, experiment_11_vmcall, true, true, false},
-	{experiment_12, experiment_12_vmcall, true, true, true},
-	{experiment_13, experiment_13_vmcall, true, false, false},
-	{experiment_14, experiment_14_vmcall, true, false, false},
-	{experiment_15, experiment_15_vmcall, true, true, false},
-	{experiment_16, experiment_16_vmcall, true, true, false},
-	{experiment_17, experiment_17_vmcall, true, true, false},
-	{experiment_18, experiment_18_vmcall, true, false, false},
-	{experiment_19, experiment_19_vmcall, true, false, false},
-	{experiment_20, experiment_20_vmcall, true, true, true},
-	{experiment_21, experiment_21_vmcall, true, true, true},
-	{experiment_22, experiment_22_vmcall, true, true, true},
-	{experiment_23, experiment_23_vmcall, true, true, true},
-	{experiment_24, experiment_24_vmcall, true, false, false},
-	{experiment_25, experiment_25_vmcall, true, true, true},
-	{experiment_26, experiment_26_vmcall, true, true, false},
+} experiments[] = { /*                    a  x  q  b */
+	{NULL,          NULL,                 1, 0, 0, 0},
+	{experiment_1,  experiment_1_vmcall,  1, 1, 1, 1},
+	{experiment_2,  experiment_2_vmcall,  1, 1, 0, 1},
+	{experiment_3,  experiment_3_vmcall,  1, 1, 0, 0},
+	{experiment_4,  experiment_4_vmcall,  1, 1, 0, 1},
+	{experiment_5,  experiment_5_vmcall,  1, 1, 1, 1},
+	{experiment_6,  experiment_6_vmcall,  1, 1, 0, 1},
+	{experiment_7,  experiment_7_vmcall,  1, 1, 1, 0},
+	{experiment_8,  experiment_8_vmcall,  1, 1, 1, 1},
+	{experiment_9,  experiment_9_vmcall,  1, 1, 1, 1},
+	{experiment_10, experiment_10_vmcall, 1, 1, 1, 0},
+	{experiment_11, experiment_11_vmcall, 1, 1, 1, 0},
+	{experiment_12, experiment_12_vmcall, 1, 1, 1, 1},
+	{experiment_13, experiment_13_vmcall, 1, 1, 0, 0},
+	{experiment_14, experiment_14_vmcall, 1, 1, 0, 0},
+	{experiment_15, experiment_15_vmcall, 1, 1, 1, 0},
+	{experiment_16, experiment_16_vmcall, 1, 1, 1, 0},
+	{experiment_17, experiment_17_vmcall, 1, 1, 1, 0},
+	{experiment_18, experiment_18_vmcall, 1, 0, 0, 0},
+	{experiment_19, experiment_19_vmcall, 1, 1, 0, 0},
+	{experiment_20, experiment_20_vmcall, 1, 1, 1, 1},
+	{experiment_21, experiment_21_vmcall, 1, 1, 1, 1},
+	{experiment_22, experiment_22_vmcall, 1, 1, 1, 1},
+	{experiment_23, experiment_23_vmcall, 1, 1, 1, 1},
+	{experiment_24, experiment_24_vmcall, 1, 1, 0, 0},
+	{experiment_25, experiment_25_vmcall, 1, 1, 1, 1},
+	{experiment_26, experiment_26_vmcall, 1, 0, 1, 0},
+	/*                                    a  x  q  b */
 };
 
 static u32 nexperiments = sizeof(experiments) / sizeof(experiments[0]);
 
 static bool in_qemu = false;
 static bool in_bochs = false;
+static bool in_xmhf = false;
 
 void run_experiment(u32 i)
 {
 	if (!experiments[i].supported) {
 		printf("Skipping experiments[%d] due to global settings\n", i);
+		return;
+	}
+	if (in_xmhf && !experiments[i].support_xmhf) {
+		printf("Skipping experiments[%d] due to XMHF\n", i);
 		return;
 	}
 	if (in_qemu && !experiments[i].support_qemu) {
@@ -1457,8 +1464,12 @@ void run_experiment(u32 i)
 void lhv_guest_main(ulong_t cpu_id)
 {
 	TEST_ASSERT(cpu_id == 1);
+	// TODO: better environment detection code
+	// TODO: print detected environment
+#ifdef __DEBUG_VGA__
+	in_xmhf = true;
+#else
 	if (1) {
-#ifndef __DEBUG_VGA__
 		u32 eax, ebx, ecx, edx;
 		cpuid(0x1, &eax, &ebx, &ecx, &edx);
 		if (ecx & 0x80000000U) {
@@ -1470,9 +1481,7 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
-		experiment_24();
 		experiment_25();
-		experiment_26();
 	}
 	if (1 && "sequential") {
 		for (u32 i = 0; i < nexperiments; i++) {
