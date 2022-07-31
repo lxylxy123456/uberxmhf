@@ -489,7 +489,35 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 				HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
 
 				if (vcpu->vmcall_exit_count % 3 == 0) {
+					u32 result;
 					HALT_ON_ERRORCOND(__vmx_vmxoff());
+					asm volatile ("1:\r\n"
+								  "vmwrite %2, %1\r\n"
+								  "xor %%ebx, %%ebx\r\n"
+								  "jmp 3f\r\n"
+								  "2:\r\n"
+								  "movl $1, %%ebx\r\n"
+								  "jmp 3f\r\n"
+								  ".section .xcph_table\r\n"
+#ifdef __AMD64__
+								  ".quad 0x6\r\n"
+								  ".quad 1b\r\n"
+								  ".quad 2b\r\n"
+#elif defined(__I386__)
+								  ".long 0x6\r\n"
+								  ".long 1b\r\n"
+								  ".long 2b\r\n"
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+	#error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+								  ".previous\r\n"
+								  "3:\r\n"
+								  : "=b"(result)
+								  : "r"(0), "rm"(0));
+
+					/* Make sure that VMWRITE raises #UD exception */
+					HALT_ON_ERRORCOND(result == 1);
+
 					HALT_ON_ERRORCOND(__vmx_vmxon(hva2spa(vcpu->vmxon_region)));
 				}
 
