@@ -68,7 +68,6 @@
     //   EIP    (32-bits)
     //   error-code (32-bits, depends on the exception)
 
-    .global XtRtmIdtStub&vector&
     XtRtmIdtStub&vector&:
 
         //push GPR values on stack to construct a
@@ -107,30 +106,7 @@
         .endif
 
         //return from exception
-//        iretl
-
-		/*
-		 * Simulate IRET instruction without executing IRET, to prevent NMI
-		 * unblocking.
-		 *
-		 * At this point the stack contains EFLAGS, CS, EIP (high to low addr).
-		 * To simulate the IRET instruction, first move EFLAGS to actual
-		 * EFLAGS, then move EIP to EFLAGS. Then RET will set the correct stack
-		 * and jump to EIP. CS is assumed to be non-changing.
-		 *
-		 * Note that all GPRs other than ESP cannot be changed.
-		 */
-		pushl   %eax
-		movl	12(%esp), %eax
-		movl	%eax, 8(%esp)
-		movl	4(%esp), %eax
-		movl	%eax, 12(%esp)
-		movl	(%esp), %eax
-		movl	%eax, 4(%esp)
-		popl	%eax
-		popl	%eax
-		popfl
-		ret
+        iretl
 
 .endm
 

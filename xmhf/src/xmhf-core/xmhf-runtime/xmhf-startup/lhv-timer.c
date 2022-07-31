@@ -62,12 +62,10 @@ void timer_init(VCPU *vcpu)
 		outb((u8)(ncycles >> 8), TIMER_PERIOD_IO_PORT);
 	}
 
-#if 0
 	/* LAPIC Timer */
 	write_lapic(LAPIC_TIMER_DIV, 0x0000000b);
 	write_lapic(LAPIC_TIMER_INIT, LAPIC_PERIOD);
 	write_lapic(LAPIC_LVT_TIMER, 0x00020022);
-#endif
 }
 
 static void update_screen(VCPU *vcpu, int *x, int y, int guest)
@@ -109,7 +107,7 @@ static void calibrate_timer(VCPU *vcpu) {
 			p_t, l_t, l_quo, l_tot, cal_1, cal_2, rtc_get_sec_of_day());
 }
 
-void handle_timer_interrupt_old(VCPU *vcpu, int vector, int guest)
+void handle_timer_interrupt(VCPU *vcpu, int vector, int guest)
 {
 	if (vector == 0x20) {
 		vcpu->pit_time++;

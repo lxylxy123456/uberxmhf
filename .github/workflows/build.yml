@@ -11,12 +11,12 @@ jobs:
       matrix:
         target_arch:
           - 'i386'
-          # - 'amd64'
+          - 'amd64'
         compile_mode:
           - 'debug'
         optimize_mode:
           - 'O0'
-          # - 'O3'
+          - 'O3'
 
     steps:
     - uses: actions/checkout@v2

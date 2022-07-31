@@ -380,8 +380,7 @@ void lhv_vmx_main(VCPU *vcpu)
 	HALT_ON_ERRORCOND(0 && "vmlaunch_asm() should never return");
 }
 
-#if 0
-void vmexit_handler_old(VCPU *vcpu, struct regs *r)
+void vmexit_handler(VCPU *vcpu, struct regs *r)
 {
 	ulong_t vmexit_reason = vmcs_vmread(vcpu, VMCS_info_vmexit_reason);
 	ulong_t guest_rip = vmcs_vmread(vcpu, VMCS_guest_RIP);
@@ -519,7 +518,6 @@ void vmexit_handler_old(VCPU *vcpu, struct regs *r)
 	}
 	vmresume_asm(r);
 }
-#endif
 
 void vmentry_error(ulong_t is_resume, ulong_t valid)
 {

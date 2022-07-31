@@ -41,7 +41,7 @@ void console_get_vc(console_vc_t *vc, int num, int guest);
 
 /* lhv-timer.c */
 void timer_init(VCPU *vcpu);
-//void handle_timer_interrupt(VCPU *vcpu, int vector, int guest);
+void handle_timer_interrupt(VCPU *vcpu, int vector, int guest);
 
 /* lhv-pic.c */
 void pic_init(void);
