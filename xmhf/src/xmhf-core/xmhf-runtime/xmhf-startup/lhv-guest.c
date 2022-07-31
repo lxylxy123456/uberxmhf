@@ -1411,6 +1411,59 @@ static void experiment_26_vmcall(void)
 	}
 }
 
+/*
+ * Experiment 27: NMI Exiting = 0, virtual NMIs = 0
+ * L1 (LHV) blocks NMI. L2 (guest) does not block NMI. L1 receives 2 NMIs,
+ * and then VMENTERs. L2 should receive 1 NMI.
+ */
+static void experiment_27(void)
+{
+	uintptr_t rip;
+	printf("Experiment: %d\n", (experiment_no = 27));
+	state_no = 0;
+	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
+	/*
+	 * Note: VMEXIT is recorded before NMI injection because after NMI
+	 * injection is completed, VMEXIT happens. After VMEXIT completes, the
+	 * first instruction of NMI injection is executed.
+	 */
+	assert_measure(EXIT_NMI_G, rip);
+	/*
+	 * TODO: currently QEMU and Bochs pass this test, but Thinkpad does not.
+	 * Thinkpad's behavior is strange, because it looks like two NMIs are
+	 * injected to the guest, without blocking in between.
+	 */
+	iret_wait(EXIT_NMI_G);
+	iret_wait(EXIT_MEASURE);
+	iret_wait(EXIT_MEASURE);
+	state_no = 1;
+	asm volatile ("vmcall");
+}
+
+static void experiment_27_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		hlt_wait(EXIT_NMI_H);
+		hlt_wait(EXIT_TIMER_H);
+		hlt_wait(EXIT_TIMER_H);
+		hlt_wait(EXIT_TIMER_H);
+		set_state(0, 0, 0, 0);
+		set_inject_nmi();
+		prepare_measure();
+		break;
+	case 1:
+		assert_state(0, 0, 0, 0);
+		/* Make sure that host does not block NMI */
+		iret_wait(EXIT_MEASURE);
+		set_state(0, 0, 0, 0);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 static struct {
 	void (*f)(void);
 	void (*vmcall)(void);
@@ -1446,6 +1499,7 @@ static struct {
 	{experiment_24, experiment_24_vmcall, 1, 1, 0, 0},
 	{experiment_25, experiment_25_vmcall, 1, 1, 1, 1},
 	{experiment_26, experiment_26_vmcall, 1, 0, 1, 0},
+	{experiment_27, experiment_27_vmcall, 0, 1, 1, 1},
 	/*                                    a  x  q  b */
 };
 
@@ -1523,7 +1577,7 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
-		experiment_25();
+		// experiment_27();
 	}
 	if (1 && "sequential") {
 		for (u32 i = 0; i < nexperiments; i++) {
