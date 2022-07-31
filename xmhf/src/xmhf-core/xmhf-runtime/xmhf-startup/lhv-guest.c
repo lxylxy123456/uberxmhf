@@ -45,6 +45,7 @@ static volatile enum exit_source exit_source = EXIT_MEASURE;
 static volatile uintptr_t exit_rip = 0;
 static volatile enum exit_source exit_source_old = EXIT_MEASURE;
 static volatile uintptr_t exit_rip_old = 0;
+static volatile bool quiet = false;
 
 #define TEST_ASSERT(_p) \
     do { \
@@ -76,7 +77,10 @@ void handle_interrupt_cpu1(u32 source, uintptr_t rip)
 		TEST_ASSERT(0 && "Should not ignore interrupt");
 		break;
 	case EXIT_MEASURE:
-		printf("      Interrupt recorded:       %s\n", exit_source_str[source]);
+		if (!quiet) {
+			printf("      Interrupt recorded:       %s\n",
+				   exit_source_str[source]);
+		}
 		exit_source = source;
 		exit_rip = rip;
 		break;
@@ -119,11 +123,15 @@ void handle_timer_interrupt(VCPU *vcpu, int vector, int guest, uintptr_t rip)
 			*icr_high = 0x01000000U;
 			switch ((count++) % (INTERRUPT_PERIOD * 2)) {
 			case 0:
-				printf("      Inject NMI\n");
+				if (!quiet) {
+					printf("      Inject NMI\n");
+				}
 				*icr_low = 0x00004400U;
 				break;
 			case INTERRUPT_PERIOD:
-				printf("      Inject interrupt\n");
+				if (!quiet) {
+					printf("      Inject interrupt\n");
+				}
 				*icr_low = 0x00004022U;
 				break;
 			default:
@@ -398,31 +406,41 @@ static void assert_measure_2(u32 source1, uintptr_t rip1, u32 source2,
 void hlt_wait(u32 source)
 {
 	uintptr_t rip;
-	printf("    hlt_wait() begin, source =  %s\n", exit_source_str[source]);
+	if (!quiet) {
+		printf("    hlt_wait() begin, source =  %s\n", exit_source_str[source]);
+	}
 	prepare_measure();
 	exit_source = EXIT_MEASURE;
 	l2_ready = 1;
 loop:
 	asm volatile ("pushf; sti; hlt; 1: leal 1b, %0; popf" : "=g"(rip));
 	if ("qemu workaround" && exit_source == EXIT_MEASURE) {
-		printf("      Strange wakeup from HLT\n");
+		if (!quiet) {
+			printf("      Strange wakeup from HLT\n");
+		}
 		goto loop;
 	}
 	l2_ready = 0;
 	assert_measure(source, rip);
-	printf("    hlt_wait() end\n");
+	if (!quiet) {
+		printf("    hlt_wait() end\n");
+	}
 }
 
 /* Execute IRET and expect interrupt to hit on the instruction */
 void iret_wait(u32 source)
 {
 	uintptr_t rip;
-	printf("    iret_wait() begin, source = %s\n", exit_source_str[source]);
+	if (!quiet) {
+		printf("    iret_wait() begin, source = %s\n", exit_source_str[source]);
+	}
 	prepare_measure();
 	exit_source = EXIT_MEASURE;
 	rip = xmhf_smpguest_arch_x86vmx_unblock_nmi_with_rip();
 	assert_measure(source, rip);
-	printf("    iret_wait() end\n");
+	if (!quiet) {
+		printf("    iret_wait() end\n");
+	}
 }
 
 /*
@@ -1464,21 +1482,45 @@ void run_experiment(u32 i)
 void lhv_guest_main(ulong_t cpu_id)
 {
 	TEST_ASSERT(cpu_id == 1);
-	// TODO: better environment detection code
-	// TODO: print detected environment
-#ifdef __DEBUG_VGA__
-	in_xmhf = true;
-#else
-	if (1) {
+	{
 		u32 eax, ebx, ecx, edx;
-		cpuid(0x1, &eax, &ebx, &ecx, &edx);
-		if (ecx & 0x80000000U) {
-			in_qemu = true;
-		} else {
+		printf("Detecting environment\n");
+		/*
+		 * I am not sure of a good way to detect Bochs. For now just use the
+		 * current CPU version information I see.
+		 */
+		cpuid(0x00000001U, &eax, &ebx, &ecx, &edx);
+		if (eax == 0x000206a7) {
 			in_bochs = true;
+			printf("    Bochs detected\n");
+		}
+		/*
+		 * Detect QEMU / KVM using
+		 * https://01.org/linuxgraphics/gfx-docs/drm/virt/kvm/cpuid.html
+		 */
+		cpuid(0x40000000U, &eax, &ebx, &ecx, &edx);
+		if (ebx == 0x4b4d564b && ecx == 0x564b4d56 && edx == 0x0000004d) {
+			in_qemu = true;
+			printf("    QEMU / KVM detected\n");
+		}
+		/* Detect XMHF */
+		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
+		if (eax == 0x46484d58U) {
+			in_xmhf = true;
+			printf("    XMHF detected\n");
+		}
+		printf("End detecting environment\n");
+		/* Wait for some time to make the results visible */
+		if ("Sleep") {
+			quiet = true;
+			for (u32 i = 0; i < 50; i += INTERRUPT_PERIOD) {
+				hlt_wait(EXIT_NMI_G);
+				iret_wait(EXIT_MEASURE);
+				hlt_wait(EXIT_TIMER_G);
+			}
+			quiet = false;
 		}
 	}
-#endif
 	asm volatile ("sti");
 	if (1 && "hardcode") {
 		experiment_25();
