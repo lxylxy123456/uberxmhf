@@ -972,13 +972,15 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		/* Optimize debug exception (#DB) for LAPIC operation */
 		vcpu->vmcs.info_vmexit_interrupt_information = __vmx_vmread32(0x4404);
 		if (((u32)vcpu->vmcs.info_vmexit_interrupt_information &
-			 INTR_INFO_VECTOR_MASK) == 1) {
+			 INTR_INFO_VECTOR_MASK) == INT1_VECTOR) {
 			vcpu->vmcs.guest_CS_selector = __vmx_vmread16(0x0802);
 			vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
 			vcpu->vmcs.control_exception_bitmap = __vmx_vmread32(0x4004);
 			vcpu->vmcs.guest_interruptibility = __vmx_vmread32(0x4824);
 			vcpu->vmcs.guest_RFLAGS = __vmx_vmreadNW(0x6820);
 			vcpu->vmcs.control_EPT_pointer = __vmx_vmread64(0x201A);
+			HALT_ON_ERRORCOND((vcpu->vmcs.info_vmexit_interrupt_information &
+							   INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_HW_EXCEPTION);
 			xmhf_smpguest_arch_x86_eventhandler_dbexception(vcpu, r);
 			__vmx_vmwrite32(0x4004, vcpu->vmcs.control_exception_bitmap);
 			__vmx_vmwrite32(0x4824, vcpu->vmcs.guest_interruptibility);
@@ -1049,19 +1051,20 @@ u32 xmhf_parteventhub_arch_x86vmx_print_guest(VCPU *vcpu, struct regs *r)
 
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
-#ifdef __OPTIMIZE_NESTED_VIRT__
-	if (_optimize_x86vmx_intercept_handler(vcpu, r)) {
-		return 1;
-	}
-#endif /* __OPTIMIZE_NESTED_VIRT__ */
-	//read VMCS from physical CPU/core
-#ifndef __XMHF_VERIFICATION__
 	/*
 	 * The intercept handler access VMCS fields using vcpu->vmcs, but the NMI
 	 * exception handler relies on the hardware VMCS (i.e. use __vmx_vmread()).
 	 * So we disable NMI during the entire intercept handler.
 	 */
 	xmhf_smpguest_arch_x86vmx_mhv_nmi_disable(vcpu);
+#ifdef __OPTIMIZE_NESTED_VIRT__
+	if (_optimize_x86vmx_intercept_handler(vcpu, r)) {
+		xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
+		return 1;
+	}
+#endif /* __OPTIMIZE_NESTED_VIRT__ */
+	//read VMCS from physical CPU/core
+#ifndef __XMHF_VERIFICATION__
 	xmhf_baseplatform_arch_x86vmx_getVMCS(vcpu);
 #endif //__XMHF_VERIFICATION__
 	//sanity check for VM-entry errors
@@ -1142,12 +1145,17 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		break;
 
  		case VMX_VMEXIT_EXCEPTION:{
-			switch( ((u32)vcpu->vmcs.info_vmexit_interrupt_information & INTR_INFO_VECTOR_MASK) ){
-				case 0x01:
+			switch(vcpu->vmcs.info_vmexit_interrupt_information & INTR_INFO_VECTOR_MASK){
+				case INT1_VECTOR:
+					HALT_ON_ERRORCOND(
+						(vcpu->vmcs.info_vmexit_interrupt_information &
+						 INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_HW_EXCEPTION);
 					xmhf_smpguest_arch_x86_eventhandler_dbexception(vcpu, r);
 					break;
 
-				case 0x02:	//NMI
+				case NMI_VECTOR:
+					HALT_ON_ERRORCOND((vcpu->vmcs.info_vmexit_interrupt_information &
+									   INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI);
 					#ifndef __XMHF_VERIFICATION__
 					//we currently discharge quiescing via manual inspection
 					xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception(vcpu, r, 1);
@@ -1170,7 +1178,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		break;
 
 		case VMX_VMEXIT_NMI_WINDOW: {
-			u32 nmi_windowing_mask = (1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
 			/* Inject NMI to guest */
 			vcpu->vmcs.control_VM_entry_exception_errorcode = 0;
 			vcpu->vmcs.control_VM_entry_interruption_information = NMI_VECTOR |
@@ -1178,11 +1185,11 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				INTR_INFO_VALID_MASK;
 			/* Clear NMI windowing if needed */
 			HALT_ON_ERRORCOND(vcpu->vmx_guest_nmi_cfg.guest_nmi_pending > 0);
-			HALT_ON_ERRORCOND(vcpu->vmcs.control_VMX_cpu_based & nmi_windowing_mask);
+			HALT_ON_ERRORCOND(vcpu->vmcs.control_VMX_cpu_based &
+							  (1U << VMX_PROCBASED_NMI_WINDOW_EXITING));
 			vcpu->vmx_guest_nmi_cfg.guest_nmi_pending--;
-			if (vcpu->vmx_guest_nmi_cfg.guest_nmi_pending <= 0) {
-				vcpu->vmcs.control_VMX_cpu_based &= ~nmi_windowing_mask;
-			}
+			xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(
+				vcpu, &vcpu->vmcs.control_VMX_cpu_based);
 			printf("CPU(0x%02x): inject NMI\n", vcpu->id);
 		}
 		break;

@@ -130,12 +130,18 @@ void xmhf_smpguest_arch_x86vmx_unblock_nmi(void);
 void xmhf_smpguest_arch_x86vmx_quiesce(VCPU *vcpu);
 void xmhf_smpguest_arch_x86vmx_endquiesce(VCPU *vcpu);
 
+// Check whether xmhf_smpguest_arch_x86vmx_mhv_nmi_disable() is in effect
+bool xmhf_smpguest_arch_x86vmx_mhv_nmi_disabled(VCPU *vcpu);
 // Handle NMI for the guest received in XMHF's NMI exception handler
 void xmhf_smpguest_arch_x86vmx_mhv_nmi_handle(VCPU *vcpu);
 // Temporarily block NMI during XMHF's intercept handler
 void xmhf_smpguest_arch_x86vmx_mhv_nmi_disable(VCPU *vcpu);
 // Unblock NMI in XMHF's intercept handler
 void xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(VCPU *vcpu);
+
+// Update NMI window exiting bit in VMCS control_VMX_cpu_based
+void xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(VCPU *vcpu,
+														 u32 *procctl);
 
 // Inject NMI to the guest when the guest is ready to receive it (i.e. when the
 // guest is not running NMI handler)
