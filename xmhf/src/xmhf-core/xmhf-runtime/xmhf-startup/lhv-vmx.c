@@ -513,7 +513,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 								  ".previous\r\n"
 								  "3:\r\n"
 								  : "=b"(result)
-								  : "r"(0), "rm"(0));
+								  : "r"(0UL), "rm"(0UL));
 
 					/* Make sure that VMWRITE raises #UD exception */
 					HALT_ON_ERRORCOND(result == 1);
