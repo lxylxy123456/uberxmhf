@@ -1465,11 +1465,11 @@ void run_experiment(u32 i)
 		printf("Skipping experiments[%d] due to XMHF\n", i);
 		return;
 	}
-	if (in_qemu && !experiments[i].support_qemu) {
+	if (in_qemu && !in_xmhf && !experiments[i].support_qemu) {
 		printf("Skipping experiments[%d] due to QEMU\n", i);
 		return;
 	}
-	if (in_bochs && !experiments[i].support_bochs) {
+	if (in_bochs && !in_xmhf && !experiments[i].support_bochs) {
 		printf("Skipping experiments[%d] due to Bochs\n", i);
 		return;
 	}
@@ -1513,7 +1513,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		/* Wait for some time to make the results visible */
 		if ("Sleep") {
 			quiet = true;
-			for (u32 i = 0; i < 50; i += INTERRUPT_PERIOD) {
+			for (u32 i = 0; i < 30; i += INTERRUPT_PERIOD) {
 				hlt_wait(EXIT_NMI_G);
 				iret_wait(EXIT_MEASURE);
 				hlt_wait(EXIT_TIMER_G);
