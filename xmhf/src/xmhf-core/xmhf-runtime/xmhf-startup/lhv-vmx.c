@@ -497,6 +497,11 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 				HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
 
 				HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
+				{
+					u64 basic_msr = vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR];
+					u32 vmcs_revision_identifier = basic_msr & 0x7fffffffU;
+					*((u32 *) vcpu->my_vmcs) = vmcs_revision_identifier;
+				}
 				HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
 				vmcs_load(vcpu);
 			}
