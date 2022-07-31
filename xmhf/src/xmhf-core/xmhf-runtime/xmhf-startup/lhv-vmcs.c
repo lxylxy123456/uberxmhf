@@ -33,12 +33,18 @@ u64 vmcs_vmread64(VCPU *vcpu, ulong_t encoding)
 
 void vmcs_dump(VCPU *vcpu, int verbose)
 {
-	(void) vcpu;
 	#define DECLARE_FIELD(encoding, name)								\
 		do {															\
-			unsigned long value;										\
-			HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));			\
-			vcpu->vmcs.name = value;									\
+			if ((encoding & 0x6000) == 0x0000) {						\
+				vcpu->vmcs.name = __vmx_vmread16(encoding);				\
+			} else if ((encoding & 0x6000) == 0x2000) {					\
+				vcpu->vmcs.name = __vmx_vmread64(encoding);				\
+			} else if ((encoding & 0x6000) == 0x4000) {					\
+				vcpu->vmcs.name = __vmx_vmread32(encoding);				\
+			} else {													\
+				HALT_ON_ERRORCOND((encoding & 0x6000) == 0x6000);		\
+				vcpu->vmcs.name = __vmx_vmreadNW(encoding);				\
+			}															\
 			if (!verbose) {												\
 				break;													\
 			}															\
@@ -61,11 +67,18 @@ void vmcs_dump(VCPU *vcpu, int verbose)
 
 void vmcs_load(VCPU *vcpu)
 {
-	(void) vcpu;
 	#define DECLARE_FIELD(encoding, name)								\
 		do {															\
-			unsigned long value = vcpu->vmcs.name;						\
-			HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));			\
+			if ((encoding & 0x6000) == 0x0000) {						\
+				__vmx_vmwrite16(encoding, vcpu->vmcs.name);				\
+			} else if ((encoding & 0x6000) == 0x2000) {					\
+				__vmx_vmwrite64(encoding, vcpu->vmcs.name);				\
+			} else if ((encoding & 0x6000) == 0x4000) {					\
+				__vmx_vmwrite32(encoding, vcpu->vmcs.name);				\
+			} else {													\
+				HALT_ON_ERRORCOND((encoding & 0x6000) == 0x6000);		\
+				__vmx_vmwriteNW(encoding, vcpu->vmcs.name);				\
+			}															\
 		} while (0);
 	#include <lhv-vmcs-template.h>
 	#undef DECLARE_FIELD

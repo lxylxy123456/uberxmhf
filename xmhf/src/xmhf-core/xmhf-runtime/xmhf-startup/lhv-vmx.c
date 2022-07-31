@@ -385,6 +385,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	ulong_t vmexit_reason = vmcs_vmread(vcpu, VMCS_info_vmexit_reason);
 	ulong_t guest_rip = vmcs_vmread(vcpu, VMCS_guest_RIP);
 	ulong_t inst_len = vmcs_vmread(vcpu, VMCS_info_vmexit_instruction_length);
+	bool vmlaunch_override = false;
 	HALT_ON_ERRORCOND(vcpu == _svm_and_vmx_getvcpu());
 	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
 		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[0].data == 0x00000000aaaaa000ULL);
@@ -475,6 +476,31 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			vpid += 2;
 			vmcs_vmwrite(vcpu, VMCS_control_vpid, vpid);
 		}
+		if (__LHV_OPT__ & LHV_USE_VMXOFF) {
+			if (vcpu->vmcall_exit_count % 5 == 0) {
+				spa_t vmptr;
+				vmlaunch_override = true;
+				vmcs_dump(vcpu, 0);
+				HALT_ON_ERRORCOND(__vmx_vmptrst(&vmptr));
+				HALT_ON_ERRORCOND(vmptr == hva2spa(vcpu->my_vmcs));
+				HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
+
+				/* Make sure that VMWRITE fails */
+				HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
+
+				if (vcpu->vmcall_exit_count % 3 == 0) {
+					HALT_ON_ERRORCOND(__vmx_vmxoff());
+					HALT_ON_ERRORCOND(__vmx_vmxon(hva2spa(vcpu->vmxon_region)));
+				}
+
+				/* Make sure that VMWRITE still fails */
+				HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
+
+				HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
+				HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
+				vmcs_load(vcpu);
+			}
+		}
 		{
 			if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 				asm volatile ("sti; hlt; cli;");
@@ -515,6 +541,9 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			HALT_ON_ERRORCOND(0);
 			break;
 		}
+	}
+	if (vmlaunch_override) {
+		vmlaunch_asm(r);
 	}
 	vmresume_asm(r);
 }
