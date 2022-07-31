@@ -5,6 +5,7 @@
 * 32-bit and 64-bit
 * `xmhf64 f41b83a6b`
 * `xmhf64-nest 9840519b6`
+* `lhv 87df18586`
 
 ## Behavior
 As seen in `bug_085`, SMP Linux cannot boot in nested XMHF because INVEPT makes
@@ -463,8 +464,133 @@ So the correct behavior is to clear that bit in VMCS12, and ignore whether
 VMCS02 and VMCS12 match. Implemented in `xmhf64-nest bd7c46c83`. After the
 change, running KVM XMHF XMHF Debian x64 looks good.
 
-TODO: try KVM XMHF XMHF Debian
-TODO: Pass experiments 18, 24, 26 on XMHF
-TODO: add tests on number of NMIs delivered when NMI is blocked for a long time (some NMIs should be lost)
-TODO: report KVM and Bochs bugs
+In `xmhf64-nest 65da0f4d8`, add check to warn when a situation similar to
+experiment 26 happens.
+
+### Extending supported configurations
+
+Amd64 XMHF looks fine when passing the tests.
+
+However, when compiled with circleci (`--enable-optimize-nested-virt`),
+multiple tests fail, like experiment 4. This is likely because
+`_optimize_x86vmx_intercept_handler()` does not handle things like
+`xmhf_smpguest_arch_x86vmx_mhv_nmi_disable()`. This should be considered a bug.
+It is fixed in `xmhf64 330e650f4` and `xmhf64-nest 00713eda7`.
+
+Actually the problem may be different. When `case VMX_VMEXIT_VMWRITE` in
+`_optimize_x86vmx_intercept_handler()` is commented out, the problem
+disappears. We brute force to find which VMCS field is not read and causes the
+problem. See `409ca2cd7` in `xmhf64-nest-dev`.
+
+After some bisecting, looks like
+`vcpu->vmcs.control_VM_entry_interruption_information` needs to be read.
+Currently it is only written. This problem is strange.
+
+For now, abbreviate `control_VM_entry_interruption_information` as CVEII.
+
+After some print debugging, looks like the story is
+* During some previous VMEXIT, an NMI is injected, so
+  `VMCS.CVEII = vcpu->vmcs.CVEII = 0x80000202`, and VMENTRY to L1.
+* During the next VMWRITE VMEXIT, `VMCS.CVEII` is cleared by hardware, but
+  `vcpu->vmcs.CVEII` is not. So `VMCS.CVEII = 0x00000202`, and
+  `vcpu->vmcs.CVEII = 0x80000202`
+* After VMWRITE VMEXIT is processed, `vcpu->vmcs.CVEII` is written to
+  `VMCS.CVEII`. So an extra NMI is injected.
+
+This bug is fixed in `xmhf64-nest 8044db960`. After this bug is fixed, looks
+like NMI experiments can pass with `--enable-optimize-nested-virt`. Both 32 bit
+and 64 bit work fine.
+
+### Experiment 24
+
+Basically experiment 24 fails on a variety of configurations
+* KVM LHV
+* KVM XMHF LHV
+* XMHF LHV
+
+The behavior are basically the same:
+
+```
+Experiment: 24
+CPU(0x01): nested vmexit 18
+  Enter host, exp=24, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+CPU(0x01): inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Strange wakeup from HLT
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+CPU(0x01): nested vmentry
+CPU(0x01): nested vmexit 0
+      Interrupt 1 recorded:     EXIT_VMEXIT  (7)
+CPU(0x01): nested vmentry
+CPU(0x01): nested vmexit 8
+      Interrupt recorded:       EXIT_NMIWIND (8)
+CPU(0x01): nested vmentry
+
+source1:         EXIT_NMI_H   (5)
+exit_source_old: EXIT_VMEXIT  (7)
+TEST_ASSERT '0 && (exit_source_old == source1)' failed, line 378, file lhv-guest.c
+```
+
+The expected behavior is that NMI windowing happens first, then NMI hits the
+host. However, the actual behavior is that VMEXIT happens first, after that
+entering the guest triggers NMI window.
+
+The priority of NMI window and NMI VMEXIT are swapped in function
+`xmhf_nested_arch_x86vmx_handle_vmexit()` in `xmhf64-nest 92bb54710`. Now
+XMHF passes experiment 24 (even on QEMU).
+
+Again, XMHF does not pass experiment 18 and 26 due to technical challenges.
+Currently there are code to detect these cases and halt / warn the user. We
+are not going to worry about these in the short term.
+
+At this point, XMHF on real hardware also passes all the tests. Tested 32 bit
+and 64 bit XMHF. "Strange wakeup from HLT" does not show up.
+
+However, running Thinkpad XMHF XMHF Fedora results in error. Looks like APs
+will at some point receive two INIT signals, which cause them to execute
+shutdown code. Not going to debug it at this point, since debugging is
+inconvenient.
+
+To run XMHF on Thinkpad, a few things need to be taken care of
+* Due to e820 mapping, use `--with-sl-base=0x20200000` instead of `0x20000000`
+* Increase ucode update macro: `#define UCODE_TOTAL_SIZE_MAX (4 * PAGE_SIZE_4K)`
+
+### Testing NMI dropping
+
+In `lhv-dev 3cee6b73a`, implemented experiment 27 to test NMI dropping when too
+many NMIs are received by the CPU. However, I feel that Thinkpad's behavior is
+incorrect. Not going to worry about it for now.
+
+A new branch, `lhv-nmi`, is created for NMI testing code. `lhv-dev` will be
+reverted to be the same as `lhv`.
+
+Future TODOs
+* Pass experiments 18, 26 on XMHF
+* Pass experiment 27 on Thinkpad
+* Write more tests on NMI blocking (similar to experiment 27)
+* Report bugs to KVM and Bochs
+
+## Fix
+
+`xmhf64 f41b83a6b..330e650f4`
+* Simplify NMI handling logic by delaying processing of NMIs
+
+`xmhf64-nest 9840519b6..84b01ca77`
+* Implement NMI virtualization
+* Add logic to allow detecting XMHF through CPUID
+
+`lhv-nmi aa8d89b1c..3cee6b73a`
+* Implement tests on NMI behavior in VMX
 
