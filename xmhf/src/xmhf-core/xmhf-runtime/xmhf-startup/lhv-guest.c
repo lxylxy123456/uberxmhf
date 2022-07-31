@@ -1477,8 +1477,8 @@ void lhv_guest_main(ulong_t cpu_id)
 		} else {
 			in_bochs = true;
 		}
-#endif
 	}
+#endif
 	asm volatile ("sti");
 	if (1 && "hardcode") {
 		experiment_25();
