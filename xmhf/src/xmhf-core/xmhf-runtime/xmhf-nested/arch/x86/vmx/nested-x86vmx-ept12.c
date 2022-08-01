@@ -208,6 +208,9 @@ void xmhf_nested_arch_x86vmx_ept_init(VCPU * vcpu)
 	LRU_FOREACH(index, line, &ept02_cache[vcpu->id]) {
 		ept02_ctx_init(vcpu, index, &line->value.ept02_ctx);
 		ept12_ctx_init(vcpu, &line->value.ept12_ctx);
+#ifdef NESTED_CACHE_EPT_VIOLATIONS
+		LRU_SET_INIT(&line->value.gpa2_cache);
+#endif							/* NESTED_CACHE_EPT_VIOLATIONS */
 	}
 }
 
@@ -392,11 +395,24 @@ spa_t xmhf_nested_arch_x86vmx_get_ept02(VCPU * vcpu, gpa_t ept12,
 		 */
 		{
 			u64 i;
-			for (i = 68000ULL; i < 0x80000ULL; i += PA_PAGE_SIZE_4K) {
+			for (i = 0x68000ULL; i < 0x80000ULL; i += PA_PAGE_SIZE_4K) {
 				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
 			}
 		}
 #endif							/* !__DEBUG_QEMU__ */
+#ifdef NESTED_CACHE_EPT_VIOLATIONS
+		/* Populate EPT02 using previous EPT violation addresses */
+		{
+			gpa2_cache_index_t gpa2_index;
+			gpa2_cache_line_t *gpa2_line;
+			LRU_FOREACH(gpa2_index, gpa2_line, &line->value.gpa2_cache) {
+				if (gpa2_line->valid) {
+					xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line,
+														 gpa2_line->key);
+				}
+			}
+		}
+#endif							/* NESTED_CACHE_EPT_VIOLATIONS */
 	}
 	*cache_hit = hit;
 	*cache_line = line;
@@ -505,6 +521,17 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 		printf("CPU(0x%02x): EPT: L2=0x%08llx L1=0x%08llx L0=0x%08llx\n",
 			   vcpu->id, guest2_paddr, guest1_paddr, xmhf_paddr);
 	}
+#ifdef NESTED_CACHE_EPT_VIOLATIONS
+	/* Save EPT violation address */
+	{
+		bool hit;
+		gpa2_cache_index_t index;
+		gpa_t gpa2 = PA_PAGE_ALIGN_4K(guest2_paddr);
+		LRU_SET_FIND_EVICT(&cache_line->value.gpa2_cache, gpa2, index, hit);
+		(void)hit;
+		(void)index;
+	}
+#endif							/* NESTED_CACHE_EPT_VIOLATIONS */
 	return 1;
 }
 
