@@ -525,8 +525,8 @@ void xmhf_nested_arch_x86vmx_hardcode_ept(VCPU * vcpu,
 		 * result in an EPT violation in the future. However, if KVM
 		 * is buggy, we may not be able to workaround easily.
 		 */
-		//printf("CPU(0x%02x): Warning: 0x%016llx not in guest EPT\n", vcpu->id,
-		//	   guest2_paddr);
+		printf("CPU(0x%02x): Warning: 0x%016llx not in guest EPT\n", vcpu->id,
+			   guest2_paddr);
 		break;
 	case 3:
 		HALT_ON_ERRORCOND(0 && "Guest EPT will access illegal memory");
