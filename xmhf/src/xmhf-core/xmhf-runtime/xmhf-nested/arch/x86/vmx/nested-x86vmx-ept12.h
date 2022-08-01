@@ -60,12 +60,6 @@
 /* Maximum number of active VPIDs per CPU */
 #define VMX_NESTED_MAX_ACTIVE_VPID 4
 
-/*
- * Cache EPT violation addresses and replay them. This decreases the penalty
- * when L1 hypervisor executes INVEPT.
- */
-#define NESTED_CACHE_EPT_VIOLATIONS 128
-
 /* Format of EPT12 context information */
 typedef struct {
 	/* Context of EPT12 */
@@ -84,19 +78,6 @@ typedef struct {
 	u8 *page_alloc;
 } ept02_ctx_t;
 
-#ifdef NESTED_CACHE_EPT_VIOLATIONS
-typedef u16 gpa2_cache_index_t;
-
-/* L2 guest physical address that causes the EPT violation */
-typedef gpa_t gpa2_cache_key_t;
-
-/* There are no values to be stored */
-typedef struct { char _[0]; } gpa2_cache_value_t;
-
-LRU_NEW_SET(gpa2_cache_set_t, gpa2_cache_line_t, NESTED_CACHE_EPT_VIOLATIONS,
-			gpa2_cache_index_t, gpa2_cache_key_t, gpa2_cache_value_t);
-#endif							/* NESTED_CACHE_EPT_VIOLATIONS */
-
 typedef u32 ept02_cache_index_t;
 
 /* Guest physical address of EPT12 (4K aligned) */
@@ -107,10 +88,6 @@ typedef struct {
 	ept02_ctx_t ept02_ctx;
 	/* EPT12 context (for accessing guest EPT) */
 	ept12_ctx_t ept12_ctx;
-#ifdef NESTED_CACHE_EPT_VIOLATIONS
-	/* Cached EPT violation addresses */
-	gpa2_cache_set_t gpa2_cache;
-#endif							/* NESTED_CACHE_EPT_VIOLATIONS */
 } ept02_cache_value_t;
 
 LRU_NEW_SET(ept02_cache_set_t, ept02_cache_line_t, VMX_NESTED_MAX_ACTIVE_EPT,
