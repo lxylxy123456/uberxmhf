@@ -104,5 +104,13 @@ time). So not committing to `xmhf64-nest`.
 
 ### Support large pages
 
-TODO: add tests in LHV
+At this point, L0 (XMHF) does not use large pages. However, at least it should
+allow L1 guest to use large pages. First we add test in LHV to use large pages.
+
+First, in `xmhf64 330e650f4..b87a0dcdd`, add a function in `hpt.c` to be able
+to set page size bit. Then, in `lhv 254fa80a4..2a0734e69`, test large pages by
+swapping two 2M pages. In `xmhf64-nest 6355bd66f..e1fe73dc8`, able to handle
+large pages.
+
+TODO: test when XMHF also uses large page
 
