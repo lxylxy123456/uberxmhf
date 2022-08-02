@@ -568,6 +568,21 @@ static inline u32 __vmx_vmxon(u64 vmxonRegion){
   return status;
 }
 
+static inline u32 __vmx_vmxoff(void){
+  u32 status;
+  __asm__("vmxoff			\r\n"
+	   	"jbe	1f    		\r\n"
+      "movl $1, %%eax \r\n"
+      "jmp  2f  \r\n"
+      "1: movl $0, %%eax \r\n"
+      "2: movl %%eax, %0 \r\n"
+    : "=m" (status)
+    :
+    : "%eax", "cc"
+  );
+  return status;
+}
+
 static inline u32 __vmx_vmwrite(unsigned long encoding, unsigned long value){
   u32 status;
   __asm__("vmwrite %2, %1 \r\n"
@@ -622,6 +637,21 @@ static inline u32 __vmx_vmptrld(u64 vmcs){
       "2: movl %%eax, %0 \r\n"
     : "=m" (status)
     : "m"(vmcs)
+    : "%eax", "cc"
+  );
+  return status;
+}
+
+static inline u32 __vmx_vmptrst(u64 *vmcs){
+  u32 status;
+  __asm__("vmptrst %1    \r\n"
+      "jbe  1f           \r\n"
+      "movl $1, %%eax    \r\n"
+      "jmp  2f           \r\n"
+      "1: movl $0, %%eax \r\n"
+      "2: movl %%eax, %0 \r\n"
+    : "=m" (status), "=m"(*vmcs)
+    :
     : "%eax", "cc"
   );
   return status;

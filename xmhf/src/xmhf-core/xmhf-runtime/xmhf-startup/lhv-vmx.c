@@ -385,6 +385,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	ulong_t vmexit_reason = vmcs_vmread(vcpu, VMCS_info_vmexit_reason);
 	ulong_t guest_rip = vmcs_vmread(vcpu, VMCS_guest_RIP);
 	ulong_t inst_len = vmcs_vmread(vcpu, VMCS_info_vmexit_instruction_length);
+	bool vmlaunch_override = false;
 	HALT_ON_ERRORCOND(vcpu == _svm_and_vmx_getvcpu());
 	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
 		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[0].data == 0x00000000aaaaa000ULL);
@@ -475,6 +476,64 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			vpid += 2;
 			vmcs_vmwrite(vcpu, VMCS_control_vpid, vpid);
 		}
+		if (__LHV_OPT__ & LHV_USE_VMXOFF) {
+			if (vcpu->vmcall_exit_count % 5 == 0) {
+				spa_t vmptr;
+				vmlaunch_override = true;
+				vmcs_dump(vcpu, 0);
+				HALT_ON_ERRORCOND(__vmx_vmptrst(&vmptr));
+				HALT_ON_ERRORCOND(vmptr == hva2spa(vcpu->my_vmcs));
+				HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
+
+				/* Make sure that VMWRITE fails */
+				HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
+
+				if (vcpu->vmcall_exit_count % 3 == 0) {
+					u32 result;
+					HALT_ON_ERRORCOND(__vmx_vmxoff());
+					asm volatile ("1:\r\n"
+								  "vmwrite %2, %1\r\n"
+								  "xor %%ebx, %%ebx\r\n"
+								  "jmp 3f\r\n"
+								  "2:\r\n"
+								  "movl $1, %%ebx\r\n"
+								  "jmp 3f\r\n"
+								  ".section .xcph_table\r\n"
+#ifdef __AMD64__
+								  ".quad 0x6\r\n"
+								  ".quad 1b\r\n"
+								  ".quad 2b\r\n"
+#elif defined(__I386__)
+								  ".long 0x6\r\n"
+								  ".long 1b\r\n"
+								  ".long 2b\r\n"
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+	#error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+								  ".previous\r\n"
+								  "3:\r\n"
+								  : "=b"(result)
+								  : "r"(0UL), "rm"(0UL));
+
+					/* Make sure that VMWRITE raises #UD exception */
+					HALT_ON_ERRORCOND(result == 1);
+
+					HALT_ON_ERRORCOND(__vmx_vmxon(hva2spa(vcpu->vmxon_region)));
+				}
+
+				/* Make sure that VMWRITE still fails */
+				HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
+
+				HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
+				{
+					u64 basic_msr = vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR];
+					u32 vmcs_revision_identifier = basic_msr & 0x7fffffffU;
+					*((u32 *) vcpu->my_vmcs) = vmcs_revision_identifier;
+				}
+				HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
+				vmcs_load(vcpu);
+			}
+		}
 		{
 			if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 				asm volatile ("sti; hlt; cli;");
@@ -515,6 +574,9 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			HALT_ON_ERRORCOND(0);
 			break;
 		}
+	}
+	if (vmlaunch_override) {
+		vmlaunch_asm(r);
 	}
 	vmresume_asm(r);
 }
