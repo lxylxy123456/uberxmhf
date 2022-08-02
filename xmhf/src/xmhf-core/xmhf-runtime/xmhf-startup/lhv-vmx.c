@@ -90,7 +90,6 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 #endif /* !defined(__I386__) */
 		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_controls, vmentry_ctls);
 	}
-	//TODO: enable unrestricted guest using ` | (1 << 7)`
 	vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based,
 				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
 
@@ -228,7 +227,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_selector, __CS);
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_base, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_RIP, (u64)(ulong_t)lhv_guest_entry);
-	vmcs_vmwrite(vcpu, VMCS_guest_RFLAGS, (1 << 1));	// TODO
+	vmcs_vmwrite(vcpu, VMCS_guest_RFLAGS, (1 << 1));
 	//CS, DS, ES, FS, GS and SS segments
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_limit, 0xffffffff);
 #ifdef __AMD64__
@@ -297,8 +296,6 @@ void lhv_vmx_main(VCPU *vcpu)
 		} else {
 			vcpu->vmx_guest_unrestricted = 0;
 		}
-		/* At this point LHV does not require EPT and unrestricted guest yet. */
-		// TODO: HALT_ON_ERRORCOND(vcpu->vmx_guest_unrestricted);
 	}
 
 	/* Discover support for VMX (22.6 DISCOVERING SUPPORT FOR VMX) */
@@ -366,8 +363,6 @@ void lhv_vmx_main(VCPU *vcpu)
 	/* Modify VMCS */
 	lhv_vmx_vmcs_init(vcpu);
 	vmcs_dump(vcpu, 0);
-
-//	asm volatile ("cli");	// TODO: tmp
 
 	/* VMLAUNCH */
 	{
