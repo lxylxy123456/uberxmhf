@@ -63,6 +63,11 @@ void lhv_guest_main(ulong_t cpu_id)
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
 		}
+		if (__LHV_OPT__ & LHV_USE_LARGE_PAGE) {
+			HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+			HALT_ON_ERRORCOND(large_pages[0][0] == 'B');
+			HALT_ON_ERRORCOND(large_pages[1][0] == 'A');
+		}
 	}
 }
 

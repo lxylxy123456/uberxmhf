@@ -25,6 +25,7 @@ typedef struct {
 #define LHV_USE_UNRESTRICTED_GUEST	0x0000000000000020ULL
 #define LHV_USER_MODE				0x0000000000000040ULL
 #define LHV_USE_VMXOFF				0x0000000000000080ULL
+#define LHV_USE_LARGE_PAGE			0x0000000000000100ULL
 
 /* xcph-x86.c */
 VCPU *_svm_and_vmx_getvcpu(void);
@@ -60,6 +61,7 @@ void vmlaunch_asm(struct regs *r);	/* Never returns */
 void vmresume_asm(struct regs *r);	/* Never returns */
 
 /* lhv-ept.c */
+extern u8 large_pages[2][512 * 4096] __attribute__((aligned(512 * 4096)));
 
 /*
  * When this is larger than XMHF's VMX_NESTED_MAX_ACTIVE_EPT, should see a lot
