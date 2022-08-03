@@ -102,7 +102,7 @@ it, use `xmhf64-nest-dev 6fad3c4e4`. However, looks like there is not
 significant performance improvement on Thinkpad (still need to wait for a long
 time). So not committing to `xmhf64-nest`.
 
-### Support large pages
+### Support large pages in EPT12
 
 At this point, L0 (XMHF) does not use large pages. However, at least it should
 allow L1 guest to use large pages. First we add test in LHV to use large pages.
@@ -112,5 +112,50 @@ to set page size bit. Then, in `lhv 254fa80a4..2a0734e69`, test large pages by
 swapping two 2M pages. In `xmhf64-nest 6355bd66f..e1fe73dc8`, able to handle
 large pages.
 
+### Invalidating EPT02 when EPT01 is invalidated
+
+We realized that to be correct, when EPT01 changes, EPT02 also needs to be
+invalidated.
+
+There are 3 interfaces to invalidate EPT01 in XMHF:
+* `xmhf_memprot_flushmappings()`: only invalidate one EPT
+* `xmhf_memprot_flushmappings_localtlb()`: invalidate all EPTs on current CPU
+* `xmhf_memprot_flushmappings_alltlb()`: invalidate all EPTs on all CPUs
+
+First, in `xmhf64 8968e4c63`, update TrustVisor to use
+`xmhf_memprot_flushmappings_alltlb()`.
+
+Then, in `xmhf64-nest 5876a6f8d`, make `xmhf_memprot_flushmappings()` the same
+as `xmhf_memprot_flushmappings_localtlb()`. Then let
+`xmhf_memprot_flushmappings_localtlb()` call nested virtualization code to
+invalidate all EPT02s.
+
+Then, I reverted the above commit in `xmhf64-nest 06a387f60` because it has a
+number of problems. The problems first arised when CI failed, because WRMSR to
+MTRRs flushes EPT. When this is done automatically in VMENTRY and VMEXIT, bad
+things will happen.
+
+We need to write this code more carefully. The things to consider are
+* `xmhf_memprot_flushmappings_alltlb()` will be called when NMI arrives, but
+  there are inconvenient times where a CPU cannot take EPT02 violations, like
+  in `xmhf_nested_arch_x86vmx_handle_ept02_exit()`. Need to allow the CPU to
+  delay flushing EPT02, as in delay processing NMIs that should be injected to
+  the guest.
+* MTRR logic should be changed. EPT02's EPT MT should inherit from EPT12,
+  instead of combining EPT01 and EPT12. In other words, `ept_merge_hpt_pmt()`
+  should not exist, because Intel manual does not define a way of combining
+  EPT and MTRRs.
+* For MTRR WRMSR handler, should call a function that only invalidates EPT01.
+  For other callers, should call a function that invalidates both EPT01 and
+  EPT02.
+
+TODO
 TODO: test when XMHF also uses large page
+TODO: when TLB shootdown, also flush EPT02
+
+### Testing large pages in EPT01
+
+Supporting large pages in EPT01 still sounds challenging, because that means
+TrustVisor also needs to be modified. However, when TrustVisor is not in use,
+we can change the EPT however we want. Simply modify `_vmx_setupEPT()`.
 

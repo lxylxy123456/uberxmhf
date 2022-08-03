@@ -125,6 +125,10 @@ the exploit becomes exploitable on Thinkpad. The changes are
   PAUSE in the busy wait loop
 * We send a lot of INIT signals, instead of 2
 
+Also, note that in the XMHF paper, it says that "\[devices\] are attacker
+controlled". So we should be able to assume that the 8042 keyboard controller
+device is attacker controlled.
+
 Now we can write some exploit programs. We can reuse the code in
 `bplt-x86-i386-smptrampoline.S` (real mode code between `_ap_bootstrap_start`
 and `_ap_bootstrap_end`) to go from real mode to protected mode at function
