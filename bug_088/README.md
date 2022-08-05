@@ -141,6 +141,15 @@ We need to write this code more carefully. The things to consider are
   in `xmhf_nested_arch_x86vmx_handle_ept02_exit()`. Need to allow the CPU to
   delay flushing EPT02, as in delay processing NMIs that should be injected to
   the guest.
+	* `ept02_cache` need to be protected, affecting the following functions
+		* `xmhf_nested_arch_x86vmx_ept_init()` (executed before guest, no need
+		  to worry)
+		* `xmhf_nested_arch_x86vmx_invept_*()`
+		* `xmhf_nested_arch_x86vmx_get_ept02()`
+	* `vmcs12_info->guest_ept_cache_line` and `vmcs12_info->guest_ept_root`
+	  need to be proctected, affecting
+		* `xmhf_nested_arch_x86vmx_handle_vmexit()` (EPT handling part).
+	* VMCS02's `control_EPT_pointer`
 * MTRR logic should be changed. EPT02's EPT MT should inherit from EPT12,
   instead of combining EPT01 and EPT12. In other words, `ept_merge_hpt_pmt()`
   should not exist, because Intel manual does not define a way of combining
@@ -148,6 +157,10 @@ We need to write this code more carefully. The things to consider are
 * For MTRR WRMSR handler, should call a function that only invalidates EPT01.
   For other callers, should call a function that invalidates both EPT01 and
   EPT02.
+* In `xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12()`, call to
+  `xmhf_nested_arch_x86vmx_get_ept02()` is required to have cache hit. However,
+  since EPT02 may be invalidated asynchronously, this assertion need to be
+  removed.
 
 TODO
 TODO: test when XMHF also uses large page
