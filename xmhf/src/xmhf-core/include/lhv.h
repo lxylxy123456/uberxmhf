@@ -52,6 +52,12 @@ void pic_init(void);
 void handle_keyboard_interrupt(VCPU *vcpu, int vector, int guest);
 
 /* lhv-vmx.c */
+typedef struct {
+	u32 vmexit_reason;
+	ulong_t guest_rip;
+	u32 inst_len;
+} vmexit_info_t;
+extern void (*vmexit_handler_override)(VCPU *, struct regs *, vmexit_info_t *);
 void lhv_vmx_main(VCPU *vcpu);
 void vmentry_error(ulong_t is_resume, ulong_t valid);
 
