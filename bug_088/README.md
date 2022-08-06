@@ -161,10 +161,14 @@ We need to write this code more carefully. The things to consider are
   `xmhf_nested_arch_x86vmx_get_ept02()` is required to have cache hit. However,
   since EPT02 may be invalidated asynchronously, this assertion need to be
   removed.
+	* Or an alternative implementation is to build an empty EPT02 when
+	  asynchronously flushing EPT02.
 
-TODO
-TODO: test when XMHF also uses large page
-TODO: when TLB shootdown, also flush EPT02
+The new implementation is in `xmhf64-nest 06a387f60..6041be5ad`. Basically this
+implementation covers what are discussed above.
+
+TODO: test KVM XMHF XMHF Debian and make sure it still works
+TODO: test when XMHF also uses large page (below)
 
 ### Testing large pages in EPT01
 
