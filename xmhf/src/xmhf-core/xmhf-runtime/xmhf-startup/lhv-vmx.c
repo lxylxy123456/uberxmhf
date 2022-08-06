@@ -405,38 +405,6 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			eptp = lhv_build_ept(vcpu, vcpu->ept_num);
 			vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
 		}
-		if (__LHV_OPT__ & LHV_USE_VPID) {
-			/* VPID will always be odd */
-			u16 vpid = vmcs_vmread(vcpu, VMCS_control_vpid);
-			if ("test INVVPID") {
-				/*
-				 * Currently we cannot easily test the effect of INVVPID. So
-				 * just make sure that the return value is correct.
-				 */
-				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
-												vpid, 0x12345678U));
-#ifdef __AMD64__
-				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
-												 vpid, 0xf0f0f0f0f0f0f0f0ULL));
-#elif !defined(__I386__)
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) */
-				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS,
-												 0, 0x12345678U));
-				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT,
-												vpid, 0));
-				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT,
-												 0, 0));
-				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_ALLCONTEXTS,
-												vpid, 0));
-				HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXTGLOBAL,
-												vpid, 0));
-				HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_SINGLECONTEXTGLOBAL,
-												 0, 0));
-			}
-			vpid += 2;
-			vmcs_vmwrite(vcpu, VMCS_control_vpid, vpid);
-		}
 		if (__LHV_OPT__ & LHV_USE_VMXOFF) {
 			if (vcpu->vmcall_exit_count % 5 == 0) {
 				spa_t vmptr;
