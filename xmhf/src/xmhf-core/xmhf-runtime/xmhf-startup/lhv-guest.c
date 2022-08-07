@@ -69,13 +69,13 @@ static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 	vmresume_asm(r);
 }
 
-static void lhv_guest_test_msr_ls(void)
+static void lhv_guest_test_msr_ls(VCPU *vcpu)
 {
 	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_MSR_LOAD);
-	vmexit_handler_override = lhv_guest_test_msr_ls_vmexit_handler;
+	vcpu->vmexit_handler_override = lhv_guest_test_msr_ls_vmexit_handler;
 	asm volatile ("vmcall" : : "a"(12));
 	asm volatile ("vmcall" : : "a"(16));
-	vmexit_handler_override = NULL;
+	vcpu->vmexit_handler_override = NULL;
 }
 
 /* Test whether EPT VMEXITs happen as expected */
@@ -108,7 +108,7 @@ static void lhv_guest_test_ept(VCPU *vcpu)
 	u32 expected_ept_count;
 	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
 	HALT_ON_ERRORCOND(vcpu->ept_exit_count == 0);
-	vmexit_handler_override = lhv_guest_test_ept_vmexit_handler;
+	vcpu->vmexit_handler_override = lhv_guest_test_ept_vmexit_handler;
 	{
 		u32 a = 0xdeadbeef;
 		u32 *p = (u32 *)0x12340000;
@@ -131,7 +131,7 @@ static void lhv_guest_test_ept(VCPU *vcpu)
 			expected_ept_count = 0;
 		}
 	}
-	vmexit_handler_override = NULL;
+	vcpu->vmexit_handler_override = NULL;
 	HALT_ON_ERRORCOND(vcpu->ept_exit_count == expected_ept_count);
 	vcpu->ept_exit_count = 0;
 }
@@ -158,13 +158,95 @@ static void lhv_guest_switch_ept_vmexit_handler(VCPU *vcpu, struct regs *r,
 	vmresume_asm(r);
 }
 
-static void lhv_guest_switch_ept(void)
+static void lhv_guest_switch_ept(VCPU *vcpu)
 {
 	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_SWITCH_EPT);
 	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
-	vmexit_handler_override = lhv_guest_switch_ept_vmexit_handler;
+	vcpu->vmexit_handler_override = lhv_guest_switch_ept_vmexit_handler;
 	asm volatile ("vmcall" : : "a"(17));
-	vmexit_handler_override = NULL;
+	vcpu->vmexit_handler_override = NULL;
+}
+
+/* Test VMCLEAR and VMXOFF */
+static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
+												 vmexit_info_t *info)
+{
+	if (info->vmexit_reason != VMX_VMEXIT_VMCALL) {
+		return;
+	}
+	HALT_ON_ERRORCOND(r->eax == 22);
+	{
+		bool test_vmxoff = r->ebx;
+		spa_t vmptr;
+		/* Back up current VMCS */
+		vmcs_dump(vcpu, 0);
+		/* Test VMPTRST */
+		HALT_ON_ERRORCOND(__vmx_vmptrst(&vmptr));
+		HALT_ON_ERRORCOND(vmptr == hva2spa(vcpu->my_vmcs));
+		/* VMCLEAR current VMCS */
+		HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
+		/* Make sure that VMWRITE fails */
+		HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
+
+		/* Run VMXOFF and VMXON */
+		if (test_vmxoff) {
+			u32 result;
+			HALT_ON_ERRORCOND(__vmx_vmxoff());
+			asm volatile ("1:\r\n"
+						  "vmwrite %2, %1\r\n"
+						  "xor %%ebx, %%ebx\r\n"
+						  "jmp 3f\r\n"
+						  "2:\r\n"
+						  "movl $1, %%ebx\r\n"
+						  "jmp 3f\r\n"
+						  ".section .xcph_table\r\n"
+#ifdef __AMD64__
+						  ".quad 0x6\r\n"
+						  ".quad 1b\r\n"
+						  ".quad 2b\r\n"
+#elif defined(__I386__)
+						  ".long 0x6\r\n"
+						  ".long 1b\r\n"
+						  ".long 2b\r\n"
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+	#error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+						  ".previous\r\n"
+						  "3:\r\n"
+						  : "=b"(result)
+						  : "r"(0UL), "rm"(0UL));
+
+			/* Make sure that VMWRITE raises #UD exception */
+			HALT_ON_ERRORCOND(result == 1);
+
+			HALT_ON_ERRORCOND(__vmx_vmxon(hva2spa(vcpu->vmxon_region)));
+		}
+
+		/* Make sure that VMWRITE still fails */
+		HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
+
+		/* Restore VMCS using VMCLEAR and VMPTRLD */
+		HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
+		{
+			u64 basic_msr = vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR];
+			u32 vmcs_revision_identifier = basic_msr & 0x7fffffffU;
+			*((u32 *) vcpu->my_vmcs) = vmcs_revision_identifier;
+		}
+		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
+		vmcs_load(vcpu);
+	}
+	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
+	/* Hardware thinks VMCS is not launched, so VMLAUNCH instead of VMRESUME */
+	vmlaunch_asm(r);
+}
+
+// TODO: be able to skip_vmclear
+static void lhv_guest_test_vmxoff(VCPU *vcpu, bool test_vmxoff)
+{
+	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_VMXOFF);
+	vcpu->vmexit_handler_override = lhv_guest_test_vmxoff_vmexit_handler;
+	asm volatile ("vmcall" : : "a"(22), "b"((u32)test_vmxoff));
+	vcpu->vmexit_handler_override = NULL;
 }
 
 /* Test changing VPID and whether INVVPID returns the correct error code */
@@ -208,16 +290,17 @@ static void lhv_guest_test_vpid_vmexit_handler(VCPU *vcpu, struct regs *r,
 	vmresume_asm(r);
 }
 
-static void lhv_guest_test_vpid(void)
+static void lhv_guest_test_vpid(VCPU *vcpu)
 {
 	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_VPID);
-	vmexit_handler_override = lhv_guest_test_vpid_vmexit_handler;
+	vcpu->vmexit_handler_override = lhv_guest_test_vpid_vmexit_handler;
 	asm volatile ("vmcall" : : "a"(19));
-	vmexit_handler_override = NULL;
+	vcpu->vmexit_handler_override = NULL;
 }
 
 void lhv_guest_main(ulong_t cpu_id)
 {
+	u32 iter = 0;
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	console_vc_t vc;
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
@@ -233,20 +316,26 @@ void lhv_guest_main(ulong_t cpu_id)
 		asm volatile ("sti");
 	}
 	while (1) {
+		iter++;
 		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 			asm volatile ("hlt");
 		}
 		if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
-			lhv_guest_test_msr_ls();
+			lhv_guest_test_msr_ls(vcpu);
 		}
 		if (__LHV_OPT__ & LHV_USE_EPT) {
 			lhv_guest_test_ept(vcpu);
 		}
 		if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
-			lhv_guest_switch_ept();
+			lhv_guest_switch_ept(vcpu);
 		}
 		if (__LHV_OPT__ & LHV_USE_VPID) {
-			lhv_guest_test_vpid();
+			lhv_guest_test_vpid(vcpu);
+		}
+		if (__LHV_OPT__ & LHV_USE_VMXOFF) {
+			if (iter % 5 == 0) {
+				lhv_guest_test_vmxoff(vcpu, iter % 3 == 0);
+			}
 		}
 		asm volatile ("vmcall");
 		if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
