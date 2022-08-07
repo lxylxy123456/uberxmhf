@@ -71,11 +71,12 @@ static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 
 static void lhv_guest_test_msr_ls(VCPU *vcpu)
 {
-	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_MSR_LOAD);
-	vcpu->vmexit_handler_override = lhv_guest_test_msr_ls_vmexit_handler;
-	asm volatile ("vmcall" : : "a"(12));
-	asm volatile ("vmcall" : : "a"(16));
-	vcpu->vmexit_handler_override = NULL;
+	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
+		vcpu->vmexit_handler_override = lhv_guest_test_msr_ls_vmexit_handler;
+		asm volatile ("vmcall" : : "a"(12));
+		asm volatile ("vmcall" : : "a"(16));
+		vcpu->vmexit_handler_override = NULL;
+	}
 }
 
 /* Test whether EPT VMEXITs happen as expected */
@@ -105,35 +106,36 @@ static void lhv_guest_test_ept_vmexit_handler(VCPU *vcpu, struct regs *r,
 
 static void lhv_guest_test_ept(VCPU *vcpu)
 {
-	u32 expected_ept_count;
-	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
-	HALT_ON_ERRORCOND(vcpu->ept_exit_count == 0);
-	vcpu->vmexit_handler_override = lhv_guest_test_ept_vmexit_handler;
-	{
-		u32 a = 0xdeadbeef;
-		u32 *p = (u32 *)0x12340000;
-		asm volatile("movl (%1), %%eax" :
-					 "+a" (a) :
-					 "b" (p) :
-					 "cc", "memory");
-		if (0) {
-			printf("CPU(0x%02x): EPT result: 0x%08x 0x%02x\n", vcpu->id, a,
-				   vcpu->ept_num);
+	if (__LHV_OPT__ & LHV_USE_EPT) {
+		u32 expected_ept_count;
+		HALT_ON_ERRORCOND(vcpu->ept_exit_count == 0);
+		vcpu->vmexit_handler_override = lhv_guest_test_ept_vmexit_handler;
+		{
+			u32 a = 0xdeadbeef;
+			u32 *p = (u32 *)0x12340000;
+			asm volatile("movl (%1), %%eax" :
+						 "+a" (a) :
+						 "b" (p) :
+						 "cc", "memory");
+			if (0) {
+				printf("CPU(0x%02x): EPT result: 0x%08x 0x%02x\n", vcpu->id, a,
+					   vcpu->ept_num);
+			}
+			if (vcpu->ept_num == 0) {
+				HALT_ON_ERRORCOND(a == 0xfee1c0de);
+				expected_ept_count = 1;
+			} else {
+				HALT_ON_ERRORCOND((u8) a == vcpu->ept_num);
+				HALT_ON_ERRORCOND((u8) (a >> 8) == vcpu->ept_num);
+				HALT_ON_ERRORCOND((u8) (a >> 16) == vcpu->ept_num);
+				HALT_ON_ERRORCOND((u8) (a >> 24) == vcpu->ept_num);
+				expected_ept_count = 0;
+			}
 		}
-		if (vcpu->ept_num == 0) {
-			HALT_ON_ERRORCOND(a == 0xfee1c0de);
-			expected_ept_count = 1;
-		} else {
-			HALT_ON_ERRORCOND((u8) a == vcpu->ept_num);
-			HALT_ON_ERRORCOND((u8) (a >> 8) == vcpu->ept_num);
-			HALT_ON_ERRORCOND((u8) (a >> 16) == vcpu->ept_num);
-			HALT_ON_ERRORCOND((u8) (a >> 24) == vcpu->ept_num);
-			expected_ept_count = 0;
-		}
+		vcpu->vmexit_handler_override = NULL;
+		HALT_ON_ERRORCOND(vcpu->ept_exit_count == expected_ept_count);
+		vcpu->ept_exit_count = 0;
 	}
-	vcpu->vmexit_handler_override = NULL;
-	HALT_ON_ERRORCOND(vcpu->ept_exit_count == expected_ept_count);
-	vcpu->ept_exit_count = 0;
 }
 
 /* Switch EPT */
@@ -160,11 +162,12 @@ static void lhv_guest_switch_ept_vmexit_handler(VCPU *vcpu, struct regs *r,
 
 static void lhv_guest_switch_ept(VCPU *vcpu)
 {
-	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_SWITCH_EPT);
-	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
-	vcpu->vmexit_handler_override = lhv_guest_switch_ept_vmexit_handler;
-	asm volatile ("vmcall" : : "a"(17));
-	vcpu->vmexit_handler_override = NULL;
+	if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
+		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+		vcpu->vmexit_handler_override = lhv_guest_switch_ept_vmexit_handler;
+		asm volatile ("vmcall" : : "a"(17));
+		vcpu->vmexit_handler_override = NULL;
+	}
 }
 
 /* Test VMCLEAR and VMXOFF */
@@ -243,10 +246,11 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 // TODO: be able to skip_vmclear
 static void lhv_guest_test_vmxoff(VCPU *vcpu, bool test_vmxoff)
 {
-	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_VMXOFF);
-	vcpu->vmexit_handler_override = lhv_guest_test_vmxoff_vmexit_handler;
-	asm volatile ("vmcall" : : "a"(22), "b"((u32)test_vmxoff));
-	vcpu->vmexit_handler_override = NULL;
+	if (__LHV_OPT__ & LHV_USE_VMXOFF) {
+		vcpu->vmexit_handler_override = lhv_guest_test_vmxoff_vmexit_handler;
+		asm volatile ("vmcall" : : "a"(22), "b"((u32)test_vmxoff));
+		vcpu->vmexit_handler_override = NULL;
+	}
 }
 
 /* Test changing VPID and whether INVVPID returns the correct error code */
@@ -292,10 +296,11 @@ static void lhv_guest_test_vpid_vmexit_handler(VCPU *vcpu, struct regs *r,
 
 static void lhv_guest_test_vpid(VCPU *vcpu)
 {
-	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_VPID);
-	vcpu->vmexit_handler_override = lhv_guest_test_vpid_vmexit_handler;
-	asm volatile ("vmcall" : : "a"(19));
-	vcpu->vmexit_handler_override = NULL;
+	if (__LHV_OPT__ & LHV_USE_VPID) {
+		vcpu->vmexit_handler_override = lhv_guest_test_vpid_vmexit_handler;
+		asm volatile ("vmcall" : : "a"(19));
+		vcpu->vmexit_handler_override = NULL;
+	}
 }
 
 /* Wait for interrupt in hypervisor mode, nop when LHV_NO_EFLAGS_IF */
@@ -323,37 +328,38 @@ static void lhv_guest_wait_int(VCPU *vcpu)
 /* Test unrestricted guest by disabling paging */
 static void lhv_guest_test_unrestricted_guest(VCPU *vcpu)
 {
+	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
 #ifdef __AMD64__
-	extern void lhv_disable_enable_paging(char *);
-	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST);
-	if ("quiet") {
-		lhv_disable_enable_paging("");
-	} else {
-		lhv_disable_enable_paging("LHV guest can disable paging\n");
-	}
+		extern void lhv_disable_enable_paging(char *);
+		if ("quiet") {
+			lhv_disable_enable_paging("");
+		} else {
+			lhv_disable_enable_paging("LHV guest can disable paging\n");
+		}
 #elif defined(__I386__)
-	ulong_t cr0 = read_cr0();
-	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST);
-	asm volatile ("cli");
-	write_cr0(cr0 & 0x7fffffffUL);
-	if (0) {
-		printf("CPU(0x%02x): LHV guest can disable paging\n", vcpu->id);
-	}
-	write_cr0(cr0);
-	asm volatile ("sti");
+		ulong_t cr0 = read_cr0();
+		asm volatile ("cli");
+		write_cr0(cr0 & 0x7fffffffUL);
+		if (0) {
+			printf("CPU(0x%02x): LHV guest can disable paging\n", vcpu->id);
+		}
+		write_cr0(cr0);
+		asm volatile ("sti");
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
+	}
 }
 
 /* Test large page in EPT */
 static void lhv_guest_test_large_page(VCPU *vcpu)
 {
 	(void)vcpu;
-	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_LARGE_PAGE);
-	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
-	HALT_ON_ERRORCOND(large_pages[0][0] == 'B');
-	HALT_ON_ERRORCOND(large_pages[1][0] == 'A');
+	if (__LHV_OPT__ & LHV_USE_LARGE_PAGE) {
+		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+		HALT_ON_ERRORCOND(large_pages[0][0] == 'B');
+		HALT_ON_ERRORCOND(large_pages[1][0] == 'A');
+	}
 }
 
 /* Logic to call subsequent tests */
@@ -379,29 +385,15 @@ void lhv_guest_main(ulong_t cpu_id)
 		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 			asm volatile ("hlt");
 		}
-		if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
-			lhv_guest_test_msr_ls(vcpu);
+		lhv_guest_test_msr_ls(vcpu);
+		lhv_guest_test_ept(vcpu);
+		lhv_guest_switch_ept(vcpu);
+		lhv_guest_test_vpid(vcpu);
+		if (iter % 5 == 0) {
+			lhv_guest_test_vmxoff(vcpu, iter % 3 == 0);
 		}
-		if (__LHV_OPT__ & LHV_USE_EPT) {
-			lhv_guest_test_ept(vcpu);
-		}
-		if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
-			lhv_guest_switch_ept(vcpu);
-		}
-		if (__LHV_OPT__ & LHV_USE_VPID) {
-			lhv_guest_test_vpid(vcpu);
-		}
-		if (__LHV_OPT__ & LHV_USE_VMXOFF) {
-			if (iter % 5 == 0) {
-				lhv_guest_test_vmxoff(vcpu, iter % 3 == 0);
-			}
-		}
-		if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
-			lhv_guest_test_unrestricted_guest(vcpu);
-		}
-		if (__LHV_OPT__ & LHV_USE_LARGE_PAGE) {
-			lhv_guest_test_large_page(vcpu);
-		}
+		lhv_guest_test_unrestricted_guest(vcpu);
+		lhv_guest_test_large_page(vcpu);
 		lhv_guest_wait_int(vcpu);
 	}
 }
