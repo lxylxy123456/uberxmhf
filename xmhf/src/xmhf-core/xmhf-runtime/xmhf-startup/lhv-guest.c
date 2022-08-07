@@ -372,22 +372,34 @@ static void lhv_guest_test_large_page(VCPU *vcpu)
 void lhv_guest_main(ulong_t cpu_id)
 {
 	u32 iter = 0;
+	bool in_xmhf = false;
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
-	console_vc_t vc;
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
-	console_get_vc(&vc, vcpu->idx, 1);
-	console_clear(&vc);
-	for (int i = 0; i < vc.width; i++) {
-		for (int j = 0; j < 2; j++) {
-			HALT_ON_ERRORCOND(console_get_char(&vc, i, j) == ' ');
-			console_put_char(&vc, i, j, '0' + vcpu->id);
+	{
+		u32 eax, ebx, ecx, edx;
+		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
+		in_xmhf = (eax == 0x46484d58U);
+	}
+	{
+		console_vc_t vc;
+		console_get_vc(&vc, vcpu->idx, 1);
+		console_clear(&vc);
+		for (int i = 0; i < vc.width; i++) {
+			for (int j = 0; j < 2; j++) {
+				HALT_ON_ERRORCOND(console_get_char(&vc, i, j) == ' ');
+				console_put_char(&vc, i, j, '0' + vcpu->id);
+			}
 		}
 	}
 	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 		asm volatile ("sti");
 	}
 	while (1) {
-		iter++;
+		if (in_xmhf) {
+			printf("CPU(0x%02x): LHV in XMHF test iter %d\n", vcpu->id, iter++);
+		} else {
+			printf("CPU(0x%02x): LHV test iter %d\n", vcpu->id, iter++);
+		}
 		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 			asm volatile ("hlt");
 		}

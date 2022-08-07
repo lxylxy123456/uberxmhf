@@ -394,7 +394,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			break;
 		}
 	case VMX_VMEXIT_VMCALL:
-		printf("CPU(0x%02x): unknown vmcall\n");
+		printf("CPU(0x%02x): unknown vmcall\n", vcpu->id);
 		/* fallthrough */
 	default:
 		{
