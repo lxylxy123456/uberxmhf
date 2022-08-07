@@ -464,9 +464,7 @@ void lhv_guest_main(ulong_t cpu_id)
 			lhv_guest_test_msr_ls(vcpu);
 			lhv_guest_test_user(vcpu);
 		}
-		if (0) {
-			lhv_guest_test_ept(vcpu);
-		}
+		lhv_guest_test_ept(vcpu);
 		lhv_guest_switch_ept(vcpu);
 		lhv_guest_test_vpid(vcpu);
 		if (iter % 5 == 0) {
