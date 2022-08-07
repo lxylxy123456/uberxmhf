@@ -25,7 +25,6 @@ def parse_args():
 	parser.add_argument('--sshpass', help='Password for ssh')
 	parser.add_argument('--verbose', action='store_true')
 	parser.add_argument('--watch-serial', action='store_true')
-	parser.add_argument('--skip-reset-qemu', action='store_true')
 	args = parser.parse_args()
 	return args
 
@@ -178,8 +177,6 @@ class SSHOperations:
 
 def main():
 	args = parse_args()
-	if not args.skip_reset_qemu:
-		reset_qemu(args)
 	ssh_port = get_port()
 	println('Use ssh port', ssh_port)
 	serial_file = os.path.join(args.work_dir, 'serial')
