@@ -105,6 +105,7 @@ static void lhv_guest_test_ept_vmexit_handler(VCPU *vcpu, struct regs *r,
 
 static void lhv_guest_test_ept(VCPU *vcpu)
 {
+	u32 expected_ept_count;
 	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
 	HALT_ON_ERRORCOND(vcpu->ept_exit_count == 0);
 	vmexit_handler_override = lhv_guest_test_ept_vmexit_handler;
@@ -121,16 +122,49 @@ static void lhv_guest_test_ept(VCPU *vcpu)
 		}
 		if (vcpu->ept_num == 0) {
 			HALT_ON_ERRORCOND(a == 0xfee1c0de);
+			expected_ept_count = 1;
 		} else {
 			HALT_ON_ERRORCOND((u8) a == vcpu->ept_num);
 			HALT_ON_ERRORCOND((u8) (a >> 8) == vcpu->ept_num);
 			HALT_ON_ERRORCOND((u8) (a >> 16) == vcpu->ept_num);
 			HALT_ON_ERRORCOND((u8) (a >> 24) == vcpu->ept_num);
+			expected_ept_count = 0;
 		}
 	}
 	vmexit_handler_override = NULL;
-	HALT_ON_ERRORCOND(vcpu->ept_exit_count == 1);
+	HALT_ON_ERRORCOND(vcpu->ept_exit_count == expected_ept_count);
 	vcpu->ept_exit_count = 0;
+}
+
+/* Switch EPT */
+static void lhv_guest_switch_ept_vmexit_handler(VCPU *vcpu, struct regs *r,
+												vmexit_info_t *info)
+{
+	if (info->vmexit_reason != VMX_VMEXIT_VMCALL) {
+		return;
+	}
+	HALT_ON_ERRORCOND(r->eax == 17);
+	{
+		u64 eptp;
+		/* Check prerequisite */
+		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+		/* Swap EPT */
+		vcpu->ept_num++;
+		vcpu->ept_num %= (LHV_EPT_COUNT << 4);
+		eptp = lhv_build_ept(vcpu, vcpu->ept_num);
+		vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
+	}
+	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
+	vmresume_asm(r);
+}
+
+static void lhv_guest_switch_ept(void)
+{
+	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_SWITCH_EPT);
+	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+	vmexit_handler_override = lhv_guest_switch_ept_vmexit_handler;
+	asm volatile ("vmcall" : : "a"(17));
+	vmexit_handler_override = NULL;
 }
 
 /* Test changing VPID and whether INVVPID returns the correct error code */
@@ -188,22 +222,6 @@ void lhv_guest_main(ulong_t cpu_id)
 	console_vc_t vc;
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
 	console_get_vc(&vc, vcpu->idx, 1);
-
-	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
-		lhv_guest_test_msr_ls();
-		lhv_guest_test_msr_ls();
-	}
-
-	if (__LHV_OPT__ & LHV_USE_VPID) {
-		lhv_guest_test_vpid();
-		lhv_guest_test_vpid();
-	}
-
-	if (__LHV_OPT__ & LHV_USE_EPT) {
-		lhv_guest_test_ept(vcpu);
-		lhv_guest_test_ept(vcpu);
-	}
-
 	console_clear(&vc);
 	for (int i = 0; i < vc.width; i++) {
 		for (int j = 0; j < 2; j++) {
@@ -217,6 +235,18 @@ void lhv_guest_main(ulong_t cpu_id)
 	while (1) {
 		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 			asm volatile ("hlt");
+		}
+		if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
+			lhv_guest_test_msr_ls();
+		}
+		if (__LHV_OPT__ & LHV_USE_EPT) {
+			lhv_guest_test_ept(vcpu);
+		}
+		if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
+			lhv_guest_switch_ept();
+		}
+		if (__LHV_OPT__ & LHV_USE_VPID) {
+			lhv_guest_test_vpid();
 		}
 		asm volatile ("vmcall");
 		if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {

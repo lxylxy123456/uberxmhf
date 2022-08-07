@@ -385,16 +385,6 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		if (vcpu->vmcall_exit_count < UINT_MAX) {
 			vcpu->vmcall_exit_count++;
 		}
-		if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
-			u64 eptp;
-			/* Check prerequisite */
-			HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
-			/* Swap EPT */
-			vcpu->ept_num++;
-			vcpu->ept_num %= (LHV_EPT_COUNT << 4);
-			eptp = lhv_build_ept(vcpu, vcpu->ept_num);
-			vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
-		}
 		if (__LHV_OPT__ & LHV_USE_VMXOFF) {
 			if (vcpu->vmcall_exit_count % 5 == 0) {
 				spa_t vmptr;
