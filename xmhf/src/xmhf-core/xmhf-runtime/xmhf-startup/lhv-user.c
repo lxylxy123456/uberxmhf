@@ -109,6 +109,14 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 	enter_user_mode_asm(&ureg);
 }
 
+void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
+{
+	/* Currently the only syscall is to exit guest mode */
+	HALT_ON_ERRORCOND(vector == 0x23);
+	HALT_ON_ERRORCOND(r->eax == 0xdeaddead);
+	vmresume_asm(&vcpu->guest_regs);
+}
+
 /* Below are for pal_demo */
 
 void begin_pal_c(void) {}
@@ -206,7 +214,16 @@ void user_main(VCPU *vcpu, ulong_t arg)
 			}
 		}
 	}
-	user_main_pal_demo(vcpu, arg);
+	/* Run pal_demo if in XMHF */
+	{
+		u32 eax, ebx, ecx, edx;
+		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
+		if (eax == 0x46484d58U) {
+			user_main_pal_demo(vcpu, arg);
+		} else {
+			printf("CPU(0x%02x): can enter user mode\n", vcpu->id);
+		}
+	}
 	/* Release semaphore */
 	spin_lock(&lock);
 	available++;

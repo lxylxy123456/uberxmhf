@@ -17,6 +17,7 @@
 #define TIMER_PERIOD_IO_PORT 0x40
 #define TIMER_MODE_IO_PORT 0x43
 #define TIMER_SQUARE_WAVE 0x36
+#define TIMER_ONE_SHOT 0x30
 
 #define LAPIC_PERIOD (TIMER_PERIOD * 1000000)
 
@@ -57,15 +58,24 @@ void timer_init(VCPU *vcpu)
 	if (vcpu->isbsp) {
 		u64 ncycles = TIMER_RATE * TIMER_PERIOD / 1000;
 		HALT_ON_ERRORCOND(ncycles == (u64)(u16)ncycles);
-		outb(TIMER_SQUARE_WAVE, TIMER_MODE_IO_PORT);
-		outb((u8)(ncycles), TIMER_PERIOD_IO_PORT);
-		outb((u8)(ncycles >> 8), TIMER_PERIOD_IO_PORT);
+		if (__LHV_OPT__ & LHV_NO_INTERRUPT) {
+			outb(TIMER_ONE_SHOT, TIMER_MODE_IO_PORT);
+			outb((u8)(1), TIMER_PERIOD_IO_PORT);
+			outb((u8)(0), TIMER_PERIOD_IO_PORT);
+			asm volatile ("sti; hlt; cli");
+		} else {
+			outb(TIMER_SQUARE_WAVE, TIMER_MODE_IO_PORT);
+			outb((u8)(ncycles), TIMER_PERIOD_IO_PORT);
+			outb((u8)(ncycles >> 8), TIMER_PERIOD_IO_PORT);
+		}
 	}
 
 	/* LAPIC Timer */
-	write_lapic(LAPIC_TIMER_DIV, 0x0000000b);
-	write_lapic(LAPIC_TIMER_INIT, LAPIC_PERIOD);
-	write_lapic(LAPIC_LVT_TIMER, 0x00020022);
+	if (!(__LHV_OPT__ & LHV_NO_INTERRUPT)) {
+		write_lapic(LAPIC_TIMER_DIV, 0x0000000b);
+		write_lapic(LAPIC_TIMER_INIT, LAPIC_PERIOD);
+		write_lapic(LAPIC_LVT_TIMER, 0x00020022);
+	}
 }
 
 static void update_screen(VCPU *vcpu, int *x, int y, int guest)
@@ -109,6 +119,14 @@ static void calibrate_timer(VCPU *vcpu) {
 
 void handle_timer_interrupt(VCPU *vcpu, int vector, int guest)
 {
+	if (__LHV_OPT__ & LHV_NO_INTERRUPT) {
+		/* Only one interrupt should arrive, ever */
+		static bool shot_arrived = false;
+		HALT_ON_ERRORCOND(vcpu->isbsp);
+		HALT_ON_ERRORCOND(!shot_arrived);
+		shot_arrived = true;
+		return;
+	}
 	if (vector == 0x20) {
 		vcpu->pit_time++;
 		update_screen(vcpu, &vcpu->lhv_pit_x[guest], 0, guest);

@@ -311,7 +311,10 @@ static void lhv_guest_test_vpid(VCPU *vcpu)
 	}
 }
 
-/* Wait for interrupt in hypervisor mode, nop when LHV_NO_EFLAGS_IF */
+/*
+ * Wait for interrupt in hypervisor mode, nop when LHV_NO_EFLAGS_IF or
+ * LHV_NO_INTERRUPT.
+ */
 static void lhv_guest_wait_int_vmexit_handler(VCPU *vcpu, struct regs *r,
 											  vmexit_info_t *info)
 {
@@ -319,7 +322,7 @@ static void lhv_guest_wait_int_vmexit_handler(VCPU *vcpu, struct regs *r,
 		return;
 	}
 	HALT_ON_ERRORCOND(r->eax == 25);
-	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+	if (!(__LHV_OPT__ & (LHV_NO_EFLAGS_IF | LHV_NO_INTERRUPT))) {
 		asm volatile ("sti; hlt; cli;");
 	}
 	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
@@ -371,10 +374,35 @@ static void lhv_guest_test_large_page(VCPU *vcpu)
 	}
 }
 
-/* Logic to call subsequent tests */
+/* Test running TrustVisor */
+static void lhv_guest_test_user_vmexit_handler(VCPU *vcpu, struct regs *r,
+											   vmexit_info_t *info)
+{
+	if (info->vmexit_reason != VMX_VMEXIT_VMCALL) {
+		return;
+	}
+	HALT_ON_ERRORCOND(r->eax == 33);
+	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
+	memcpy(&vcpu->guest_regs, r, sizeof(struct regs));
+	/* After user mode ends, just run vmresume_asm(&vcpu->guest_regs); */
+	enter_user_mode(vcpu, 0);
+	HALT_ON_ERRORCOND(0 && "Should never return");
+}
+
+static void lhv_guest_test_user(VCPU *vcpu)
+{
+	if (__LHV_OPT__ & LHV_USER_MODE) {
+		HALT_ON_ERRORCOND(!(__LHV_OPT__ & LHV_NO_EFLAGS_IF));
+		vcpu->vmexit_handler_override = lhv_guest_test_user_vmexit_handler;
+		asm volatile ("vmcall" : : "a"(33));
+		vcpu->vmexit_handler_override = NULL;
+	}
+}
+
+/* Main logic to call subsequent tests */
 void lhv_guest_main(ulong_t cpu_id)
 {
-	u32 iter = 0;
+	u64 iter = 0;
 	bool in_xmhf = false;
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
@@ -398,15 +426,44 @@ void lhv_guest_main(ulong_t cpu_id)
 		asm volatile ("sti");
 	}
 	while (1) {
+		/* Assume that iter never wraps around */
+		HALT_ON_ERRORCOND(++iter > 0);
 		if (in_xmhf) {
-			printf("CPU(0x%02x): LHV in XMHF test iter %d\n", vcpu->id, iter++);
+			printf("CPU(0x%02x): LHV in XMHF test iter %lld\n", vcpu->id, iter);
 		} else {
-			printf("CPU(0x%02x): LHV test iter %d\n", vcpu->id, iter++);
+			printf("CPU(0x%02x): LHV test iter %lld\n", vcpu->id, iter);
 		}
-		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+		if (!(__LHV_OPT__ & (LHV_NO_EFLAGS_IF | LHV_NO_INTERRUPT))) {
 			asm volatile ("hlt");
 		}
-		lhv_guest_test_msr_ls(vcpu);
+		if (in_xmhf && (__LHV_OPT__ & LHV_USE_MSR_LOAD) &&
+			(__LHV_OPT__ & LHV_USER_MODE)) {
+			/*
+			 * Due to the way TrustVisor is implemented, cannot change MTRR
+			 * after running pal_demo. So we need to disable some tests.
+			 */
+			if (iter < 3) {
+				lhv_guest_test_msr_ls(vcpu);
+			} else if (iter == 3) {
+				/* Implement a barrier and make sure all CPUs arrive */
+				static u32 lock = 1;
+				static volatile u32 arrived = 0;
+				printf("CPU(0x%02x): enter LHV barrier\n", vcpu->id);
+				spin_lock(&lock);
+				arrived++;
+				spin_unlock(&lock);
+				while (arrived < g_midtable_numentries) {
+					asm volatile ("pause");
+				}
+				printf("CPU(0x%02x): leave LHV barrier\n", vcpu->id);
+			} else {
+				lhv_guest_test_user(vcpu);
+			}
+		} else {
+			/* Only one of the following will execute */
+			lhv_guest_test_msr_ls(vcpu);
+			lhv_guest_test_user(vcpu);
+		}
 		lhv_guest_test_ept(vcpu);
 		lhv_guest_switch_ept(vcpu);
 		lhv_guest_test_vpid(vcpu);
