@@ -79,27 +79,27 @@ pipeline {
                 }
             }
         }
-        stage('Build i386') {
+        stage('Build i386 XMHF') {
             steps {
                 build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
             }
         }
-        stage('Test i386 in i386') {
+        stage('Test i386 Debian in i386 XMHF') {
             steps {
                 qemu_test "i386", "debian11x86-j.qcow2", "debian11x86.qcow2"
             }
         }
-        stage('Build amd64') {
+        stage('Build amd64 XMHF') {
             steps {
                 build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
             }
         }
-        stage('Test i386 in amd64') {
+        stage('Test i386 Debian in amd64 XMHF') {
             steps {
                 qemu_test "i386", "debian11x86-j.qcow2", "debian11x86.qcow2"
             }
         }
-        stage('Test amd64 in amd64') {
+        stage('Test amd64 Debian in amd64 XMHF') {
             steps {
                 qemu_test "amd64", "debian11x64-j.qcow2", "debian11x64.qcow2"
             }
