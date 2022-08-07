@@ -108,7 +108,6 @@ u64 lhv_build_ept(VCPU *vcpu, u8 ept_num)
 		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0x000b8000, 0x000b9000);
 		/* Real mode */
 		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0x00000000, 0x00100000);
-		/* 0x12340000 -> ept_target */
 	} else {
 		HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_SINGLECONTEXT,
 									   ept_ctx.ctx.root_pa | 0x1eULL));
