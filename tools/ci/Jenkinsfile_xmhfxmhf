@@ -4,8 +4,8 @@
 
 properties([
     parameters([
-        string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64'),
-        string(name: 'BUILD_OPTS', defaultValue: '--no-x2apic fast')
+        string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64-nest-dev'),
+        string(name: 'BUILD_OPTS', defaultValue: '--no-x2apic fast circleci')
     ])
 ])
 
@@ -37,7 +37,8 @@ void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
             --no-display \
             --sshpass jkl \
             --verbose \
-            --watch-serial
+            --watch-serial \
+            --memory 1G
     """
 }
 
@@ -64,7 +65,12 @@ pipeline {
                 sh "git clean -Xdf"
                 // Workaround git 2.30 bug
                 sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
-                sh "./tools/ci/build.sh i386 ${params.BUILD_OPTS}"
+                sh """
+                    ./tools/ci/build.sh i386 \
+                        --sl-base 0x20000000 \
+                        --no-init-smp \
+                        ${params.BUILD_OPTS}
+                """
                 sh "rm -rf nested"
                 sh "mkdir nested"
                 sh """
@@ -91,7 +97,29 @@ pipeline {
                 qemu_test "i386", "debian11x86-j.qcow2", "debian11x86.qcow2"
             }
         }
-        /*
+        stage('Build amd64 nested') {
+            steps {
+                sh "git clean -Xdf"
+                // Workaround git 2.30 bug
+                sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
+                sh """
+                    ./tools/ci/build.sh amd64 \
+                        --sl-base 0x20000000 \
+                        --no-init-smp \
+                        ${params.BUILD_OPTS}
+                """
+                sh "rm -rf nested"
+                sh "mkdir nested"
+                sh """
+                    python3 -u ./tools/ci/grub.py \
+                        --subarch amd64 \
+                        --xmhf-bin ./ \
+                        --work-dir ./nested/ \
+                        --verbose \
+                        --boot-dir ./tools/ci/boot/
+                """
+            }
+        }
         stage('Build amd64') {
             steps {
                 sh "git clean -Xdf"
@@ -105,7 +133,6 @@ pipeline {
                 qemu_test "amd64", "debian11x64-j.qcow2", "debian11x64.qcow2"
             }
         }
-        */
     }
 }
 

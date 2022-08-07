@@ -26,6 +26,7 @@ def parse_args():
 	parser.add_argument('--sshpass', help='Password for ssh')
 	parser.add_argument('--verbose', action='store_true')
 	parser.add_argument('--watch-serial', action='store_true')
+	parser.add_argument('--memory', default='1024M')
 	parser.add_argument('--skip-reset-qemu', action='store_true')
 	args = parser.parse_args()
 	return args
@@ -59,7 +60,7 @@ def get_port():
 
 def spawn_qemu(args, xmhf_img, serial_file, ssh_port):
 	qemu_args = [
-		'qemu-system-x86_64', '-m', '512M',
+		'qemu-system-x86_64', '-m', args.memory,
 	]
 	drive_index = 0
 	qemu_args += [
