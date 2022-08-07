@@ -193,6 +193,8 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 			HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
 			/* Make sure that VMWRITE fails */
 			HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
+		} else {
+			HALT_ON_ERRORCOND(test_vmxoff);
 		}
 
 		/* Run VMXOFF and VMXON */
@@ -250,6 +252,7 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 static void lhv_guest_test_vmxoff(VCPU *vcpu, bool test_vmxoff,
 								  bool skip_vmclear)
 {
+	HALT_ON_ERRORCOND(!skip_vmclear || test_vmxoff);
 	if (__LHV_OPT__ & LHV_USE_VMXOFF) {
 		vcpu->vmexit_handler_override = lhv_guest_test_vmxoff_vmexit_handler;
 		asm volatile ("vmcall" : : "a"(22), "b"((u32)test_vmxoff),
@@ -408,7 +411,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		lhv_guest_switch_ept(vcpu);
 		lhv_guest_test_vpid(vcpu);
 		if (iter % 5 == 0) {
-			lhv_guest_test_vmxoff(vcpu, iter % 3 == 0, 0);
+			lhv_guest_test_vmxoff(vcpu, iter % 3 != 0, iter % 3 == 1);
 		}
 		lhv_guest_test_unrestricted_guest(vcpu);
 		lhv_guest_test_large_page(vcpu);
