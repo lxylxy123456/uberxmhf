@@ -32,7 +32,7 @@ void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
             --subarch ${subarch} \
             --qemu-image ${PWD}/qemu/${qemu_image} \
             --qemu-image-back ${PWD}/qemu/${qemu_image_back} \
-            --nested-xmhf ${PWD}/tmp/nested.img
+            --nested-xmhf ${PWD}/nested/grub/c.img \
             --work-dir ${PWD}/tmp/ \
             --no-display \
             --sshpass jkl \
@@ -62,28 +62,24 @@ pipeline {
         stage('Build i386 nested') {
             steps {
                 sh "git clean -Xdf"
-                sh "ls tmp || echo folder not found" // TODO
                 // Workaround git 2.30 bug
                 sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
                 sh "./tools/ci/build.sh i386 ${params.BUILD_OPTS}"
-                sh "mkdir tmp"
+                sh "rm -rf nested"
+                sh "mkdir nested"
                 sh """
                     python3 -u ./tools/ci/grub.py \
                         --subarch i386 \
                         --xmhf-bin ./ \
-                        --work-dir ./tmp/ \
+                        --work-dir ./nested/ \
                         --verbose \
                         --boot-dir ./tools/ci/boot/
                 """
-                sh "mv tmp/grub/c.img tmp/nested.img"
-                sh "mkdir nested"
-                sh "cp tmp/nested.img nested/"
             }
         }
         stage('Build i386') {
             steps {
                 sh "git clean -Xdf"
-                sh "ls tmp || echo folder not found" // TODO
                 sh "ls nested || echo folder not found" // TODO
                 // Workaround git 2.30 bug
                 sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
@@ -95,6 +91,7 @@ pipeline {
                 qemu_test "i386", "debian11x86-j.qcow2", "debian11x86.qcow2"
             }
         }
+        /*
         stage('Build amd64') {
             steps {
                 sh "git clean -Xdf"
@@ -108,6 +105,7 @@ pipeline {
                 qemu_test "amd64", "debian11x64-j.qcow2", "debian11x64.qcow2"
             }
         }
+        */
     }
 }
 
