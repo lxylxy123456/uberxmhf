@@ -70,10 +70,10 @@ pipeline {
                 sh """
                     python3 -u ./tools/ci/grub.py \
                         --subarch i386 \
-                        --xmhf-bin ${PWD}/ \
-                        --work-dir ${PWD}/tmp/ \
+                        --xmhf-bin ./ \
+                        --work-dir ./tmp/ \
                         --verbose \
-                        --boot-dir ${PWD}/tools/ci/boot
+                        --boot-dir ./tools/ci/boot/
                 """
                 sh "mv tmp/grub/c.img tmp/nested.img"
                 sh "mkdir nested"
