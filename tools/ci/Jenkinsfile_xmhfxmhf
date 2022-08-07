@@ -66,7 +66,17 @@ pipeline {
                 // Workaround git 2.30 bug
                 sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
                 sh "./tools/ci/build.sh i386 ${params.BUILD_OPTS}"
-                sh "mv tmp/grub/c.img tmp/"
+                sh """
+                    python3 -u ./tools/ci/grub.py \
+                        --subarch i386 \
+                        --xmhf-bin ${PWD}/ \
+                        --work-dir ${PWD}/tmp/ \
+                        --verbose \
+                        --boot-dir ${PWD}/tools/ci/boot
+                """
+                sh "mv tmp/grub/c.img tmp/nested.img"
+                sh "mkdir nested"
+                sh "cp tmp/nested.img nested/"
             }
         }
         stage('Build i386') {
