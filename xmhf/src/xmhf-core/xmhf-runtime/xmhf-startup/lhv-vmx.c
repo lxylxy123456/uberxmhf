@@ -344,7 +344,6 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	u32 vmexit_reason = vmcs_vmread(vcpu, VMCS_info_vmexit_reason);
 	ulong_t guest_rip = vmcs_vmread(vcpu, VMCS_guest_RIP);
 	u32 inst_len = vmcs_vmread(vcpu, VMCS_info_vmexit_instruction_length);
-	bool vmlaunch_override = false;
 
 	if (vcpu->vmexit_handler_override) {
 		vmexit_info_t vmexit_info = {
@@ -354,7 +353,6 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		};
 		vcpu->vmexit_handler_override(vcpu, r, &vmexit_info);
 	}
-	// TODO: remove below
 
 	HALT_ON_ERRORCOND(vcpu == _svm_and_vmx_getvcpu());
 	switch (vmexit_reason) {
@@ -404,9 +402,6 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			HALT_ON_ERRORCOND(0 && "Unknown VMEXIT");
 			break;
 		}
-	}
-	if (vmlaunch_override) {
-		vmlaunch_asm(r);
 	}
 	vmresume_asm(r);
 }
