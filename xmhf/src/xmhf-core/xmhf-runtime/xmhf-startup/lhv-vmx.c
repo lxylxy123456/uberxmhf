@@ -385,16 +385,6 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		if (vcpu->vmcall_exit_count < UINT_MAX) {
 			vcpu->vmcall_exit_count++;
 		}
-		if (__LHV_OPT__ & LHV_USE_EPT) {
-			/* Make sure that EPT exits are present */
-			if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
-				HALT_ON_ERRORCOND((vcpu->ept_exit_count + 3) * LHV_EPT_COUNT * 16 >
-								  vcpu->vmcall_exit_count);
-			} else {
-				HALT_ON_ERRORCOND(vcpu->ept_exit_count + 3 >
-								  vcpu->vmcall_exit_count);
-			}
-		}
 		if (__LHV_OPT__ & LHV_USE_SWITCH_EPT) {
 			u64 eptp;
 			/* Check prerequisite */
@@ -472,27 +462,16 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 		}
 	case VMX_VMEXIT_EPT_VIOLATION:
 		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
-		if (vcpu->ept_exit_count < UINT_MAX) {
-			vcpu->ept_exit_count++;
-		}
 		{
 			ulong_t q = vmcs_vmread(vcpu, VMCS_info_exit_qualification);
 			u64 paddr = vmcs_vmread64(vcpu, VMCS_guest_paddr);
 			ulong_t vaddr = vmcs_vmread(vcpu, VMCS_info_guest_linear_address);
-			if (paddr == 0x12340000 && vaddr == 0x12340000) {
-				HALT_ON_ERRORCOND(q == 0x181);
-				HALT_ON_ERRORCOND(r->eax == 0xdeadbeef);
-				HALT_ON_ERRORCOND(r->ebx == 0x12340000);
-				r->eax = 0xfee1c0de;
-				vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
-				break;
-			}
 			/* Unknown EPT violation */
 			printf("CPU(0x%02x): ept: 0x%08lx\n", vcpu->id, q);
 			printf("CPU(0x%02x): paddr: 0x%016llx\n", vcpu->id, paddr);
 			printf("CPU(0x%02x): vaddr: 0x%08lx\n", vcpu->id, vaddr);
 			vmcs_dump(vcpu, 0);
-			HALT_ON_ERRORCOND(0);
+			HALT_ON_ERRORCOND(0 && "Unknown EPT violation");
 			break;
 		}
 	default:
@@ -500,7 +479,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			printf("CPU(0x%02x): unknown vmexit %d\n", vcpu->id, vmexit_reason);
 			printf("CPU(0x%02x): rip = 0x%x\n", vcpu->id, guest_rip);
 			vmcs_dump(vcpu, 0);
-			HALT_ON_ERRORCOND(0);
+			HALT_ON_ERRORCOND(0 && "Unknown VMEXIT");
 			break;
 		}
 	}
