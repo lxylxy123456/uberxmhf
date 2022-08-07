@@ -194,6 +194,12 @@ typedef struct {
   u32 guest_nmi_pending;
 } guest_nmi_t;
 
+typedef struct {
+	u32 vmexit_reason;
+	ulong_t guest_rip;
+	u32 inst_len;
+} vmexit_info_t;
+
 //the vcpu structure which holds the current state of a core
 typedef struct _vcpu {
   //common fields
@@ -286,9 +292,10 @@ typedef struct _vcpu {
   msr_entry_t *my_vmexit_msrstore;
   msr_entry_t *my_vmexit_msrload;
   msr_entry_t *my_vmentry_msrload;
-  u32 vmcall_exit_count;
   u32 ept_exit_count;
   u8 ept_num;
+  void (*vmexit_handler_override)(struct _vcpu *, struct regs *,
+                                  vmexit_info_t *);
 } VCPU;
 
 #define SIZE_STRUCT_VCPU    (sizeof(struct _vcpu))

@@ -17,9 +17,12 @@ __attribute__(( section(".bss.palign_data") ));
 /* Indicate whether the page in ept_pool is free */
 static u8 ept_alloc[MAX_VCPU_ENTRIES][LHV_EPT_COUNT][EPT_POOL_SIZE];
 
-/* Memory to be mapped  */
+/* Memory to be mapped */
 static u8 ept_target[256][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
+
+/* Large pages to be swapped */
+u8 large_pages[2][512 * 4096] __attribute__((aligned(512 * 4096)));
 
 typedef struct {
 	hptw_ctx_t ctx;
@@ -109,6 +112,8 @@ u64 lhv_build_ept(VCPU *vcpu, u8 ept_num)
 									   ept_ctx.ctx.root_pa | 0x1eULL));
 		// HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_GLOBAL, 0));
 	}
+
+	/* Map 0x12340000 to ept_target */
 	{
 		memset(ept_target[ept_num], ept_num, 16);
 		if (ept_num) {
@@ -119,6 +124,31 @@ u64 lhv_build_ept(VCPU *vcpu, u8 ept_num)
 		HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&ept_ctx.ctx, &pmeo,
 												 0x12340000ULL) == 0);
 	}
+
+	/* Swap large_pages using 2M pages */
+	if (__LHV_OPT__ & LHV_USE_LARGE_PAGE) {
+		spa_t addr0 = hva2spa(large_pages[0]);
+		spa_t addr1 = hva2spa(large_pages[1]);
+		HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_2M(addr0));
+		HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_2M(addr1));
+		pmeo.lvl = 2;
+		pmeo.pme = 0;
+		hpt_pmeo_set_page(&pmeo, true);
+		hpt_pmeo_setuser(&pmeo, true);
+		hpt_pmeo_setprot(&pmeo, HPT_PROTS_RWX);
+		hpt_pmeo_setcache(&pmeo, HPT_PMT_WB);
+		/* lage_pages[1] -> lage_pages[0] */
+		hpt_pmeo_set_address(&pmeo, addr0);
+		HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&ept_ctx.ctx, &pmeo,
+												 addr1) == 0);
+		/* lage_pages[1] -> lage_pages[1] */
+		hpt_pmeo_set_address(&pmeo, addr1);
+		HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&ept_ctx.ctx, &pmeo,
+												 addr0) == 0);
+		memset(large_pages[0], 'A', 16);
+		memset(large_pages[1], 'B', 16);
+	}
+
 	return ept_ctx.ctx.root_pa;
 }
 
