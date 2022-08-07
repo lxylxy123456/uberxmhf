@@ -408,7 +408,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		lhv_guest_switch_ept(vcpu);
 		lhv_guest_test_vpid(vcpu);
 		if (iter % 5 == 0) {
-			lhv_guest_test_vmxoff(vcpu, iter % 3 == 0, iter % 2 == 0);
+			lhv_guest_test_vmxoff(vcpu, iter % 3 == 0, 0);
 		}
 		lhv_guest_test_unrestricted_guest(vcpu);
 		lhv_guest_test_large_page(vcpu);
