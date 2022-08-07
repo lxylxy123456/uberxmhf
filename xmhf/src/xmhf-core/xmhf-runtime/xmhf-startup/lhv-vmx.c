@@ -345,6 +345,8 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 	ulong_t guest_rip = vmcs_vmread(vcpu, VMCS_guest_RIP);
 	u32 inst_len = vmcs_vmread(vcpu, VMCS_info_vmexit_instruction_length);
 
+	HALT_ON_ERRORCOND(vmexit_reason != 48);
+
 	if (vcpu->vmexit_handler_override) {
 		vmexit_info_t vmexit_info = {
 			.vmexit_reason=vmexit_reason,
