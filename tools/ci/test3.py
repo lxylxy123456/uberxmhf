@@ -45,7 +45,7 @@ def get_port():
 	else:
 		raise RuntimeError('Cannot get port')
 
-def spawn_qemu(args, xmhf_img, serial_file, ssh_port):
+def spawn_qemu(args, serial_file, ssh_port):
 	qemu_args = [
 		'qemu-system-x86_64', '-m', '512M',
 		'--drive', 'media=disk,file=%s,format=raw,index=0' % args.xmhf_img,
