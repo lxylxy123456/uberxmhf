@@ -91,7 +91,7 @@ pipeline {
         }
         stage('Build amd64') {
             steps {
-                build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
+                build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
             }
         }
         stage('Test i386 in amd64') {
