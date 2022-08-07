@@ -328,6 +328,7 @@ static void lhv_guest_wait_int(VCPU *vcpu)
 /* Test unrestricted guest by disabling paging */
 static void lhv_guest_test_unrestricted_guest(VCPU *vcpu)
 {
+	(void)vcpu;
 	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
 #ifdef __AMD64__
 		extern void lhv_disable_enable_paging(char *);
