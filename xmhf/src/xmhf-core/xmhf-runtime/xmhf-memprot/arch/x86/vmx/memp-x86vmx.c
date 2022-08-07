@@ -316,22 +316,6 @@ static u32 _vmx_getmemorytypeforphysicalpage(VCPU *vcpu, u64 pagebaseaddr){
 	return prev_type;
 }
 
-u32 combine_mt(u32 prev_type, u32 cur_type)
-{
-	if (prev_type == MTRR_TYPE_RESV || prev_type == cur_type) {
-		prev_type = cur_type;
-	} else if (prev_type == MTRR_TYPE_UC || cur_type == MTRR_TYPE_UC) {
-		prev_type = MTRR_TYPE_UC;
-	} else if (prev_type == MTRR_TYPE_WB && cur_type == MTRR_TYPE_WT) {
-		prev_type = MTRR_TYPE_WT;
-	} else if (prev_type == MTRR_TYPE_WT && cur_type == MTRR_TYPE_WB) {
-		prev_type = MTRR_TYPE_WT;
-	} else {
-		printf("Conflicting MTRR types (%u, %u), HALT!\n", prev_type, cur_type);
-		HALT();
-	}
-	return prev_type;
-}
 
 //---setup EPT for VMX----------------------------------------------------------
 static void _vmx_setupEPT(VCPU *vcpu){
@@ -384,40 +368,6 @@ static void _vmx_setupEPT(VCPU *vcpu){
 				lower = 0x7;	/* present */
 			}
 			p_entry[i] = paddr | (memorytype << 3) | lower;
-		}
-	}
-	if ("use 2M pages") {
-		gpa_t i, j;
-		HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_2M(MAX_PHYS_ADDR));
-		for (i = 0; i < MAX_PHYS_ADDR; i += PA_PAGE_SIZE_2M) {
-			u32 prev_mt = MTRR_TYPE_RESV;
-			if (i == 0xfee00000ULL || i == 0xfee00000ULL) {
-				continue;
-			}
-			for (j = 0; j < PA_PAGE_SIZE_2M; j += PA_PAGE_SIZE_4K) {
-				u32 mt = (p_entry[(i + j) >> PAGE_SHIFT_4K] >> 3) & 7;
-				p_entry[(i + j) >> PAGE_SHIFT_4K] = 0;
-				prev_mt = combine_mt(prev_mt, mt);
-			}
-			HALT_ON_ERRORCOND(!(prev_mt & ~0x7));
-			pd_entry[i >> PAGE_SHIFT_2M] = i | (prev_mt << 3) | 0x87;
-		}
-		if ("use 1G pages") {
-			gpa_t i, j;
-			HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_1G(MAX_PHYS_ADDR));
-			for (i = 0; i < MAX_PHYS_ADDR; i += PA_PAGE_SIZE_1G) {
-				u32 prev_mt = MTRR_TYPE_RESV;
-				if (i == 0xc0000000ULL) {
-					continue;
-				}
-				for (j = 0; j < PA_PAGE_SIZE_1G; j += PA_PAGE_SIZE_2M) {
-					u32 mt = (p_entry[(i + j) >> PAGE_SHIFT_2M] >> 3) & 7;
-					pd_entry[(i + j) >> PAGE_SHIFT_2M] = 0;
-					prev_mt = combine_mt(prev_mt, mt);
-				}
-				HALT_ON_ERRORCOND(!(prev_mt & ~0x7));
-				pdp_entry[i >> PAGE_SHIFT_1G] = i | (prev_mt << 3) | 0x87;
-			}
 		}
 	}
 }
