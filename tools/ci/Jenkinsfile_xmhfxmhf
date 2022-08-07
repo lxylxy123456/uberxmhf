@@ -66,6 +66,7 @@ pipeline {
                 // Workaround git 2.30 bug
                 sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
                 sh "./tools/ci/build.sh i386 ${params.BUILD_OPTS}"
+                sh "mkdir tmp"
                 sh """
                     python3 -u ./tools/ci/grub.py \
                         --subarch i386 \
@@ -83,6 +84,7 @@ pipeline {
             steps {
                 sh "git clean -Xdf"
                 sh "ls tmp || echo folder not found" // TODO
+                sh "ls nested || echo folder not found" // TODO
                 // Workaround git 2.30 bug
                 sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
                 sh "./tools/ci/build.sh i386 ${params.BUILD_OPTS}"
