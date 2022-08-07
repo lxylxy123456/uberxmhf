@@ -72,6 +72,7 @@ def spawn_qemu(args, xmhf_img, serial_file, ssh_port):
 	popen_stderr = { 'stderr': -1 }
 	if args.verbose:
 		del popen_stderr['stderr']
+		print(' '.join(qemu_args))
 	p = Popen(qemu_args, stdin=-1, stdout=-1, **popen_stderr)
 	return p
 
