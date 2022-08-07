@@ -320,6 +320,43 @@ static void lhv_guest_wait_int(VCPU *vcpu)
 	vcpu->vmexit_handler_override = NULL;
 }
 
+/* Test unrestricted guest by disabling paging */
+static void lhv_guest_test_unrestricted_guest(VCPU *vcpu)
+{
+#ifdef __AMD64__
+	extern void lhv_disable_enable_paging(char *);
+	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST);
+	if ("quiet") {
+		lhv_disable_enable_paging("");
+	} else {
+		lhv_disable_enable_paging("LHV guest can disable paging\n");
+	}
+#elif defined(__I386__)
+	ulong_t cr0 = read_cr0();
+	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST);
+	asm volatile ("cli");
+	write_cr0(cr0 & 0x7fffffffUL);
+	if (0) {
+		printf("CPU(0x%02x): LHV guest can disable paging\n", vcpu->id);
+	}
+	write_cr0(cr0);
+	asm volatile ("sti");
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+}
+
+/* Test large page in EPT */
+static void lhv_guest_test_large_page(VCPU *vcpu)
+{
+	(void)vcpu;
+	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_LARGE_PAGE);
+	HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+	HALT_ON_ERRORCOND(large_pages[0][0] == 'B');
+	HALT_ON_ERRORCOND(large_pages[1][0] == 'A');
+}
+
+/* Logic to call subsequent tests */
 void lhv_guest_main(ulong_t cpu_id)
 {
 	u32 iter = 0;
@@ -359,33 +396,13 @@ void lhv_guest_main(ulong_t cpu_id)
 				lhv_guest_test_vmxoff(vcpu, iter % 3 == 0);
 			}
 		}
-		lhv_guest_wait_int(vcpu);
 		if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
-#ifdef __AMD64__
-			extern void lhv_disable_enable_paging(char *);
-			if ("quiet") {
-				lhv_disable_enable_paging("");
-			} else {
-				lhv_disable_enable_paging("LHV guest can disable paging\n");
-			}
-#elif defined(__I386__)
-			ulong_t cr0 = read_cr0();
-			asm volatile ("cli");
-			write_cr0(cr0 & 0x7fffffffUL);
-			if (0) {
-				printf("CPU(0x%02x): LHV guest can disable paging\n", vcpu->id);
-			}
-			write_cr0(cr0);
-			asm volatile ("sti");
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+			lhv_guest_test_unrestricted_guest(vcpu);
 		}
 		if (__LHV_OPT__ & LHV_USE_LARGE_PAGE) {
-			HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
-			HALT_ON_ERRORCOND(large_pages[0][0] == 'B');
-			HALT_ON_ERRORCOND(large_pages[1][0] == 'A');
+			lhv_guest_test_large_page(vcpu);
 		}
+		lhv_guest_wait_int(vcpu);
 	}
 }
 
