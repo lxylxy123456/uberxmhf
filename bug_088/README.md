@@ -1,4 +1,4 @@
-# Running SMP Linux in XMHF in XMHF
+# Running SMP Linux in XMHF in XMHF (more optimizations)
 
 ## Scope
 * KVM
@@ -165,9 +165,56 @@ We need to write this code more carefully. The things to consider are
 	  asynchronously flushing EPT02.
 
 The new implementation is in `xmhf64-nest 06a387f60..6041be5ad`. Basically this
-implementation covers what are discussed above.
+implementation covers what are discussed above. After the change, looks like
+KVM XMHF XMHF Debian still works.
 
-TODO: test KVM XMHF XMHF Debian and make sure it still works
+### Simplify LHV
+
+Currently the VMCALL and guest logic of LHV is complicated. We change LHV so
+that the logic becomes similar to NMI test cases. That is, the state of the
+guest is tracked using RIP. The state of the host is tracked by CPU global
+variables (in this case a function pointer).
+
+In `lhv 2a0734e69..959d71e28`, implement the above. We also test presence of
+XMHF from LHV. The benefit is that Jenkins no longer relies on XMHF's output.
+So the printf of nested VMENTRY and VMEXIT can be removed. See
+`xmhf64-nest 6041be5ad..96483829b`.
+
+We also add testing of user mode in LHV, but now test fails because of some
+CPUs stuck in XMHF (similar to deadlock).
+
+* Bad: SMP 4, `LHV_OPT = 0x1fd`
+* Good: SMP 4, `LHV_OPT = 0x1bf`
+
+Inaccurate results, because 0x40 and 0x2 are exclusive
+* Bad: SMP 4, `LHV_OPT = 0x1ff`
+* Bad: SMP 2, `LHV_OPT = 0x1ff`
+* Bad: SMP 4, `LHV_OPT = 0xfe`
+* Bad: SMP 4, `LHV_OPT = 0x4e`
+* Bad: SMP 2, `LHV_OPT = 0x42`
+
+In `lhv a8d8fbd67..d72c991ab`, implement `LHV_NO_INTERRUPT = 0x200` to remove
+all interrupt sources but not remove EFLAGS.IF.
+* Bad: SMP 4, `LHV_OPT = 0x3fd`
+* Bad: SMP 4, `LHV_OPT = 0x34d`
+* Bad: SMP 4, `LHV_OPT = 0x244`
+* Bad: SMP 2, `LHV_OPT = 0x244`
+* Good: SMP 4, `LHV_OPT = 0x240`
+* Good: SMP 1, `LHV_OPT = 0x244`
+
+So we can see that the problem happens when EPT and user mode are both enabled.
+Also need to be SMP.
+
+Using GDB, we can see that the CPU stucks at LHV because of an unexpected EPT
+exit. In `lhv-dev 6d4b64418` we change LHV a little bit to make EPT exit
+impossible. Then in `xmhf64-nest-dev 925a8f17b` we try to detect this problem
+in XMHF. We are on the right track.
+
+We predict that the problem happens when EPT02 flush happens before handling
+nested EPT violation VMEXITs. In `xmhf64-nest-dev b953e96c9`, we put a EPT02
+flush in the code, and now the bug is always reproducible in 1 CPU.
+
+TODO: fix LHV test when `LHV_OPT = 0x240`
 TODO: test when XMHF also uses large page (below)
 
 ### Testing large pages in EPT01
