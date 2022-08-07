@@ -391,6 +391,9 @@ static void _vmx_setupEPT(VCPU *vcpu){
 		HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_2M(MAX_PHYS_ADDR));
 		for (i = 0; i < MAX_PHYS_ADDR; i += PA_PAGE_SIZE_2M) {
 			u32 prev_mt = MTRR_TYPE_RESV;
+			if (i == 0xfee00000ULL || i == 0xfee00000ULL) {
+				continue;
+			}
 			for (j = 0; j < PA_PAGE_SIZE_2M; j += PA_PAGE_SIZE_4K) {
 				u32 mt = (p_entry[(i + j) >> PAGE_SHIFT_4K] >> 3) & 7;
 				p_entry[(i + j) >> PAGE_SHIFT_4K] = 0;
