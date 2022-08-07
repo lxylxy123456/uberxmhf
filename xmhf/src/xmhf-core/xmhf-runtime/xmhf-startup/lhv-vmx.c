@@ -379,14 +379,6 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
 			break;
 		}
-	case VMX_VMEXIT_VMCALL:
-		{
-			if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
-				asm volatile ("sti; hlt; cli;");
-			}
-			vmcs_vmwrite(vcpu, VMCS_guest_RIP, guest_rip + inst_len);
-			break;
-		}
 	case VMX_VMEXIT_EPT_VIOLATION:
 		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
 		{
@@ -401,6 +393,9 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			HALT_ON_ERRORCOND(0 && "Unknown EPT violation");
 			break;
 		}
+	case VMX_VMEXIT_VMCALL:
+		printf("CPU(0x%02x): unknown vmcall\n");
+		/* fallthrough */
 	default:
 		{
 			printf("CPU(0x%02x): unknown vmexit %d\n", vcpu->id, vmexit_reason);

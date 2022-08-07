@@ -298,6 +298,28 @@ static void lhv_guest_test_vpid(VCPU *vcpu)
 	vcpu->vmexit_handler_override = NULL;
 }
 
+/* Wait for interrupt in hypervisor mode, nop when LHV_NO_EFLAGS_IF */
+static void lhv_guest_wait_int_vmexit_handler(VCPU *vcpu, struct regs *r,
+											  vmexit_info_t *info)
+{
+	if (info->vmexit_reason != VMX_VMEXIT_VMCALL) {
+		return;
+	}
+	HALT_ON_ERRORCOND(r->eax == 25);
+	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+		asm volatile ("sti; hlt; cli;");
+	}
+	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
+	vmresume_asm(r);
+}
+
+static void lhv_guest_wait_int(VCPU *vcpu)
+{
+	vcpu->vmexit_handler_override = lhv_guest_wait_int_vmexit_handler;
+	asm volatile ("vmcall" : : "a"(25));
+	vcpu->vmexit_handler_override = NULL;
+}
+
 void lhv_guest_main(ulong_t cpu_id)
 {
 	u32 iter = 0;
@@ -337,7 +359,7 @@ void lhv_guest_main(ulong_t cpu_id)
 				lhv_guest_test_vmxoff(vcpu, iter % 3 == 0);
 			}
 		}
-		asm volatile ("vmcall");
+		lhv_guest_wait_int(vcpu);
 		if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
 #ifdef __AMD64__
 			extern void lhv_disable_enable_paging(char *);
