@@ -311,7 +311,10 @@ static void lhv_guest_test_vpid(VCPU *vcpu)
 	}
 }
 
-/* Wait for interrupt in hypervisor mode, nop when LHV_NO_EFLAGS_IF */
+/*
+ * Wait for interrupt in hypervisor mode, nop when LHV_NO_EFLAGS_IF or
+ * LHV_NO_INTERRUPT.
+ */
 static void lhv_guest_wait_int_vmexit_handler(VCPU *vcpu, struct regs *r,
 											  vmexit_info_t *info)
 {
@@ -319,7 +322,7 @@ static void lhv_guest_wait_int_vmexit_handler(VCPU *vcpu, struct regs *r,
 		return;
 	}
 	HALT_ON_ERRORCOND(r->eax == 25);
-	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+	if (!(__LHV_OPT__ & (LHV_NO_EFLAGS_IF | LHV_NO_INTERRUPT))) {
 		asm volatile ("sti; hlt; cli;");
 	}
 	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
@@ -389,6 +392,7 @@ static void lhv_guest_test_user_vmexit_handler(VCPU *vcpu, struct regs *r,
 static void lhv_guest_test_user(VCPU *vcpu)
 {
 	if (__LHV_OPT__ & LHV_USER_MODE) {
+		HALT_ON_ERRORCOND(!(__LHV_OPT__ & LHV_NO_EFLAGS_IF));
 		vcpu->vmexit_handler_override = lhv_guest_test_user_vmexit_handler;
 		asm volatile ("vmcall" : : "a"(33));
 		vcpu->vmexit_handler_override = NULL;
@@ -429,7 +433,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		} else {
 			printf("CPU(0x%02x): LHV test iter %lld\n", vcpu->id, iter);
 		}
-		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+		if (!(__LHV_OPT__ & (LHV_NO_EFLAGS_IF | LHV_NO_INTERRUPT))) {
 			asm volatile ("hlt");
 		}
 		if (in_xmhf && (__LHV_OPT__ & LHV_USE_MSR_LOAD) &&
