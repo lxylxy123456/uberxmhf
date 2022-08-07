@@ -943,6 +943,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	if (vmexit_reason == VMX_VMEXIT_EPT_VIOLATION) {
 		int status = 3;
 
+		xmhf_nested_arch_x86vmx_flush_ept02(vcpu);
 		/*
 		 * Begin blocking EPT02 flush (blocking is needed because
 		 * vmcs12_info->guest_ept_cache_line is accessed).
