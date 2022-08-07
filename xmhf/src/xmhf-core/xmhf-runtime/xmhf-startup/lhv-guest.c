@@ -371,7 +371,31 @@ static void lhv_guest_test_large_page(VCPU *vcpu)
 	}
 }
 
-/* Logic to call subsequent tests */
+/* Test running TrustVisor */
+static void lhv_guest_test_user_vmexit_handler(VCPU *vcpu, struct regs *r,
+											   vmexit_info_t *info)
+{
+	if (info->vmexit_reason != VMX_VMEXIT_VMCALL) {
+		return;
+	}
+	HALT_ON_ERRORCOND(r->eax == 33);
+	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
+	memcpy(&vcpu->guest_regs, r, sizeof(struct regs));
+	/* After user mode ends, just run vmresume_asm(&vcpu->guest_regs); */
+	enter_user_mode(vcpu, 0);
+	HALT_ON_ERRORCOND(0 && "Should never return");
+}
+
+static void lhv_guest_test_user(VCPU *vcpu)
+{
+	if (__LHV_OPT__ & LHV_USER_MODE) {
+		vcpu->vmexit_handler_override = lhv_guest_test_user_vmexit_handler;
+		asm volatile ("vmcall" : : "a"(33));
+		vcpu->vmexit_handler_override = NULL;
+	}
+}
+
+/* Main logic to call subsequent tests */
 void lhv_guest_main(ulong_t cpu_id)
 {
 	u32 iter = 0;
@@ -415,6 +439,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		}
 		lhv_guest_test_unrestricted_guest(vcpu);
 		lhv_guest_test_large_page(vcpu);
+		lhv_guest_test_user(vcpu);
 		lhv_guest_wait_int(vcpu);
 	}
 }

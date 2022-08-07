@@ -41,22 +41,9 @@ void lhv_main(VCPU *vcpu)
 		asm volatile ("sti");
 	}
 
-	/* Enter user mode (e.g. test TrustVisor) */
-	if (__LHV_OPT__ & LHV_USER_MODE) {
-		enter_user_mode(vcpu, 0);
-	}
-
 	/* Start VT related things */
 	lhv_vmx_main(vcpu);
 
 	HALT();
-}
-
-void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
-{
-	/* Currently the only syscall is to exit guest mode */
-	HALT_ON_ERRORCOND(vector == 0x23);
-	HALT_ON_ERRORCOND(r->eax == 0xdeaddead);
-	lhv_vmx_main(vcpu);
 }
 
