@@ -393,7 +393,7 @@ spa_t xmhf_nested_arch_x86vmx_get_ept02(VCPU * vcpu, gpa_t ept12,
 		 * Prevent EPT violations on REP INS instructions. Here we hardcode
 		 * some known physical addresses to prevent EPT violations.
 		 */
-		if (0) {
+		{
 			u64 i;
 			for (i = 0x68000ULL; i < 0x80000ULL; i += PA_PAGE_SIZE_4K) {
 				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
