@@ -402,6 +402,23 @@ static void _vmx_setupEPT(VCPU *vcpu){
 			HALT_ON_ERRORCOND(!(prev_mt & ~0x7));
 			pd_entry[i >> PAGE_SHIFT_2M] = i | (prev_mt << 3) | 0x87;
 		}
+		if ("use 1G pages") {
+			gpa_t i, j;
+			HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_1G(MAX_PHYS_ADDR));
+			for (i = 0; i < MAX_PHYS_ADDR; i += PA_PAGE_SIZE_1G) {
+				u32 prev_mt = MTRR_TYPE_RESV;
+				if (i == 0xc0000000ULL) {
+					continue;
+				}
+				for (j = 0; j < PA_PAGE_SIZE_1G; j += PA_PAGE_SIZE_2M) {
+					u32 mt = (p_entry[(i + j) >> PAGE_SHIFT_2M] >> 3) & 7;
+					pd_entry[(i + j) >> PAGE_SHIFT_2M] = 0;
+					prev_mt = combine_mt(prev_mt, mt);
+				}
+				HALT_ON_ERRORCOND(!(prev_mt & ~0x7));
+				pdp_entry[i >> PAGE_SHIFT_1G] = i | (prev_mt << 3) | 0x87;
+			}
+		}
 	}
 }
 
