@@ -1043,6 +1043,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			 * There is no address L0 physical -> L1 physical address
 			 * translation needed, so just continue.
 			 */
+			HALT_ON_ERRORCOND(0 && "Unexpected L1 EPT violation");
 			break;
 		case 3:
 			/* Guest accesses illegal address, halt for safety */
