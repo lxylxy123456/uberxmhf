@@ -214,7 +214,16 @@ void user_main(VCPU *vcpu, ulong_t arg)
 			}
 		}
 	}
-	user_main_pal_demo(vcpu, arg);
+	/* Run pal_demo if in XMHF */
+	{
+		u32 eax, ebx, ecx, edx;
+		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
+		if (eax == 0x46484d58U) {
+			user_main_pal_demo(vcpu, arg);
+		} else {
+			printf("CPU(0x%02x): can enter user mode\n", vcpu->id);
+		}
+	}
 	/* Release semaphore */
 	spin_lock(&lock);
 	available++;
