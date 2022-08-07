@@ -84,7 +84,7 @@ pipeline {
                 build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
             }
         }
-        stage('Test i386') {
+        stage('Test i386 in i386') {
             steps {
                 qemu_test "i386", "debian11x86-j.qcow2", "debian11x86.qcow2"
             }
@@ -94,7 +94,12 @@ pipeline {
                 build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
             }
         }
-        stage('Test amd64') {
+        stage('Test i386 in amd64') {
+            steps {
+                qemu_test "i386", "debian11x86-j.qcow2", "debian11x86.qcow2"
+            }
+        }
+        stage('Test amd64 in amd64') {
             steps {
                 qemu_test "amd64", "debian11x64-j.qcow2", "debian11x64.qcow2"
             }
