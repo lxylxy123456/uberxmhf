@@ -45,7 +45,7 @@ void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
 }
 
 node {
-    build_xmhf = load 'tools/ci/jenkins.groovy'
+    def build_xmhf = load 'tools/ci/jenkins.groovy'
 }
 
 pipeline {
