@@ -214,12 +214,63 @@ We predict that the problem happens when EPT02 flush happens before handling
 nested EPT violation VMEXITs. In `xmhf64-nest-dev b953e96c9`, we put a EPT02
 flush in the code, and now the bug is always reproducible in 1 CPU.
 
-TODO: fix LHV test when `LHV_OPT = 0x240`
-TODO: test when XMHF also uses large page (below)
+The cause of this bug is that in `clear_all_vmcs12_ept02()`, EPT01
+(`guest_ept_root`) is incorrectly invalidated. Not invalidating it solves the
+problem. Fixed in `xmhf64-nest 4cc358d7e..d83329247` and
+`xmhf64-nest-dev bacb020d0..883e26582`.
 
 ### Testing large pages in EPT01
 
 Supporting large pages in EPT01 still sounds challenging, because that means
 TrustVisor also needs to be modified. However, when TrustVisor is not in use,
 we can change the EPT however we want. Simply modify `_vmx_setupEPT()`.
+
+In `xmhf64-nest-dev 560da4418..db20b0090`, modify XMHF to use 2M / 1G pages.
+The draw back is that TrustVisor can no longer be called. So run Jenkins only
+using `LHV_OPT 0x1bd`. Tests look good.
+
+### Fix more user mode bugs
+
+Currently, user mode still does not pass Jenkins. `LHV_OPT 0x1fd` still breaks
+in the KVM XMHF LHV pipeline.
+
+* Bad: SMP 4, `LHV_OPT = 0x1fd`
+* Bad: SMP 4, `LHV_OPT = 0x3fd`
+* Good: SMP 4, `LHV_OPT = 0x344`
+* Good: SMP 4, `LHV_OPT = 0x244`
+* Bad: SMP 4, `LHV_OPT = 0x2fd`
+* Good: SMP 4, `LHV_OPT = 0x24d`
+* Good: SMP 4, `LHV_OPT = 0x2cd`
+* Bad: SMP 4, `LHV_OPT = 0x26d`
+* Bad: SMP 4, `LHV_OPT = 0x264`
+* Bad: SMP 2, `LHV_OPT = 0x264`
+* Good: UP, `LHV_OPT = 0x264`
+
+The error looks like:
+```
+Guest: interrupt / exception vector 13
+
+Fatal: Halting! Condition '0 && "Guest: unknown interrupt / exception!\n"' failed, line 494, file lhv-guest.c
+```
+
+We can see that this bug is related to unrestricted guest. When we use GDB to
+view the exception stack, we see that RIP is `<write_cr0+6>: mov    %eax,%cr0`.
+This reminds me of the KVM bug found in `bug_084`:
+<https://bugzilla.kernel.org/show_bug.cgi?id=216212>
+
+## Fix
+
+`xmhf64 330e650f4..8968e4c63`
+* Update hpt library
+
+`xmhf64-nest 84b01ca77..66b2ad27e`
+* Support VMXOFF and VMPTRST
+* Use VMCS shadowing
+* Set `control_VM_entry_instruction_length` when needed
+* Support large pages in EPT
+* Invalidate EPT02 when EPT01 changes
+
+`lhv 375bbf44f..e1f091f54`
+* Test VMXOFF, VMPTRST, VMCLEAR
+* Restructure lhv to have better testing logic
 
