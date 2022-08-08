@@ -6,6 +6,8 @@ properties([
     parameters([
         string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64-nest-dev'),
         string(name: 'BUILD_OPTS', defaultValue: '--no-x2apic fast circleci')
+        string(name: 'NESTED_BUILD_OPTS', defaultValue:
+               '--no-x2apic fast circleci --sl-base 0x20000000 --no-init-smp')
     ])
 ])
 
@@ -30,21 +32,14 @@ void build_xmhf(String subarch, String workdir, String build_opts) {
 void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
     sh "./tools/ci/download.sh cache ${qemu_image_back}"
-    sh "rm -rf tmp qemu"
-    sh "mkdir tmp qemu"
+    sh "rm -rf qemu"
+    sh "mkdir qemu"
     sh "ln -s ${PWD}/cache/${qemu_image_back} qemu"
     sh """
         qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
                         -F qcow2 ${PWD}/qemu/${qemu_image}
     """
-    sh """
-        python3 -u ./tools/ci/grub.py \
-            --subarch ${subarch} \
-            --xmhf-bin ${PWD}/ \
-            --work-dir ${PWD}/tmp/ \
-            --verbose \
-            --boot-dir ${PWD}/tools/ci/boot
-    """
+    sh "cp ${PWD}/tmp/grub/c.img ${PWD}/tmp/xmhf.img"
     sh """
         python3 -u ./tools/ci/test3.py \
             --subarch ${subarch} \
@@ -80,10 +75,7 @@ pipeline {
         }
         stage('Build i386 nested') {
             steps {
-                build_xmhf "i386", "nested", """${params.BUILD_OPTS} \
-                    --sl-base 0x20000000 \
-                    --no-init-smp \
-                """
+                build_xmhf "i386", "nested", "${params.NESTED_BUILD_OPTS}"
             }
         }
         stage('Build i386') {
@@ -98,10 +90,7 @@ pipeline {
         }
         stage('Build amd64 nested') {
             steps {
-                build_xmhf "amd64", "nested", """${params.BUILD_OPTS} \
-                    --sl-base 0x20000000 \
-                    --no-init-smp \
-                """
+                build_xmhf "amd64", "nested", "${params.NESTED_BUILD_OPTS}"
             }
         }
         stage('Build amd64') {
