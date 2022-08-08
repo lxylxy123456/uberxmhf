@@ -32,6 +32,9 @@ void build_xmhf(String subarch, String workdir, String build_opts) {
             --verbose \
             --boot-dir ${PWD}/tools/ci/boot
     """
+
+    // TODO: tmp
+    sh "cp ${workdir}/grub/c.img ${workdir}/xmhf.img"
 }
 
 void pal_demo() {
@@ -45,18 +48,14 @@ void qemu_test(String subarch, String guest_subarch, String qemu_image,
                 String timeout, String memory) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
     // sh "./tools/ci/download.sh cache ${qemu_image}"
-    sh "cp ${PWD}/tmp/grub/c.img ${PWD}/tmp/xmhf.img"
+    sh "cp ${PWD}/tmp/xmhf.img ${PWD}/tmp/grub/c.img"
     sh "cp pal_demo_tmp/pal_demo.img tmp/pal_demo.img"
     sh "tools/ci/pal_demo_img.sh tmp/pal_demo.img"
-    sh """
-        qemu-img create -f qcow2 -b ${PWD}/cache/${qemu_image} \
-            -F qcow2 tmp/windows.qcow2
-    """
     retry (3) {
         sh """
             python3 -u ./tools/ci/test4.py \
                 --guest-subarch ${guest_subarch} \
-                --qemu-image tmp/windows.qcow2 \
+                --qemu-image ${PWD}/cache/${qemu_image} \
                 --work-dir ${PWD}/tmp/ \
                 --qemu-timeout ${timeout} \
                 --memory ${memory} \
