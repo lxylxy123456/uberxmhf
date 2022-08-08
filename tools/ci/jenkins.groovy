@@ -16,4 +16,4 @@ void build_xmhf(String subarch, String workdir, String build_opts) {
     """
 }
 
-return build_xmhf
+return this.build_xmhf
