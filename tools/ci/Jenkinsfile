@@ -69,7 +69,7 @@ pipeline {
         stage('Build i386 XMHF') {
             steps {
                 script {
-                    build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
+                 //   build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
                 }
             }
         }
@@ -81,7 +81,7 @@ pipeline {
         stage('Build amd64 XMHF') {
             steps {
                 script {
-                    build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
+                 //   build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
                 }
             }
         }
