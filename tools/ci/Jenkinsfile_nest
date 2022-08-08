@@ -31,8 +31,6 @@ void build_xmhf(String subarch, String workdir, String build_opts) {
 
 void qemu_test(String subarch, String lhv_subarch) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
-    sh "rm -rf tmp lhv/tmp"
-    sh "mkdir tmp lhv/tmp"
     sh "cp ${PWD}/tmp/grub/c.img ${PWD}/tmp/xmhf.img"
     sh "cp ${PWD}/lhv/tmp/grub/c.img ${PWD}/lhv/tmp/xmhf.img"
     sh """
