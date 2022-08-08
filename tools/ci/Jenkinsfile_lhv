@@ -1,22 +1,11 @@
 /*
- * Files and directories in build environment
- * * ./: PWD, contains XMHF64 source
- * * ./.git: Git directory, not used directly by Jenkins
- * * ./cache/: cache QEMU images
- * * ./qemu/: QEMU work directory
- * * ./tmp/: temporary directory for testing script
- * * ./tools/ci/build.sh: script to build XMHF in one line
- * * ./tools/ci/Jenkinsfile: this file
- * * ./tools/ci/test3.py: test script
- * * ./tools/ci/grub.py: script to generate a minimal GRUB image
- * * ./tools/ci/boot: files to construct a minimal GRUB
- * * ./tools/ci/download.sh: download QEMU images from Google Drive
+ * CI for testing LHV
  */
 
 properties([
     parameters([
-        string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64'),
-        string(name: 'BUILD_OPTS', defaultValue: '--no-x2apic fast')
+        string(name: 'XMHF_BRANCH', defaultValue: 'lhv'),
+        string(name: 'BUILD_OPTS', defaultValue: '--lhv-opt 0x1fd')
     ])
 ])
 
@@ -25,6 +14,7 @@ void build_xmhf(String subarch, String workdir, String build_opts) {
     sh "git clean -Xdf"
     // Workaround git 2.30 bug
     sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
+    sh "rm -rf hypapps/helloworld/app/objects/"
     sh "./tools/ci/build.sh ${subarch} ${build_opts}"
     sh "rm -rf ${workdir}"
     sh "mkdir ${workdir}"
@@ -40,23 +30,20 @@ void build_xmhf(String subarch, String workdir, String build_opts) {
 
 void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
-    sh "./tools/ci/download.sh cache ${qemu_image_back}"
-    sh "rm -rf qemu"
-    sh "mkdir qemu"
-    sh "ln -s ${PWD}/cache/${qemu_image_back} qemu"
+    // sh "./tools/ci/download.sh cache ${qemu_image_back}"
+    // sh "rm -rf qemu"
+    // sh "mkdir qemu"
+    // sh "ln -s ${PWD}/cache/${qemu_image_back} qemu"
+    // sh """
+    //     qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
+    //                     -F qcow2 ${PWD}/qemu/${qemu_image}
+    // """
+    sh "cp ${PWD}/tmp/grub/c.img ${PWD}/tmp/lhv.img"
     sh """
-        qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
-                        -F qcow2 ${PWD}/qemu/${qemu_image}
-    """
-    sh "cp ${PWD}/tmp/grub/c.img ${PWD}/tmp/xmhf.img"
-    sh """
-        python3 -u ./tools/ci/test3.py \
-            --subarch ${subarch} \
-            --xmhf-img ${PWD}/tmp/xmhf.img \
-            --debian-img ${PWD}/qemu/${qemu_image} \
+        python3 -u ./tools/ci/test5.py \
+            --lhv-img ${PWD}/tmp/lhv.img \
             --work-dir ${PWD}/tmp/ \
             --no-display \
-            --sshpass jkl \
             --verbose \
             --watch-serial
     """
@@ -80,29 +67,24 @@ pipeline {
                 }
             }
         }
-        stage('Build i386 XMHF') {
+        stage('Build i386 LHV') {
             steps {
                 build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
             }
         }
-        stage('Test i386 Debian in i386 XMHF') {
+        stage('Test i386 LHV') {
             steps {
                 qemu_test "i386", "debian11x86-j.qcow2", "debian11x86.qcow2"
             }
         }
-        stage('Build amd64 XMHF') {
+        stage('Build amd64 LHV') {
             steps {
                 build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
             }
         }
-        stage('Test i386 Debian in amd64 XMHF') {
+        stage('Test amd64 LHV') {
             steps {
-                qemu_test "i386", "debian11x86-j.qcow2", "debian11x86.qcow2"
-            }
-        }
-        stage('Test amd64 Debian in amd64 XMHF') {
-            steps {
-                qemu_test "amd64", "debian11x64-j.qcow2", "debian11x64.qcow2"
+                qemu_test "amd64", "debian11x86-j.qcow2", "debian11x86.qcow2"
             }
         }
     }
