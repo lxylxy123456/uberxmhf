@@ -17,8 +17,8 @@ println_lock = threading.Lock()
 def parse_args():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--subarch', required=True)
-	parser.add_argument('--qemu-image', required=True)
-	parser.add_argument('--qemu-image-back')
+	parser.add_argument('--xmhf-img', required=True)
+	parser.add_argument('--debian-img', required=True)
 	parser.add_argument('--smp', type=int, default=2)
 	parser.add_argument('--work-dir', required=True)
 	parser.add_argument('--no-display', action='store_true')
@@ -27,23 +27,12 @@ def parse_args():
 	parser.add_argument('--verbose', action='store_true')
 	parser.add_argument('--watch-serial', action='store_true')
 	parser.add_argument('--memory', default='1024M')
-	parser.add_argument('--skip-reset-qemu', action='store_true')
 	args = parser.parse_args()
 	return args
 
 def println(*args):
 	with println_lock:
 		print('{', *args, '}')
-
-def reset_qemu(args):
-	'''
-	Remove changes relative to backing qcow2 file
-	'''
-	assert os.path.exists(args.qemu_image)
-	if not os.path.exists(args.qemu_image_back):
-		raise Exception('reset_qemu() requires --qemu-image-back.')
-	check_call(['qemu-img', 'create', '-f', 'qcow2', '-b', args.qemu_image_back,
-				'-F', 'qcow2', args.qemu_image])
 
 def get_port():
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
@@ -58,14 +47,14 @@ def get_port():
 	else:
 		raise RuntimeError('Cannot get port')
 
-def spawn_qemu(args, xmhf_img, serial_file, ssh_port):
+def spawn_qemu(args, serial_file, ssh_port):
 	qemu_args = [
 		'qemu-system-x86_64', '-m', args.memory,
 	]
 	drive_index = 0
 	qemu_args += [
 		'--drive', 'media=disk,file=%s,format=raw,index=%d' %
-		(xmhf_img, drive_index),
+		(args.xmhf_img, drive_index),
 	]
 	drive_index += 1
 	if args.nested_xmhf is not None:
@@ -76,7 +65,7 @@ def spawn_qemu(args, xmhf_img, serial_file, ssh_port):
 		drive_index += 1
 	qemu_args += [
 		'--drive', 'media=disk,file=%s,format=qcow2,index=%d' %
-		(args.qemu_image, drive_index),
+		(args.debian_img, drive_index),
 	]
 	drive_index += 1
 	qemu_args += [
@@ -91,6 +80,7 @@ def spawn_qemu(args, xmhf_img, serial_file, ssh_port):
 	popen_stderr = { 'stderr': -1 }
 	if args.verbose:
 		del popen_stderr['stderr']
+		print(' '.join(qemu_args))
 	p = Popen(qemu_args, stdin=-1, stdout=-1, **popen_stderr)
 	return p
 
@@ -206,13 +196,10 @@ class SSHOperations:
 
 def main():
 	args = parse_args()
-	if not args.skip_reset_qemu:
-		reset_qemu(args)
 	ssh_port = get_port()
 	println('Use ssh port', ssh_port)
 	serial_file = os.path.join(args.work_dir, 'serial')
-	xmhf_img = os.path.join(args.work_dir, 'grub/c.img')
-	p = spawn_qemu(args, xmhf_img, serial_file, ssh_port)
+	p = spawn_qemu(args, serial_file, ssh_port)
 
 	# Simple workaround to watch serial output
 	if args.watch_serial:
