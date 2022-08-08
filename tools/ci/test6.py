@@ -18,7 +18,7 @@ def parse_args():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--subarch', required=True)
 	parser.add_argument('--xmhf-img', required=True)
-	parser.add_argument('--debian-img', required=True)
+	parser.add_argument('--debian-img')
 	parser.add_argument('--smp', type=int, default=2)
 	parser.add_argument('--work-dir', required=True)
 	parser.add_argument('--no-display', action='store_true')
@@ -49,7 +49,7 @@ def spawn_qemu(args, serial_file, ssh_port):
 	qemu_args = [
 		'qemu-system-x86_64', '-m', '512M',
 		'--drive', 'media=disk,file=%s,format=raw,index=0' % args.xmhf_img,
-		'--drive', 'media=disk,file=%s,format=qcow2,index=1' % args.debian_img,
+#		'--drive', 'media=disk,file=%s,format=qcow2,index=1' % args.debian_img,
 		'-device', 'e1000,netdev=net0',
 		'-netdev', 'user,id=net0,hostfwd=tcp::%d-:22' % ssh_port,
 		'-smp', str(args.smp), '-cpu', 'Haswell,vmx=yes', '--enable-kvm',
@@ -168,9 +168,11 @@ class SSHOperations:
 		wordsizes = { 'i386': [32], 'amd64': [32, 64] }[self.args.subarch]
 		for w in wordsizes:
 			ss = []
-			cmd = 'date; echo 7. run test %d; ./test_args%d 7 7 7' % (w, w)
+			#cmd = 'date; echo 7. run test %d; ./test_args%d 7 7 7' % (w, w)
+			cmd = 'date; echo 7. run test %d; echo ./test_args%d 7 7 7' % (w, w)
 			stat = self.run_ssh(cmd, 10, 45, ss)
-			if stat or ss[2] != 0 or 'Test pass' not in ss[3]:
+			#if stat or ss[2] != 0 or 'Test pass' not in ss[3]:
+			if stat or ss[2] != 0:
 				return 'Test %d failed: (%s, %d, %s)' % (w, stat, ss[2], ss[3])
 		# Success
 		return None
@@ -189,14 +191,19 @@ def main():
 
 	result = 'Unknown'
 	try:
-		result = SSHOperations(args, ssh_port).ssh_operations()
-		if result is None:
-			# give the OS 10 seconds to shutdown; if wait() succeeds, calling
-			# wait() again will still succeed
-			try:
-				p.wait(timeout=HALT_TIMEOUT)
-			except subprocess.TimeoutExpired:
-				pass
+#		result = SSHOperations(args, ssh_port).ssh_operations()
+#		if result is None:
+#			# give the OS 10 seconds to shutdown; if wait() succeeds, calling
+#			# wait() again will still succeed
+#			try:
+#				p.wait(timeout=HALT_TIMEOUT)
+#			except subprocess.TimeoutExpired:
+#				pass
+		for i in range(10):
+			println('MET:', i)
+			time.sleep(1)
+		# OS cannot be started, always pass
+		result = None
 	finally:
 		p.kill()
 		p.wait()
@@ -209,10 +216,10 @@ def main():
 		return 1
 
 	# Test serial output
-	println('Test XMHF banner in serial')
-	check_call(['grep', 'eXtensible Modular Hypervisor', serial_file])
-	println('Test E820 in serial')
-	check_call(['grep', 'e820', serial_file])
+	println('Test LHV banner in serial')
+	check_call(['grep', 'Lightweight Hypervisor', serial_file])
+	println('Test APs')
+	check_call(['grep', 'APs all awake', serial_file])
 
 	println('TEST PASSED')
 	return 0
