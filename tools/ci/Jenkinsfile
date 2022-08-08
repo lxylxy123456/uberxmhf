@@ -64,8 +64,10 @@ pipeline {
         }
         stage('Build i386 XMHF') {
             steps {
-                build_xmhf = load 'tools/ci/jenkins.groovy'
-                build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
+                script {
+                    build_xmhf = load 'tools/ci/jenkins.groovy'
+                    build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
+                    
             }
         }
         stage('Test i386 Debian in i386 XMHF') {
@@ -75,8 +77,10 @@ pipeline {
         }
         stage('Build amd64 XMHF') {
             steps {
-                build_xmhf = load 'tools/ci/jenkins.groovy'
-                build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
+                script {
+                    build_xmhf = load 'tools/ci/jenkins.groovy'
+                    build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
+                }
             }
         }
         stage('Test i386 Debian in amd64 XMHF') {
