@@ -80,7 +80,7 @@ pipeline {
         }
         stage('Build i386 nested') {
             steps {
-                build_xmhf "i386", "nested", """${params.BUILD_OPTS}
+                build_xmhf "i386", "nested", """${params.BUILD_OPTS} \
                     --sl-base 0x20000000 \
                     --no-init-smp \
                 """
@@ -98,7 +98,7 @@ pipeline {
         }
         stage('Build amd64 nested') {
             steps {
-                build_xmhf "amd64", "nested", """${params.BUILD_OPTS}
+                build_xmhf "amd64", "nested", """${params.BUILD_OPTS} \
                     --sl-base 0x20000000 \
                     --no-init-smp \
                 """
