@@ -45,8 +45,6 @@ void qemu_test(String subarch, String guest_subarch, String qemu_image,
                 String timeout, String memory) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
     // sh "./tools/ci/download.sh cache ${qemu_image}"
-    sh "rm -rf tmp"
-    sh "mkdir tmp"
     sh "cp ${PWD}/tmp/grub/c.img ${PWD}/tmp/xmhf.img"
     sh "cp pal_demo_tmp/pal_demo.img tmp/pal_demo.img"
     sh "tools/ci/pal_demo_img.sh tmp/pal_demo.img"
