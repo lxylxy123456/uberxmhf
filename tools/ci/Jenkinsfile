@@ -64,7 +64,7 @@ pipeline {
                 }
                 script{
                     modules.first = load "tools/ci/jenkins.groovy"
-                    modules.first.build_xmhf("i386", "tmp", "${params.BUILD_OPTS}")
+                    modules.first("i386", "tmp", "${params.BUILD_OPTS}")
                 }
             }
         }
