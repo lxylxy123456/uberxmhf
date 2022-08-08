@@ -20,8 +20,6 @@ properties([
     ])
 ])
 
-def helper = [:]
-
 void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
     sh "./tools/ci/download.sh cache ${qemu_image_back}"
@@ -62,12 +60,12 @@ pipeline {
                     currentBuild.displayName += " ${params.XMHF_BRANCH}"
                     currentBuild.displayName += " ${cmt}"
                 }
-                helper.jenkins = load 'tools/ci/jenkins.groovy'
             }
         }
         stage('Build i386 XMHF') {
             steps {
-                helper.jenkins.build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
+                build_xmhf = load 'tools/ci/jenkins.groovy'
+                build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
             }
         }
         stage('Test i386 Debian in i386 XMHF') {
@@ -77,7 +75,8 @@ pipeline {
         }
         stage('Build amd64 XMHF') {
             steps {
-                helper.jenkins.build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
+                build_xmhf = load 'tools/ci/jenkins.groovy'
+                build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
             }
         }
         stage('Test i386 Debian in amd64 XMHF') {
