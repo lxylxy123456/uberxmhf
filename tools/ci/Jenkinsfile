@@ -44,6 +44,10 @@ void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
     """
 }
 
+node {
+    build_xmhf = load 'tools/ci/jenkins.groovy'
+}
+
 pipeline {
     agent any
 
@@ -65,7 +69,6 @@ pipeline {
         stage('Build i386 XMHF') {
             steps {
                 script {
-                    build_xmhf = load 'tools/ci/jenkins.groovy'
                     build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
                 }
             }
@@ -78,7 +81,6 @@ pipeline {
         stage('Build amd64 XMHF') {
             steps {
                 script {
-                    build_xmhf = load 'tools/ci/jenkins.groovy'
                     build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
                 }
             }
