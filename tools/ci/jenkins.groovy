@@ -1,4 +1,4 @@
-void build_xmhf(String subarch, String workdir, String build_opts) {
+def build_xmhf(String subarch, String workdir, String build_opts) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
     sh "git clean -Xdf"
     // Workaround git 2.30 bug
