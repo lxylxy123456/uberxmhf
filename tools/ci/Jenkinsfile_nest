@@ -7,7 +7,7 @@ properties([
         string(name: 'XMHF_BRANCH', defaultValue: 'xmhf64-nest'),
         string(name: 'LHV_BRANCH', defaultValue: 'lhv'),
         string(name: 'BUILD_OPTS', defaultValue: '--no-x2apic fast'),
-        string(name: 'LHV_OPT', defaultValue: '0x1fd')
+        string(name: 'LHV_BUILD_OPTS', defaultValue: '--lhv-opt 0x1fd')
     ])
 ])
 
@@ -76,7 +76,7 @@ pipeline {
         stage('Build i386 lhv') {
             steps {
                 dir ("lhv") {
-                    build_xmhf "i386", "tmp", "${params.LHV_OPT}"
+                    build_xmhf "i386", "tmp", "${params.LHV_BUILD_OPTS}"
                 }
             }
         }
@@ -98,7 +98,7 @@ pipeline {
         stage('Build amd64 LHV') {
             steps {
                 dir ("lhv") {
-                    build_xmhf "amd64", "tmp", "${params.LHV_OPT}"
+                    build_xmhf "amd64", "tmp", "${params.LHV_BUILD_OPTS}"
                 }
             }
         }
