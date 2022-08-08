@@ -63,9 +63,8 @@ pipeline {
                     currentBuild.displayName += " ${cmt}"
                 }
                 script{
-                    modules.first = load "first.groovy"
-                    modules.first.test1()
-                    modules.first.test2()
+                    modules.first = load "tools/ci/jenkins.groovy"
+                    modules.first.build_xmhf("i386", "tmp", "${params.BUILD_OPTS}")
                 }
             }
         }
