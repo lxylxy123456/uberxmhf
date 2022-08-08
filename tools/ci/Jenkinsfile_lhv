@@ -38,11 +38,11 @@ void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
     //     qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
     //                     -F qcow2 ${PWD}/qemu/${qemu_image}
     // """
-    sh "cp ${PWD}/tmp/grub/c.img ${PWD}/tmp/xmhf.img"
+    sh "cp ${PWD}/tmp/grub/c.img ${PWD}/tmp/lhv.img"
     sh """
-        python3 -u ./tools/ci/test6.py \
+        python3 -u ./tools/ci/test5.py \
             --subarch ${subarch} \
-            --xmhf-img ${PWD}/tmp/xmhf.img \
+            --lhv-img ${PWD}/tmp/lhv.img \
             --work-dir ${PWD}/tmp/ \
             --no-display \
             --sshpass jkl \
