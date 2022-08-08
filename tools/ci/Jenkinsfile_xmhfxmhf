@@ -9,6 +9,24 @@ properties([
     ])
 ])
 
+void build_xmhf(String subarch, String workdir, String build_opts) {
+    PWD = sh(returnStdout: true, script: 'pwd').trim()
+    sh "git clean -Xdf"
+    // Workaround git 2.30 bug
+    sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
+    sh "./tools/ci/build.sh ${subarch} ${build_opts}"
+    sh "rm -rf ${workdir}"
+    sh "mkdir ${workdir}"
+    sh """
+        python3 -u ./tools/ci/grub.py \
+            --subarch ${subarch} \
+            --xmhf-bin ${PWD}/ \
+            --work-dir ${workdir} \
+            --verbose \
+            --boot-dir ${PWD}/tools/ci/boot
+    """
+}
+
 void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
     sh "./tools/ci/download.sh cache ${qemu_image_back}"
@@ -30,8 +48,8 @@ void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
     sh """
         python3 -u ./tools/ci/test3.py \
             --subarch ${subarch} \
-            --qemu-image ${PWD}/qemu/${qemu_image} \
-            --qemu-image-back ${PWD}/qemu/${qemu_image_back} \
+            --xmhf-img ${PWD}/tmp/xmhf.img \
+            --debian-img ${PWD}/qemu/${qemu_image} \
             --nested-xmhf ${PWD}/nested/grub/c.img \
             --work-dir ${PWD}/tmp/ \
             --no-display \
@@ -62,34 +80,16 @@ pipeline {
         }
         stage('Build i386 nested') {
             steps {
-                sh "git clean -Xdf"
-                // Workaround git 2.30 bug
-                sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
-                sh """
-                    ./tools/ci/build.sh i386 \
-                        --sl-base 0x20000000 \
-                        --no-init-smp \
-                        ${params.BUILD_OPTS}
-                """
-                sh "rm -rf nested"
-                sh "mkdir nested"
-                sh """
-                    python3 -u ./tools/ci/grub.py \
-                        --subarch i386 \
-                        --xmhf-bin ./ \
-                        --work-dir ./nested/ \
-                        --verbose \
-                        --boot-dir ./tools/ci/boot/
+                build_xmhf "i386", "nested", """
+                    --sl-base 0x20000000 \
+                    --no-init-smp \
+                    ${params.BUILD_OPTS}
                 """
             }
         }
         stage('Build i386') {
             steps {
-                sh "git clean -Xdf"
-                sh "ls nested || echo folder not found" // TODO
-                // Workaround git 2.30 bug
-                sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
-                sh "./tools/ci/build.sh i386 ${params.BUILD_OPTS}"
+                build_xmhf "i386", "nested", "${params.BUILD_OPTS}"
             }
         }
         stage('Test i386') {
@@ -99,33 +99,16 @@ pipeline {
         }
         stage('Build amd64 nested') {
             steps {
-                sh "git clean -Xdf"
-                // Workaround git 2.30 bug
-                sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
-                sh """
-                    ./tools/ci/build.sh amd64 \
-                        --sl-base 0x20000000 \
-                        --no-init-smp \
-                        ${params.BUILD_OPTS}
-                """
-                sh "rm -rf nested"
-                sh "mkdir nested"
-                sh """
-                    python3 -u ./tools/ci/grub.py \
-                        --subarch amd64 \
-                        --xmhf-bin ./ \
-                        --work-dir ./nested/ \
-                        --verbose \
-                        --boot-dir ./tools/ci/boot/
+                build_xmhf "amd64", "nested", """
+                    --sl-base 0x20000000 \
+                    --no-init-smp \
+                    ${params.BUILD_OPTS}
                 """
             }
         }
         stage('Build amd64') {
             steps {
-                sh "git clean -Xdf"
-                // Workaround git 2.30 bug
-                sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
-                sh "./tools/ci/build.sh amd64 ${params.BUILD_OPTS}"
+                build_xmhf "amd64", "nested", "${params.BUILD_OPTS}"
             }
         }
         stage('Test amd64') {
