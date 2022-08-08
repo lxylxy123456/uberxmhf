@@ -5,7 +5,7 @@
 properties([
     parameters([
         string(name: 'XMHF_BRANCH', defaultValue: 'lhv'),
-        string(name: 'BUILD_OPTS', defaultValue: '--no-x2apic fast --lhv-opt 0')
+        string(name: 'BUILD_OPTS', defaultValue: '--lhv-opt 0x1fd')
     ])
 ])
 
@@ -41,11 +41,9 @@ void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
     sh "cp ${PWD}/tmp/grub/c.img ${PWD}/tmp/lhv.img"
     sh """
         python3 -u ./tools/ci/test5.py \
-            --subarch ${subarch} \
             --lhv-img ${PWD}/tmp/lhv.img \
             --work-dir ${PWD}/tmp/ \
             --no-display \
-            --sshpass jkl \
             --verbose \
             --watch-serial
     """
