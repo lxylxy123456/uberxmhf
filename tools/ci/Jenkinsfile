@@ -44,7 +44,7 @@ void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
     """
 }
 
-def modules
+def helper
 
 pipeline {
     agent any
@@ -61,18 +61,14 @@ pipeline {
                         script: 'git rev-parse HEAD | head -c 9').trim()
                     currentBuild.displayName += " ${params.XMHF_BRANCH}"
                     currentBuild.displayName += " ${cmt}"
-                }
-                script{
-                    modules = load "tools/ci/jenkins.groovy"
-                    modules.build_xmhf("i386", "tmp", "${params.BUILD_OPTS}")
+                    helper = load "tools/ci/jenkins.groovy"
                 }
             }
         }
         stage('Build i386 XMHF') {
             steps {
                 script {
-                    sh "echo"
-                    // build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
+                    helper.build_xmhf("i386", "tmp", "${params.BUILD_OPTS}")
                 }
             }
         }
@@ -84,8 +80,7 @@ pipeline {
         stage('Build amd64 XMHF') {
             steps {
                 script {
-                    sh "echo"
-                    // build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
+                    helper.build_xmhf("amd64", "tmp", "${params.BUILD_OPTS}")
                 }
             }
         }
