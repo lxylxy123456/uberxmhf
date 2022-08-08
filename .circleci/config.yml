@@ -70,12 +70,10 @@ jobs:
                 --work-dir ${PWD}/tmp/ \
                 --verbose \
                 --boot-dir ${PWD}/tools/ci/boot
-            python3 -u ./tools/ci/test3.py \
-                --subarch ${SUBARCH} \
-                --xmhf-img ${PWD}/tmp/grub/c.img \
+            python3 -u ./tools/ci/test5.py \
+                --lhv-img ${PWD}/tmp/grub/c.img \
                 --work-dir ${PWD}/tmp/ \
                 --no-display \
-                --sshpass jkl \
                 --verbose \
                 --watch-serial
 
