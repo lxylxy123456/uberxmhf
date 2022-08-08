@@ -60,13 +60,18 @@ pipeline {
                     currentBuild.displayName += " ${params.XMHF_BRANCH}"
                     currentBuild.displayName += " ${cmt}"
                 }
+                script{
+                    modules.first = load "first.groovy"
+                    modules.first.test1()
+                    modules.first.test2()
+                }
             }
         }
         stage('Build i386 XMHF') {
             steps {
                 script {
-                    def build_xmhf = load('tools/ci/jenkins.groovy')
-                    build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
+                    sh "echo"
+                    // build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
                 }
             }
         }
