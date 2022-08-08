@@ -72,13 +72,12 @@ jobs:
                 --boot-dir ${PWD}/tools/ci/boot
             python3 -u ./tools/ci/test3.py \
                 --subarch ${SUBARCH} \
-                --qemu-image ${PWD}/qemu/${qemu_image} \
+                --xmhf-img ${PWD}/tmp/grub/c.img \
                 --work-dir ${PWD}/tmp/ \
                 --no-display \
                 --sshpass jkl \
                 --verbose \
-                --watch-serial \
-                --skip-reset-qemu
+                --watch-serial
 
 workflows:
   test-xmhf-workflow:
