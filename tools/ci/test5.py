@@ -68,14 +68,14 @@ def serial_thread(args, serial_file, serial_result):
 				else:
 					time.sleep(0.1)
 	gen = gen_lines()
-	for i in gen:
-		if 'eXtensible Modular Hypervisor' in i:
-			println('Banner found!')
-			break
-	for i in gen:
-		if 'e820' in i:
-			println('E820 found!')
-			break
+#	for i in gen:
+#		if 'eXtensible Modular Hypervisor' in i:
+#			println('Banner found!')
+#			break
+#	for i in gen:
+#		if 'e820' in i:
+#			println('E820 found!')
+#			break
 	test_count = defaultdict(int)
 	for i in gen:
 		assert len(test_count) <= args.smp
