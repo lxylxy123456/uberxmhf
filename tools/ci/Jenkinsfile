@@ -67,7 +67,7 @@ pipeline {
                 script {
                     build_xmhf = load 'tools/ci/jenkins.groovy'
                     build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
-                    
+                }
             }
         }
         stage('Test i386 Debian in i386 XMHF') {
