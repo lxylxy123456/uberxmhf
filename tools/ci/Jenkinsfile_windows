@@ -16,40 +16,24 @@ properties([
     ])
 ])
 
-void build_xmhf(String subarch, String workdir, String build_opts) {
-    PWD = sh(returnStdout: true, script: 'pwd').trim()
-    sh "git clean -Xdf"
-    // Workaround git 2.30 bug
-    sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
-    sh "./tools/ci/build.sh ${subarch} ${build_opts}"
-    sh "rm -rf ${workdir}"
-    sh "mkdir ${workdir}"
-    sh """
-        python3 -u ./tools/ci/grub.py \
-            --subarch ${subarch} \
-            --xmhf-bin ${PWD}/ \
-            --work-dir ${workdir} \
-            --verbose \
-            --boot-dir ${PWD}/tools/ci/boot
-    """
-
-    // TODO: tmp
-    sh "cp ${workdir}/grub/c.img ${workdir}/xmhf.img"
-}
-
 void pal_demo() {
-    sh "rm -rf pal_demo_tmp"
-    sh "mkdir pal_demo_tmp"
     sh "./tools/ci/build_pal_demo.sh all"
-    sh "tools/ci/pal_demo_img.sh pal_demo_tmp/pal_demo.img"
 }
 
 void qemu_test(String subarch, String guest_subarch, String qemu_image,
                 String timeout, String memory) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
     // sh "./tools/ci/download.sh cache ${qemu_image}"
-    sh "cp ${PWD}/tmp/xmhf.img ${PWD}/tmp/grub/c.img"
-    sh "cp pal_demo_tmp/pal_demo.img tmp/pal_demo.img"
+    sh "rm -rf tmp"
+    sh "mkdir tmp"
+    sh """
+        python3 -u ./tools/ci/grub.py \
+            --subarch ${subarch} \
+            --xmhf-bin ${PWD}/ \
+            --work-dir ${PWD}/tmp/ \
+            --verbose \
+            --boot-dir ${PWD}/tools/ci/boot
+    """
     sh "tools/ci/pal_demo_img.sh tmp/pal_demo.img"
     retry (3) {
         sh """
@@ -86,7 +70,10 @@ pipeline {
         }
         stage('Build i386 XMHF') {
             steps {
-                build_xmhf "i386", "tmp", "${params.BUILD_OPTS}"
+                sh "git clean -Xdf"
+                // Workaround git 2.30 bug
+                sh "rm -rf _build_lib* hypapps/trustvisor/src/objects/"
+                sh "./tools/ci/build.sh i386 ${params.BUILD_OPTS}"
                 pal_demo()
             }
         }
