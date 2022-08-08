@@ -44,6 +44,8 @@ void qemu_test(String subarch, String qemu_image, String qemu_image_back) {
     """
 }
 
+def modules = [:]
+
 pipeline {
     agent any
 
