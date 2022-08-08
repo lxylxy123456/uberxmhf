@@ -32,6 +32,7 @@ void build_xmhf(String subarch, String workdir, String build_opts) {
             --verbose \
             --boot-dir ${PWD}/tools/ci/boot
     """
+    sh "cp ${PWD}/tmp/grub/c.img ${PWD}/tmp/xmhf.img"
 }
 
 void pal_demo() {
@@ -45,9 +46,8 @@ void qemu_test(String subarch, String guest_subarch, String qemu_image,
                 String timeout, String memory) {
     PWD = sh(returnStdout: true, script: 'pwd').trim()
     // sh "./tools/ci/download.sh cache ${qemu_image}"
-    sh "cp ${PWD}/tmp/grub/c.img ${PWD}/tmp/xmhf.img"
+    sh "cp ${PWD}/tmp/xmhf.img ${PWD}/tmp/grub/c.img"
     sh "cp pal_demo_tmp/pal_demo.img tmp/pal_demo.img"
-    sh "tools/ci/pal_demo_img.sh tmp/pal_demo.img"
     sh """
         qemu-img create -f qcow2 -b ${PWD}/cache/${qemu_image} \
             -F qcow2 tmp/windows.qcow2
@@ -110,7 +110,6 @@ pipeline {
         stage('Build amd64 XMHF') {
             steps {
                 build_xmhf "amd64", "tmp", "${params.BUILD_OPTS}"
-                pal_demo()
             }
         }
         stage('Test i386 Windows 7 on amd64 XMHF') {
