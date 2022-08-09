@@ -183,6 +183,7 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 		bool skip_vmclear = r->ecx;
 		spa_t vmptr;
 		/* Back up current VMCS */
+		printf("before VPID = 0x%04x\n", vmcs_vmread(vcpu, VMCS_control_vpid));
 		vmcs_dump(vcpu, 0);
 		/* Test VMPTRST */
 		HALT_ON_ERRORCOND(__vmx_vmptrst(&vmptr));
@@ -246,6 +247,7 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 			struct _vmx_vmcsfields a;
 			memcpy(&a, &vcpu->vmcs, sizeof(a));
 			vmcs_dump(vcpu, 0);
+			printf("after  VPID = 0x%04x\n", vmcs_vmread(vcpu, VMCS_control_vpid));
 			HALT_ON_ERRORCOND(memcmp(&a, &vcpu->vmcs, sizeof(a)) == 0);
 		}
 //		vmcs_load(vcpu);
