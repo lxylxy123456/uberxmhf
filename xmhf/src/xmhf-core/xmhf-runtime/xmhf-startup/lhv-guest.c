@@ -237,7 +237,13 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 			*((u32 *) vcpu->my_vmcs) = vmcs_revision_identifier;
 		}
 		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
-		vmcs_load(vcpu);
+		{
+			struct _vmx_vmcsfields a;
+			memcpy(&a, &vcpu->vmcs, sizeof(a));
+			vmcs_dump(vcpu, 0);
+			HALT_ON_ERRORCOND(memcmp(&a, &vcpu->vmcs, sizeof(a)) == 0);
+		}
+//		vmcs_load(vcpu);
 	}
 	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
 	/* Hardware thinks VMCS is not launched, so VMLAUNCH instead of VMRESUME */
