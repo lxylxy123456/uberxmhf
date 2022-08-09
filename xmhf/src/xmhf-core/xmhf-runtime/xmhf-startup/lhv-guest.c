@@ -180,23 +180,17 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 	HALT_ON_ERRORCOND(r->eax == 22);
 	{
 		bool test_vmxoff = r->ebx;
-		bool skip_vmclear = r->ecx;
 		spa_t vmptr;
 		/* Back up current VMCS */
-		printf("before VPID = 0x%04x\n", vmcs_vmread(vcpu, VMCS_control_vpid));
 		vmcs_dump(vcpu, 0);
 		/* Test VMPTRST */
 		HALT_ON_ERRORCOND(__vmx_vmptrst(&vmptr));
 		HALT_ON_ERRORCOND(vmptr == hva2spa(vcpu->my_vmcs));
 
-		if (!skip_vmclear) {
-			/* VMCLEAR current VMCS */
-			HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
-			/* Make sure that VMWRITE fails */
-			HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
-		} else {
-			HALT_ON_ERRORCOND(test_vmxoff);
-		}
+		/* VMCLEAR current VMCS */
+		HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
+		/* Make sure that VMWRITE fails */
+		HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
 
 		/* Run VMXOFF and VMXON */
 		if (test_vmxoff) {
@@ -243,28 +237,18 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 			*((u32 *) vcpu->my_vmcs) = vmcs_revision_identifier;
 		}
 		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
-		{
-			struct _vmx_vmcsfields a;
-			memcpy(&a, &vcpu->vmcs, sizeof(a));
-			vmcs_dump(vcpu, 0);
-			printf("after  VPID = 0x%04x\n", vmcs_vmread(vcpu, VMCS_control_vpid));
-			HALT_ON_ERRORCOND(memcmp(&a, &vcpu->vmcs, sizeof(a)) == 0);
-		}
-//		vmcs_load(vcpu);
+		vmcs_load(vcpu);
 	}
 	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
 	/* Hardware thinks VMCS is not launched, so VMLAUNCH instead of VMRESUME */
 	vmlaunch_asm(r);
 }
 
-static void lhv_guest_test_vmxoff(VCPU *vcpu, bool test_vmxoff,
-								  bool skip_vmclear)
+static void lhv_guest_test_vmxoff(VCPU *vcpu, bool test_vmxoff)
 {
-	HALT_ON_ERRORCOND(!skip_vmclear || test_vmxoff);
 	if (__LHV_OPT__ & LHV_USE_VMXOFF) {
 		vcpu->vmexit_handler_override = lhv_guest_test_vmxoff_vmexit_handler;
-		asm volatile ("vmcall" : : "a"(22), "b"((u32)test_vmxoff),
-					  "c"((u32)skip_vmclear));
+		asm volatile ("vmcall" : : "a"(22), "b"((u32)test_vmxoff));
 		vcpu->vmexit_handler_override = NULL;
 	}
 }
@@ -476,7 +460,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		lhv_guest_switch_ept(vcpu);
 		lhv_guest_test_vpid(vcpu);
 		if (iter % 5 == 0) {
-			lhv_guest_test_vmxoff(vcpu, iter % 3 != 0, iter % 3 == 1);
+			lhv_guest_test_vmxoff(vcpu, iter % 3 == 0);
 		}
 		lhv_guest_test_unrestricted_guest(vcpu);
 		lhv_guest_test_large_page(vcpu);
