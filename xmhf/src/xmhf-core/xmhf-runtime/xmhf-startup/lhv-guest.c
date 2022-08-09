@@ -399,38 +399,6 @@ static void lhv_guest_test_user(VCPU *vcpu)
 	}
 }
 
-/* Test running TrustVisor */
-static void lhv_guest_test_tmp_vmexit_handler(VCPU *vcpu, struct regs *r,
-											   vmexit_info_t *info)
-{
-	if (info->vmexit_reason != VMX_VMEXIT_VMCALL) {
-		return;
-	}
-	HALT_ON_ERRORCOND(r->eax == 1);
-	for (u32 i = 0; i < 0x1000 / sizeof(u32); i++) {
-		if (((u32 *)vcpu->my_vmcs)[i]) {
-			printf("vmcs_old[0x%03x] = 0x%08x\n", i, ((u32 *)vcpu->my_vmcs)[i]);
-		}
-	}
-	HALT_ON_ERRORCOND(__vmx_vmclear(hva2spa(vcpu->my_vmcs)));
-	for (u32 i = 0; i < 0x1000 / sizeof(u32); i++) {
-		if (((u32 *)vcpu->my_vmcs)[i]) {
-			printf("vmcs_new[0x%03x] = 0x%08x\n", i, ((u32 *)vcpu->my_vmcs)[i]);
-		}
-	}
-	HALT_ON_ERRORCOND(0 && "Should never return");
-}
-
-static void lhv_guest_test_tmp(VCPU *vcpu)
-{
-	if (1) {
-		HALT_ON_ERRORCOND(!(__LHV_OPT__ & LHV_NO_EFLAGS_IF));
-		vcpu->vmexit_handler_override = lhv_guest_test_tmp_vmexit_handler;
-		asm volatile ("vmcall" : : "a"(1));
-		vcpu->vmexit_handler_override = NULL;
-	}
-}
-
 /* Main logic to call subsequent tests */
 void lhv_guest_main(ulong_t cpu_id)
 {
@@ -454,7 +422,6 @@ void lhv_guest_main(ulong_t cpu_id)
 			}
 		}
 	}
-	lhv_guest_test_tmp(vcpu);
 	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 		asm volatile ("sti");
 	}
