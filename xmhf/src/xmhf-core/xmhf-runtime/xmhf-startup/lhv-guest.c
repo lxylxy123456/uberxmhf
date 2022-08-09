@@ -180,9 +180,17 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 	HALT_ON_ERRORCOND(r->eax == 22);
 	{
 		bool test_vmxoff = r->ebx;
+		const bool test_modify_vmcs = true;
 		spa_t vmptr;
+		u32 old_es_limit;
+		u32 new_es_limit = 0xa69f1c74;
 		/* Back up current VMCS */
 		vmcs_dump(vcpu, 0);
+		/* Set ES access right */
+		if (test_modify_vmcs) {
+			old_es_limit = vmcs_vmread(vcpu, VMCS_guest_ES_limit);
+			vmcs_vmwrite(vcpu, VMCS_guest_ES_limit, new_es_limit);
+		}
 		/* Test VMPTRST */
 		HALT_ON_ERRORCOND(__vmx_vmptrst(&vmptr));
 		HALT_ON_ERRORCOND(vmptr == hva2spa(vcpu->my_vmcs));
@@ -226,6 +234,23 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 			HALT_ON_ERRORCOND(__vmx_vmxon(hva2spa(vcpu->vmxon_region)));
 		}
 
+		/*
+		 * Find ES access right in VMCS and correct it. Here we need to assume
+		 * that the hardware stores the VMCS field directly in a 4 byte aligned
+		 * location (i.e. no encoding, no encryption etc).
+		 */
+		if (test_modify_vmcs) {
+			u32 i;
+			u32 found = 0;
+			for (i = 2; i < PAGE_SIZE_4K / sizeof(new_es_limit); i++) {
+				if (((u32 *) vcpu->my_vmcs)[i] == new_es_limit) {
+					((u32 *) vcpu->my_vmcs)[i] = old_es_limit;
+					found++;
+				}
+			}
+			HALT_ON_ERRORCOND(found == 1);
+		}
+
 		/* Make sure that VMWRITE still fails */
 		HALT_ON_ERRORCOND(!__vmx_vmwrite(0x0000, 0x0000));
 
@@ -234,10 +259,17 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 		{
 			u64 basic_msr = vcpu->vmx_msrs[INDEX_IA32_VMX_BASIC_MSR];
 			u32 vmcs_revision_identifier = basic_msr & 0x7fffffffU;
-			*((u32 *) vcpu->my_vmcs) = vmcs_revision_identifier;
+			HALT_ON_ERRORCOND(*((u32 *) vcpu->my_vmcs) ==
+							  vmcs_revision_identifier);
 		}
 		HALT_ON_ERRORCOND(__vmx_vmptrld(hva2spa(vcpu->my_vmcs)));
-		vmcs_load(vcpu);
+		/* Make sure all VMCS fields stay the same */
+		{
+			struct _vmx_vmcsfields a;
+			memcpy(&a, &vcpu->vmcs, sizeof(a));
+			vmcs_dump(vcpu, 0);
+			HALT_ON_ERRORCOND(memcmp(&a, &vcpu->vmcs, sizeof(a)) == 0);
+		}
 	}
 	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
 	/* Hardware thinks VMCS is not launched, so VMLAUNCH instead of VMRESUME */
