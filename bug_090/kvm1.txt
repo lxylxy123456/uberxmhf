@@ -1,0 +1,126 @@
+[   36.349060] ------------[ cut here ]------------
+[   36.349068] kvm: vmptrld failed: 000000001af6233c/2cfe000
+[   36.349153] WARNING: CPU: 0 PID: 470 at arch/x86/kvm/vmx/vmx.c:399 vmptrld_error+0x4f/0x60 [kvm_intel]
+[   36.349154] Modules linked in: intel_rapl_msr intel_rapl_common kvm_intel kvm irqbypass ghash_clmulni_intel aesni_intel libaes ppdev crypto_simd cryptd glue_helper bochs_drm drm_vram_helper rapl drm_ttm_helper ttm joydev drm_kms_helper evdev serio_raw pcspkr cec parport_pc sg parport qemu_fw_cfg button drm fuse configfs ip_tables x_tables autofs4 ext4 crc16 mbcache jbd2 crc32c_generic sd_mod t10_pi crc_t10dif sr_mod cdrom crct10dif_generic ata_generic ata_piix libata crct10dif_pclmul crct10dif_common scsi_mod crc32_pclmul crc32c_intel psmouse e1000 i2c_piix4 floppy
+[   36.349233] CPU: 0 PID: 470 Comm: qemu-system-x86 Not tainted 5.10.0-9-amd64 #1 Debian 5.10.70-1
+[   36.349234] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.16.0-1.fc36 04/01/2014
+[   36.349240] RIP: 0010:vmptrld_error+0x4f/0x60 [kvm_intel]
+[   36.349242] Code: e8 b6 17 96 e8 85 c0 0f 85 0c ef 01 00 5d 41 5c c3 48 89 f2 48 89 fe 48 c7 c7 a7 e5 78 c0 c6 05 27 d1 03 00 01 e8 d4 a6 d1 e8 <0f> 0b eb c4 66 66 2e 0f 1f 84 00 00 00 00 00 66 90 0f 1f 44 00 00
+[   36.349243] RSP: 0018:ffff9ef20043bd50 EFLAGS: 00010282
+[   36.349245] RAX: 0000000000000000 RBX: ffff91a642d20000 RCX: ffff91a67ee18a08
+[   36.349245] RDX: 00000000ffffffd8 RSI: 0000000000000027 RDI: ffff91a67ee18a00
+[   36.349246] RBP: ffff91a642cfe000 R08: 0000000000000000 R09: ffff9ef20043bb70
+[   36.349247] R10: ffff9ef20043bb68 R11: ffffffffaa2cb428 R12: 0000000002cfe000
+[   36.349250] R13: 0000000000000000 R14: 00000000ffffffff R15: 0000000000000000
+[   36.350429] FS:  00007f6a5c921700(0000) GS:ffff91a67ee00000(0000) knlGS:0000000000000000
+[   36.350431] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   36.350432] CR2: 00007f6a48000010 CR3: 000000000a6ca001 CR4: 00000000001726f0
+[   36.350435] Call Trace:
+[   36.350484]  vmx_vcpu_load_vmcs+0x327/0x500 [kvm_intel]
+[   36.350502]  vmx_create_vcpu+0x721/0x20d0 [kvm_intel]
+[   36.350599]  kvm_arch_vcpu_create+0x2b8/0x370 [kvm]
+[   36.350622]  kvm_vm_ioctl+0x71c/0xa80 [kvm]
+[   36.350637]  __x64_sys_ioctl+0x83/0xb0
+[   36.350658]  do_syscall_64+0x33/0x80
+[   36.350670]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+[   36.350680] RIP: 0033:0x7f6a602b3cc7
+[   36.350687] Code: 00 00 00 48 8b 05 c9 91 0c 00 64 c7 00 26 00 00 00 48 c7 c0 ff ff ff ff c3 66 2e 0f 1f 84 00 00 00 00 00 b8 10 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 8b 0d 99 91 0c 00 f7 d8 64 89 01 48
+[   36.350688] RSP: 002b:00007f6a5c920548 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+[   36.350689] RAX: ffffffffffffffda RBX: 000000000000ae41 RCX: 00007f6a602b3cc7
+[   36.350690] RDX: 0000000000000000 RSI: 000000000000ae41 RDI: 0000000000000009
+[   36.350691] RBP: 000055ba07ec1e00 R08: 0000000000000000 R09: 0000000000000000
+[   36.350691] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000000
+[   36.350692] R13: 00007ffe71580ddf R14: 00007f6a5c9207c0 R15: 0000000000802000
+[   36.350694] ---[ end trace cd92fa9c38813474 ]---
+[   36.350701] kvm: vmptrld failed: 000000001af6233c/2cfe000
+[   36.350708] ------------[ cut here ]------------
+[   36.350709] kvm: vmread failed: field=4400
+[   36.350724] WARNING: CPU: 0 PID: 470 at arch/x86/kvm/vmx/vmx.c:383 vmread_error+0x4f/0x60 [kvm_intel]
+[   36.350724] Modules linked in: intel_rapl_msr intel_rapl_common kvm_intel kvm irqbypass ghash_clmulni_intel aesni_intel libaes ppdev crypto_simd cryptd glue_helper bochs_drm drm_vram_helper rapl drm_ttm_helper ttm joydev drm_kms_helper evdev serio_raw pcspkr cec parport_pc sg parport qemu_fw_cfg button drm fuse configfs ip_tables x_tables autofs4 ext4 crc16 mbcache jbd2 crc32c_generic sd_mod t10_pi crc_t10dif sr_mod cdrom crct10dif_generic ata_generic ata_piix libata crct10dif_pclmul crct10dif_common scsi_mod crc32_pclmul crc32c_intel psmouse e1000 i2c_piix4 floppy
+[   36.350747] CPU: 0 PID: 470 Comm: qemu-system-x86 Tainted: G        W         5.10.0-9-amd64 #1 Debian 5.10.70-1
+[   36.350748] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.16.0-1.fc36 04/01/2014
+[   36.350750] RIP: 0010:vmread_error+0x4f/0x60 [kvm_intel]
+[   36.350752] Code: e8 f6 6b 96 e8 85 c0 0f 85 e8 42 02 00 5d c3 e9 87 ef f2 ff 48 89 fe 48 c7 c7 00 c1 78 c0 c6 05 6a 25 04 00 01 e8 14 fb d1 e8 <0f> 0b eb c4 66 66 2e 0f 1f 84 00 00 00 00 00 66 90 0f 1f 44 00 00
+[   36.350752] RSP: 0018:ffff9ef20043bcd0 EFLAGS: 00010286
+[   36.350753] RAX: 0000000000000000 RBX: ffff91a642d20000 RCX: ffff91a67ee18a08
+[   36.350754] RDX: 00000000ffffffd8 RSI: 0000000000000027 RDI: ffff91a67ee18a00
+[   36.350755] RBP: 0000000000004400 R08: 0000000000000000 R09: ffff9ef20043baf0
+[   36.350755] R10: ffff9ef20043bae8 R11: ffffffffaa2cb428 R12: fffffe0000003000
+[   36.350756] R13: 0000000000000000 R14: 00000000ffffffff R15: 0000000000000000
+[   36.351939] FS:  00007f6a5c921700(0000) GS:ffff91a67ee00000(0000) knlGS:0000000000000000
+[   36.351942] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   36.351943] CR2: 00007f6a48000010 CR3: 000000000a6ca001 CR4: 00000000001726f0
+[   36.351946] Call Trace:
+[   36.351983]  vmread_error_trampoline+0x1e/0x40 [kvm_intel]
+[   36.351987]  vmwrite_error+0x5d/0x110 [kvm_intel]
+[   36.351990]  vmx_vcpu_load_vmcs+0x38c/0x500 [kvm_intel]
+[   36.351994]  vmx_create_vcpu+0x721/0x20d0 [kvm_intel]
+[   36.352025]  kvm_arch_vcpu_create+0x2b8/0x370 [kvm]
+[   36.352036]  kvm_vm_ioctl+0x71c/0xa80 [kvm]
+[   36.352043]  __x64_sys_ioctl+0x83/0xb0
+[   36.352046]  do_syscall_64+0x33/0x80
+[   36.352047]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+[   36.352048] RIP: 0033:0x7f6a602b3cc7
+[   36.352050] Code: 00 00 00 48 8b 05 c9 91 0c 00 64 c7 00 26 00 00 00 48 c7 c0 ff ff ff ff c3 66 2e 0f 1f 84 00 00 00 00 00 b8 10 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 8b 0d 99 91 0c 00 f7 d8 64 89 01 48
+[   36.352051] RSP: 002b:00007f6a5c920548 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+[   36.352052] RAX: ffffffffffffffda RBX: 000000000000ae41 RCX: 00007f6a602b3cc7
+[   36.352052] RDX: 0000000000000000 RSI: 000000000000ae41 RDI: 0000000000000009
+[   36.352053] RBP: 000055ba07ec1e00 R08: 0000000000000000 R09: 0000000000000000
+[   36.352054] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000000
+[   36.352054] R13: 00007ffe71580ddf R14: 00007f6a5c9207c0 R15: 0000000000802000
+[   36.352056] ---[ end trace cd92fa9c38813475 ]---
+[   36.352058] kvm: vmread failed: field=4400
+[   36.352058] ------------[ cut here ]------------
+[   36.352059] kvm: vmwrite failed: field=6c0a val=fffffe0000003000 err=0
+[   36.352073] WARNING: CPU: 0 PID: 470 at arch/x86/kvm/vmx/vmx.c:388 vmwrite_error+0x71/0x110 [kvm_intel]
+[   36.352073] Modules linked in: intel_rapl_msr intel_rapl_common kvm_intel kvm irqbypass ghash_clmulni_intel aesni_intel libaes ppdev crypto_simd cryptd glue_helper bochs_drm drm_vram_helper rapl drm_ttm_helper ttm joydev drm_kms_helper evdev serio_raw pcspkr cec parport_pc sg parport qemu_fw_cfg button drm fuse configfs ip_tables x_tables autofs4 ext4 crc16 mbcache jbd2 crc32c_generic sd_mod t10_pi crc_t10dif sr_mod cdrom crct10dif_generic ata_generic ata_piix libata crct10dif_pclmul crct10dif_common scsi_mod crc32_pclmul crc32c_intel psmouse e1000 i2c_piix4 floppy
+[   36.352094] CPU: 0 PID: 470 Comm: qemu-system-x86 Tainted: G        W         5.10.0-9-amd64 #1 Debian 5.10.70-1
+[   36.352095] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.16.0-1.fc36 04/01/2014
+[   36.352098] RIP: 0010:vmwrite_error+0x71/0x110 [kvm_intel]
+[   36.352099] Code: 44 00 00 b9 00 44 00 00 0f 78 c9 3e 77 0a 6a 00 51 e8 13 13 01 00 59 59 4c 89 e2 48 89 ee 48 c7 c7 48 c1 78 c0 e8 92 fa d1 e8 <0f> 0b eb a6 83 3d 34 76 02 00 11 76 14 65 48 8b 15 62 e9 8c 3f 0f
+[   36.352099] RSP: 0018:ffff9ef20043bd48 EFLAGS: 00010286
+[   36.352100] RAX: 0000000000000000 RBX: ffff91a642d20000 RCX: ffff91a67ee18a08
+[   36.352101] RDX: 00000000ffffffd8 RSI: 0000000000000027 RDI: ffff91a67ee18a00
+[   36.352102] RBP: 0000000000006c0a R08: 0000000000000000 R09: ffff9ef20043bb68
+[   36.352102] R10: ffff9ef20043bb60 R11: ffffffffaa2cb428 R12: fffffe0000003000
+[   36.352103] R13: 0000000000000000 R14: 00000000ffffffff R15: 0000000000000000
+[   36.353134] FS:  00007f6a5c921700(0000) GS:ffff91a67ee00000(0000) knlGS:0000000000000000
+[   36.353135] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   36.353136] CR2: 00007f6a48000010 CR3: 000000000a6ca001 CR4: 00000000001726f0
+[   36.353138] Call Trace:
+[   36.353144]  vmx_vcpu_load_vmcs+0x38c/0x500 [kvm_intel]
+[   36.353148]  vmx_create_vcpu+0x721/0x20d0 [kvm_intel]
+[   36.353165]  kvm_arch_vcpu_create+0x2b8/0x370 [kvm]
+[   36.353178]  kvm_vm_ioctl+0x71c/0xa80 [kvm]
+[   36.353181]  __x64_sys_ioctl+0x83/0xb0
+[   36.353183]  do_syscall_64+0x33/0x80
+[   36.353184]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+[   36.353185] RIP: 0033:0x7f6a602b3cc7
+[   36.353187] Code: 00 00 00 48 8b 05 c9 91 0c 00 64 c7 00 26 00 00 00 48 c7 c0 ff ff ff ff c3 66 2e 0f 1f 84 00 00 00 00 00 b8 10 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 8b 0d 99 91 0c 00 f7 d8 64 89 01 48
+[   36.353187] RSP: 002b:00007f6a5c920548 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+[   36.353192] RAX: ffffffffffffffda RBX: 000000000000ae41 RCX: 00007f6a602b3cc7
+[   36.353193] RDX: 0000000000000000 RSI: 000000000000ae41 RDI: 0000000000000009
+[   36.353194] RBP: 000055ba07ec1e00 R08: 0000000000000000 R09: 0000000000000000
+[   36.353194] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000000
+[   36.353197] R13: 00007ffe71580ddf R14: 00007f6a5c9207c0 R15: 0000000000802000
+[   36.353199] ---[ end trace cd92fa9c38813476 ]---
+[   36.353216] kvm: vmread failed: field=4400
+[   36.353217] kvm: vmwrite failed: field=6c0a val=fffffe0000003000 err=0
+[   36.353219] kvm: vmread failed: field=4400
+[   36.353220] kvm: vmwrite failed: field=6c0c val=fffffe0000001000 err=0
+[   36.353538] kvm: vmread failed: field=4400
+[   36.353539] kvm: vmwrite failed: field=6c10 val=fffffe0000003000 err=0
+[   36.353919] kvm: vmread failed: field=4400
+[   36.353920] kvm: vmwrite failed: field=2004 val=2cff000 err=0
+[   36.353922] kvm: vmread failed: field=4400
+[   36.353923] kvm: vmwrite failed: field=2800 val=ffffffffffffffff err=0
+[   36.353933] kvm: vmread failed: field=4400
+[   36.353934] kvm: vmwrite failed: field=4000 val=7f err=0
+[   36.353971] kvm: vmread failed: field=4400
+[   36.353972] kvm: vmwrite failed: field=4002 val=b5a06dfa err=0
+[   36.353983] kvm: vmread failed: field=4400
+[   36.353984] kvm: vmwrite failed: field=401e val=28e3 err=0
+[   36.353986] kvm: vmread failed: field=4400
+[   36.353986] kvm: vmwrite failed: field=4006 val=0 err=0
+[   36.353989] kvm: vmwrite failed: field=4008 val=0 err=0
+[   36.566156] set kvm_intel.dump_invalid_vmcs=1 to dump internal KVM state.
