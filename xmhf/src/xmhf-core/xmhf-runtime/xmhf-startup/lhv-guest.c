@@ -5,6 +5,8 @@
 static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 												 vmexit_info_t *info)
 {
+	/* This variable is shared by all CPUs, and will only change from 0 to 1 */
+	static bool bochs_workaround = 0;
 	if (info->vmexit_reason != VMX_VMEXIT_VMCALL) {
 		return;
 	}
@@ -21,6 +23,10 @@ static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 		wrmsr64(0x402U, 0x2222222222222222ULL);
 		wrmsr64(0x403U, 0xdeaddeadbeefbeefULL);
 		wrmsr64(0x406U, 0xdeaddeadbeefbeefULL);
+		if (rdmsr64(0x402U) != 0x2222222222222222ULL) {
+			printf("Warning: MTRR tests disabled due to Bochs\n");
+			bochs_workaround = 1;
+		}
 		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007040600070406ULL);
 		vcpu->my_vmexit_msrstore[0].index = 0x20aU;
 		vcpu->my_vmexit_msrstore[0].data = 0x00000000deada000ULL;
@@ -45,16 +51,18 @@ static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 		/* Check effects */
 		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[0].data ==
 						  0x00000000aaaaa000ULL);
+		HALT_ON_ERRORCOND(rdmsr64(0x20bU) == 0x00000000bbbbb000ULL);
+		HALT_ON_ERRORCOND(rdmsr64(0x20cU) == 0x00000000ccccc000ULL);
 		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[1].data ==
 						  rdmsr64(MSR_EFER));
-		HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[2].data ==
-						  0x2222222222222222ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x20bU) == 0x00000000bbbbb000ULL);
 		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007060400070604ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x403U) == 0x3333333333333333ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x20cU) == 0x00000000ccccc000ULL);
 		HALT_ON_ERRORCOND(rdmsr64(0xc0000081U) == 0x0000000011111000ULL);
-		HALT_ON_ERRORCOND(rdmsr64(0x406U) == 0x6666666666666666ULL);
+		if (!bochs_workaround) {
+			HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[2].data ==
+							  0x2222222222222222ULL);
+			HALT_ON_ERRORCOND(rdmsr64(0x403U) == 0x3333333333333333ULL);
+			HALT_ON_ERRORCOND(rdmsr64(0x406U) == 0x6666666666666666ULL);
+		}
 		/* Reset state */
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 0);
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
@@ -513,6 +521,13 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 	case 0x22:
 		handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
 		break;
+#ifdef __DEBUG_QEMU__
+	case 0x27:
+		/* Workaround to make LHV runnable on Bochs */
+		printf("CPU(0x%02x): Warning: Mysterious IRQ 7 in guest mode\n",
+			   _svm_and_vmx_getvcpu()->id);
+		break;
+#endif /* __DEBUG_QEMU__ */
 	default:
 		printf("Guest: interrupt / exception vector %ld\n", vector);
 		HALT_ON_ERRORCOND(0 && "Guest: unknown interrupt / exception!\n");
