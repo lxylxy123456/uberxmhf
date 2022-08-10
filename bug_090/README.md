@@ -140,6 +140,67 @@ Fixed LHV in `lhv 43cdec2f3` and `lhv-dev 2cdbe294a`. Then implemented test in
 because it does not take shadow VMCS into account. Fixed in
 `xmhf64-nest 217e5290f`.
 
-TODO: LHV does not run in Bochs
+### Running LHV in Bochs
+
+I realized that the latest LHV and configuration does not run in Bochs. The
+behavior is that CPU 0 prints
+```
+Guest: interrupt / exception vector 39
+
+Fatal: Halting! Condition '0 && "Guest: unknown interrupt / exception!\n"' failed, line 518, file lhv-guest.c
+```
+
+* `LHV_OPT=0x0`, SMP 2, good
+* `LHV_OPT=0x80`, SMP 2, good
+* `LHV_OPT=0x1fc`, SMP 2, bad
+* `LHV_OPT=0x40`, SMP 2, good
+* `LHV_OPT=0x1fc`, SMP 1, bad
+* `LHV_OPT=0xfc`, SMP 1, bad
+* `LHV_OPT=0x7c`, SMP 1, bad
+* `LHV_OPT=0x3c`, SMP 1, bad
+* `LHV_OPT=0x1c`, SMP 1, bad
+* `LHV_OPT=0xc`, SMP 1, bad
+* `LHV_OPT=0x4`, SMP 1, good
+* `LHV_OPT=0xc2`, SMP 1, good
+* `LHV_OPT=0x2c0`, SMP 1, bad 2 (different from "bad" in that the exception
+  happens in host mode, not guest mode
+* `LHV_OPT=0x200`, SMP 1, bad 2
+
+May be related: "4.1.8 The Mysterious Exception 0x27, aka IRQ 7" in 15605
+`kernel.pdf`. See also
+<https://en.wikipedia.org/wiki/Intel_8259#Spurious_interrupts>.
+Now we start modifying LHV code.
+
+In `lhv-timer.c` function `timer_init()`, looks like the problem happens at the
+HLT instruction below. However if `printf("D\n");` below is uncommented, the
+problem disappears.
+```
+			printf("A\n");
+			outb(TIMER_ONE_SHOT, TIMER_MODE_IO_PORT);
+			outb((u8)(1), TIMER_PERIOD_IO_PORT);
+			outb((u8)(0), TIMER_PERIOD_IO_PORT);
+			// printf("D\n");
+			asm volatile ("sti; hlt; cli");
+			printf("E\n");
+```
+
+Maybe we can try reproducing this problem in 15605's environment. Actually it
+is easy. Just replace `init-x86-i386.bin` with `kernel` and create XMHF GRUB
+image. However, we cannot easily reproduce it in 15605's environment. Also,
+we are not sure whether Bochs or LHV is buggy.
+
+For now I am going to workaround by handling this interrupt. Implemented in
+`lhv d6381993b`. Looks like the IRQ 7 only happens once, which is good.
+According to <https://www.reddit.com/r/osdev/comments/5qqnkq/comment/dd1qfx9/>,
+we do not send EOIs in this case.
+
+Also according to <https://forum.osdev.org/viewtopic.php?f=1&t=56009>, maybe
+the PIT is just ticking too fast on Bochs.
+
+Another problem with Bochs is that MTRR tests do not work. Worked around in
+`lhv d6381993b..e31d4b4bc`. The problem is that Bochs does not have machine
+check MSRs.
+
+TODO: run LHV in Touch, and XMHF LHV
 TODO: continue testing KVM XMHF KVM
 
