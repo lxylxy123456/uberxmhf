@@ -161,6 +161,14 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
 		handle_lhv_syscall(vcpu, vector, r);
 		break;
 
+#ifdef __DEBUG_QEMU__
+	case 0x27:
+		/* Workaround to make LHV runnable on Bochs */
+		printf("CPU(0x%02x): Warning: Mysterious IRQ 7 in host mode\n",
+			   vcpu->id);
+		break;
+#endif /* __DEBUG_QEMU__ */
+
     default:
         {
             /*

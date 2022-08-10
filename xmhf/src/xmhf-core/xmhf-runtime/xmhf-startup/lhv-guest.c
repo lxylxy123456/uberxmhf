@@ -513,6 +513,13 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 	case 0x22:
 		handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
 		break;
+#ifdef __DEBUG_QEMU__
+	case 0x27:
+		/* Workaround to make LHV runnable on Bochs */
+		printf("CPU(0x%02x): Warning: Mysterious IRQ 7 in guest mode\n",
+			   _svm_and_vmx_getvcpu()->id);
+		break;
+#endif /* __DEBUG_QEMU__ */
 	default:
 		printf("Guest: interrupt / exception vector %ld\n", vector);
 		HALT_ON_ERRORCOND(0 && "Guest: unknown interrupt / exception!\n");
