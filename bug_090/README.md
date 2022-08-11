@@ -201,6 +201,101 @@ Another problem with Bochs is that MTRR tests do not work. Worked around in
 `lhv d6381993b..e31d4b4bc`. The problem is that Bochs does not have machine
 check MSRs.
 
-TODO: run LHV in Touch, and XMHF LHV
-TODO: continue testing KVM XMHF KVM
+### Running LHV on Touch
+
+* 32 bit LHV, `LHV_OPT=0x1fd`, failed (stuck at some point)
+* 32 bit LHV, `LHV_OPT=0xc`, failed (stuck at some point)
+* 32 bit LHV, `LHV_OPT=0x0`, good
+* 32 bit LHV, `LHV_OPT=0xd1`, failed (exception on all CPUs)
+
+Tentatively giving up because debugging on Touch is hard. Will do when have
+better hardware.
+
+### KVM XMHF KVM stuck at 0x28b8
+
+Now when running KVM XMHF KVM, L2 KVM seems to stuck at `EIP=0x28b8`. L1 XMHF
+always prints
+```
+HPT[3]:xmhf/src/libbaremetal/libxmhfutil/hptw.c:hptw_checked_get_pmeo:392: EU_CHK( hpt_pmeo_is_present(pmeo)) failed
+```
+
+The registers printed by L2 QEMU are:
+```
+EAX=00000720 EBX=00006726 ECX=00003faa EDX=00000300
+ESI=0e0fff67 EDI=000000ac EBP=00006cc2 ESP=00006cb2
+EIP=000028b8 EFL=00010046 [---Z-P-] CPL=0 II=0 A20=1 SMM=0 HLT=0
+ES =b800 000b8000 ffffffff 00809300
+CS =c000 000c0000 ffffffff 00809b00
+SS =0000 00000000 ffffffff 00809300
+DS =0000 00000000 ffffffff 00809300
+FS =0000 00000000 ffffffff 00809300
+GS =0000 00000000 ffffffff 00809300
+LDT=0000 00000000 0000ffff 00008200
+TR =0000 00000000 0000ffff 00008b00
+GDT=     00000000 00000000
+IDT=     00000000 000003ff
+CR0=00000010 CR2=00000000 CR3=00000000 CR4=00000000
+DR0=0000000000000000 DR1=0000000000000000 DR2=0000000000000000 DR3=0000000000000000 
+DR6=00000000ffff0ff0 DR7=0000000000000400
+EFER=0000000000000000
+FCW=037f FSW=0000 [ST=0] FTW=00 MXCSR=00001f80
+...
+```
+
+The call stack is
+```
+#0  0x000000001023da7a in hptw_checked_get_pmeo (pmeo=0x1fad8e40 <g_cpustacks+65088>, ctx=0x1029fbc8 <ept02_cache+648>, access_type=2, cpl=HPTW_CPL0, va=753836) at xmhf/src/libbaremetal/libxmhfutil/hptw.c:392
+#1  0x0000000010221748 in xmhf_nested_arch_x86vmx_handle_ept02_exit (vcpu=0x1025c9c0 <g_vcpubuffers>, cache_line=0x1029fb80 <ept02_cache+576>, guest2_paddr=753836, qualification=386) at arch/x86/vmx/nested-x86vmx-ept12.c:465
+#2  0x000000001020b9bf in xmhf_nested_arch_x86vmx_handle_vmexit (vcpu=0x1025c9c0 <g_vcpubuffers>, r=0x1fad8f78 <g_cpustacks+65400>) at arch/x86/vmx/nested-x86vmx-handler.c:999
+#3  0x00000000102087fd in xmhf_parteventhub_arch_x86vmx_intercept_handler (vcpu=0x1025c9c0 <g_vcpubuffers>, r=0x1fad8f78 <g_cpustacks+65400>) at arch/x86/vmx/peh-x86vmx-main.c:1165
+#4  0x00000000102064cc in xmhf_parteventhub_arch_x86vmx_entry () at arch/x86/vmx/peh-x86vmx-entry.S:86
+#5  0x0000000000000000 in ?? ()
+```
+
+The EPT exit information is
+* `guest2_paddr = 0xb80ac`
+* `qualification = 0x182`
+* `r->edi = 0xac`, so likely the access is to `ES:DI`
+
+The EPT entry is `0x00300f80000b82c6`. Where the write bit is set but the read
+bit is not. However, `hptw_checked_get_pmeo()` only checks the read bit, which
+causes the problem. As a result, XMHF will always perform `L2 -> L0 -> L1` EPT
+exits, even though it should be `L2 -> L0 -> L2`. Fixed in `xmhf64 ab9768a9f`.
+
+However, XMHF halt on the same instruction because the physical address of the
+EPT entry is wrong. Most other EPT entries look like `0x0010000020XXXc77`, but
+this one is far beyond 4G memory limit. Is XMHF expecting an EPT
+misconfiguration VMEXIT?
+
+```
+0x360b000:	0x0010000020e00c77	0x0000000000000000
+0x360b010:	0x0000000000000000	0x0000000000000000
+0x360b020:	0x0000000000000000	0x0000000000000000
+0x360b030:	0x0010000020e06c77	0x0000000000000000
+0x360b040:	0x0000000000000000	0x0000000000000000
+0x360b5b0:	0x0000000000000000	0x0000000000000000
+0x360b5c0:	0x00300f80000b82c6	0x0000000000000000
+0x360b5d0:	0x0000000000000000	0x0000000000000000
+0x360b5f0:	0x0000000000000000	0x0000000000000000
+0x360b600:	0x0010000020ec0c77	0x0010000020ec1c77
+0x360b610:	0x0010000020ec2c77	0x0010000020ec3c77
+0x360b620:	0x0010000020ec4c77	0x0010000020ec5c77
+0x360b630:	0x0010000020ec6c77	0x0010000020ec7c77
+0x360b640:	0x0010000020ec8c77	0x0010000020ec9c77
+0x360b650:	0x0000000000000000	0x0000000000000000
+0x360b740:	0x0000000000000000	0x0000000000000000
+0x360b750:	0x0010000020eeac77	0x0010000020eebc77
+0x360b760:	0x0010000020eecc77	0x0000000000000000
+0x360b770:	0x0010000020eeec77	0x0000000000000000
+0x360b780:	0x0010000020ef0c77	0x0010000020ef1c77
+0x360b790:	0x0010000020ef2c77	0x0010000020ef3c77
+0x360b7a0:	0x0010000020ef4c77	0x0010000020ef5c77
+0x360b7b0:	0x0010000020ef6c77	0x0010000020ef7c77
+0x360b7c0:	0x0010000020ef8c77	0x0000000000000000
+0x360b7d0:	0x0000000000000000	0x0000000000000000
+0x360b7e0:	0x0010000020efcc77	0x0010000020efdc77
+0x360b7f0:	0x0000000000000000	0x0000000000000000
+```
+
+By reading KVM's `arch/x86/kvm/vmx/vmx.c`, TODO
 
