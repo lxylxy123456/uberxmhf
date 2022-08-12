@@ -297,5 +297,33 @@ misconfiguration VMEXIT?
 0x360b7f0:	0x0000000000000000	0x0000000000000000
 ```
 
-By reading KVM's `arch/x86/kvm/vmx/vmx.c`, TODO
+By reading KVM's `arch/x86/kvm/vmx/vmx.c`, we can see that KVM's use of `-WX`
+bits in EPT is intended to produce a EPT misconfiguration. So we should
+generate the EPT misconfiguration instead. In this case we have to compute by
+software. Letting the hardware generate the EPT misconfiguration and forward
+the VMEXIT is hard / impossible.
+
+```c
+4287  static void ept_set_mmio_spte_mask(void)
+4288  {
+4289  	/*
+4290  	 * EPT Misconfigurations can be generated if the value of bits 2:0
+4291  	 * of an EPT paging-structure entry is 110b (write/execute).
+4292  	 */
+4293  	kvm_mmu_set_mmio_spte_mask(VMX_EPT_MISCONFIG_WX_VALUE, 0);
+4294  }
+```
+
+Intel v3 "27.2.3.1 EPT Misconfigurations" documents situations where EPT
+misconfiguration should be raised. For now we only implement the `R=0 && W=1`
+case.
+
+Intel v3 "26.2.1 Basic VM-Exit Information" shows that EPT misconfiguration
+exit needs to set guest physical address VMCS field. The exit qualification
+should be cleared.
+
+Fixed in `xmhf64-nest b09f64d9e`. After this commit, SeaBIOS can run
+successfully when there are no disks.
+
+TODO: test booting something
 
