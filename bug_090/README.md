@@ -325,5 +325,51 @@ should be cleared.
 Fixed in `xmhf64-nest b09f64d9e`. After this commit, SeaBIOS can run
 successfully when there are no disks.
 
-TODO: test booting something
+After the fix, looks like GRUB is also able to boot in UP. Though on Thinkpad
+it is very slow. Around 50% CPU are for QEMU and 50% are for sshd (because of
+x11 forwarding). For some reason keyboard does not work?
+
+On HP 840, fixed a bug in `xmhf64-nest db9bf0cbb` to be able to boot. The boot
+speed is faster, and in SMP SeaBIOS works. However, the behavior in SMP is
+strange. Sometimes guest stucks and KVM / Linux is taking a lot of CPU.
+
+In UP, when booting Debian, can see "Loading initial ramdisk". However it is
+very slow. Booting x64 LHV works fine.
+
+* `HP 840 -> KVM SMP=1 -> XMHF 64 -> Linux -> KVM SMP=1 -> LHV 64`: runs well
+* `HP 840 -> KVM SMP=1 -> XMHF 64 -> Linux -> KVM SMP=2 -> LHV 64`: mostly runs
+  well, CPU 0 test code is starved due to interrupts
+* `HP 840 -> KVM SMP=2 -> XMHF 64 -> Linux -> KVM SMP=2 -> LHV 64`: Linux
+  stucks when L2's guest loading GRUB, ssh does not work, see watchdog timeout.
+* `HP 840 -> KVM SMP=2 -> XMHF 64 -> Linux -> KVM SMP=1 -> LHV 64`: Looks the
+  Linux also stucks at some point. This time see RCU start warnings.
+  <https://www.kernel.org/doc/Documentation/RCU/stallwarn.txt> may be useful.
+
+When L0 KVM has 1 CPU, each CPU in L2 KVM requires 2 VMCS to be registered in
+XMHF64 to run LHV 64. This is expected due to how KVM works (LHV host needs 1
+VMCS, LHV guest needs another).
+
+### KVM UP slowness
+
+When L0 KVM is running in UP, it is very slow. Compiling in O3 does not help
+too much. In `xmhf64-nest-dev 3e774359f..42f5e90e0`, print nested
+virtualization events observed by XMHF. Looks like the most time consuming
+events are `L2 -> L0 -> L1` VMEXITs. These are likely unavoidable.
+
+Some noticable exit reasons are:
+* 1: interrupt
+* 30: I/O instruction
+* 48: EPT violation
+* 49: EPT misconfiguration
+* 52: preemption timer expired
+
+Maybe we need to optimize `L2 -> L0 -> L1` VMEXITs.
+
+We also wonder whether KVM KVM KVM is as slow as KVM XMHF KVM.
+
+TODO: try not using VMCS shadowing
+TODO: how slow is KVM KVM KVM?
+TODO: why UP is slow (print VMEXIT and VMENTRY)
+TODO: why SMP is slow
+TODO: boot Debian as L2
 
