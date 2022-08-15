@@ -367,6 +367,14 @@ Maybe we need to optimize `L2 -> L0 -> L1` VMEXITs.
 
 We also wonder whether KVM KVM KVM is as slow as KVM XMHF KVM.
 
+We compile Linux with KVM to debug it better. For GDB scripts follow
+<https://docs.kernel.org/dev-tools/gdb-kernel-debugging.html>. In
+`make nconfig`, need to
+* Cryptographic API: Remove key ring
+* Kernel hacking `->` Compile-time checks and compiler options
+	* `CONFIG_DEBUG_INFO=y`
+	* `CONFIG_GDB_SCRIPTS=y`
+
 TODO: try not using VMCS shadowing
 TODO: how slow is KVM KVM KVM?
 TODO: why UP is slow (print VMEXIT and VMENTRY)
