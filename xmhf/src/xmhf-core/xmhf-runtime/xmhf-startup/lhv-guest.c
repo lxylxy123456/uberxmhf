@@ -434,14 +434,14 @@ void lhv_guest_main(ulong_t cpu_id)
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
 	{
 		static u32 num = 0;
-		static u32 lock = 1;
+		static u32 lock = 0;
 		if (vcpu->isbsp) {
 			printf("CPU(0x%02x): BSP entered guest\n", vcpu->id);
 			while (1) {
 				u32 n = num++;
-				if (n % 10 == 5) {
+				if (n % 100 == 50) {
 					spin_lock(&lock);
-				} else if (n % 10 == 8) {
+				} else if (n % 100 == 60) {
 					spin_unlock(&lock);
 				}
 				printf("CPU(0x%02x): BSP %d\n", vcpu->id, n);
