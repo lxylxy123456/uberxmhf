@@ -434,7 +434,7 @@ void lhv_guest_main(ulong_t cpu_id)
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
 	{
 		static u32 num = 0;
-		static u32 lock = 0;
+		static u32 lock = 1;
 		if (vcpu->isbsp) {
 			printf("CPU(0x%02x): BSP entered guest\n", vcpu->id);
 			while (1) {
@@ -443,13 +443,13 @@ void lhv_guest_main(ulong_t cpu_id)
 //				for (u32 i = 1; i < 0x1000; i++) {
 //					;
 //				}
-	//			spin_lock(&lock);
+				spin_lock(&lock);
 				n = num;
-	//			spin_unlock(&lock);
+				spin_unlock(&lock);
 				printf("CPU(0x%02x): APs waiting %d\n", vcpu->id, n);
-//				if (n >= 3) {
-//					break;
-//				}
+				if (n >= 3) {
+					break;
+				}
 			}
 			printf("CPU(0x%02x): APs waited\n", vcpu->id);
 		} else {
