@@ -5,7 +5,7 @@ import sys
 import argparse
 from subprocess import Popen
 
-if __name__ == '__main__':
+def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('amt_sh')
 	parser.add_argument('out_name')
@@ -29,7 +29,8 @@ if __name__ == '__main__':
 				else:
 					cur_line += c
 				out_file.write(c)
-				if cur_line == 'eXtensible Modular Hypervisor Framework':
+				if (cur_line == 'eXtensible Modular Hypervisor Framework' or
+					cur_line == 'Lightweight Hypervisor'):
 					# Truncate current file
 					out_file.truncate(0)
 					out_file.close()
@@ -44,4 +45,7 @@ if __name__ == '__main__':
 			p.kill()
 		except Exception:
 			pass
+
+if __name__ == '__main__':
+	main()
 
