@@ -4,6 +4,7 @@
 # arguments:
 #   --drt: enable DRT (--disable-drt)
 #   --dmap: enable DMAP (--disable-dmap)
+#   --vga: use VGA instead of serial (--disable-debug-serial --enable-debug-vga)
 #   --no-dbg: do not use QEMU debug workarounds (--enable-debug-qemu)
 #   --no-ucode: disable Intel microcode update (--enable-update-intel-ucode)
 #   --app APP: set hypapp, default is "hypapps/trustvisor" (--with-approot)
@@ -35,6 +36,7 @@ APPROOT="hypapps/helloworld"
 SUBARCH=""
 DRT="n"
 DMAP="n"
+VGA="n"
 QEMU="y"
 #UCODE="y"
 UCODE="n"
@@ -92,6 +94,9 @@ while [ "$#" -gt 0 ]; do
 			;;
 		--dmap)
 			DMAP="y"
+			;;
+		--vga)
+			VGA="y"
 			;;
 		--no-dbg)
 			QEMU="n"
@@ -188,6 +193,10 @@ fi
 
 if [ "$DMAP" == "n" ]; then
 	CONF+=("--disable-dmap")
+fi
+
+if [ "$VGA" == "y" ]; then
+	CONF+=("--disable-debug-serial" "--enable-debug-vga")
 fi
 
 if [ "$QEMU" == "y" ]; then

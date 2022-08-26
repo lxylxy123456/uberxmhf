@@ -443,7 +443,9 @@ void lhv_guest_main(ulong_t cpu_id)
 		console_clear(&vc);
 		for (int i = 0; i < vc.width; i++) {
 			for (int j = 0; j < 2; j++) {
+#ifndef __DEBUG_VGA__
 				HALT_ON_ERRORCOND(console_get_char(&vc, i, j) == ' ');
+#endif /* !__DEBUG_VGA__ */
 				console_put_char(&vc, i, j, '0' + vcpu->id);
 			}
 		}
