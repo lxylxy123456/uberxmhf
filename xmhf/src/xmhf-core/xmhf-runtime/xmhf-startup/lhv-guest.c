@@ -433,6 +433,37 @@ void lhv_guest_main(ulong_t cpu_id)
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
 	{
+		static u32 num = 0;
+		static u32 lock = 0;
+		if (vcpu->isbsp) {
+			printf("CPU(0x%02x): BSP entered guest\n", vcpu->id);
+			while (1) {
+				u32 n = 0;
+//				printf("CPU(0x%02x): APs waiting pre\n", vcpu->id);
+//				for (u32 i = 1; i < 0x1000; i++) {
+//					;
+//				}
+	//			spin_lock(&lock);
+				n = num;
+	//			spin_unlock(&lock);
+				printf("CPU(0x%02x): APs waiting %d\n", vcpu->id, n);
+//				if (n >= 3) {
+//					break;
+//				}
+			}
+			printf("CPU(0x%02x): APs waited\n", vcpu->id);
+		} else {
+			u32 n = 0;
+			printf("CPU(0x%02x): AP entering guest %d\n", vcpu->id, n);
+			spin_lock(&lock);
+			num++;
+			n = num;
+			spin_unlock(&lock);
+			printf("CPU(0x%02x): AP entered guest %d\n", vcpu->id, n);
+			HALT();
+		}
+	}
+	{
 		u32 eax, ebx, ecx, edx;
 		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
 		in_xmhf = (eax == 0x46484d58U);
@@ -520,11 +551,23 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 #ifdef __DEBUG_QEMU__
 	case 0x27:
 		/* Workaround to make LHV runnable on Bochs */
+		{
+			extern void *emhfc_putchar_linelock_arg;
+			extern void emhfc_putchar_linelock(void *arg);
+			extern void emhfc_putchar_lineunlock(void *arg);
+			emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
+		}
 		printf("CPU(0x%02x): Warning: Mysterious IRQ 7 in guest mode\n",
 			   _svm_and_vmx_getvcpu()->id);
 		break;
 #endif /* __DEBUG_QEMU__ */
 	default:
+		{
+			extern void *emhfc_putchar_linelock_arg;
+			extern void emhfc_putchar_linelock(void *arg);
+			extern void emhfc_putchar_lineunlock(void *arg);
+			emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
+		}
 		printf("Guest: interrupt / exception vector %ld\n", vector);
 		HALT_ON_ERRORCOND(0 && "Guest: unknown interrupt / exception!\n");
 		break;
