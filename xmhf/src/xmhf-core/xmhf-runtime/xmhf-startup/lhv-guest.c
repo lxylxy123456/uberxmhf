@@ -432,51 +432,15 @@ void lhv_guest_main(ulong_t cpu_id)
 	bool in_xmhf = false;
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
-	{
-		static u32 num = 0;
-		static u32 lock = 1;
-		if (vcpu->isbsp) {
-			printf("CPU(0x%02x): BSP entered guest\n", vcpu->id);
-			while (1) {
-				u32 n = 0;
-//				printf("CPU(0x%02x): APs waiting pre\n", vcpu->id);
-//				for (u32 i = 1; i < 0x1000; i++) {
-//					;
-//				}
-				spin_lock(&lock);
-				n = num;
-				spin_unlock(&lock);
-				printf("CPU(0x%02x): APs waiting %d\n", vcpu->id, n);
-				if (n >= 3) {
-					break;
-				}
-			}
-			for (u32 i = 0; i < 20; i++) {
-				printf("CPU(0x%02x): APs waited\n", vcpu->id);
-			}
-		} else {
-			u32 n = 0;
-			printf("CPU(0x%02x): AP entering guest %d\n", vcpu->id, n);
-			spin_lock(&lock);
-			num++;
-			n = num;
-			spin_unlock(&lock);
-			printf("CPU(0x%02x): AP entered guest %d\n", vcpu->id, n);
-			HALT();
-		}
-	}
-	printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
+
 	{
 		u32 eax, ebx, ecx, edx;
 		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
 		in_xmhf = (eax == 0x46484d58U);
 	}
-	printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 	{
 		console_vc_t vc;
-		printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 		console_get_vc(&vc, vcpu->idx, 1);
-		printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 		{
 		//	extern void console_clear_2(console_vc_t *vc);
 		//	console_clear_2(&vc);
