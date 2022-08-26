@@ -478,16 +478,16 @@ void lhv_guest_main(ulong_t cpu_id)
 		console_get_vc(&vc, vcpu->idx, 1);
 		printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 		{
-			extern void console_clear_2(console_vc_t *vc);
-			console_clear_2(&vc);
+		//	extern void console_clear_2(console_vc_t *vc);
+		//	console_clear_2(&vc);
 		}
 		printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 		for (int i = 0; i < vc.width; i++) {
 			for (int j = 0; j < 2; j++) {
 #ifndef __DEBUG_VGA__
-				HALT_ON_ERRORCOND(console_get_char(&vc, i, j) == ' ');
+				// HALT_ON_ERRORCOND(console_get_char(&vc, i, j) == ' ');
 #endif /* !__DEBUG_VGA__ */
-				console_put_char(&vc, i, j, '0' + vcpu->id);
+				// console_put_char(&vc, i, j, '0' + vcpu->id);
 			}
 		}
 	}

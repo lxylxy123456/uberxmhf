@@ -1,7 +1,7 @@
 #include <xmhf.h>
 #include <lhv.h>
 
-#define EPT_POOL_SIZE 128
+#define EPT_POOL_SIZE 4400
 
 /* Whether the EPT is already built. If so, store EPTP */
 static u8 ept_valid[MAX_VCPU_ENTRIES][LHV_EPT_COUNT];
@@ -101,14 +101,17 @@ u64 lhv_build_ept(VCPU *vcpu, u8 ept_num)
 	/* Skip building most of the EPT if already built */
 	if (!ept_valid[vcpu->idx][ept_num >> 4]) {
 		ept_valid[vcpu->idx][ept_num >> 4] = 1;
-		/* Regular memory */
-		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, low, high);
-		/* LAPIC */
-		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0xfee00000, 0xfee01000);
-		/* Console */
-		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0x000b8000, 0x000b9000);
-		/* Real mode */
-		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0x00000000, 0x00100000);
+		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0x00000000, 0xffffffff);
+		(void) low;
+		(void) high;
+//		/* Regular memory */
+//		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, low, high);
+//		/* LAPIC */
+//		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0xfee00000, 0xfee01000);
+//		/* Console */
+//		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0x000b8000, 0x000b9000);
+//		/* Real mode */
+//		ept_map_continuous_addr(vcpu, &ept_ctx, &pmeo, 0x00000000, 0x00100000);
 	} else {
 		HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_SINGLECONTEXT,
 									   ept_ctx.ctx.root_pa | 0x1eULL));

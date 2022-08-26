@@ -81,6 +81,9 @@ void timer_init(VCPU *vcpu)
 static void update_screen(VCPU *vcpu, int *x, int y, int guest)
 {
 	console_vc_t vc;
+	if (guest) {
+		return;
+	}
 	console_get_vc(&vc, vcpu->idx, guest);
 	(*x) += vc.width;
 	(*x) %= vc.width;
