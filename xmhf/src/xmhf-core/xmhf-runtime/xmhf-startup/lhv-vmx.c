@@ -249,6 +249,11 @@ void lhv_vmx_main(VCPU *vcpu)
 	/* Make sure this is Intel CPU */
 	HALT_ON_ERRORCOND(get_cpu_vendor_or_die() == CPU_VENDOR_INTEL);
 
+	if (!vcpu->isbsp) {
+		printf("CPU(0x%02x): AP halted\n", vcpu->id);
+		HALT();
+	}
+
 	/* Save contents of MSRs (from _vmx_initVT) */
 	{
 		u32 i;
