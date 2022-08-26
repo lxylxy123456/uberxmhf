@@ -65,7 +65,7 @@ spin_lock:
     ret
 
 spin_pause:
-    pause
+    pausejkl
     jmp     spin_lock
 
 

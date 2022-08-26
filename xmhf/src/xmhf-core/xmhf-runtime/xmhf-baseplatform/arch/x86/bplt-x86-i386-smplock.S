@@ -68,7 +68,7 @@ spin:
     ret
 
 spin_pause:
-    pause                   //pause improves performance in spin loop
+  //  pause                   //pause improves performance in spin loop
     jmp     spin
 
 
