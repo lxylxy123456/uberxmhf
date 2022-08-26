@@ -163,12 +163,6 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
 
 #ifdef __DEBUG_QEMU__
 	case 0x27:
-		{
-			extern void *emhfc_putchar_linelock_arg;
-			extern void emhfc_putchar_linelock(void *arg);
-			extern void emhfc_putchar_lineunlock(void *arg);
-			emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
-		}
 		/* Workaround to make LHV runnable on Bochs */
 		printf("CPU(0x%02x): Warning: Mysterious IRQ 7 in host mode\n",
 			   vcpu->id);
@@ -242,12 +236,6 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
                 break;
             }
 
-			{
-				extern void *emhfc_putchar_linelock_arg;
-				extern void emhfc_putchar_linelock(void *arg);
-				extern void emhfc_putchar_lineunlock(void *arg);
-				emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
-			}
             /* Print exception and halt */
             printf("[%02x]: unhandled exception %d (0x%x), halting!\n",
                     vcpu->id, vector, vector);

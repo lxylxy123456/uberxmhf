@@ -432,34 +432,27 @@ void lhv_guest_main(ulong_t cpu_id)
 	bool in_xmhf = false;
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
-
 	{
 		u32 eax, ebx, ecx, edx;
 		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
 		in_xmhf = (eax == 0x46484d58U);
 	}
-	{
+	if (!(__LHV_OPT__ & LHV_NO_GUEST_SERIAL)) {
 		console_vc_t vc;
 		console_get_vc(&vc, vcpu->idx, 1);
-		{
-		//	extern void console_clear_2(console_vc_t *vc);
-		//	console_clear_2(&vc);
-		}
-		printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
+		console_clear(&vc);
 		for (int i = 0; i < vc.width; i++) {
 			for (int j = 0; j < 2; j++) {
 #ifndef __DEBUG_VGA__
-				// HALT_ON_ERRORCOND(console_get_char(&vc, i, j) == ' ');
+				HALT_ON_ERRORCOND(console_get_char(&vc, i, j) == ' ');
 #endif /* !__DEBUG_VGA__ */
-				// console_put_char(&vc, i, j, '0' + vcpu->id);
+				console_put_char(&vc, i, j, '0' + vcpu->id);
 			}
 		}
 	}
-	printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 		asm volatile ("sti");
 	}
-	printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 	while (1) {
 		/* Assume that iter never wraps around */
 		HALT_ON_ERRORCOND(++iter > 0);
@@ -527,23 +520,11 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 #ifdef __DEBUG_QEMU__
 	case 0x27:
 		/* Workaround to make LHV runnable on Bochs */
-		{
-			extern void *emhfc_putchar_linelock_arg;
-			extern void emhfc_putchar_linelock(void *arg);
-			extern void emhfc_putchar_lineunlock(void *arg);
-			emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
-		}
 		printf("CPU(0x%02x): Warning: Mysterious IRQ 7 in guest mode\n",
 			   _svm_and_vmx_getvcpu()->id);
 		break;
 #endif /* __DEBUG_QEMU__ */
 	default:
-		{
-			extern void *emhfc_putchar_linelock_arg;
-			extern void emhfc_putchar_linelock(void *arg);
-			extern void emhfc_putchar_lineunlock(void *arg);
-			emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
-		}
 		printf("Guest: interrupt / exception vector %ld\n", vector);
 		HALT_ON_ERRORCOND(0 && "Guest: unknown interrupt / exception!\n");
 		break;

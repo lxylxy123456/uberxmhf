@@ -64,7 +64,6 @@ static void ept_map_continuous_addr(VCPU *vcpu, lhv_ept_ctx_t *ept_ctx,
 									hpt_pmeo_t *pmeo, u64 low, u64 high)
 {
 	u64 paddr;
-	(void)vcpu;
 	printf("CPU(0x%02x): EPT 0x%08llx id-map 0x%08llx - 0x%08llx\n",
 		   vcpu->id, ept_ctx->ctx.root_pa, low, high);
 	for (paddr = low; paddr < high; paddr += PA_PAGE_SIZE_4K) {

@@ -81,7 +81,7 @@ void timer_init(VCPU *vcpu)
 static void update_screen(VCPU *vcpu, int *x, int y, int guest)
 {
 	console_vc_t vc;
-	if (guest) {
+	if ((__LHV_OPT__ & LHV_NO_GUEST_SERIAL) && guest) {
 		return;
 	}
 	console_get_vc(&vc, vcpu->idx, guest);
