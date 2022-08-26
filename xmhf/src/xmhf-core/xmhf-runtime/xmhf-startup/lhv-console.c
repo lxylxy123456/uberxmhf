@@ -42,6 +42,19 @@ void console_clear(console_vc_t *vc)
 	}
 }
 
+void console_clear_2(console_vc_t *vc)
+{
+	for (int i = 0; i < vc->width; i++) {
+		for (int j = 0; j < vc->height; j++) {
+			volatile char *p = console_get_mmio(vc, i, j);
+			printf("CPU(0x%02x): reached %d\n", 0, __LINE__);
+			p[0] = ' ';
+			p[1] = vc->color;
+			printf("CPU(0x%02x): reached %d\n", 0, __LINE__);
+		}
+	}
+}
+
 char console_get_char(console_vc_t *vc, int x, int y)
 {
 	volatile char *p = console_get_mmio(vc, x, y);

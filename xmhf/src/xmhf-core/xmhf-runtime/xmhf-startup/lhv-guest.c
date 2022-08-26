@@ -451,7 +451,9 @@ void lhv_guest_main(ulong_t cpu_id)
 					break;
 				}
 			}
-			printf("CPU(0x%02x): APs waited\n", vcpu->id);
+			for (u32 i = 0; i < 20; i++) {
+				printf("CPU(0x%02x): APs waited\n", vcpu->id);
+			}
 		} else {
 			u32 n = 0;
 			printf("CPU(0x%02x): AP entering guest %d\n", vcpu->id, n);
@@ -463,15 +465,23 @@ void lhv_guest_main(ulong_t cpu_id)
 			HALT();
 		}
 	}
+	printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 	{
 		u32 eax, ebx, ecx, edx;
 		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
 		in_xmhf = (eax == 0x46484d58U);
 	}
+	printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 	{
 		console_vc_t vc;
+		printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 		console_get_vc(&vc, vcpu->idx, 1);
-		console_clear(&vc);
+		printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
+		{
+			extern void console_clear_2(console_vc_t *vc);
+			console_clear_2(&vc);
+		}
+		printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 		for (int i = 0; i < vc.width; i++) {
 			for (int j = 0; j < 2; j++) {
 #ifndef __DEBUG_VGA__
@@ -481,9 +491,11 @@ void lhv_guest_main(ulong_t cpu_id)
 			}
 		}
 	}
+	printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 		asm volatile ("sti");
 	}
+	printf("CPU(0x%02x): reached %d\n", vcpu->id, __LINE__);
 	while (1) {
 		/* Assume that iter never wraps around */
 		HALT_ON_ERRORCOND(++iter > 0);
