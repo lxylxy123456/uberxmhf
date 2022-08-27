@@ -6,6 +6,7 @@
 	* LHV
 	* XMHF LHV
 	* XMHF XMHF LHV
+	* XMHF XMHF Debian
 	* INIT-SIPI-SIPI twice exploit
 	* NMI tests (`lhv-nmi` branch)
 * Git revisions at start of bug
@@ -158,8 +159,17 @@ sudo grub-editenv /boot/grub/grubenv set next_entry=XMHF-build64 next_entry_2=XM
 ./build.sh amd64 fast && gr
 # build32
 ./build.sh amd64 fast --sl-base 0x20000000 --no-init-smp && gr
+# build32lhv
+./build.sh amd64 --lhv-opt 0x5fc 
+# any
 copyxmhf
-hpgrub XMHF-build64 XMHF-build32
+hpgrub XMHF-build64 XMHF-build32 XMHF-build32lhv
 hpinit6
 ```
+
+Very slow, but looks good.
+
+### Testing XMHF XMHF Debian
+
+TODO: XMHF XMHF Debian cannot boot
 
