@@ -437,7 +437,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
 		in_xmhf = (eax == 0x46484d58U);
 	}
-	if (!(__LHV_OPT__ & LHV_NO_GUEST_SERIAL)) {
+	{
 		console_vc_t vc;
 		console_get_vc(&vc, vcpu->idx, 1);
 		console_clear(&vc);
