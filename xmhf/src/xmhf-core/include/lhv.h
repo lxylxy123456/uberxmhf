@@ -27,7 +27,6 @@ typedef struct {
 #define LHV_USE_VMXOFF				0x0000000000000080ULL
 #define LHV_USE_LARGE_PAGE			0x0000000000000100ULL	/* Need 0x4 */
 #define LHV_NO_INTERRUPT			0x0000000000000200ULL
-#define LHV_NO_GUEST_SERIAL			0x0000000000000400ULL
 
 /* xcph-x86.c */
 VCPU *_svm_and_vmx_getvcpu(void);
@@ -71,6 +70,7 @@ extern u8 large_pages[2][512 * 4096] __attribute__((aligned(512 * 4096)));
  */
 #define LHV_EPT_COUNT 2
 
+void lhv_ept_init(VCPU *vcpu);
 u64 lhv_build_ept(VCPU *vcpu, u8 ept_num);
 
 /* lhv-vmcs.c */
