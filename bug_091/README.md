@@ -171,5 +171,8 @@ Very slow, but looks good.
 
 ### Testing XMHF XMHF Debian
 
+`20220827125332`
+
+TODO: LHV did not honor MTRR
 TODO: XMHF XMHF Debian cannot boot
 
