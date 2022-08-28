@@ -71,6 +71,7 @@ extern u8 large_pages[2][512 * 4096] __attribute__((aligned(512 * 4096)));
  */
 #define LHV_EPT_COUNT 2
 
+void lhv_ept_init(VCPU *vcpu);
 u64 lhv_build_ept(VCPU *vcpu, u8 ept_num);
 
 /* lhv-vmcs.c */

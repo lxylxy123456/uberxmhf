@@ -111,8 +111,11 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 0);
 
 	if (__LHV_OPT__ & LHV_USE_EPT) {
-		u64 eptp = lhv_build_ept(vcpu, 0);
-		u32 seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
+		u64 eptp;
+		u32 seccpu;
+		lhv_ept_init(vcpu);
+		eptp = lhv_build_ept(vcpu, 0);
+		seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
 		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
 		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
 		vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
