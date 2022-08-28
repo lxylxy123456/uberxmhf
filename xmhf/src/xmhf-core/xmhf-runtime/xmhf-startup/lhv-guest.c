@@ -1,8 +1,96 @@
 #include <xmhf.h>
 #include <lhv.h>
 
+/*
+ * From peh-x86-safemsr.c
+ * Perform RDMSR instruction.
+ * If successful, return 0. If RDMSR causes #GP, return 1.
+ * Implementation similar to Linux's native_read_msr_safe().
+ */
+static u32 _rdmsr_safe(u32 index, u64 *value) {
+    u32 result;
+    u32 eax, edx;
+    asm volatile ("1:\r\n"
+                  "rdmsr\r\n"
+                  "xor %%ebx, %%ebx\r\n"
+                  "jmp 3f\r\n"
+                  "2:\r\n"
+                  "movl $1, %%ebx\r\n"
+                  "jmp 3f\r\n"
+                  ".section .xcph_table\r\n"
+#ifdef __AMD64__
+                  ".quad 0xd\r\n"
+                  ".quad 1b\r\n"
+                  ".quad 2b\r\n"
+#elif defined(__I386__)
+                  ".long 0xd\r\n"
+                  ".long 1b\r\n"
+                  ".long 2b\r\n"
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+                  ".previous\r\n"
+                  "3:\r\n"
+                  : "=a"(eax), "=d"(edx), "=b"(result)
+                  : "c" (index));
+	if (result == 0) {
+		*value = ((u64) edx << 32) | eax;
+	}
+    return result;
+}
+
+/*
+ * Perform WRMSR instruction.
+ * If successful, return 0. If WRMSR causes #GP, return 1.
+ */
+static u32 _wrmsr_safe(u32 index, u64 value) {
+    u32 result;
+    u32 eax = value, edx = value >> 32;
+    asm volatile ("1:\r\n"
+                  "wrmsr\r\n"
+                  "xor %%ebx, %%ebx\r\n"
+                  "jmp 3f\r\n"
+                  "2:\r\n"
+                  "movl $1, %%ebx\r\n"
+                  "jmp 3f\r\n"
+                  ".section .xcph_table\r\n"
+#ifdef __AMD64__
+                  ".quad 0xd\r\n"
+                  ".quad 1b\r\n"
+                  ".quad 2b\r\n"
+#elif defined(__I386__)
+                  ".long 0xd\r\n"
+                  ".long 1b\r\n"
+                  ".long 2b\r\n"
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+                  ".previous\r\n"
+                  "3:\r\n"
+                  : "=b"(result)
+                  : "c" (index), "a"(eax), "d"(edx));
+    return result;
+}
+
+/* Return whether MSR is writable with a wild value. */
+static bool msr_writable(u32 index) {
+	u64 old_val;
+	u64 new_val;
+	if (_rdmsr_safe(index, &old_val)) {
+		return false;
+	}
+	new_val = old_val ^ 0x1234abcdbeef6789ULL;
+	if (_wrmsr_safe(index, new_val)) {
+		return false;
+	}
+	HALT_ON_ERRORCOND(_wrmsr_safe(index, old_val) == 0);
+	return true;
+}
+
 /* Test whether MSR load / store during VMEXIT / VMENTRY are effective */
 typedef struct lhv_guest_test_msr_ls_data {
+	bool skip_mc_msrs;
+	u32 mc_msrs[3];
 	u64 old_vals[3][3];
 } lhv_guest_test_msr_ls_data_t;
 
@@ -22,6 +110,21 @@ static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
 	switch (r->eax) {
 	case 12:
+		/*
+		 * Check support of machine check MSRs.
+		 * On QEMU, 0x402 and 0x403 are writable.
+		 * On HP 2540P, 0x400 is writable.
+		 */
+		if ((rdmsr64(0x179U) & 0xff) > 1 && msr_writable(0x402)) {
+			data->skip_mc_msrs = false;
+			HALT_ON_ERRORCOND(msr_writable(0x403));
+			HALT_ON_ERRORCOND(msr_writable(0x406));
+			data->mc_msrs[0] = 0x402U;
+			data->mc_msrs[1] = 0x403U;
+			data->mc_msrs[2] = 0x406U;
+		} else {
+			data->skip_mc_msrs = true;
+		}
 		/* Save old MSRs */
 		data->old_vals[0][0] = rdmsr64(0x20aU);
 		data->old_vals[0][1] = rdmsr64(0x20bU);
@@ -29,39 +132,55 @@ static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 		data->old_vals[1][0] = rdmsr64(MSR_EFER);
 		data->old_vals[1][1] = rdmsr64(0xc0000081U);
 		data->old_vals[1][2] = rdmsr64(MSR_IA32_PAT);
-		data->old_vals[2][0] = rdmsr64(0x402U);
-		data->old_vals[2][1] = rdmsr64(0x403U);
-		data->old_vals[2][2] = rdmsr64(0x406U);
+		if (!data->skip_mc_msrs) {
+			data->old_vals[2][0] = rdmsr64(data->mc_msrs[0]);
+			data->old_vals[2][1] = rdmsr64(data->mc_msrs[1]);
+			data->old_vals[2][2] = rdmsr64(data->mc_msrs[2]);
+		}
 		/* Set experiment */
-		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 3);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 3);
-		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 3);
+		if (!data->skip_mc_msrs) {
+			vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 3);
+			vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 3);
+			vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 3);
+		} else {
+			vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 2);
+			vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 2);
+			vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 2);
+		}
 		HALT_ON_ERRORCOND((rdmsr64(0xfeU) & 0xff) > 6);
 		wrmsr64(0x20aU, 0x00000000aaaaa000ULL);
 		wrmsr64(0x20bU, 0x00000000deadb000ULL);
 		wrmsr64(0x20cU, 0x00000000deadc000ULL);
-		wrmsr64(0x402U, 0x2222222222222222ULL);
-		wrmsr64(0x403U, 0xdeaddeadbeefbeefULL);
-		wrmsr64(0x406U, 0xdeaddeadbeefbeefULL);
+		if (!data->skip_mc_msrs) {
+			wrmsr64(data->mc_msrs[0], 0x2222222222222222ULL);
+			wrmsr64(data->mc_msrs[1], 0xdeaddeadbeefbeefULL);
+			wrmsr64(data->mc_msrs[2], 0xdeaddeadbeefbeefULL);
+		}
 		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007040600070406ULL);
 		vcpu->my_vmexit_msrstore[0].index = 0x20aU;
 		vcpu->my_vmexit_msrstore[0].data = 0x00000000deada000ULL;
 		vcpu->my_vmexit_msrstore[1].index = MSR_EFER;
 		vcpu->my_vmexit_msrstore[1].data = 0x00000000deada000ULL;
-		vcpu->my_vmexit_msrstore[2].index = 0x402U;
-		vcpu->my_vmexit_msrstore[2].data = 0xdeaddeadbeefbeefULL;
+		if (!data->skip_mc_msrs) {
+			vcpu->my_vmexit_msrstore[2].index = data->mc_msrs[0];
+			vcpu->my_vmexit_msrstore[2].data = 0xdeaddeadbeefbeefULL;
+		}
 		vcpu->my_vmexit_msrload[0].index = 0x20bU;
 		vcpu->my_vmexit_msrload[0].data = 0x00000000bbbbb000ULL;
 		vcpu->my_vmexit_msrload[1].index = 0xc0000081U;
 		vcpu->my_vmexit_msrload[1].data = 0x0000000011111000ULL;
-		vcpu->my_vmexit_msrload[2].index = 0x403U;
-		vcpu->my_vmexit_msrload[2].data = 0x3333333333333333ULL;
+		if (!data->skip_mc_msrs) {
+			vcpu->my_vmexit_msrload[2].index = data->mc_msrs[1];
+			vcpu->my_vmexit_msrload[2].data = 0x3333333333333333ULL;
+		}
 		vcpu->my_vmentry_msrload[0].index = 0x20cU;
 		vcpu->my_vmentry_msrload[0].data = 0x00000000ccccc000ULL;
 		vcpu->my_vmentry_msrload[1].index = MSR_IA32_PAT;
 		vcpu->my_vmentry_msrload[1].data = 0x0007060400070604ULL;
-		vcpu->my_vmentry_msrload[2].index = 0x406U;
-		vcpu->my_vmentry_msrload[2].data = 0x6666666666666666ULL;
+		if (!data->skip_mc_msrs) {
+			vcpu->my_vmentry_msrload[2].index = data->mc_msrs[2];
+			vcpu->my_vmentry_msrload[2].data = 0x6666666666666666ULL;
+		}
 		break;
 	case 16:
 		/* Check effects */
@@ -73,11 +192,13 @@ static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 						  rdmsr64(MSR_EFER));
 		HALT_ON_ERRORCOND(rdmsr64(MSR_IA32_PAT) == 0x0007060400070604ULL);
 		HALT_ON_ERRORCOND(rdmsr64(0xc0000081U) == 0x0000000011111000ULL);
-		if ((rdmsr64(0x179U) & 0xff) > 1) {
+		if (!data->skip_mc_msrs) {
 			HALT_ON_ERRORCOND(vcpu->my_vmexit_msrstore[2].data ==
 							  0x2222222222222222ULL);
-			HALT_ON_ERRORCOND(rdmsr64(0x403U) == 0x3333333333333333ULL);
-			HALT_ON_ERRORCOND(rdmsr64(0x406U) == 0x6666666666666666ULL);
+			HALT_ON_ERRORCOND(rdmsr64(data->mc_msrs[1]) ==
+							  0x3333333333333333ULL);
+			HALT_ON_ERRORCOND(rdmsr64(data->mc_msrs[2]) ==
+							  0x6666666666666666ULL);
 		}
 		/* Reset state */
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 0);
@@ -90,9 +211,11 @@ static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 		wrmsr64(MSR_EFER, data->old_vals[1][0]);
 		wrmsr64(0xc0000081U, data->old_vals[1][1]);
 		wrmsr64(MSR_IA32_PAT, data->old_vals[1][2]);
-		wrmsr64(0x402U, data->old_vals[2][0]);
-		wrmsr64(0x403U, data->old_vals[2][1]);
-		wrmsr64(0x406U, data->old_vals[2][2]);
+		if (!data->skip_mc_msrs) {
+			wrmsr64(data->mc_msrs[0], data->old_vals[2][0]);
+			wrmsr64(data->mc_msrs[1], data->old_vals[2][1]);
+			wrmsr64(data->mc_msrs[2], data->old_vals[2][2]);
+		}
 		break;
 	default:
 		HALT_ON_ERRORCOND(0 && "Unknown argument");
