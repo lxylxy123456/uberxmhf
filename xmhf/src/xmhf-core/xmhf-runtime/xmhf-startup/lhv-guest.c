@@ -2,14 +2,36 @@
 #include <lhv.h>
 
 /* Test whether MSR load / store during VMEXIT / VMENTRY are effective */
+typedef struct lhv_guest_test_msr_ls_data {
+	u64 old_vals[3][3];
+} lhv_guest_test_msr_ls_data_t;
+
 static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 												 vmexit_info_t *info)
 {
+	lhv_guest_test_msr_ls_data_t *data;
 	if (info->vmexit_reason != VMX_VMEXIT_VMCALL) {
 		return;
 	}
+#ifdef __AMD64__
+	data = (void *)r->rbx;
+#elif defined(__I386__)
+	data = (void *)r->ebx;
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+	#error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
 	switch (r->eax) {
 	case 12:
+		/* Save old MSRs */
+		data->old_vals[0][0] = rdmsr64(0x20aU);
+		data->old_vals[0][1] = rdmsr64(0x20bU);
+		data->old_vals[0][2] = rdmsr64(0x20cU);
+		data->old_vals[1][0] = rdmsr64(MSR_EFER);
+		data->old_vals[1][1] = rdmsr64(0xc0000081U);
+		data->old_vals[1][2] = rdmsr64(MSR_IA32_PAT);
+		data->old_vals[2][0] = rdmsr64(0x402U);
+		data->old_vals[2][1] = rdmsr64(0x403U);
+		data->old_vals[2][2] = rdmsr64(0x406U);
 		/* Set experiment */
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 3);
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 3);
@@ -62,6 +84,15 @@ static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_load_count, 0);
 		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 0);
 		wrmsr64(MSR_IA32_PAT, 0x0007040600070406ULL);
+		wrmsr64(0x20aU, data->old_vals[0][0]);
+		wrmsr64(0x20bU, data->old_vals[0][1]);
+		wrmsr64(0x20cU, data->old_vals[0][2]);
+		wrmsr64(MSR_EFER, data->old_vals[1][0]);
+		wrmsr64(0xc0000081U, data->old_vals[1][1]);
+		wrmsr64(MSR_IA32_PAT, data->old_vals[1][2]);
+		wrmsr64(0x402U, data->old_vals[2][0]);
+		wrmsr64(0x403U, data->old_vals[2][1]);
+		wrmsr64(0x406U, data->old_vals[2][2]);
 		break;
 	default:
 		HALT_ON_ERRORCOND(0 && "Unknown argument");
@@ -74,9 +105,10 @@ static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 static void lhv_guest_test_msr_ls(VCPU *vcpu)
 {
 	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
+		lhv_guest_test_msr_ls_data_t data;
 		vcpu->vmexit_handler_override = lhv_guest_test_msr_ls_vmexit_handler;
-		asm volatile ("vmcall" : : "a"(12));
-		asm volatile ("vmcall" : : "a"(16));
+		asm volatile ("vmcall" : : "a"(12), "b"(&data));
+		asm volatile ("vmcall" : : "a"(16), "b"(&data));
 		vcpu->vmexit_handler_override = NULL;
 	}
 }
