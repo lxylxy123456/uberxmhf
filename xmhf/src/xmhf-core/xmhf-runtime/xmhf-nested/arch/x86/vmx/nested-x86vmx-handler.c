@@ -107,6 +107,8 @@ static u8 cpu_shadow_vmcs12[MAX_VCPU_ENTRIES][VMX_NESTED_MAX_ACTIVE_VMCS]
 	__attribute__((section(".bss.palign_data")));
 #endif							/* VMX_NESTED_USE_SHADOW_VMCS */
 
+u32 lxy_log = 0;
+
 /*
  * Given a segment index, return the segment offset
  * TODO: do we need to check access rights?
@@ -1040,8 +1042,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			xmhf_nested_arch_x86vmx_unblock_ept02_flush(vcpu);
 			/* Call VMRESUME */
 			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
-			if (1) {
-				printf("CPU(0x%02x): 202 EPT 0x%08llx\n", vcpu->id, g2p);
+			if (lxy_log) {
+				printf("CPU(0x%02x): 202 EPT 0x%08llx\t0x%08lx\n", vcpu->id,
+					   g2p, __vmx_vmreadNW(VMCSENC_guest_RIP));
 			}
 			__vmx_vmentry_vmresume(r);
 			HALT_ON_ERRORCOND(0 && "VMRESUME should not return");
@@ -1150,6 +1153,35 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			vmcs12_info->vmcs12_value.info_vmexit_reason == 32) {
 			printf("CPU(0x%02x): nested vmexit %d 0x%08x\n", vcpu->id,
 				   vmcs12_info->vmcs12_value.info_vmexit_reason, r->ecx);
+			if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31 &&
+				r->ecx == 0x1b) {
+				HALT_ON_ERRORCOND(lxy_log == 0);
+				lxy_log = 1;
+			}
+		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason == 3) {
+			printf("CPU(0x%02x): VMCS02 receives INIT exit\n", vcpu->id);
+			if (vcpu->isbsp) {
+				ulong_t rip = __vmx_vmreadNW(VMCSENC_guest_RIP);
+				gva_t start = 0xffffffff814d3040;
+				char buf[0x60];
+				printf("CPU(0x%02x): guest_RIP = 0x%016llx\n", vcpu->id, rip);
+				if (rip >= start && rip < start + sizeof(buf)) {
+					guestmem_hptw_ctx_pair_t ctx_pair;
+					guestmem_init(vcpu, &ctx_pair);
+					ctx_pair.guest_ctx.root_pa = hpt_cr3_get_address(
+						ctx_pair.guest_ctx.t,
+						__vmx_vmreadNW(VMCSENC_guest_CR3));
+					ctx_pair.host_ctx.root_pa = hpt_eptp_get_address(
+						HPT_TYPE_EPT,
+						__vmx_vmread64(VMCSENC_control_EPT_pointer));
+					guestmem_copy_gv2h(&ctx_pair, 0, buf, start, sizeof(buf));
+					for (u64 i = 0; i < sizeof(buf); i++) {
+						printf("CPU(0x%02x): 0x%016llx is .byte 0x%02x\n",
+							   vcpu->id, start + i, (unsigned char) buf[i]);
+					}
+				}
+			}
+			HALT();
 		} else {
 			printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
 				   vmcs12_info->vmcs12_value.info_vmexit_reason);
