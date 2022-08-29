@@ -77,17 +77,7 @@ def main():
 					if (cur_line_stderr == b'The system is powered on.' or
 						cur_line_stderr == b'The system is powered off.'):
 						reset_flag = True
-				continue
-
-				if (cur_line == 'eXtensible Modular Hypervisor Framework' or
-					cur_line == 'Lightweight Hypervisor'):
-					# Truncate current file
-					out_file.truncate(0)
-					out_file.close()
-					out_file = open(args.out_name, 'wb')
-					out_file.write(cur_line)
-				out_file.flush()
-				print(c, end='', flush=True)
+						cur_line_stdout.clear()
 	finally:
 		if amt_sh_process is not None:
 			try:

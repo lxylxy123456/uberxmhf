@@ -169,10 +169,142 @@ hpinit6
 
 Very slow, but looks good.
 
+### Fixing LHV
+
+```sh
+grep 'FIXED_MTRR\[0\]' bug_036/results/20220208171146
+# FIXED_MTRR[0]: 0x000b8000-0x000bbfff=0x00000000
+grep 'VAR_MTRR' bug_036/results/20220208171146 | sort -u
+```
+
+Looks like VGA MMIO memory should be uncached, but in LHV all EPT memory is
+mapped as WB. This may be the cause of the problem. The PoC is to map all
+memory as UC, and it works.
+
+```diff
+diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-startup/lhv-ept.c b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-startup/lhv-ept.c
+index 96338b90b..e08680bbf 100644
+--- a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-startup/lhv-ept.c
++++ b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-startup/lhv-ept.c
+@@ -99 +99 @@ u64 lhv_build_ept(VCPU *vcpu, u8 ept_num)
+-       hpt_pmeo_setcache(&pmeo, HPT_PMT_WB);
++       hpt_pmeo_setcache(&pmeo, HPT_PMT_UC);
+```
+
+The formal way to implement it is to read MTRR MSRs. The logic to be copied is
+`_vmx_getmemorytypeforphysicalpage()`. Fixed in `a5455a9db..00b24ffff`. After
+the fix, LHV runs well in 2540p, with `LHV_OPT 0x1fc`.
+
+In `fbcd23e10..847246ba5`, skip MC MTRRs in 2540p. Now 2540p can run
+`LHV_OPT 0x1fd` well.
+* i386, `LHV_OPT=0x1fd`: good
+* amd64, `LHV_OPT=0x1bf`: good
+* amd64, `LHV_OPT=0x1fd`: good
+
+Then need to fix `xmhf64 983c6bc82..d1d313501` to support `#GP` in guest WRMSR.
+After that XMHF LHV works well. XMHF XMHF LHV also works well.
+
+### XMHF XMHF LHV O3
+
+When compiling everything in amd64 and O3, see error in XMHF XMHF LHV:
+```
+Fatal: Halting! Condition '0 && "Debug: guest hypervisor VM-entry failure"' failed, line 1094, file arch/x86/vmx/nested-x86vmx-handler.c
+```
+
+The error also happens when only running O3 LHV. When LHV is O0 and XMHFs are
+O3, the error also disappears.
+
+To debug this problem, we try to dump the entire VMCS content. Also
+fortunately, this bug is reproducible on QEMU.
+
+QEMU O0 serial `20220828161443`, QEMU O3 serial `20220828161507`. Diff with
+```sh
+diff \
+ <(grep -F 'CPU(0x00): vcpu->vmcs.' results/20220828161443) \
+ <(grep -F 'CPU(0x00): vcpu->vmcs.' results/20220828161507)
+```
+
+I think the most likely problem comes from CR0 and CR4.
+```
+-CPU(0x00): vcpu->vmcs.host_CR0=0x0000000080000031
+-CPU(0x00): vcpu->vmcs.host_CR4=0x0000000000002020
++CPU(0x00): vcpu->vmcs.host_CR0=0x0000000080000011
++CPU(0x00): vcpu->vmcs.host_CR4=0x0000000000000020
+```
+
+Looks like CR4.VMXE is missing. It is almost obviously wrong. The problem is
+that this function will error, which looks like that `write_cr4()` fails.
+
+```c
+void func(void)
+{
+	{
+		ulong_t cr4 = read_cr4();
+		HALT_ON_ERRORCOND((cr4 & CR4_VMXE) == 0);
+		write_cr4(cr4 | CR4_VMXE);
+	}
+	HALT_ON_ERRORCOND(read_cr4() & CR4_VMXE);
+}
+```
+
+Looks like the problem is that in `_processor.h`, `write_cr4()` only uses
+`__asm__`, but should use `__asm__ __volatile__`. The same problem happens in
+`_vmx.h`. Fixed in `xmhf64 d1d313501..433803237`.
+
+Another problem happens, where `__vmx_invvpid` cannot pass arguments correctly
+to the INVVPID instruction. Reproduced in `lhv-dev 37614d91e`. The second
+assertion below fails.
+```c
+void func(void)
+{
+	HALT_ON_ERRORCOND(!__vmx_invvpid(0, 0, 0x0));
+	HALT_ON_ERRORCOND(__vmx_invvpid(0, 3, 0x0));
+}
+```
+
+This bug can be reproduced standalone in `a1.c` as a 64-bit user program. Then
+it can be reduced in `a2.c`. The problem is that the struct is not volatile.
+Asked <https://stackoverflow.com/questions/73523342/>. Fixed in
+`xmhf64 433803237..a4c0dd40c`.
+
+After the fix, LHV and XMHF XMHF LHV are tested and work fine.
+
+Then, thanks to the discussion on stackoverflow, I realized that the asm
+volatile code is still wrong because modifying input operands is not allowed.
+See <https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html>
+6.47.2.5 Input Operands:
+> Warning: Do not modify the contents of input-only operands (except for inputs
+> tied to outputs). ... It is not possible to use clobbers to inform the
+> compiler that the values in these inputs are changing.
+
 ### Testing XMHF XMHF Debian
 
-`20220827125332`
+We then test running XMHF XMHF Debian. Also see all cores receiving INIT
+signal in VMX nonroot mode. Serial `20220827125332`. I guess it may be similar
+to LHV console mmio problem above. This behavior is also similar to `bug_036`.
 
-TODO: LHV did not honor MTRR
-TODO: XMHF XMHF Debian cannot boot
+First, we try running Linux with only one CPU. Looks like we can use
+`nosmp` or `maxcpus=0` in GRUB command line.
+
+Also note that sometimes the error happens earlier if keyboard interaction is
+made in GRUB. The error becomes:
+
+```
+CPU(0x00): OS tries to write microcode!
+gva for microcode update: 0xffff8880327c7ae0
+
+Fatal: Halting! Condition 'result == 0' failed, line 122, file arch/x86/vmx/peh-x86vmx-guestmem.c
+```
+
+So we need to edit GRUB to make `nosmp` the default, instead of editing
+dynamically. At this time, I still guess that the problem happens because of
+some problem in EPT code. Maybe related to MTRR.
+
+When `nosmp` in Linux, can see that the error still happens. At worst we can
+use monitor trap to debug Linux and see (likely) which memory access causes the
+problem.
+
+TODO: disable update ucode
+TODO: dump ept and vmcs at last known location
+TODO
 
