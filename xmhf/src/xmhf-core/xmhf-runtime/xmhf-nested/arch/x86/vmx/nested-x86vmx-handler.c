@@ -947,6 +947,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	 */
 	if (vmexit_reason == VMX_VMEXIT_EPT_VIOLATION) {
 		int status = 3;
+		u64 g2p = 0;
 
 		/*
 		 * Begin blocking EPT02 flush (blocking is needed because
@@ -959,6 +960,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			u64 guest2_paddr = __vmx_vmread64(VMCSENC_guest_paddr);
 			ulong_t qualification =
 				__vmx_vmreadNW(VMCSENC_info_exit_qualification);
+			g2p = guest2_paddr;
 			HALT_ON_ERRORCOND(cache_line->key == vmcs12_info->guest_ept_root);
 #ifdef __DEBUG_QEMU__
 			/*
@@ -1039,7 +1041,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			/* Call VMRESUME */
 			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
 			if (1) {
-				printf("CPU(0x%02x): 202 vmexit due to EPT\n", vcpu->id);
+				printf("CPU(0x%02x): 202 EPT 0x%08llx\n", vcpu->id, g2p);
 			}
 			__vmx_vmentry_vmresume(r);
 			HALT_ON_ERRORCOND(0 && "VMRESUME should not return");
@@ -1144,8 +1146,14 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		vmcs12_info->vmcs12_value.info_exit_qualification = 0;
 	}
 	if (1) {
-		printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
-			   vmcs12_info->vmcs12_value.info_vmexit_reason);
+		if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31 ||
+			vmcs12_info->vmcs12_value.info_vmexit_reason == 32) {
+			printf("CPU(0x%02x): nested vmexit %d 0x%08x\n", vcpu->id,
+				   vmcs12_info->vmcs12_value.info_vmexit_reason, r->ecx);
+		} else {
+			printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
+				   vmcs12_info->vmcs12_value.info_vmexit_reason);
+		}
 	}
 	/* Follow SDM to load host state */
 	vcpu->vmcs.guest_DR7 = 0x400UL;
