@@ -671,7 +671,7 @@ static inline u32 __vmx_invvpid(int invalidation_type, u16 vpid, uintptr_t linea
 	u32 status;
 
 	//invvpid descriptor
-	struct {
+	volatile struct {
 		u64 vpid : 16;
 		u64 reserved : 48;
 		u64 linearaddress;
@@ -706,7 +706,7 @@ static inline u32 __vmx_invept(int invalidation_type, u64 eptp){
 	u32 status;
 
 	//invvpid descriptor
-	struct {
+	volatile struct {
 		u64 eptp;
 		u64 reserved;
 	} inveptdescriptor = { eptp, 0};
