@@ -523,6 +523,16 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 		printf("CPU(0x%02x): EPT: L2=0x%08llx L1=0x%08llx L0=0x%08llx\n",
 			   vcpu->id, guest2_paddr, guest1_paddr, xmhf_paddr);
 	}
+	if (guest2_paddr == 0x1000a0000ULL) {
+		printf("CPU(0x%02x): EPT: L2=0x%08llx L1=0x%08llx L0=0x%08llx\n",
+			   vcpu->id, guest2_paddr, guest1_paddr, xmhf_paddr);
+		printf("CPU(0x%02x): pmeo12: pme=0x%016llx, lvl=%d\n", vcpu->id,
+			   pmeo12.pme, pmeo12.lvl);
+		printf("CPU(0x%02x): pmeo01: pme=0x%016llx, lvl=%d\n", vcpu->id,
+			   pmeo01.pme, pmeo01.lvl);
+		printf("CPU(0x%02x): pmeo02: pme=0x%016llx, lvl=%d\n", vcpu->id,
+			   pmeo02.pme, pmeo02.lvl);
+	}
 	return 1;
 }
 
