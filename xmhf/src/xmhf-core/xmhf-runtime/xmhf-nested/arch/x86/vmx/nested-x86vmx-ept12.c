@@ -491,16 +491,41 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	}
 	xmhf_paddr = hpt_pmeo_va_to_pa(&pmeo01, guest1_paddr);
 
+	if (1) {
+		pmeo02.pme = 0x00000001000a0037ULL;
+		pmeo02.t = HPT_TYPE_EPT;
+		pmeo02.lvl = 1;
+		hpt_pmeo_setcache(&pmeo02, 6);
+		printf("CPU(0x%02x): pmeo02: pme=0x%016llx\n", vcpu->id, pmeo02.pme);
+		HALT_ON_ERRORCOND(0);
+	}
+
 	/* Construct page map entry for EPT02 */
 	pmeo02.pme = 0;
 	pmeo02.t = HPT_TYPE_EPT;
 	pmeo02.lvl = pmeo12.lvl < pmeo01.lvl ? pmeo12.lvl : pmeo01.lvl;
+	if (guest2_paddr == 0x1000a0000ULL) {
+		printf("CPU(0x%02x): pmeo02: pme=0x%016llx, lvl=%d, line=%d\n",
+			   vcpu->id, pmeo02.pme, pmeo02.lvl, __LINE__);
+	}
 	hpt_pmeo_set_page(&pmeo02, true);
+	if (guest2_paddr == 0x1000a0000ULL) {
+		printf("CPU(0x%02x): pmeo02: pme=0x%016llx, lvl=%d, line=%d\n",
+			   vcpu->id, pmeo02.pme, pmeo02.lvl, __LINE__);
+	}
 	hpt_pmeo_set_address(&pmeo02, xmhf_paddr);
+	if (guest2_paddr == 0x1000a0000ULL) {
+		printf("CPU(0x%02x): pmeo02: pme=0x%016llx, lvl=%d, line=%d\n",
+			   vcpu->id, pmeo02.pme, pmeo02.lvl, __LINE__);
+	}
 	{
 		hpt_prot_t prot01 = hpt_pmeo_getprot(&pmeo01);
 		hpt_prot_t prot12 = hpt_pmeo_getprot(&pmeo12);
 		hpt_pmeo_setprot(&pmeo02, prot01 & prot12);
+	}
+	if (guest2_paddr == 0x1000a0000ULL) {
+		printf("CPU(0x%02x): pmeo02: pme=0x%016llx, lvl=%d, line=%d\n",
+			   vcpu->id, pmeo02.pme, pmeo02.lvl, __LINE__);
 	}
 	{
 		/*
@@ -510,10 +535,18 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 		 */
 		hpt_pmeo_setcache(&pmeo02, hpt_pmeo_getcache(&pmeo12));
 	}
+	if (guest2_paddr == 0x1000a0000ULL) {
+		printf("CPU(0x%02x): pmeo02: pme=0x%016llx, lvl=%d, line=%d\n",
+			   vcpu->id, pmeo02.pme, pmeo02.lvl, __LINE__);
+	}
 	{
 		bool user01 = hpt_pmeo_getuser(&pmeo01);
 		bool user12 = hpt_pmeo_getuser(&pmeo12);
 		hpt_pmeo_setuser(&pmeo02, user01 && user12);
+	}
+	if (guest2_paddr == 0x1000a0000ULL) {
+		printf("CPU(0x%02x): pmeo02: pme=0x%016llx, lvl=%d, line=%d\n",
+			   vcpu->id, pmeo02.pme, pmeo02.lvl, __LINE__);
 	}
 
 	/* Put page map entry into EPT02 */
