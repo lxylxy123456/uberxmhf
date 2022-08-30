@@ -107,8 +107,6 @@ static u8 cpu_shadow_vmcs12[MAX_VCPU_ENTRIES][VMX_NESTED_MAX_ACTIVE_VMCS]
 	__attribute__((section(".bss.palign_data")));
 #endif							/* VMX_NESTED_USE_SHADOW_VMCS */
 
-u32 lxy_log = 0;
-
 /*
  * Given a segment index, return the segment offset
  * TODO: do we need to check access rights?
@@ -563,7 +561,7 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		return result;
 	}
 
-	if (0) {
+	if (1) {
 		printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
 	}
 
@@ -949,7 +947,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	 */
 	if (vmexit_reason == VMX_VMEXIT_EPT_VIOLATION) {
 		int status = 3;
-		u64 g2p = 0;
 
 		/*
 		 * Begin blocking EPT02 flush (blocking is needed because
@@ -962,7 +959,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			u64 guest2_paddr = __vmx_vmread64(VMCSENC_guest_paddr);
 			ulong_t qualification =
 				__vmx_vmreadNW(VMCSENC_info_exit_qualification);
-			g2p = guest2_paddr;
 			HALT_ON_ERRORCOND(cache_line->key == vmcs12_info->guest_ept_root);
 #ifdef __DEBUG_QEMU__
 			/*
@@ -1042,32 +1038,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			xmhf_nested_arch_x86vmx_unblock_ept02_flush(vcpu);
 			/* Call VMRESUME */
 			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
-			if (lxy_log && g2p == 0x1000a0000) {
-				ulong_t rip = __vmx_vmreadNW(VMCSENC_guest_RIP);
-				gva_t start = 0xffffffff814d3040;
-				unsigned char buf[0x60];
-				guestmem_hptw_ctx_pair_t ctx_pair;
-				printf("CPU(0x%02x): 202 EPT 0x%08llx\t0x%08lx\n", vcpu->id,
-					   g2p, __vmx_vmreadNW(VMCSENC_guest_RIP));
-				HALT_ON_ERRORCOND(rip >= start && rip < start + sizeof(buf));
-				guestmem_init(vcpu, &ctx_pair);
-				ctx_pair.guest_ctx.root_pa = hpt_cr3_get_address(
-					ctx_pair.guest_ctx.t,
-					__vmx_vmreadNW(VMCSENC_guest_CR3));
-				ctx_pair.host_ctx.root_pa = hpt_eptp_get_address(
-					HPT_TYPE_EPT,
-					__vmx_vmread64(VMCSENC_control_EPT_pointer));
-				guestmem_copy_gv2h(&ctx_pair, 0, buf, start, sizeof(buf));
-				for (u64 i = 0; i < sizeof(buf); i++) {
-					printf("CPU(0x%02x): 0x%016llx is .byte 0x%02x\n",
-						   vcpu->id, start + i, buf[i]);
-				}
-				HALT_ON_ERRORCOND(buf[0x47] == 0x90);
-				HALT_ON_ERRORCOND(buf[0x48] == 0xc3);
-				buf[0x47] = 0xeb;
-				buf[0x48] = 0xfe;
-				guestmem_copy_h2gv(&ctx_pair, 0, start, buf, sizeof(buf));
-			}
 			__vmx_vmentry_vmresume(r);
 			HALT_ON_ERRORCOND(0 && "VMRESUME should not return");
 			break;
@@ -1170,23 +1140,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		 */
 		vmcs12_info->vmcs12_value.info_exit_qualification = 0;
 	}
-	if (0) {
-		if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31 ||
-			vmcs12_info->vmcs12_value.info_vmexit_reason == 32) {
-			printf("CPU(0x%02x): nested vmexit %d 0x%08x\n", vcpu->id,
-				   vmcs12_info->vmcs12_value.info_vmexit_reason, r->ecx);
-			if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31 &&
-				r->ecx == 0x1b) {
-				HALT_ON_ERRORCOND(lxy_log == 0);
-				lxy_log = 1;
-			}
-		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason == 3) {
-			printf("CPU(0x%02x): VMCS02 receives INIT exit\n", vcpu->id);
-			HALT();
-		} else {
-			printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
-				   vmcs12_info->vmcs12_value.info_vmexit_reason);
-		}
+	if (1) {
+		printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
+			   vmcs12_info->vmcs12_value.info_vmexit_reason);
 	}
 	/* Follow SDM to load host state */
 	vcpu->vmcs.guest_DR7 = 0x400UL;
