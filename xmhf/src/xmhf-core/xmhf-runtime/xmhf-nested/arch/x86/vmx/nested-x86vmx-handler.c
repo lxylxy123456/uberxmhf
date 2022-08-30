@@ -1042,9 +1042,31 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			xmhf_nested_arch_x86vmx_unblock_ept02_flush(vcpu);
 			/* Call VMRESUME */
 			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
-			if (lxy_log) {
+			if (lxy_log && g2p == 0x1000a0000) {
+				ulong_t rip = __vmx_vmreadNW(VMCSENC_guest_RIP);
+				gva_t start = 0xffffffff814d3040;
+				unsigned char buf[0x60];
+				guestmem_hptw_ctx_pair_t ctx_pair;
 				printf("CPU(0x%02x): 202 EPT 0x%08llx\t0x%08lx\n", vcpu->id,
 					   g2p, __vmx_vmreadNW(VMCSENC_guest_RIP));
+				HALT_ON_ERRORCOND(rip >= start && rip < start + sizeof(buf));
+				guestmem_init(vcpu, &ctx_pair);
+				ctx_pair.guest_ctx.root_pa = hpt_cr3_get_address(
+					ctx_pair.guest_ctx.t,
+					__vmx_vmreadNW(VMCSENC_guest_CR3));
+				ctx_pair.host_ctx.root_pa = hpt_eptp_get_address(
+					HPT_TYPE_EPT,
+					__vmx_vmread64(VMCSENC_control_EPT_pointer));
+				guestmem_copy_gv2h(&ctx_pair, 0, buf, start, sizeof(buf));
+				for (u64 i = 0; i < sizeof(buf); i++) {
+					printf("CPU(0x%02x): 0x%016llx is .byte 0x%02x\n",
+						   vcpu->id, start + i, buf[i]);
+				}
+				HALT_ON_ERRORCOND(buf[0x47] == 0x90);
+				HALT_ON_ERRORCOND(buf[0x48] == 0xc3);
+				buf[0x47] = 0xeb;
+				buf[0x48] = 0xfe;
+				guestmem_copy_h2gv(&ctx_pair, 0, start, buf, sizeof(buf));
 			}
 			__vmx_vmentry_vmresume(r);
 			HALT_ON_ERRORCOND(0 && "VMRESUME should not return");
@@ -1160,27 +1182,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			}
 		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason == 3) {
 			printf("CPU(0x%02x): VMCS02 receives INIT exit\n", vcpu->id);
-			if (vcpu->isbsp) {
-				ulong_t rip = __vmx_vmreadNW(VMCSENC_guest_RIP);
-				gva_t start = 0xffffffff814d3040;
-				char buf[0x60];
-				printf("CPU(0x%02x): guest_RIP = 0x%016llx\n", vcpu->id, rip);
-				if (rip >= start && rip < start + sizeof(buf)) {
-					guestmem_hptw_ctx_pair_t ctx_pair;
-					guestmem_init(vcpu, &ctx_pair);
-					ctx_pair.guest_ctx.root_pa = hpt_cr3_get_address(
-						ctx_pair.guest_ctx.t,
-						__vmx_vmreadNW(VMCSENC_guest_CR3));
-					ctx_pair.host_ctx.root_pa = hpt_eptp_get_address(
-						HPT_TYPE_EPT,
-						__vmx_vmread64(VMCSENC_control_EPT_pointer));
-					guestmem_copy_gv2h(&ctx_pair, 0, buf, start, sizeof(buf));
-					for (u64 i = 0; i < sizeof(buf); i++) {
-						printf("CPU(0x%02x): 0x%016llx is .byte 0x%02x\n",
-							   vcpu->id, start + i, (unsigned char) buf[i]);
-					}
-				}
-			}
 			HALT();
 		} else {
 			printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
