@@ -277,7 +277,7 @@ See <https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html>
 > tied to outputs). ... It is not possible to use clobbers to inform the
 > compiler that the values in these inputs are changing.
 
-### Testing XMHF XMHF Debian
+### Testing XMHF XMHF Debian 1 (MTRR due to EPT truncate)
 
 We then test running XMHF XMHF Debian. Also see all cores receiving INIT
 signal in VMX nonroot mode. Serial `20220827125332`. I guess it may be similar
@@ -304,7 +304,58 @@ When `nosmp` in Linux, can see that the error still happens. At worst we can
 use monitor trap to debug Linux and see (likely) which memory access causes the
 problem.
 
-TODO: disable update ucode
-TODO: dump ept and vmcs at last known location
+Git `xmhf64-nest-dev 0e9bdd2d1`, serial `20220829123437`. Can see that the INIT
+signals are received by L0 XMHF in VMCS02 and forwarded to L1 XMHF. Before
+this, the last EPT accesses are scanning `0x100080000` to `0x1000a0000`,
+inclusive. However, e820 shows that memory available are
+`0x0000000100000000-0x0000000137ffffff`. So I guess the access to `0x1000a0000`
+causes the problem. The last non-EPT event is RDMSR 0x1b (`IA32_APIC_BASE`)
+that happens a long time ago. We can use it to supress logs.
+
+Then we print `guest_RIP` of page table scanning, which turns out to be
+`0xffffffff814d3062`. Using `/proc/kallsyms`, we can see that it is in function
+`clear_page_orig()`. This function is simply clearing the page. We can try to
+verify this problem by modifying `clear_page_orig()` and halt at return.
+
+```
+ffffffff814d3040 T clear_page_rep
+ffffffff814d3050 T clear_page_orig
+ffffffff814d3090 T clear_page_erms
+```
+
+In git `xmhf64-nest-dev e52e2ce0e`, serial `20220829143509`, we dump the code
+near `clear_page_orig()`. Then in git `xmhf64-nest-dev 0b006f53f`, we change
+the code to make `clear_page_orig()` never returns. At this time, we can
+confirm that the problem happens due to access to memory at `0x1000a0000`.
+
+In git `xmhf64-nest-dev a15a945db`, print pmeo in
+`xmhf_nested_arch_x86vmx_handle_ept02_exit()` and see the problem
+
+```
+CPU(0x00): pmeo12: pme=0x00000001000a0037, lvl=1
+CPU(0x00): pmeo01: pme=0x00000001000a0037, lvl=1
+CPU(0x00): pmeo02: pme=0x00000000000a0037, lvl=1
+```
+
+Then using print debugging, we find that `hpt_pmeo_setcache()` causes the
+problem.
+
+In `xmhf64-nest-dev a2250b300`, able to demonstrate the bug in QEMU. Just run
+any hypervisor that uses EPT in this XMHF. The problem is that return type of
+`hpt_pme_set_pmt()` should be `hpt_pme_t`, not `hpt_pmt_t`. At first I think I
+wrote this code, but then using git blame I realized that it actually comes
+from earlier version of XMHF.
+
+Fixed in `xmhf64 291c01c82`.
+
+### Testing XMHF XMHF Debian 2
+
+After the fix above, XMHF makes more progress but still stucks at some point
+when booting Linux. From XMHF output looks like Linux is RDMSR-ing forever.
+At this point we are at `xmhf64-nest 02f90a7a8`, `xmhf64-nest-dev 8cb58f322`.
+
+Through print debugging, Linux is accessing MSRs 0xe7 and 0xe8. RIP is at
+`0xffffffff8106b314 <native_read_msr()>`. We need to get a call stack.
+
 TODO
 
