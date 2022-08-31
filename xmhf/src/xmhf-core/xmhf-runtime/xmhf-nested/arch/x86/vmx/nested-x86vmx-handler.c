@@ -1054,6 +1054,14 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 				inst_len = __vmx_vmread32(encoding);
 				encoding = VMCSENC_control_VM_entry_instruction_length;
 				__vmx_vmwrite32(encoding, inst_len);
+				/* Check TODO */
+				if (idt_info == 0x80000202 && vmcs12_info->guest_virtual_nmis) {
+					u16 encoding = VMCSENC_guest_interruptibility;
+					u32 guest_int = __vmx_vmread32(encoding);
+					HALT_ON_ERRORCOND(guest_int & (1U << 3));
+					guest_int &= ~(1U << 3);
+					__vmx_vmwrite32(encoding, guest_int);
+				}
 			}
 			/* End blocking EPT02 flush */
 			xmhf_nested_arch_x86vmx_unblock_ept02_flush(vcpu);
