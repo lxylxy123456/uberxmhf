@@ -1091,13 +1091,20 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 
 	/* Wake the guest hypervisor up for the VMEXIT */
 	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
-	if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {
-		/*
-		 * TODO: Stopping here makes debugging with a correct guest hypervisor
-		 * easier. The correct behavior should be injecting the VMEXIT to
-		 * guest hypervisor.
-		 */
-		HALT_ON_ERRORCOND(0 && "Debug: guest hypervisor VM-entry failure");
+	{
+		static u32 prev = 0xdeadbeef;
+		if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {
+			/*
+			 * TODO: Stopping here makes debugging with a correct guest hypervisor
+			 * easier. The correct behavior should be injecting the VMEXIT to
+			 * guest hypervisor.
+			 */
+			printf("PREV = 0x%08x\n", prev);
+			xmhf_nested_arch_x86vmx_vmread_all(vcpu, "ENTRY_FAIL.");
+			HALT_ON_ERRORCOND(0 && "Debug: guest hypervisor VM-entry failure");
+		} else {
+			prev = vmcs12_info->vmcs12_value.info_vmexit_reason;
+		}
 	}
 	if (nmi_vmexit) {
 		HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.info_vmexit_reason ==
