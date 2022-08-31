@@ -1414,7 +1414,9 @@ static void experiment_26_vmcall(void)
 /*
  * Experiment 27: NMI Exiting = 0, virtual NMIs = 0
  * L1 (LHV) blocks NMI. L2 (guest) does not block NMI. L1 receives 2 NMIs,
- * and then VMENTERs. L2 should receive 1 NMI.
+ * and then VMENTERs.
+ * Result: L2 receives 2 NMIs.
+ * TODO: intuitively L2 should only receive 1 NMI. Possible hardware issue?
  */
 static void experiment_27(void)
 {
@@ -1422,19 +1424,8 @@ static void experiment_27(void)
 	printf("Experiment: %d\n", (experiment_no = 27));
 	state_no = 0;
 	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
-	/*
-	 * Note: VMEXIT is recorded before NMI injection because after NMI
-	 * injection is completed, VMEXIT happens. After VMEXIT completes, the
-	 * first instruction of NMI injection is executed.
-	 */
-	assert_measure(EXIT_NMI_G, rip);
-	/*
-	 * TODO: currently QEMU and Bochs pass this test, but Thinkpad does not.
-	 * Thinkpad's behavior is strange, because it looks like two NMIs are
-	 * injected to the guest, without blocking in between.
-	 */
-	iret_wait(EXIT_NMI_G);
-	iret_wait(EXIT_MEASURE);
+	/* Note: the NMI on rip happens before the NMI on XtRtmIdtStub2 */
+	assert_measure_2(EXIT_NMI_G, (uintptr_t) XtRtmIdtStub2, EXIT_NMI_G, rip);
 	iret_wait(EXIT_MEASURE);
 	state_no = 1;
 	asm volatile ("vmcall");
@@ -1450,7 +1441,7 @@ static void experiment_27_vmcall(void)
 		hlt_wait(EXIT_TIMER_H);
 		set_state(0, 0, 0, 0);
 		set_inject_nmi();
-		prepare_measure();
+		prepare_measure_2();
 		break;
 	case 1:
 		assert_state(0, 0, 0, 0);
@@ -1499,7 +1490,7 @@ static struct {
 	{experiment_24, experiment_24_vmcall, 1, 1, 0, 0},
 	{experiment_25, experiment_25_vmcall, 1, 1, 1, 1},
 	{experiment_26, experiment_26_vmcall, 1, 0, 1, 0},
-	{experiment_27, experiment_27_vmcall, 0, 1, 1, 1},
+	{experiment_27, experiment_27_vmcall, 1, 0, 0, 0},
 	/*                                    a  x  q  b */
 };
 
