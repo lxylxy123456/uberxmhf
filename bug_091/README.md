@@ -348,7 +348,7 @@ from earlier version of XMHF.
 
 Fixed in `xmhf64 291c01c82`.
 
-### Testing XMHF XMHF Debian 2
+### Testing XMHF XMHF Debian 2 (APERF/MPERF)
 
 After the fix above, XMHF makes more progress but still stucks at some point
 when booting Linux. From XMHF output looks like Linux is RDMSR-ing forever.
@@ -357,5 +357,82 @@ At this point we are at `xmhf64-nest 02f90a7a8`, `xmhf64-nest-dev 8cb58f322`.
 Through print debugging, Linux is accessing MSRs 0xe7 and 0xe8. RIP is at
 `0xffffffff8106b314 <native_read_msr()>`. We need to get a call stack.
 
-TODO
+Looks like this can be worked around by adding `circleci` to `./build.sh`,
+which decreases number of VMWRITE and VMREADs.
+
+In `xmhf64-nest-dev 46f9e2d58`, print Linux's stack. Can guess the call stack:
+```
+0xffffffff8106b314 native_read_msr
+0xffffffff8105b4e4 arch_scale_freq_tick
+0xffffffff810be634 scheduler_tick
+0xffffffff81118020 update_process_times
+0xffffffff81128437 tick_periodic
+0xffffffff811284b0 tick_handle_periodic
+0xffffffff8102d584 timer_interrupt
+0xffffffff810f68ed __handle_irq_event_percpu
+0xffffffff810f6ae7 handle_irq_event
+0xffffffff810fabfc handle_level_irq
+0xffffffff818b4ba7 common_interrupt
+0xffffffff81a00c5e asm_common_interrupt
+0xffffffff81c0006c __softirqentry_text_start
+0xffffffff81a010e2 asm_call_sysvec_on_stack
+```
+
+From Linux code and Intel v3 chapter 14, there are 2 possible ways to
+workaround:
+* `IA32_MPERF` and `IA32_APERF` are detected using `CPUID.06H: ECX[0] = 1`. Set
+  this CPUID bit to 0.
+* See `intel_set_max_freq_ratio()` source code, overwrite the value of these
+  MSRs to 0.
+
+Changing CPUID looks like a valid workaround. Implemented in
+`xmhf64-nest-dev 46f9e2d58..59bf099fa`. However, maybe the best workaround is
+to still make things faster and not printing anything.
+
+After that, Linux seems to be accessing LAPIC frequently. This causes "EPT
+cache miss" to be printed a lot. If we remove the message or wait for a long
+time, the next problem happens.
+
+### Testing NMI tests (`lhv-nmi` branch)
+
+The `lhv-nmi 3cee6b73a` works well on HP. Experiments 1 - 26 are executed.
+Experiment 27 is skipped by default (will fail, should fix later).
+
+### Testing XMHF XMHF Debian 3 (VMCS02 entry failure)
+
+Git `xmhf64-nest-dev fb0019a8f`, HP serial `20220830212657`. Looks like at the
+first time CPU 0 injects NMI to itself, a VMENTRY failure happens.
+
+Git `xmhf64-nest-dev f7a1963d3`, HP serial `20220830214206`.
+
+The problem happens because Intel does not allow 
+`VMCS.guest_interruptibility = 8` and
+`VMCS.control_VM_entry_interruption_information = 0x80000202`. However, Intel
+manual says virtual NMI blocking must be 0 when injecting NMI.
+
+Git `xmhf64-nest-dev d846874f1`, HP serial `20220830230017`. Can reconstruct a
+full story:
+* L1 XMHF receives NMI windowing exit, set injection of NMI, VMENTRY.
+* L0 XMHF handles VMENTRY, `VMCS02.guest_interruptibility = 0x0` (good).
+* `L2 -> L0 -> L2` VMEXIT happens due to EPT. Hardware sets
+  `VMCS02.info_IDT_vectoring_information = 0x80000202` and
+  `VMCS02.guest_interruptibility = 0x8` (strange).
+* L0 handles the EPT and copies the `0x80000202` to
+  `VMCS02.control_VM_entry_interruption_information`.
+* L0 executes VMENTRY, which causes the problem.
+
+Looks like in this case the EPT VMEXIT is indirectly due to NMI injection. We
+need to study related sections of Intel manual.
+
+Intel v3 "26.1 ARCHITECTURAL STATE BEFORE A VM EXIT" says:
+> If an event causes a VM exit indirectly, the event does update architectural
+> state:
+> An NMI causes subsequent NMIs to be blocked before the VM exit commences.
+
+So looks like the hardware's behavior is valid. For us, we likely need to
+manually clear the virtual NMI blocking bit in this situation. A proof of
+concept fix is in `xmhf64-nest-dev dd5a8a1e5`.
+
+TODO: fix in production
+TODO: work on NMI experiment 27
 
