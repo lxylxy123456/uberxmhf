@@ -185,6 +185,11 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
     #error "Unsupported Arch"
 #endif /* !defined(__AMD64__) */
 
+	/* Hide IA32_MPERF and IA32_APERF to workaround slowness issue */
+	if (old_eax == 0x6) {
+		r->ecx &= ~1U;
+	}
+
 #ifdef __DEBUG_QEMU__
 	/*
 	 * Logic to allow the guest detect the presence of XMHF. We assume other
