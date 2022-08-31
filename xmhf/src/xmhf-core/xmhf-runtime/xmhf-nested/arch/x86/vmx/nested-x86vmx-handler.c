@@ -107,6 +107,8 @@ static u8 cpu_shadow_vmcs12[MAX_VCPU_ENTRIES][VMX_NESTED_MAX_ACTIVE_VMCS]
 	__attribute__((section(".bss.palign_data")));
 #endif							/* VMX_NESTED_USE_SHADOW_VMCS */
 
+u32 lxy_log = 0;
+
 /*
  * Given a segment index, return the segment offset
  * TODO: do we need to check access rights?
@@ -561,8 +563,11 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		return result;
 	}
 
-	if (0) {
+	if (lxy_log) {
 		printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
+		xmhf_nested_arch_x86vmx_vmcs_dump(vcpu, &vmcs12_info->vmcs12_value,
+										  "VMCS12.");
+		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS02_A.");
 	}
 
 	/* From now on, cannot fail */
@@ -574,13 +579,25 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	 */
 	xmhf_nested_arch_x86vmx_unblock_ept02_flush(vcpu);
 
+	if (lxy_log) {
+		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS02_B.");
+	}
+
 	/* Process NMI */
 	_update_nested_nmi(vcpu, vmcs12_info);
+
+	if (lxy_log) {
+		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS02_C.");
+	}
 
 	/* Change NMI handler from L1 to L2 */
 	HALT_ON_ERRORCOND(vcpu->vmx_guest_nmi_handler_arg == SMPG_VMX_NMI_INJECT);
 	vcpu->vmx_guest_nmi_handler_arg = SMPG_VMX_NMI_NESTED;
 	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
+
+	if (lxy_log) {
+		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS02_D.");
+	}
 
 	if (vmcs12_info->launched) {
 		__vmx_vmentry_vmresume(r);
@@ -831,6 +848,10 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	vmcs12_info_t *vmcs12_info;
 	u32 vmexit_reason = __vmx_vmread32(VMCSENC_info_vmexit_reason);
 
+	if (lxy_log) {
+		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS02_E.");
+	}
+
 	xmhf_smpguest_arch_x86vmx_mhv_nmi_disable(vcpu);
 
 	/*
@@ -1038,6 +1059,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			xmhf_nested_arch_x86vmx_unblock_ept02_flush(vcpu);
 			/* Call VMRESUME */
 			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
+			if (lxy_log) {
+				printf("CPU(0x%02x): 202 vmexit due to EPT\n", vcpu->id);
+			}
 			__vmx_vmentry_vmresume(r);
 			HALT_ON_ERRORCOND(0 && "VMRESUME should not return");
 			break;
@@ -1147,7 +1171,10 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		 */
 		vmcs12_info->vmcs12_value.info_exit_qualification = 0;
 	}
-	if (0) {
+	if (vmcs12_info->vmcs12_value.info_vmexit_reason == VMX_VMEXIT_NMI_WINDOW) {
+		lxy_log = 1;
+	}
+	if (lxy_log) {
 		if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31 ||
 			vmcs12_info->vmcs12_value.info_vmexit_reason == 32) {
 			static int count = 0;
@@ -1178,6 +1205,12 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 				}
 				HALT_ON_ERRORCOND(0);
 			}
+		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason ==
+				   VMX_VMEXIT_NMI_WINDOW) {
+			printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
+				   vmcs12_info->vmcs12_value.info_vmexit_reason);
+			HALT_ON_ERRORCOND(
+				(vmcs12_info->vmcs12_value.guest_interruptibility & 0x8) == 0);
 		} else {
 			printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
 				   vmcs12_info->vmcs12_value.info_vmexit_reason);
