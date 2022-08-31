@@ -1141,8 +1141,40 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		vmcs12_info->vmcs12_value.info_exit_qualification = 0;
 	}
 	if (1) {
-		printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
-			   vmcs12_info->vmcs12_value.info_vmexit_reason);
+		if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31 ||
+			vmcs12_info->vmcs12_value.info_vmexit_reason == 32) {
+			static int count = 0;
+			printf("CPU(0x%02x): nested vmexit %d ecx=0x%x rip=0x%08lx\n",
+				   vcpu->id, vmcs12_info->vmcs12_value.info_vmexit_reason,
+				   r->ecx, __vmx_vmreadNW(VMCSENC_guest_RIP));
+			if (r->ecx == 0xe7 || r->ecx == 0xe8) {
+				count++;
+			}
+			if (count >= 200) {
+				uintptr_t rsp = __vmx_vmreadNW(VMCSENC_guest_RSP);
+				guestmem_hptw_ctx_pair_t ctx_pair;
+				guestmem_init(vcpu, &ctx_pair);
+				ctx_pair.guest_ctx.root_pa = hpt_cr3_get_address(
+					ctx_pair.guest_ctx.t,
+					__vmx_vmreadNW(VMCSENC_guest_CR3));
+				ctx_pair.host_ctx.root_pa = hpt_eptp_get_address(
+					HPT_TYPE_EPT,
+					__vmx_vmread64(VMCSENC_control_EPT_pointer));
+				printf("CPU(0x%02x): rbp = 0x%08llx\n", vcpu->id, r->rbp);
+				printf("CPU(0x%02x): rsp = 0x%08llx\n", vcpu->id, rsp);
+				for (u32 i = 0; i < 1000; i++) {
+					u64 val;
+					guestmem_copy_gv2h(&ctx_pair, 0, &val, rsp, sizeof(val));
+					printf("CPU(0x%02x): *0x%08llx = 0x%08llx\n", vcpu->id, rsp,
+						   val);
+					rsp += 8;
+				}
+				HALT_ON_ERRORCOND(0);
+			}
+		} else {
+			printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
+				   vmcs12_info->vmcs12_value.info_vmexit_reason);
+		}
 	}
 	/* Follow SDM to load host state */
 	vcpu->vmcs.guest_DR7 = 0x400UL;
