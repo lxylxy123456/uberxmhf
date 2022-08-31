@@ -565,9 +565,6 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 
 	if (lxy_log) {
 		printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
-		xmhf_nested_arch_x86vmx_vmcs_dump(vcpu, &vmcs12_info->vmcs12_value,
-										  "VMCS12.");
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS02_A.");
 	}
 
 	/* From now on, cannot fail */
@@ -579,25 +576,13 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	 */
 	xmhf_nested_arch_x86vmx_unblock_ept02_flush(vcpu);
 
-	if (lxy_log) {
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS02_B.");
-	}
-
 	/* Process NMI */
 	_update_nested_nmi(vcpu, vmcs12_info);
-
-	if (lxy_log) {
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS02_C.");
-	}
 
 	/* Change NMI handler from L1 to L2 */
 	HALT_ON_ERRORCOND(vcpu->vmx_guest_nmi_handler_arg == SMPG_VMX_NMI_INJECT);
 	vcpu->vmx_guest_nmi_handler_arg = SMPG_VMX_NMI_NESTED;
 	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
-
-	if (lxy_log) {
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS02_D.");
-	}
 
 	if (vmcs12_info->launched) {
 		__vmx_vmentry_vmresume(r);
@@ -847,10 +832,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	bool ept_misconfig = false;
 	vmcs12_info_t *vmcs12_info;
 	u32 vmexit_reason = __vmx_vmread32(VMCSENC_info_vmexit_reason);
-
-	if (lxy_log) {
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "VMCS02_E.");
-	}
 
 	xmhf_smpguest_arch_x86vmx_mhv_nmi_disable(vcpu);
 
@@ -1189,7 +1170,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		vmcs12_info->vmcs12_value.info_exit_qualification = 0;
 	}
 	if (vmcs12_info->vmcs12_value.info_vmexit_reason == VMX_VMEXIT_NMI_WINDOW) {
-		lxy_log = 1;
+		// lxy_log = 1;
 	}
 	if (lxy_log) {
 		if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31 ||
