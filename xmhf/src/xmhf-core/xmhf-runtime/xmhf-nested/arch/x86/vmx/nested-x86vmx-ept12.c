@@ -75,6 +75,8 @@ static u8 ept02_page_alloc[MAX_VCPU_ENTRIES][VMX_NESTED_MAX_ACTIVE_EPT]
 /* For each CPU, information about all VPID12 -> VPID02 it caches */
 static vpid02_cache_set_t vpid02_cache[MAX_VCPU_ENTRIES];
 
+extern u32 lxy_log;
+
 static void *ept02_gzp(void *vctx, size_t alignment, size_t sz)
 {
 	ept02_ctx_t *ept02_ctx = (ept02_ctx_t *) vctx;
@@ -399,15 +401,8 @@ spa_t xmhf_nested_arch_x86vmx_get_ept02(VCPU * vcpu, gpa_t ept12,
 				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
 			}
 		}
-		{
-			extern u32 lxy_log;
-			if (lxy_log) {
-				printf("CPU(0x%02x): EPT cache miss 0x%08llx\n", vcpu->id,
-					   ept12);
-			}
-		}
 #endif							/* !__DEBUG_QEMU__ */
-		{
+		if (lxy_log) {
 			printf("CPU(0x%02x): EPT cache miss 0x%08llx\n", vcpu->id, ept12);
 		}
 	}

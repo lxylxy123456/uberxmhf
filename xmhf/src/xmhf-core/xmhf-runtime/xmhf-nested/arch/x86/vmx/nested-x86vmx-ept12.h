@@ -55,7 +55,7 @@
 #include "nested-x86vmx-lru.h"
 
 /* Maximum number of active EPTs per CPU */
-#define VMX_NESTED_MAX_ACTIVE_EPT 2
+#define VMX_NESTED_MAX_ACTIVE_EPT 4
 
 /* Maximum number of active VPIDs per CPU */
 #define VMX_NESTED_MAX_ACTIVE_VPID 4
