@@ -869,7 +869,14 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			/* Resume to L2 (L2 -> L0 -> L2) */
 			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
 			if (1) {
+				static int count = 0;
 				printf("CPU(0x%02x): 202 vmexit due to NMI\n", vcpu->id);
+				if (vcpu->isbsp) {
+					count++;
+					if (count > 5) {
+						lxy_log = 1;
+					}
+				}
 			}
 			__vmx_vmentry_vmresume(r);
 			HALT_ON_ERRORCOND(0 && "VMRESUME should not return");
@@ -1057,7 +1064,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			xmhf_nested_arch_x86vmx_unblock_ept02_flush(vcpu);
 			/* Call VMRESUME */
 			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
-			if (lxy_log) {
+			if (0) {
 				printf("CPU(0x%02x): 202 vmexit due to EPT\n", vcpu->id);
 			}
 			__vmx_vmentry_vmresume(r);

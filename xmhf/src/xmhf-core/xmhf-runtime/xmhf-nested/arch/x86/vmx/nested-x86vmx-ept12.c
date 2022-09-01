@@ -399,7 +399,13 @@ spa_t xmhf_nested_arch_x86vmx_get_ept02(VCPU * vcpu, gpa_t ept12,
 				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
 			}
 		}
-		// printf("CPU(0x%02x): EPT cache miss 0x%08llx\n", vcpu->id, ept12);
+		{
+			extern u32 lxy_log;
+			if (lxy_log) {
+				printf("CPU(0x%02x): EPT cache miss 0x%08llx\n", vcpu->id,
+					   ept12);
+			}
+		}
 #endif							/* !__DEBUG_QEMU__ */
 	}
 	*cache_hit = hit;
