@@ -874,7 +874,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 				if (vcpu->isbsp) {
 					count++;
 					if (count > 5) {
-						lxy_log = 1;
+						// lxy_log = 1;
 					}
 				}
 			}
