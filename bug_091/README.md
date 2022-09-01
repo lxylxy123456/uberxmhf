@@ -425,14 +425,28 @@ Looks like in this case the EPT VMEXIT is indirectly due to NMI injection. We
 need to study related sections of Intel manual.
 
 Intel v3 "26.1 ARCHITECTURAL STATE BEFORE A VM EXIT" says:
-> If an event causes a VM exit indirectly, the event does update architectural
-> state:
-> An NMI causes subsequent NMIs to be blocked before the VM exit commences.
+> If the “virtual NMIs” VM-execution control is 1, VM entry injects an NMI, and
+> delivery of the NMI causes a
+> nested exception, double fault, task switch, EPT violation, EPT
+> misconfiguration, page-modification log-full
+> event, or SPP-related event, or APIC access that causes a VM exit,
+> virtual-NMI blocking is in effect before the
+> VM exit commences.
 
 So looks like the hardware's behavior is valid. For us, we likely need to
 manually clear the virtual NMI blocking bit in this situation. A proof of
-concept fix is in `xmhf64-nest-dev dd5a8a1e5`.
+concept fix is in `xmhf64-nest-dev dd5a8a1e5`. The fix is in
+`xmhf64-nest d9662cb5f`.
 
-TODO: fix in production
+However, after the fix, Linux still stucks at some place.
+
+TODO
+TODO: how does Linux deal with too many log messages? See `printk_ratelimit()`
+TODO: start with UP
+TODO: try sysrq
+TODO: Print VMEXITs and statistics, use RDTSC?
+TODO: read complete Linux dmesg at `/var/log/syslog`
+TODO: consider disabling Linux components (e.g. watchdog)
+TODO: test other OSes
 TODO: work on NMI experiment 27
 
