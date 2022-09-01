@@ -428,10 +428,6 @@ u16 xmhf_nested_arch_x86vmx_get_vpid02(VCPU * vcpu, u16 vpid12, bool *cache_hit)
 	return vpid12;
 }
 
-#define LXY_EPT_MAX 10000
-u64 lxy_ept_count[MAX_VCPU_ENTRIES];
-u64 lxy_ept_list[MAX_VCPU_ENTRIES][LXY_EPT_MAX][2];
-
 /*
  * Handle an EPT exit received by L0 when running L2. There are 3 cases.
  * 1. L2 accesses legitimate memory, but L0 has not processed the EPT entry in
@@ -473,13 +469,6 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 		access_type |= HPT_PROT_EXEC_MASK;
 	}
 	HALT_ON_ERRORCOND(access_type);
-
-	if (lxy_ept_count[vcpu->idx] < LXY_EPT_MAX) {
-		lxy_ept_list[vcpu->idx][lxy_ept_count[vcpu->idx]][0] = guest2_paddr;
-		lxy_ept_list[vcpu->idx][lxy_ept_count[vcpu->idx]][1] =
-			__vmx_vmreadNW(VMCSENC_info_guest_linear_address);
-	}
-	lxy_ept_count[vcpu->idx]++;
 
 	/* Get the entry in EPT12 and the L1 paddr that is to be accessed */
 	if (hptw_checked_get_pmeo(&pmeo12, &ept12_ctx->ctx, access_type, 0,
@@ -537,17 +526,9 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	if (hptw_insert_pmeo_alloc(&ept02_ctx->ctx, &pmeo02, guest2_paddr)) {
 		{
 			gpa_t ept12 = ept12_ctx->ctx.root_pa;
-			printf("CPU(0x%02x): EPT02 full begin 0x%08llx %d\n", vcpu->id,
-					ept12, lxy_ept_count[vcpu->idx]);
-			for (u32 i = 0; i < LXY_EPT_MAX && i < lxy_ept_count[vcpu->idx]; i++) {
-				printf("CPU(0x%02x): EPT02 full event 0x%016llx 0x%016llx\n", vcpu->id,
-						lxy_ept_list[vcpu->idx][i][0], lxy_ept_list[vcpu->idx][i][1]);
-			}
-			printf("CPU(0x%02x): EPT02 full end   0x%08llx %d\n", vcpu->id,
-					ept12, lxy_ept_count[vcpu->idx]);
+			printf("CPU(0x%02x): EPT02 full 0x%08llx\n", vcpu->id, ept12);
 		}
 		ept02_ctx_reset(ept02_ctx);
-		lxy_ept_count[vcpu->idx] = 0;
 		HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&ept02_ctx->ctx, &pmeo02,
 												 guest2_paddr) == 0);
 	}
