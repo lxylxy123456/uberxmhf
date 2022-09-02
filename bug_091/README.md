@@ -482,6 +482,9 @@ problem is that `IA32_MPERF` and `IA32_APERF` are hidden using CPUID.
 
 In `xmhf64-nest-dev 46ee92a7a`, clean up code. Now the configuration is:
 
+In `xmhf64-nest-dev 06470c4fb`, no longer hide `IA32_MPERF` and `IA32_APERF`,
+and XMHF XMHF Debian in SMP still boots.
+
 ```sh
 # build64
 ./build.sh amd64 fast circleci O3 && gr
@@ -503,10 +506,8 @@ Untried ideas
 * consider disabling Linux components (e.g. watchdog)
 * test other OSes first
 
-### Testing XMHF XMHF Debian 5 (`IA32_MPERF` and `IA32_APERF`)
+### NMI experiments
 
-
-
-TODO: `IA32_MPERF` and `IA32_APERF` are hidden using CPUID
 TODO: work on NMI experiment 27
+TODO: try other OSes
 
