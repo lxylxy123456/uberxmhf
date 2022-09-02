@@ -55,13 +55,6 @@
 //generic x86 platform reboot
 void xmhf_baseplatform_arch_x86_reboot(void){
 
-	u32 i = 0;
-	while (1) {
-		if (!(i++)) {
-			printf("xmhf_baseplatform_arch_x86_reboot() called\n");
-		}
-	}
-
 #ifndef __XMHF_VERIFICATION__
 
 	while ((inb(0x64) & 0x02) != 0) {

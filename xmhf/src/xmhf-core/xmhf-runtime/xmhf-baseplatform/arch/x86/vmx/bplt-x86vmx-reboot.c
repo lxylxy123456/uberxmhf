@@ -56,21 +56,9 @@
 void xmhf_baseplatform_arch_x86vmx_reboot(VCPU *vcpu){
 	(void)vcpu;
 
-	printf("Going to VMXOFF\n");
-	for (u32 i = 0; i < 0x100000; i++) {
-		;
-	}
-
 	//shut VMX off, else CPU ignores INIT signal!
 	__asm__ __volatile__("vmxoff \r\n");
 	write_cr4(read_cr4() & ~(CR4_VMXE));
-
-	printf("Going to reboot\n");
-	for (u32 i = 0; i < 0x100000; i++) {
-		while (1) {
-			;
-		}
-	}
 
 	//fall back on generic x86 reboot
 	xmhf_baseplatform_arch_x86_reboot();
