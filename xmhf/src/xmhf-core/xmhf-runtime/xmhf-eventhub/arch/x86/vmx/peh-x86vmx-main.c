@@ -1288,6 +1288,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 
 		case VMX_VMEXIT_INIT:{
 			printf("***** VMEXIT_INIT xmhf_runtime_shutdown\n\n");
+			for (u32 i = 0; i < 0x1000000; i++) {
+				;
+			}
 			xmhf_runtime_shutdown(vcpu, r);
 			printf("CPU(0x%02x): Fatal, xmhf_runtime_shutdown returned. Halting!\n", vcpu->id);
 			HALT();
