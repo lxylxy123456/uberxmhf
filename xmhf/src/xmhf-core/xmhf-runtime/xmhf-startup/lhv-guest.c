@@ -1459,6 +1459,50 @@ static void experiment_27_vmcall(void)
 	}
 }
 
+/*
+ * Experiment 28: NMI Exiting = 0, virtual NMIs = 0
+ * L1 (LHV) blocks NMI. L2 (guest) does not block NMI. L1 receives 3 NMIs,
+ * and then VMENTERs.
+ * Result: L2 receives 2 NMIs. 1 NMI is lost.
+ */
+static void experiment_28(void)
+{
+	uintptr_t rip;
+	printf("Experiment: %d\n", (experiment_no = 28));
+	state_no = 0;
+	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
+	/* Note: the NMI on rip happens before the NMI on XtRtmIdtStub2 */
+	assert_measure_2(EXIT_NMI_G, (uintptr_t) XtRtmIdtStub2, EXIT_NMI_G, rip);
+	iret_wait(EXIT_MEASURE);
+	state_no = 1;
+	asm volatile ("vmcall");
+}
+
+static void experiment_28_vmcall(void)
+{
+	switch (state_no) {
+	case 0:
+		hlt_wait(EXIT_NMI_H);
+		hlt_wait(EXIT_TIMER_H);
+		hlt_wait(EXIT_TIMER_H);
+		hlt_wait(EXIT_TIMER_H);
+		hlt_wait(EXIT_TIMER_H);
+		set_state(0, 0, 0, 0);
+		set_inject_nmi();
+		prepare_measure_2();
+		break;
+	case 1:
+		assert_state(0, 0, 0, 0);
+		/* Make sure that host does not block NMI */
+		iret_wait(EXIT_MEASURE);
+		set_state(0, 0, 0, 0);
+		break;
+	default:
+		TEST_ASSERT(0 && "unexpected state");
+		break;
+	}
+}
+
 static struct {
 	void (*f)(void);
 	void (*vmcall)(void);
@@ -1495,6 +1539,7 @@ static struct {
 	{experiment_25, experiment_25_vmcall, 1, 1, 1, 1},
 	{experiment_26, experiment_26_vmcall, 1, 0, 1, 0},
 	{experiment_27, experiment_27_vmcall, 1, 0, 0, 0},
+	{experiment_28, experiment_28_vmcall, 1, 0, 0, 0},
 	/*                                    a  x  q  b */
 };
 
