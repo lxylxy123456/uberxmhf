@@ -107,8 +107,6 @@ static u8 cpu_shadow_vmcs12[MAX_VCPU_ENTRIES][VMX_NESTED_MAX_ACTIVE_VMCS]
 	__attribute__((section(".bss.palign_data")));
 #endif							/* VMX_NESTED_USE_SHADOW_VMCS */
 
-u32 lxy_log = 0;
-
 /*
  * Given a segment index, return the segment offset
  * TODO: do we need to check access rights?
@@ -563,7 +561,7 @@ static u32 _vmx_vmentry(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		return result;
 	}
 
-	if (lxy_log) {
+	if (0) {
 		printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
 	}
 
@@ -868,16 +866,6 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			}
 			/* Resume to L2 (L2 -> L0 -> L2) */
 			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
-			if (1) {
-				static int count = 0;
-				printf("CPU(0x%02x): 202 vmexit due to NMI\n", vcpu->id);
-				if (vcpu->isbsp) {
-					count++;
-					if (count > 5) {
-						// lxy_log = 1;
-					}
-				}
-			}
 			__vmx_vmentry_vmresume(r);
 			HALT_ON_ERRORCOND(0 && "VMRESUME should not return");
 		}
@@ -1120,20 +1108,13 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 
 	/* Wake the guest hypervisor up for the VMEXIT */
 	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
-	{
-		static u32 prev = 0xdeadbeef;
-		if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {
-			/*
-			 * TODO: Stopping here makes debugging with a correct guest hypervisor
-			 * easier. The correct behavior should be injecting the VMEXIT to
-			 * guest hypervisor.
-			 */
-			printf("PREV = 0x%08x\n", prev);
-			xmhf_nested_arch_x86vmx_vmread_all(vcpu, "ENTRY_FAIL.");
-			HALT_ON_ERRORCOND(0 && "Debug: guest hypervisor VM-entry failure");
-		} else {
-			prev = vmcs12_info->vmcs12_value.info_vmexit_reason;
-		}
+	if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {
+		/*
+		 * TODO: Stopping here makes debugging with a correct guest hypervisor
+		 * easier. The correct behavior should be injecting the VMEXIT to
+		 * guest hypervisor.
+		 */
+		HALT_ON_ERRORCOND(0 && "Debug: guest hypervisor VM-entry failure");
 	}
 	if (nmi_vmexit) {
 		HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.info_vmexit_reason ==
@@ -1176,50 +1157,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		 */
 		vmcs12_info->vmcs12_value.info_exit_qualification = 0;
 	}
-	if (vmcs12_info->vmcs12_value.info_vmexit_reason == VMX_VMEXIT_NMI_WINDOW) {
-		// lxy_log = 1;
-	}
-	if (lxy_log) {
-		if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31 ||
-			vmcs12_info->vmcs12_value.info_vmexit_reason == 32) {
-			static int count = 0;
-			printf("CPU(0x%02x): nested vmexit %d ecx=0x%x rip=0x%08lx\n",
-				   vcpu->id, vmcs12_info->vmcs12_value.info_vmexit_reason,
-				   r->ecx, __vmx_vmreadNW(VMCSENC_guest_RIP));
-			if (r->ecx == 0xe7 || r->ecx == 0xe8) {
-				count++;
-			}
-			if (count >= 200) {
-				uintptr_t rsp = __vmx_vmreadNW(VMCSENC_guest_RSP);
-				guestmem_hptw_ctx_pair_t ctx_pair;
-				guestmem_init(vcpu, &ctx_pair);
-				ctx_pair.guest_ctx.root_pa = hpt_cr3_get_address(
-					ctx_pair.guest_ctx.t,
-					__vmx_vmreadNW(VMCSENC_guest_CR3));
-				ctx_pair.host_ctx.root_pa = hpt_eptp_get_address(
-					HPT_TYPE_EPT,
-					__vmx_vmread64(VMCSENC_control_EPT_pointer));
-				printf("CPU(0x%02x): rbp = 0x%08llx\n", vcpu->id, r->rbp);
-				printf("CPU(0x%02x): rsp = 0x%08llx\n", vcpu->id, rsp);
-				for (u32 i = 0; i < 1000; i++) {
-					u64 val;
-					guestmem_copy_gv2h(&ctx_pair, 0, &val, rsp, sizeof(val));
-					printf("CPU(0x%02x): *0x%08llx = 0x%08llx\n", vcpu->id, rsp,
-						   val);
-					rsp += 8;
-				}
-				HALT_ON_ERRORCOND(0);
-			}
-		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason ==
-				   VMX_VMEXIT_NMI_WINDOW) {
-			printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
-				   vmcs12_info->vmcs12_value.info_vmexit_reason);
-			HALT_ON_ERRORCOND(
-				(vmcs12_info->vmcs12_value.guest_interruptibility & 0x8) == 0);
-		} else {
-			printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
-				   vmcs12_info->vmcs12_value.info_vmexit_reason);
-		}
+	if (0) {
+		printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
+			   vmcs12_info->vmcs12_value.info_vmexit_reason);
 	}
 	/* Follow SDM to load host state */
 	vcpu->vmcs.guest_DR7 = 0x400UL;
