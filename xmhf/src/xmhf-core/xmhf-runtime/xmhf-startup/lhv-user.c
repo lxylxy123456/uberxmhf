@@ -114,8 +114,6 @@ void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
 	/* Currently the only syscall is to exit guest mode */
 	HALT_ON_ERRORCOND(vector == 0x23);
 	HALT_ON_ERRORCOND(r->eax == 0xdeaddead);
-	printf("CPU(0x%02x): exited user mode, halting!\n", vcpu->id);
-	HALT();
 	vmresume_asm(&vcpu->guest_regs);
 }
 
@@ -123,10 +121,7 @@ void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
 
 void begin_pal_c(void) {}
 
-extern u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
-
 uintptr_t my_pal(uintptr_t arg1) {
-	*(uintptr_t *)(pal_demo_data[0]) = arg1 + 0x5678beef;
 	return arg1 + 0x1234abcd;
 }
 
@@ -134,7 +129,7 @@ void end_pal_c(void) {}
 
 static u8 pal_demo_code[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
-u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+static u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
 static u8 pal_demo_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
 __attribute__(( section(".bss.palign_data") ));
@@ -186,13 +181,6 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 
 	if (0 && "invalid access") {
 		printf("", *(u32*)pal_entry);
-	}
-
-	{
-		u32 i;
-		for (i = 0; i < 0x10000000; i++) {
-			asm volatile ("pause");		/* Save energy when waiting */
-		}
 	}
 
 	HALT_ON_ERRORCOND(!vmcall(TV_HC_UNREG, pal_entry, 0, 0, 0));

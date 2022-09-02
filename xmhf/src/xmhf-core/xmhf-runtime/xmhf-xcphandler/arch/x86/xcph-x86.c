@@ -142,10 +142,7 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
     switch(vector){
     case CPU_EXCEPTION_NMI:
         //xmhf_smpguest_arch_x86_eventhandler_nmiexception(vcpu, r, 0);
-        {
-            extern void lhv_exploit_nmi_handler(VCPU *vcpu);
-            lhv_exploit_nmi_handler(vcpu);
-        }
+        HALT_ON_ERRORCOND(0);	// TODO: not implemented
         break;
 
 	case 0x20:
