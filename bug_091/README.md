@@ -440,13 +440,73 @@ concept fix is in `xmhf64-nest-dev dd5a8a1e5`. The fix is in
 
 However, after the fix, Linux still stucks at some place.
 
-TODO
-TODO: how does Linux deal with too many log messages? See `printk_ratelimit()`
-TODO: start with UP
-TODO: try sysrq
-TODO: Print VMEXITs and statistics, use RDTSC?
-TODO: read complete Linux dmesg at `/var/log/syslog`
-TODO: consider disabling Linux components (e.g. watchdog)
-TODO: test other OSes
+### Testing XMHF XMHF Debian 4 (EPT02 space issue)
+
+Now, when booting XMHF XMHF Debian SMP, see that `hptw_insert_pmeo_alloc()` in
+`nested-x86vmx-ept12.c` fails. Originally `EPT02_PAGE_POOL_SIZE` is set to 192,
+but even increasing it to 256 will still be troublesome. Increasing it
+indefinitely is not a long term solution. The better solution is probably
+flushing EPT when this limit is exceeded.
+
+In `xmhf64-nest d9662cb5f..7fad2c2e2`, implemented flushing EPT02 when
+`hptw_insert_pmeo_alloc()` fails. The message `EPT02 full ${EPT01_GPADDR}` will
+be printed when this happens.
+
+From serial output, can see that these MSRs are popular:
+* 0x48: `IA32_SPEC_CTRL` (write)
+* 0x49: `IA32_PRED_CMD` (write)
+* 0x199: `IA32_PERF_CTL` (read / write)
+* 0xc0000100: `IA32_FS_BASE` (write)
+
+However, after some testing, looks like the EPT02 flushing is not perfect.
+Sometimes can see one CPU printing the "EPT02 full" message a lot of times in
+a short period of time. There are no errors, though. Likely Linux is accessing
+a lot of addresses at a short amount of time.
+
+By print debugging, can see that between EPT02 full messages, around 1000 -
+9000 EPT violations happen. In `xmhf64-nest-dev 133e9ab20`, also print list of
+all EPT violation addresses between EPT02 full events. For one event, using
+some Python programming can see that the addresses need to be covered by 124
+2M aligned 2M memory regions. So the EPT02 full events are valid. This should
+be considered Thrashing. 15605 lecture `L18_VM3.pdf` is helpful, also textbook.
+To solve this problem, we need to still increase `EPT02_PAGE_POOL_SIZE`.
+
+Ideally, HP 2540p has 4.87 GiB memory (largest address is 0x0000000137ffffff).
+This means 0x138000 4K pages, or 2496 2M pages. This means that
+`EPT02_PAGE_POOL_SIZE` should be around 2500 to prevent thrashing. This takes
+around 2500 * 4K == 9.76 MiB for each EPT02, which is a huge cost of memory.
+
+At `xmhf64-nest-dev 559f18db7`, there will be still a non-trivial amount of
+EPT02 full events. However, XMHF XMHF Debian is able to boot. Now, the only
+problem is that `IA32_MPERF` and `IA32_APERF` are hidden using CPUID.
+
+In `xmhf64-nest-dev 46ee92a7a`, clean up code. Now the configuration is:
+
+```sh
+# build64
+./build.sh amd64 fast circleci O3 && gr
+# build32
+./build.sh amd64 fast --sl-base 0x20000000 --no-init-smp circleci O3 && gr
+# any
+copyxmhf && hpgrub XMHF-build64 XMHF-build32 && hpinit6
+```
+
+Untried ideas
+* how does Linux deal with too many log messages?
+	* See `printk_ratelimit()` in the Linux Kernel Development book. Basically
+	  either rate limit (1 message / second) or occurrence limit (only print
+	  first 5 messages).
+* start with UP
+* try sysrq
+* Print VMEXITs and statistics, use RDTSC?
+* read complete Linux dmesg at `/var/log/syslog`
+* consider disabling Linux components (e.g. watchdog)
+* test other OSes first
+
+### Testing XMHF XMHF Debian 5 (`IA32_MPERF` and `IA32_APERF`)
+
+
+
+TODO: `IA32_MPERF` and `IA32_APERF` are hidden using CPUID
 TODO: work on NMI experiment 27
 
