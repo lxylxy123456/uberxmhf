@@ -1457,10 +1457,10 @@ static void experiment_27_vmcall(void)
 }
 
 /*
- * Experiment 28: NMI Exiting = 0, virtual NMIs = 0
- * L1 (LHV) blocks NMI. L2 (guest) does not block NMI. L1 receives 3 NMIs,
- * and then VMENTERs.
- * Result: L2 receives 2 NMIs. 1 NMI is lost.
+ * Experiment 28: NMI Exiting = 1, virtual NMIs = 0
+ * L1 (LHV) blocks NMI. L2 (guest) does not block NMI. L1 receives 2 NMIs, and
+ * then VMENTERs.
+ * Result: L2 receives 1 NMI VMEXIT. 1 NMI is lost.
  */
 static void experiment_28(void)
 {
@@ -1468,8 +1468,7 @@ static void experiment_28(void)
 	printf("Experiment: %d\n", (experiment_no = 28));
 	state_no = 0;
 	asm volatile ("vmcall; 1: leal 1b, %0" : "=g"(rip));
-	/* Note: the NMI on rip happens before the NMI on XtRtmIdtStub2 */
-	assert_measure_2(EXIT_NMI_G, (uintptr_t) XtRtmIdtStub2, EXIT_NMI_G, rip);
+	assert_measure(EXIT_VMEXIT, rip);
 	iret_wait(EXIT_MEASURE);
 	state_no = 1;
 	asm volatile ("vmcall");
@@ -1483,12 +1482,11 @@ static void experiment_28_vmcall(void)
 		hlt_wait(EXIT_TIMER_H);
 		hlt_wait(EXIT_TIMER_H);
 		hlt_wait(EXIT_TIMER_H);
-		hlt_wait(EXIT_TIMER_H);
-		set_state(0, 0, 0, 0);
-		prepare_measure_2();
+		set_state(1, 0, 0, 0);
+		prepare_measure();
 		break;
 	case 1:
-		assert_state(0, 0, 0, 0);
+		assert_state(1, 0, 0, 0);
 		/* Make sure that host does not block NMI */
 		iret_wait(EXIT_MEASURE);
 		set_state(0, 0, 0, 0);
@@ -1567,9 +1565,9 @@ static struct {
 	{experiment_24, experiment_24_vmcall, 1, 1, 0, 0},
 	{experiment_25, experiment_25_vmcall, 1, 1, 1, 1},
 	{experiment_26, experiment_26_vmcall, 1, 0, 1, 0},
-	{experiment_27, experiment_27_vmcall, 1, 0, 0, 0},
-	{experiment_28, experiment_28_vmcall, 0, 0, 0, 0},
-	{experiment_29, experiment_29_vmcall, 1, 0, 0, 0},
+	{experiment_27, experiment_27_vmcall, 1, 1, 1, 0 /*?*/},
+	{experiment_28, experiment_28_vmcall, 1, 1, 1, 0 /*?*/},
+	{experiment_29, experiment_29_vmcall, 1, 1, 1, 0 /*?*/},
 	/*                                    a  x  q  b */
 };
 
@@ -1647,7 +1645,9 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
-		// experiment_29();
+		experiment_27();
+		experiment_28();
+		experiment_29();
 	}
 	if (1 && "sequential") {
 		for (u32 i = 0; i < nexperiments; i++) {
