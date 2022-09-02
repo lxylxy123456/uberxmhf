@@ -577,7 +577,7 @@ static void xmhf_nested_arch_x86vmx_flush_ept02_effect(VCPU * vcpu)
 			 * xmhf_nested_arch_x86vmx_handle_ept02_exit() with guest2_paddr =
 			 * CR3.
 			 */
-			{
+			if (0) {
 				struct nested_vmcs12 *vmcs12 = &vmcs12_info->vmcs12_value;
 				if (vmcs12->guest_CR3 != 0) {
 					xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, cache_line,

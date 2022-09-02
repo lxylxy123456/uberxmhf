@@ -932,7 +932,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			_update_nested_nmi(vcpu, vmcs12_info);
 			/* VMRESUME */
 			xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
-			if (1) {
+			if (0) {
 				printf("CPU(0x%02x): 202 vmexit due to NMI window\n", vcpu->id);
 			}
 			__vmx_vmentry_vmresume(r);
