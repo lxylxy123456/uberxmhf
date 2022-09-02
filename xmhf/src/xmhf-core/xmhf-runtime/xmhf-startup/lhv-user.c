@@ -114,6 +114,8 @@ void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
 	/* Currently the only syscall is to exit guest mode */
 	HALT_ON_ERRORCOND(vector == 0x23);
 	HALT_ON_ERRORCOND(r->eax == 0xdeaddead);
+	printf("CPU(0x%02x): exited user mode, halting!\n", vcpu->id);
+	HALT();
 	vmresume_asm(&vcpu->guest_regs);
 }
 

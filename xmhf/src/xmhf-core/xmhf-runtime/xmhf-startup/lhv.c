@@ -114,7 +114,7 @@ void lhv_exploit_vmxroot(VCPU *vcpu)
 	{
 		extern u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
 		while (1) {
-			printf("data=0x%08lx ", *(uintptr_t *)(pal_demo_data[0]));
+			printf("data=0x%08lx\n", *(uintptr_t *)(pal_demo_data[0]));
 			asm volatile ("hlt");
 		}
 	}
@@ -130,11 +130,11 @@ for i in g_vmx_{{{,lock_}quiesce,{,lock_}quiesce_resume}_counter,quiesce_resume_
 	nm xmhf/src/xmhf-core/xmhf-runtime/runtime.exe | grep $i
 done
  */
-	volatile u32 *p_quiesce_counter             = (volatile u32 *)0x10247104UL;
-	volatile u32 *p_lock_quiesce_counter        = (volatile u32 *)0x10247108UL;
-	volatile u32 *p_quiesce_resume_counter      = (volatile u32 *)0x1024710cUL;
-	volatile u32 *p_lock_quiesce_resume_counter = (volatile u32 *)0x10247110UL;
-	volatile u32 *p_quiesce_resume_signal       = (volatile u32 *)0x1024711cUL;
+	volatile u32 *p_quiesce_counter             = (volatile u32 *)0x1025c104UL;
+	volatile u32 *p_lock_quiesce_counter        = (volatile u32 *)0x1025c108UL;
+	volatile u32 *p_quiesce_resume_counter      = (volatile u32 *)0x1025c10cUL;
+	volatile u32 *p_lock_quiesce_resume_counter = (volatile u32 *)0x1025c110UL;
+	volatile u32 *p_quiesce_resume_signal       = (volatile u32 *)0x1025c11cUL;
 	/* Copy the logic from xmhf_smpguest_arch_x86vmx_nmi_check_quiesce() */
 	spin_lock(p_lock_quiesce_counter);
 	(*p_quiesce_counter)++;
