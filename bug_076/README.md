@@ -298,6 +298,7 @@ This page will be used to track various bugs reported to QEMU / KVM
 	* Fix sent by email, from Sean Christopherson <seanjc@google.com>, title
 	  "[PATCH v5 03/15] KVM: nVMX: Inject #UD if VMXON is attempted with
 	   incompatible CR0/CR4", time Tue,  7 Jun 2022 21:35:52 +0000
+	* Tested the fix and realized that fix is incorrect
 * `bug_078`: Linux stucks when using x2APIC on HP 840
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216045>
 * `bug_077`: XMHF booting Windows results in "kvm run failed Input/output error"
@@ -308,4 +309,6 @@ This page will be used to track various bugs reported to QEMU / KVM
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216212>
 * `bug_085`: L2 guest REP INS gets zero page when EPT violation
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216234>
+* `bug_087`: KVM and Bochs incorrect behavior on nested NMI
+	* TODO: not reported yet
 

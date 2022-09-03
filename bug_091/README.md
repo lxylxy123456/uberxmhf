@@ -506,8 +506,50 @@ Untried ideas
 * consider disabling Linux components (e.g. watchdog)
 * test other OSes first
 
-### NMI experiments
+### Testing NMI tests 2 (`lhv-nmi` branch)
 
-TODO: work on NMI experiment 27
+In `bug_087`, wrote NMI experiment 27, but the experiment result does not make
+sense on real hardware. Actually, it is because a function call to
+`set_inject_nmi()` is not removed.
+
+Fixed in `lhv-nmi 3cee6b73a..579cce4ba` and added more tests. Now things look
+good. XMHF also passes these experiments.
+
+### Testing INIT-SIPI-SIPI twice exploit (`bug_086`)
+
+In `bug_086`, wrote exploit code in `14339e362..12ade0a3b`. Now we test this
+code on HP. Looks like it works well. Code in `lhv-dev 432c0aa3b..9baab9396`.
+The set up is:
+
+```
+# build32: xmhf64-nest f9a93b709
+./build.sh i386 fast
+for i in g_vmx_{{{,lock_}quiesce,{,lock_}quiesce_resume}_counter,quiesce_resume_signal}; do
+	nm xmhf/src/xmhf-core/xmhf-runtime/runtime.exe | grep $i
+done
+# build64lhv: lhv-dev 9baab9396
+# Update 5 pointers in lhv.c, like p_quiesce_counter
+./build.sh i386
+# any
+copyxmhf && hpgrub XMHF-build32 XMHF-build64lhv && hpinit6
+# See data=0x6789d000
+```
+
+The above works well. However, looks like this exploit does not work when DRT
+is present. DRT (uses SMX) documentation are in Intel v2
+"CHAPTER 6 SAFER MODE EXTENSIONS REFERENCE":
+> A successful launch of the measured environment results in the initiating
+> logical processor entering the authenticated code execution mode. Prior to
+> reaching this point, the ILP performs the following steps internally:
+> ...
+> Inhibit processor response to the external events: INIT, A20M, NMI, and SMI.
+
+Currently, looks like the entire laptop restarts immediately after the second
+INIT is received by VMX ROOT and SMX mode. We think that this is acceptible
+behavior. So we conclude that the INIT-SIPI-SIPI twice exploit only works
+without DRT.
+
+`lhv-dev 0fba4a3a1` and `xmhf64-nest-dev 6e6801cb6` shows the above behavior.
+
 TODO: try other OSes
 
