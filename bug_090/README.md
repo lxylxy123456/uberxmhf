@@ -375,6 +375,7 @@ We compile Linux with KVM to debug it better. For GDB scripts follow
 	* `CONFIG_DEBUG_INFO=y`
 	* `CONFIG_GDB_SCRIPTS=y`
 
+TODO: see "0x000000000260a001 not in guest EPT" messages
 TODO: try not using VMCS shadowing
 TODO: how slow is KVM KVM KVM?
 TODO: why UP is slow (print VMEXIT and VMENTRY)

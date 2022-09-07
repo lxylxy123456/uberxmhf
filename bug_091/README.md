@@ -551,5 +551,21 @@ without DRT.
 
 `lhv-dev 0fba4a3a1` and `xmhf64-nest-dev 6e6801cb6` shows the above behavior.
 
-TODO: try other OSes
+### Testing XMHF XMHF with other OSes
+
+Instead of Debian x64, we try other OSes above two levels of XMHF. The test is
+to boot the OS and run `pal_demo`.
+
+* amd64 XMHF, amd64 XMHF, i386 Debian: good
+* amd64 XMHF, amd64 XMHF, i386 Windows 7: good
+* amd64 XMHF, amd64 XMHF, amd64 Windows 7: good
+* amd64 XMHF, amd64 XMHF, amd64 Windows 8.1: good (slow)
+* amd64 XMHF, amd64 XMHF, i386 Windows 10: good (very slow)
+	* See too frequent EPT02 full messages
+* amd64 XMHF, amd64 XMHF, amd64 Windows 10: TODO
+* amd64 XMHF, i386 XMHF, ...
+* i386 XMHF, i386 XMHF, ...
+
+TODO: try above
+TODO: try first level XMHF with DRT (and DMAP?)
 
