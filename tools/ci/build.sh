@@ -4,6 +4,7 @@
 # arguments:
 #   --drt: enable DRT (--disable-drt)
 #   --dmap: enable DMAP (--disable-dmap)
+#   --vga: use VGA instead of serial (--disable-debug-serial --enable-debug-vga)
 #   --no-dbg: do not use QEMU debug workarounds (--enable-debug-qemu)
 #   --no-ucode: disable Intel microcode update (--enable-update-intel-ucode)
 #   --app APP: set hypapp, default is "hypapps/trustvisor" (--with-approot)
@@ -31,6 +32,7 @@ APPROOT="hypapps/trustvisor"
 SUBARCH=""
 DRT="n"
 DMAP="n"
+VGA="n"
 QEMU="y"
 UCODE="y"
 AMD64MEM="0x140000000"
@@ -86,6 +88,9 @@ while [ "$#" -gt 0 ]; do
 			;;
 		--dmap)
 			DMAP="y"
+			;;
+		--vga)
+			VGA="y"
 			;;
 		--no-dbg)
 			QEMU="n"
@@ -180,6 +185,10 @@ if [ "$DMAP" == "n" ]; then
 	CONF+=("--disable-dmap")
 fi
 
+if [ "$VGA" == "y" ]; then
+	CONF+=("--disable-debug-serial" "--enable-debug-vga")
+fi
+
 if [ "$QEMU" == "y" ]; then
 	CONF+=("--enable-debug-qemu")
 fi
@@ -191,7 +200,7 @@ fi
 if [ "$OPT" == "O3" ]; then
 	# -Wno-stringop-overflow is set due to a compile bug in GCC 10 / GCC 11
 	# Reported in https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105100
-	CONF+=("--with-opt=-O3 -Wno-stringop-overflow")
+	CONF+=("--with-opt=-O3 -Wno-stringop-overflow -Wno-array-bounds")
 fi
 
 if [ "$NO_X2APIC" == "y" ]; then

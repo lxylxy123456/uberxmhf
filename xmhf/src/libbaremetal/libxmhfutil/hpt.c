@@ -361,8 +361,13 @@ hpt_pme_t hpt_pme_getunused(hpt_type_t t, int lvl, hpt_pme_t entry, int hi, int 
 /* Get the present bit in entry. */
 bool hpt_pme_is_present(hpt_type_t t, int lvl, hpt_pme_t entry)
 {
-  /* a valid entry is present iff read access is enabled. */
-  return hpt_pme_getprot(t, lvl, entry) & HPT_PROT_READ_MASK;
+  if (t == HPT_TYPE_EPT) {
+    /* For EPT, a valid entry is present iff any of RWX is enabled */
+    return hpt_pme_getprot(t, lvl, entry) & HPT_PROTS_RWX;
+  } else {
+    /* For normal paging, a valid entry is present iff read access is enabled */
+    return hpt_pme_getprot(t, lvl, entry) & HPT_PROT_READ_MASK;
+  }
 }
 
 /*
@@ -751,7 +756,7 @@ hpt_pmt_t hpt_pme_get_pmt(hpt_type_t t, int lvl, hpt_pme_t pme)
 
 /* Set the memory type (e.g. uncached, write back) of entry. */
 /* Always clears PAT bit when applicable. */
-hpt_pmt_t hpt_pme_set_pmt(hpt_type_t t, int lvl, hpt_pme_t pme, hpt_pmt_t pmt)
+hpt_pme_t hpt_pme_set_pmt(hpt_type_t t, int lvl, hpt_pme_t pme, hpt_pmt_t pmt)
 {
   hpt_pme_t rv;
   if (t == HPT_TYPE_EPT) {
