@@ -375,7 +375,10 @@ We compile Linux with KVM to debug it better. For GDB scripts follow
 	* `CONFIG_DEBUG_INFO=y`
 	* `CONFIG_GDB_SCRIPTS=y`
 
-TODO: see "0x000000000260a001 not in guest EPT" messages
+See "0x000000000260a001 not in guest EPT" messages, because I forgot to remove
+a QEMU workaround. After removing it, looks like some progress is made (VGA
+screen size can be changed to 1024x768).
+
 TODO: try not using VMCS shadowing
 TODO: how slow is KVM KVM KVM?
 TODO: why UP is slow (print VMEXIT and VMENTRY)

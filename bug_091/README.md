@@ -556,16 +556,30 @@ without DRT.
 Instead of Debian x64, we try other OSes above two levels of XMHF. The test is
 to boot the OS and run `pal_demo`.
 
-* amd64 XMHF, amd64 XMHF, i386 Debian: good
+* amd64 XMHF, amd64 XMHF, i386 Debian 11: good
 * amd64 XMHF, amd64 XMHF, i386 Windows 7: good
 * amd64 XMHF, amd64 XMHF, amd64 Windows 7: good
 * amd64 XMHF, amd64 XMHF, amd64 Windows 8.1: good (slow)
 * amd64 XMHF, amd64 XMHF, i386 Windows 10: good (very slow)
 	* See too frequent EPT02 full messages
-* amd64 XMHF, amd64 XMHF, amd64 Windows 10: TODO
-* amd64 XMHF, i386 XMHF, ...
-* i386 XMHF, i386 XMHF, ...
+* amd64 XMHF, amd64 XMHF, amd64 Windows 10: good (very slow)
+* amd64 XMHF, i386 XMHF, i386 Debian 11: good
+* amd64 XMHF, i386 XMHF, i386 Windows 7: good
+* amd64 XMHF, i386 XMHF, i386 Windows 10: good (very slow)
+* i386 XMHF, i386 XMHF, i386 Debian 11: good
+* i386 XMHF, i386 XMHF, i386 Windows 7: good
+* i386 XMHF, i386 XMHF, i386 Windows 10: not tested
+* amd64 XMHF DRT DMAP, i386 XMHF, i386 Debian 11: screen corrupted, but can ssh
+* amd64 XMHF DRT DMAP, i386 XMHF, i386 Windows 7: good
+* i386 XMHF DRT DMAP, i386 XMHF, i386 Debian 11: screen corrupted, but can ssh
+* i386 XMHF DRT DMAP, i386 XMHF, i386 Windows 7: good
+* i386 XMHF DRT DMAP, i386 Debian 11: screen corrupted, ssh cannot run pal_demo
 
-TODO: try above
-TODO: try first level XMHF with DRT (and DMAP?)
+Problems encountered during above
+* Windows 8.1 uses an unknown microcode update. Need to add the update sha
+* amd64 XMHF DRT DMAP will use more memory, so to compile L1 XMHF, use
+  `--sl-base 0x30000000`
+* The "screen corrupted" problem is known, see 21 Mar 2022 email
+
+TODO: try first level XMHF with DRT only
 
