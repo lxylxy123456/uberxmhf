@@ -214,8 +214,8 @@ void xmhf_runtime_entry(void){
 				}
 
 				// Protect SL and runtime memory regions
-				xmhf_dmaprot_protect(rpb->XtVmmRuntimePhysBase - PAGE_SIZE_2M, rpb->XtVmmRuntimeSize+PAGE_SIZE_2M);
-				printf("Runtime: Protected SL+Runtime (%08lx-%08x) from DMA.\n", rpb->XtVmmRuntimePhysBase - PAGE_SIZE_2M, rpb->XtVmmRuntimePhysBase+rpb->XtVmmRuntimeSize);
+				// xmhf_dmaprot_protect(rpb->XtVmmRuntimePhysBase - PAGE_SIZE_2M, rpb->XtVmmRuntimeSize+PAGE_SIZE_2M);
+				// printf("Runtime: Protected SL+Runtime (%08lx-%08x) from DMA.\n", rpb->XtVmmRuntimePhysBase - PAGE_SIZE_2M, rpb->XtVmmRuntimePhysBase+rpb->XtVmmRuntimeSize);
 
                 // Enable DMA protection
                 if(!xmhf_dmaprot_enable(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size)){
@@ -313,12 +313,6 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 #ifndef __XMHF_VERIFICATION__
   //initialize support for SMP guests
   xmhf_smpguest_initialize(vcpu);
-#endif
-
-#if defined (__DMAP__)
-  // [TODO][Superymk] Ugly hack: HP2540p's GPU does not work properly if not invoking <xmhf_dmaprot_invalidate_cache> 
-  // in <xmhf_runtime_main>.
-  xmhf_dmaprot_invalidate_cache();
 #endif
 
   //start partition (guest)
