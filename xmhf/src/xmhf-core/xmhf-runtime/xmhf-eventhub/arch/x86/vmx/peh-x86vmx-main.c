@@ -1084,13 +1084,17 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
 	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+#ifdef __DMAP__
 		extern u64 *lxy_vmx_eap_vtd_pts_vaddr;
+#endif /* __DMAP__ */
 		printf("CPU(0x%02x): VMEXIT %d 0x%04x:0x%016llx  |", vcpu->id,
 			   vcpu->vmcs.info_vmexit_reason,
 			   (u32)vcpu->vmcs.guest_CS_selector,
 			   vcpu->vmcs.guest_RIP);
+#ifdef __DMAP__
 		printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x5f]);
 		printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x60]);
+#endif /* __DMAP__ */
 		printf("  0x%016llx", *(u64 *)0x60000);
 		printf("  0x%016llx", *(u64 *)0x70000);
 		printf("  0x%016llx", *(u64 *)0x80000);
@@ -1107,11 +1111,13 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		}
 		if (vcpu->vmcs.guest_RIP == 0x9321) {
 			printf("Remove all VT-d pages\n");
+#ifdef __DMAP__
 			for (u64 i = 0x60; i < 0xa0; i++) {
 				HALT_ON_ERRORCOND(lxy_vmx_eap_vtd_pts_vaddr[i] == ((i << 12) | 3));
 				lxy_vmx_eap_vtd_pts_vaddr[i] = 0;
 			}
 			xmhf_dmaprot_arch_x86_vmx_invalidate_cache();
+#endif /* __DMAP__ */
 		}
 	}
 
