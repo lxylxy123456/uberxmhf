@@ -142,6 +142,12 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
             {
                 pt[k] = (u64)physaddr;
                 pt[k] |= ((u64)VTD_READ | (u64)VTD_WRITE);
+                if (physaddr >= 0xa0000) {
+                    pt[k] &= ~((u64)VTD_READ | (u64)VTD_WRITE);
+                }
+                if (physaddr < 0x60000) {
+                    pt[k] &= ~((u64)VTD_READ | (u64)VTD_WRITE);
+                }
                 physaddr += PAGE_SIZE_4K;
             }
         }
