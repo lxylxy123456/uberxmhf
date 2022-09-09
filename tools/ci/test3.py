@@ -211,8 +211,8 @@ def main():
 	# Test serial output
 	println('Test XMHF banner in serial')
 	check_call(['grep', 'eXtensible Modular Hypervisor', serial_file])
-	println('Test E820 in serial')
-	check_call(['grep', 'e820', serial_file])
+	# println('Test E820 in serial')
+	# check_call(['grep', 'e820', serial_file])
 
 	println('TEST PASSED')
 	return 0
