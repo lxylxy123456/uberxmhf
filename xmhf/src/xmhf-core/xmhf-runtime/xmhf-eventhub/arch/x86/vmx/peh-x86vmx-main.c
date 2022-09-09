@@ -1083,9 +1083,21 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * is for quiescing (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION),
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
-//	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
-//		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
-//	}
+	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+		printf("CPU(0x%02x): VMEXIT %d 0x%04x:0x%016llx\n", vcpu->id,
+			   vcpu->vmcs.info_vmexit_reason,
+			   (u32)vcpu->vmcs.guest_CS_selector,
+			   vcpu->vmcs.guest_RIP);
+		if (0) {
+			/* https://wiki.osdev.org/Serial_Ports */
+			extern uart_config_t g_uart_config;
+			while (!(inb(g_uart_config.port + 0x5) & 1)) {
+				xmhf_cpu_relex();
+			}
+			printf("CPU(0x%02x): Read 0x%02x\n", vcpu->id,
+				   (u32) inb(g_uart_config.port));
+		}
+	}
 
 	//handle intercepts
 	switch((u32)vcpu->vmcs.info_vmexit_reason){
