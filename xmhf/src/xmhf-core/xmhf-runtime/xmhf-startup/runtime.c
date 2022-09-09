@@ -225,6 +225,12 @@ void xmhf_runtime_entry(void){
 
                 xmhf_dmaprot_invalidate_cache();
 		}
+		{
+			*(u64 *)0x60000 = 0xdead34567890beefULL;
+			*(u64 *)0x70000 = 0xdead34567890beefULL;
+			*(u64 *)0x80000 = 0xdead34567890beefULL;
+			*(u64 *)0x90000 = 0xdead34567890beefULL;
+		}
 
 #else //!__DMAP__
 

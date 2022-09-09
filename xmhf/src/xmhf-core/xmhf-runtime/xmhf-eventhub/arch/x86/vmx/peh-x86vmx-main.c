@@ -1084,10 +1084,18 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
 	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
-		printf("CPU(0x%02x): VMEXIT %d 0x%04x:0x%016llx\n", vcpu->id,
+		extern u64 *lxy_vmx_eap_vtd_pts_vaddr;
+		printf("CPU(0x%02x): VMEXIT %d 0x%04x:0x%016llx  |", vcpu->id,
 			   vcpu->vmcs.info_vmexit_reason,
 			   (u32)vcpu->vmcs.guest_CS_selector,
 			   vcpu->vmcs.guest_RIP);
+		printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x5f]);
+		printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x60]);
+		printf("  0x%016llx", *(u64 *)0x60000);
+		printf("  0x%016llx", *(u64 *)0x70000);
+		printf("  0x%016llx", *(u64 *)0x80000);
+		printf("  0x%016llx", *(u64 *)0x90000);
+		printf("\n");
 		if (0) {
 			/* https://wiki.osdev.org/Serial_Ports */
 			extern uart_config_t g_uart_config;
@@ -1096,6 +1104,14 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			}
 			printf("CPU(0x%02x): Read 0x%02x\n", vcpu->id,
 				   (u32) inb(g_uart_config.port));
+		}
+		if (vcpu->vmcs.guest_RIP == 0x9321) {
+			printf("Remove all VT-d pages\n");
+			for (u64 i = 0x60; i < 0xa0; i++) {
+				HALT_ON_ERRORCOND(lxy_vmx_eap_vtd_pts_vaddr[i] == ((i << 12) | 3));
+				lxy_vmx_eap_vtd_pts_vaddr[i] = 0;
+			}
+			xmhf_dmaprot_arch_x86_vmx_invalidate_cache();
 		}
 	}
 

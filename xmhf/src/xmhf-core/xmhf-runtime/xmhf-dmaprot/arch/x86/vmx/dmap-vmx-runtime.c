@@ -140,13 +140,11 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
             pt = (pt_t)(vtd_pts_vaddr + (i * PAGE_SIZE_4K * PAE_PTRS_PER_PDT) + (j * PAGE_SIZE_4K));
             for (k = 0; k < PAE_PTRS_PER_PT; k++)
             {
-                pt[k] = (u64)physaddr;
-                pt[k] |= ((u64)VTD_READ | (u64)VTD_WRITE);
-                if (physaddr >= 0xa0000) {
-                    pt[k] &= ~((u64)VTD_READ | (u64)VTD_WRITE);
-                }
-                if (physaddr < 0x60000) {
-                    pt[k] &= ~((u64)VTD_READ | (u64)VTD_WRITE);
+                if (0x60000 <= physaddr && physaddr < 0xa0000) {
+                    pt[k] = (u64)physaddr;
+                    pt[k] |= ((u64)VTD_READ | (u64)VTD_WRITE);
+                } else {
+                    pt[k] = 0ULL;
                 }
                 physaddr += PAGE_SIZE_4K;
             }
@@ -601,6 +599,8 @@ u32 xmhf_dmaprot_arch_x86_vmx_enable(spa_t protectedbuffer_paddr,
     return 1;
 }
 
+u64 *lxy_vmx_eap_vtd_pts_vaddr;
+
 //"normal" DMA protection initialization to setup required
 // structures for DMA protection
 // return 1 on success 0 on failure
@@ -635,6 +635,8 @@ u32 xmhf_dmaprot_arch_x86_vmx_initialize(spa_t protectedbuffer_paddr,
     vmx_eap_vtd_cet_vaddr = vmx_eap_vtd_ret_vaddr + PAGE_SIZE_4K;
 
     HALT_ON_ERRORCOND(vmx_eap_vtd_cet_vaddr + PAGE_SIZE_4K * PCI_BUS_MAX == protectedbuffer_vaddr + SIZE_G_RNTM_DMAPROT_BUFFER);
+
+    lxy_vmx_eap_vtd_pts_vaddr = (u64 *) vmx_eap_vtd_pts_vaddr;
 
     // [Superymk] [TODO] ugly hack...
     vtd_cet = (void *)vmx_eap_vtd_cet_vaddr;
