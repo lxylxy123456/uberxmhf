@@ -1104,7 +1104,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			/* https://wiki.osdev.org/Serial_Ports */
 			extern uart_config_t g_uart_config;
 			while (!(inb(g_uart_config.port + 0x5) & 1)) {
-				xmhf_cpu_relex();
+				xmhf_cpu_relax();
 			}
 			printf("CPU(0x%02x): Read 0x%02x\n", vcpu->id,
 				   (u32) inb(g_uart_config.port));
