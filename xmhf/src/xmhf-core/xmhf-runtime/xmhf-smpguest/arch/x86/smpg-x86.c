@@ -92,6 +92,8 @@ void xmhf_smpguest_arch_initialize(VCPU *vcpu){
 			printf("CPU(0x%02x): AP, waiting for SIPI signal...\n", vcpu->id);
 			#ifndef __XMHF_VERIFICATION__
 			while (!vcpu->sipireceived) {
+				printf("CPU(0x%02x): warning: APs disabled\n", vcpu->id);
+				HALT();
 				xmhf_cpu_relex();
 			}
 			#endif
