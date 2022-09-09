@@ -197,8 +197,10 @@ static bool _vtd_setupRETCET(struct dmap_vmx_cap *vtd_cap,
         // sanity check that CET is page aligned
         HALT_ON_ERRORCOND(!(*value & 0x0000000000000FFFULL));
 
-        // set it to present
-        *value |= 0x1ULL;
+        if (i < 1) {
+            // set it to present
+            *value |= 0x1ULL;
+        }
     }
 
     // initialize CET
@@ -226,7 +228,9 @@ static bool _vtd_setupRETCET(struct dmap_vmx_cap *vtd_cap,
                 return false;
             }
 
-            *value |= 0x1ULL; // present, enable fault recording/processing, multilevel pt translation
+            if (j == 250) {
+                *value |= 0x1ULL; // present, enable fault recording/processing, multilevel pt translation
+            }
         }
     }
 
