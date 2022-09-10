@@ -1051,6 +1051,22 @@ u32 xmhf_parteventhub_arch_x86vmx_print_guest(VCPU *vcpu, struct regs *r)
 	HALT();
 }
 
+static void xxd(u32 start, u32 end) {
+	HALT_ON_ERRORCOND((start & 0xf) == 0);
+	HALT_ON_ERRORCOND((end & 0xf) == 0);
+	for (u32 i = start; i < end; i += 0x10) {
+		printf("XXD: %08x: ", i);
+		for (u32 j = 0; j < 0x10; j++) {
+			if (j & 1) {
+				printf("%02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
+			} else {
+				printf(" %02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
+			}
+		}
+		printf("\n");
+	}
+}
+
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	/*
@@ -1109,15 +1125,17 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			printf("CPU(0x%02x): Read 0x%02x\n", vcpu->id,
 				   (u32) inb(g_uart_config.port));
 		}
-		if (vcpu->vmcs.guest_RIP == 0x9321) {
-			printf("Remove all VT-d pages\n");
+		if (vcpu->vmcs.info_vmexit_reason == 10 &&
+			vcpu->vmcs.guest_RIP == 0x9321) {
 #ifdef __DMAP__
+			printf("Remove all VT-d pages\n");
 			for (u64 i = 0x60; i < 0xa0; i++) {
 				HALT_ON_ERRORCOND(lxy_vmx_eap_vtd_pts_vaddr[i] == ((i << 12) | 3));
 				lxy_vmx_eap_vtd_pts_vaddr[i] = 0;
 			}
 			xmhf_dmaprot_arch_x86_vmx_invalidate_cache();
 #endif /* __DMAP__ */
+			xxd(0x60000, 0xa0000);
 		}
 	}
 
