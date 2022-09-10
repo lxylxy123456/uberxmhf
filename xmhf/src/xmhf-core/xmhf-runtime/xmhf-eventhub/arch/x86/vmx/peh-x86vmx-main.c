@@ -1129,35 +1129,14 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			vcpu->vmcs.guest_RIP == 0x9321) {
 #ifdef __DMAP__
 			printf("Remove all VT-d pages\n");
-			for (u64 i = 0x60; i < 0xa0; i++) {
-				switch (i) {
-				case 0x70: /* fallthrough */
-				case 0x71: /* fallthrough */
-				case 0x72: /* fallthrough */
-				case 0x73: /* fallthrough */
-				case 0x74: /* fallthrough */
-				case 0x75: /* fallthrough */
-				case 0x76: /* fallthrough */
-				case 0x77: /* fallthrough */
-				case 0x78: /* fallthrough */
-				case 0x79: /* fallthrough */
-				case 0x7a: /* fallthrough */
-				case 0x7b: /* fallthrough */
-				case 0x7c: /* fallthrough */
-				case 0x7f: /* fallthrough */
-				case 0x9f:
-					HALT_ON_ERRORCOND(lxy_vmx_eap_vtd_pts_vaddr[i] == ((i << 12) | 3));
-					lxy_vmx_eap_vtd_pts_vaddr[i] = 0;
-					break;
-				default:
-					HALT_ON_ERRORCOND(lxy_vmx_eap_vtd_pts_vaddr[i] == 0);
-					break;
-				}
+			for (u64 i = 0x68; i < 0xa0; i++) {
+				HALT_ON_ERRORCOND(lxy_vmx_eap_vtd_pts_vaddr[i] == ((i << 12) | 3));
+				lxy_vmx_eap_vtd_pts_vaddr[i] = 0;
 			}
 			xmhf_dmaprot_arch_x86_vmx_invalidate_cache();
 #endif /* __DMAP__ */
 			(void) xxd;
-			// xxd(0x60000, 0xa0000);
+			// xxd(0x68000, 0xa0000);
 		}
 	}
 

@@ -226,8 +226,8 @@ void xmhf_runtime_entry(void){
                 xmhf_dmaprot_invalidate_cache();
 		}
 		{
-			asm volatile ("cld; rep stosb;" : : "a" (0xc5U), "c" (0x40000),
-						  "D" (0x60000) : "memory", "cc");
+			asm volatile ("cld; rep stosb;" : : "a" (0xc5U), "c" (0x38000),
+						  "D" (0x68000) : "memory", "cc");
 			// *(u64 *)0x60000 = 0xdead34567890beefULL;
 			// *(u64 *)0x70000 = 0xdead34567890beefULL;
 			// *(u64 *)0x80000 = 0xdead34567890beefULL;
