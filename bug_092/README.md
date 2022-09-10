@@ -99,5 +99,55 @@ Now we experiment changing `_vtd_setuppagetables()` and see behavior
 * Only map memory 0x60000-0xa0000 readonly: print "GRUB", then triple fault
 * Only map memory 0x60000-0xa0000 writeonly: print "GRUB", then stuck
 
-TODO: remove entries in RET and CET
+We print all VMEXITs and their CS:RIP to get a better picture. However this
+does not help too much.
+
+Then we remove entries in RET and CET and see what happens. Change the
+`_vtd_setupRETCET()` function.
+* Only map [0, 16) in RET: same behavior as map all
+* Only map [0, 4) in RET: same behavior as map all
+* Only map [0, 1) in RET: same behavior as map all
+* Only map [1, 256) in RET: print "GRUB", then stuck, no VMEXIT
+* Only map 0 in RET, [0, 128) in CET: print "GRUB", then stuck, no VMEXIT
+* Only map 0 in RET, (128, 256) in CET: same behavior as map all
+* Only map 0 in RET, (128, 192) in CET: print "GRUB", then stuck, no VMEXIT
+* Only map 0 in RET, [224, 256) in CET: same behavior as map all
+* Only map 0 in RET, [240, 256) in CET: same behavior as map all
+* Only map 0 in RET, [248, 256) in CET: same behavior as map all
+* Only map 0 in RET, [252, 256) in CET: print "GRUB", then stuck, no VMEXIT
+* Only map 0 in RET, [248, 250) in CET: print "GRUB", then stuck, no VMEXIT
+* Only map 0 in RET, 250 in CET: same behavior as map all
+	* See `xmhf64-dev dbeba0a95`
+
+This correcponds to `00:1f.2` in lspic, which is
+```
+00:1f.2 IDE interface: Intel Corporation 5 Series/3400 Series Chipset 4 port SATA IDE Controller (rev 05)
+```
+
+In GRUB source code, looks like the most likely related function is
+`grub_ata_readwrite()`. It uses macro `GRUB_ATA_CMD_READ_SECTORS_DMA_EXT`,
+which is the same as <https://wiki.osdev.org/PCI_IDE_Controller>.
+
+We also remove DRHDs. There are 3 DRHDs in total.
+* Only configure DRHD 0: no bug reproduced
+* Only configure DRHD 0 and 1: same behavior as map all
+* Only configure DRHD 1: same behavior as map all. See `xmhf64-dev de0fa3d4a`.
+
+Currently we guess the bug happens at:
+* DRHD 1 (index starts at 0)
+* ACPI 00:1f.2 (IDE)
+* Memory 0x60000-0xa0000
+* Before the first VMEXIT
+
+In `xmhf64-dev 93ae57d1b`, we remove VT-d after the first VMEXIT
+(CS:RIP=0x8:9321, reason=10 CPUID). The behavior of GRUB is still the same.
+After GRUB boots Debian, Debian seems to stuck at a different place.
+
+Now my guess about this bug is that when IDE is reading disk sectors to memory,
+the data gets corrupted. This causes screen corruption as a by-product. The
+next step is to dump memory and compare DMAP / no DMAP behavior.
+
+TODO print memory dump at VMEXIT
+TODO use I/O VMEXIT
+TODO check Linux error message with VT-d (firmware bug?)
 
