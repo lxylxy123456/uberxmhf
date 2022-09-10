@@ -49,6 +49,7 @@
 // author: amit vasudevan (amitvasudevan@acm.org)
 #include <xmhf.h>
 
+static void xxd(u32 start, u32 end);
 
 //---VMX decode assist----------------------------------------------------------
 //map a CPU register index into appropriate VCPU *vcpu or struct regs *r field
@@ -692,48 +693,46 @@ static void _vmx_handle_intercept_eptviolation(VCPU *vcpu, struct regs *r){
 
 //---intercept handler (I/O port access)----------------------------------------
 static void _vmx_handle_intercept_ioportaccess(VCPU *vcpu, struct regs *r){
-  u32 access_size, access_type, portnum, stringio;
-	u32 app_ret_status = APP_IOINTERCEPT_CHAIN;
+	u32 access_size = ((u32)vcpu->vmcs.info_exit_qualification & 0x00000007UL);
+	bool is_in = ((u32)vcpu->vmcs.info_exit_qualification & 0x00000008UL);
+	bool stringio = ((u32)vcpu->vmcs.info_exit_qualification & 0x00000010UL);
+	bool rep_prefix = ((u32)vcpu->vmcs.info_exit_qualification & 0x00000020UL);
+	u16 portnum =  ((u32)vcpu->vmcs.info_exit_qualification & 0xFFFF0000UL) >> 16;
 
-  access_size = (u32)vcpu->vmcs.info_exit_qualification & 0x00000007UL;
-	access_type = ((u32)vcpu->vmcs.info_exit_qualification & 0x00000008UL) >> 3;
-	portnum =  ((u32)vcpu->vmcs.info_exit_qualification & 0xFFFF0000UL) >> 16;
-	stringio = ((u32)vcpu->vmcs.info_exit_qualification & 0x00000010UL) >> 4;
+	HALT_ON_ERRORCOND(!stringio);	//we dont handle string IO intercepts
 
-  HALT_ON_ERRORCOND(!stringio);	//we dont handle string IO intercepts
-
-  //call our app handler, TODO: it should be possible for an app to
-  //NOT want a callback by setting up some parameters during appmain
-	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
-	app_ret_status=xmhf_app_handleintercept_portaccess(vcpu, r, portnum, access_type,
-          access_size);
-    xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
-
-  if(app_ret_status == APP_IOINTERCEPT_CHAIN){
-   	if(access_type == IO_TYPE_OUT){
-  		if( access_size== IO_SIZE_BYTE)
-  				outb((u8)r->eax, portnum);
-  		else if (access_size == IO_SIZE_WORD)
-  				outw((u16)r->eax, portnum);
-  		else if (access_size == IO_SIZE_DWORD)
-  				outl((u32)r->eax, portnum);
-  	}else{
-  		if( access_size== IO_SIZE_BYTE){
-  				r->eax &= 0xFFFFFF00UL;	//clear lower 8 bits
-  				r->eax |= (u8)inb(portnum);
-  		}else if (access_size == IO_SIZE_WORD){
-  				r->eax &= 0xFFFF0000UL;	//clear lower 16 bits
-  				r->eax |= (u16)inw(portnum);
-  		}else if (access_size == IO_SIZE_DWORD){
-  				r->eax = (u32)inl(portnum);
-  		}
-  	}
-  	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
-
-  }else{
-    //skip the IO instruction, app has taken care of it
-  	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
-  }
+	if (!is_in) {
+		if (access_size == IO_SIZE_BYTE) {
+			outb((u8)r->eax, portnum);
+		} else if (access_size == IO_SIZE_WORD) {
+			outw((u16)r->eax, portnum);
+		} else if (access_size == IO_SIZE_DWORD) {
+			outl((u32)r->eax, portnum);
+		}
+	} else {
+		if (access_size== IO_SIZE_BYTE){
+			r->eax &= 0xFFFFFF00UL;	//clear lower 8 bits
+			r->eax |= (u8)inb(portnum);
+		} else if (access_size == IO_SIZE_WORD){
+			r->eax &= 0xFFFF0000UL;	//clear lower 16 bits
+			r->eax |= (u16)inw(portnum);
+		} else if (access_size == IO_SIZE_DWORD){
+			r->eax = (u32)inl(portnum);
+		}
+	}
+	if (rep_prefix) {
+		printf("RIP=0x%08lx\n", vcpu->vmcs.guest_RIP);
+		printf("len=0x%08lx\n", vcpu->vmcs.info_vmexit_instruction_length);
+		printf("inst:\n");
+		{
+			uintptr_t p = (vcpu->vmcs.guest_RIP + vcpu->vmcs.guest_CS_base);
+			p %= 16;
+			xxd(p, p + 16);
+		}
+		HALT_ON_ERRORCOND(0 && "TODO");
+	} else {
+		vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
+	}
 
 	return;
 }
@@ -1099,11 +1098,34 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * is for quiescing (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION),
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
-	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+	if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_IOIO) {
+		bool skip_flag = false;
+		if (vcpu->vmcs.guest_CS_selector == 0xf000) {
+			/*
+			 * Skip too frequent IO instructions (looks like keyboard / timer)
+			 * https://stackoverflow.com/questions/14848645/
+			 */
+			if (vcpu->vmcs.guest_RIP == 0x0000feeb) {
+				skip_flag = true;
+				HALT_ON_ERRORCOND((u32)vcpu->vmcs.info_exit_qualification == 0x00200040);
+			} else if (vcpu->vmcs.guest_RIP == 0x0000fa46) {
+				skip_flag = true;
+				HALT_ON_ERRORCOND((u32)vcpu->vmcs.info_exit_qualification == 0x00610048);
+			}
+		}
+		if (!skip_flag) {
+			printf("CPU(0x%02x): VMEXIT %d 0x%04x:0x%08llx  |", vcpu->id,
+				   vcpu->vmcs.info_vmexit_reason,
+				   (u32)vcpu->vmcs.guest_CS_selector,
+				   vcpu->vmcs.guest_RIP);
+			printf("  0x%08lx", vcpu->vmcs.info_exit_qualification);
+			printf("\n");
+		}
+	} else if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
 #ifdef __DMAP__
 		extern u64 *lxy_vmx_eap_vtd_pts_vaddr;
 #endif /* __DMAP__ */
-		printf("CPU(0x%02x): VMEXIT %d 0x%04x:0x%016llx  |", vcpu->id,
+		printf("CPU(0x%02x): VMEXIT %d 0x%04x:0x%08llx  |", vcpu->id,
 			   vcpu->vmcs.info_vmexit_reason,
 			   (u32)vcpu->vmcs.guest_CS_selector,
 			   vcpu->vmcs.guest_RIP);
@@ -1135,6 +1157,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			}
 			xmhf_dmaprot_arch_x86_vmx_invalidate_cache();
 #endif /* __DMAP__ */
+			for (u64 i = 0x68; i < 0xa0; i++) {
+				xxd((i << 12), (i << 12) + 16);
+			}
 			(void) xxd;
 			// xxd(0x68000, 0xa0000);
 		}
