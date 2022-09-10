@@ -140,11 +140,28 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
             pt = (pt_t)(vtd_pts_vaddr + (i * PAGE_SIZE_4K * PAE_PTRS_PER_PDT) + (j * PAGE_SIZE_4K));
             for (k = 0; k < PAE_PTRS_PER_PT; k++)
             {
-                if (0x70000 <= physaddr && physaddr < 0xa0000) {
+                switch (physaddr >> 12) {
+                case 0x70: /* fallthrough */
+                case 0x71: /* fallthrough */
+                case 0x72: /* fallthrough */
+                case 0x73: /* fallthrough */
+                case 0x74: /* fallthrough */
+                case 0x75: /* fallthrough */
+                case 0x76: /* fallthrough */
+                case 0x77: /* fallthrough */
+                case 0x78: /* fallthrough */
+                case 0x79: /* fallthrough */
+                case 0x7a: /* fallthrough */
+                case 0x7b: /* fallthrough */
+                case 0x7c: /* fallthrough */
+                case 0x7f: /* fallthrough */
+                case 0x9f:
                     pt[k] = (u64)physaddr;
                     pt[k] |= ((u64)VTD_READ | (u64)VTD_WRITE);
-                } else {
+                    break;
+                default:
                     pt[k] = 0ULL;
+                    break;
                 }
                 physaddr += PAGE_SIZE_4K;
             }
