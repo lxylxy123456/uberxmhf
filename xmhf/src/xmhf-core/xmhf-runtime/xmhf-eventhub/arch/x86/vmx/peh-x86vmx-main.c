@@ -1129,13 +1129,14 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			vcpu->vmcs.guest_RIP == 0x9321) {
 #ifdef __DMAP__
 			printf("Remove all VT-d pages\n");
-			for (u64 i = 0x60; i < 0xa0; i++) {
+			for (u64 i = 0x70; i < 0xa0; i++) {
 				HALT_ON_ERRORCOND(lxy_vmx_eap_vtd_pts_vaddr[i] == ((i << 12) | 3));
 				lxy_vmx_eap_vtd_pts_vaddr[i] = 0;
 			}
 			xmhf_dmaprot_arch_x86_vmx_invalidate_cache();
 #endif /* __DMAP__ */
-			xxd(0x60000, 0xa0000);
+			(void) xxd;
+			// xxd(0x60000, 0xa0000);
 		}
 	}
 
