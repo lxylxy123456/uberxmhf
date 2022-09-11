@@ -1129,6 +1129,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			printf("\n");
 		}
 	} else if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+		static u32 index = 0;
 #ifdef __DMAP__
 		extern u64 *lxy_vmx_eap_vtd_pts_vaddr;
 		(void) lxy_vmx_eap_vtd_pts_vaddr;
@@ -1140,8 +1141,11 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 #ifdef __DMAP__
 		// printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x5f]);
 		// printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x60]);
-		printf("  FRR=0x%016llx:0x%016llx", *(u64 *)(0x00000000fed91208), *(u64 *)(0x00000000fed91200));
+		// printf("  FRR=0x%016llx:0x%016llx", *(u64 *)(0x00000000fed91208), *(u64 *)(0x00000000fed91200));
 #endif /* __DMAP__ */
+		if (vcpu->vmcs.guest_RIP != 0x00009a95) {
+			printf("  INDEX=%d", index++);
+		}
 		// printf("  0x%016llx", *(u64 *)0x60000);
 		// printf("  0x%016llx", *(u64 *)0x70000);
 		// printf("  0x%016llx", *(u64 *)0x80000);
@@ -1157,7 +1161,10 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				   (u32) inb(g_uart_config.port));
 		}
 		if (vcpu->vmcs.info_vmexit_reason == 10 &&
-			vcpu->vmcs.guest_RIP == 0x9fecf1d7) {
+			vcpu->vmcs.guest_RIP == 0x01674d69) {
+			static bool visited = false;
+			HALT_ON_ERRORCOND(!visited);
+			visited = true;
 #ifdef __DMAP__
 			{
 				#define ADDR_512GB  (PAGE_SIZE_512G)
