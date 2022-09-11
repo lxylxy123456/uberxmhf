@@ -1188,7 +1188,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			printf("Enabled DMAP\n");
 			while (1) {
 				u64 *frr = (u64 *)(0x00000000fed91200);
-				printf("FRR=0x%016llx:0x%016llx, LINE=%d\n", frr[1], frr[0], __LINE__);
+				u32 *fsr = (u32 *)(0x00000000fed91034);
+				printf("FRR=0x%016llx:0x%016llx, FSR=0x%08x, LINE=%d\n",
+						frr[1], frr[0], fsr[0], __LINE__);
 				for (u32 i = 0; i < 0x10000000; i++) {
 					xmhf_cpu_relax();
 				}

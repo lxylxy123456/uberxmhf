@@ -140,7 +140,7 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
             pt = (pt_t)(vtd_pts_vaddr + (i * PAGE_SIZE_4K * PAE_PTRS_PER_PDT) + (j * PAGE_SIZE_4K));
             for (k = 0; k < PAE_PTRS_PER_PT; k++)
             {
-                if (0xbe400000 <= physaddr && physaddr < 0xbe700000) {
+                if (0xbe000000 <= physaddr && physaddr < 0xbe700000) {
                     pt[k] = (u64)physaddr;
                     pt[k] |= ((u64)VTD_READ | (u64)VTD_WRITE);
                 } else {
