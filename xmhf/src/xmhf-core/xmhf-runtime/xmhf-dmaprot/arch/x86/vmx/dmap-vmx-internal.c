@@ -50,10 +50,26 @@
 #include <xmhf.h>
 #include "dmap-vmx-internal.h"
 
+VTD_DRHD *lxy_vtd_drhd_1 = NULL;
+
+static void _vtd_drhd_write_buffer_flush(VTD_DRHD *drhd)
+{
+	VTD_GCMD_REG gcmd;
+	VTD_GSTS_REG gsts;
+	gcmd.value = 0;
+	gcmd.bits.wbf = 1;
+	_vtd_reg(drhd, VTD_REG_WRITE, VTD_GCMD_REG_OFF, (void *)&gcmd.value);
+	do {
+		_vtd_reg(drhd, VTD_REG_READ, VTD_GSTS_REG_OFF, (void *)&gsts.value);
+	} while (gsts.bits.wbfs);
+}
+
 void lxy_report_dmap_fault(void)
 {
 	u64 *frr = (u64 *)(0x00000000fed91200);
 	u32 *fsr = (u32 *)(0x00000000fed91034);
+	HALT_ON_ERRORCOND(lxy_vtd_drhd_1 != NULL);
+	_vtd_drhd_write_buffer_flush(lxy_vtd_drhd_1);
 	printf("  FSR=0x%08x", fsr[0]);
 	printf("  FRR=0x%016llx:0x%016llx", frr[1], frr[0]);
 	if (fsr[0] & 1) {
@@ -62,6 +78,7 @@ void lxy_report_dmap_fault(void)
 	if (frr[1] & (1ULL << 63)) {
 		frr[1] = (1ULL << 63);
 	}
+	_vtd_drhd_write_buffer_flush(lxy_vtd_drhd_1);
 }
 
 struct dmap_vmx_cap g_vtd_cap;
@@ -293,6 +310,11 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
     // sanity check
     HALT_ON_ERRORCOND(drhd != NULL);
 
+	HALT_ON_ERRORCOND(lxy_vtd_drhd_1 == NULL);
+	lxy_vtd_drhd_1 = drhd;
+
+	_vtd_drhd_write_buffer_flush(drhd);
+
     // check VT-d snoop control capabilities
     {
         VTD_ECAP_REG ecap;
@@ -309,6 +331,8 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
         else
             printf("	VT-d hardware access to remapping structures NON-COHERENT\n");
     }
+
+	_vtd_drhd_write_buffer_flush(drhd);
 
     // 3. setup fault logging
     printf("	Setting Fault-reporting to NON-INTERRUPT mode...");
@@ -337,6 +361,8 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
         }
     }
     printf("Done.\n");
+
+	_vtd_drhd_write_buffer_flush(drhd);
 
 	{
 		printf("INIT %d:", __LINE__);
@@ -376,6 +402,8 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
     }
     printf("Done.\n");
 
+	_vtd_drhd_write_buffer_flush(drhd);
+
     // 5. invalidate CET cache
     printf("	Invalidating CET cache...");
     {
@@ -412,6 +440,8 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
     }
     printf("Done.\n");
 
+	_vtd_drhd_write_buffer_flush(drhd);
+
     // 6. invalidate IOTLB
     printf("	Invalidating IOTLB...");
     {
@@ -439,6 +469,8 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
         }
     }
     printf("Done.\n");
+
+	_vtd_drhd_write_buffer_flush(drhd);
 
     // 7. disable options we dont support
     printf("	Disabling unsupported options...");
@@ -484,6 +516,8 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
 		printf("\n");
 	}
 
+	_vtd_drhd_write_buffer_flush(drhd);
+
     // 8. enable device
     printf("	Enabling device...");
     {
@@ -513,6 +547,8 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
 		printf("\n");
 	}
 
+	_vtd_drhd_write_buffer_flush(drhd);
+
     // 9. disable protected memory regions (PMR) if available
     printf("	Checking and disabling PMR...");
     {
@@ -534,5 +570,7 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
 #endif
         }
     }
+	_vtd_drhd_write_buffer_flush(drhd);
+
     printf("Done.\n");
 }
