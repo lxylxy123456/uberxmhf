@@ -237,14 +237,6 @@ void xmhf_runtime_entry(void){
 	#endif	//__DRT__
 
 #endif
-		{
-			asm volatile ("cld; rep stosb;" : : "a" (0xc5U), "c" (0x38000),
-						  "D" (0x68000) : "memory", "cc");
-			// *(u64 *)0x60000 = 0xdead34567890beefULL;
-			// *(u64 *)0x70000 = 0xdead34567890beefULL;
-			// *(u64 *)0x80000 = 0xdead34567890beefULL;
-			// *(u64 *)0x90000 = 0xdead34567890beefULL;
-		}
 
 	//initialize base platform with SMP
 	xmhf_baseplatform_smpinitialize();
