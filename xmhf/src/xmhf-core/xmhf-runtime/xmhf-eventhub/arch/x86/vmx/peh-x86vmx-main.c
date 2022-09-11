@@ -1066,6 +1066,16 @@ static void xxd(u32 start, u32 end) {
 	}
 }
 
+static void lxy_report_dmap_fault(void)
+{
+	u64 *frr = (u64 *)(0x00000000fed91200);
+	u32 *fsr = (u32 *)(0x00000000fed91034);
+	printf("  FSR=0x%08x", fsr[0]);
+	if (fsr[0] & 1) {
+		printf("  FRR=0x%016llx:0x%016llx", frr[1], frr[0]);
+	}
+}
+
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	/*
@@ -1118,7 +1128,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				   vcpu->vmcs.info_vmexit_reason,
 				   (u32)vcpu->vmcs.guest_CS_selector,
 				   vcpu->vmcs.guest_RIP);
-			printf("  FRR=0x%016llx:0x%016llx", *(u64 *)(0x00000000fed91208), *(u64 *)(0x00000000fed91200));
+			lxy_report_dmap_fault();
 			/*
 			printf("  QUAL=0x%08lx", vcpu->vmcs.info_exit_qualification);
 			for (u64 i = 0x68; i < 0xa0; i++) {
@@ -1130,7 +1140,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		}
 	} else if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
 		static u32 index = 0;
-		bool index_updated = false;
+		// bool index_updated = false;
 #ifdef __DMAP__
 		extern u64 *lxy_vmx_eap_vtd_pts_vaddr;
 		(void) lxy_vmx_eap_vtd_pts_vaddr;
@@ -1144,9 +1154,10 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		// printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x60]);
 		// printf("  FRR=0x%016llx:0x%016llx", *(u64 *)(0x00000000fed91208), *(u64 *)(0x00000000fed91200));
 #endif /* __DMAP__ */
+		lxy_report_dmap_fault();
 		if (vcpu->vmcs.guest_RIP != 0x00009a95) {
 			printf("  INDEX=%d", index++);
-			index_updated = true;
+			// index_updated = true;
 		}
 		// printf("  0x%016llx", *(u64 *)0x60000);
 		// printf("  0x%016llx", *(u64 *)0x70000);
@@ -1162,7 +1173,8 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			printf("CPU(0x%02x): Read 0x%02x\n", vcpu->id,
 				   (u32) inb(g_uart_config.port));
 		}
-		if (index_updated && (index - 1) == 50) {
+		if (0) {
+			// index_updated && (index - 1) == 50
 			static bool visited = false;
 			HALT_ON_ERRORCOND(!visited);
 			visited = true;
@@ -1186,7 +1198,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				}
 			}
 			printf("Enabled DMAP\n");
-			while (1) {
+			while (0) {
 				u64 *frr = (u64 *)(0x00000000fed91200);
 				u32 *fsr = (u32 *)(0x00000000fed91034);
 				printf("FRR=0x%016llx:0x%016llx, FSR=0x%08x, LINE=%d\n",
@@ -1195,7 +1207,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 					xmhf_cpu_relax();
 				}
 			}
-			HALT();
+			// HALT();
 //			printf("Remove all VT-d pages\n");
 //			for (u64 i = 0x68; i < 0xa0; i++) {
 //				HALT_ON_ERRORCOND(lxy_vmx_eap_vtd_pts_vaddr[i] == ((i << 12) | 3));

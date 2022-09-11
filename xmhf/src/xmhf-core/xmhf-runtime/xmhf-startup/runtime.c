@@ -218,10 +218,10 @@ void xmhf_runtime_entry(void){
 				// printf("Runtime: Protected SL+Runtime (%08lx-%08x) from DMA.\n", rpb->XtVmmRuntimePhysBase - PAGE_SIZE_2M, rpb->XtVmmRuntimePhysBase+rpb->XtVmmRuntimeSize);
 
                 // Enable DMA protection
-//                if(!xmhf_dmaprot_enable(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size)){
-//					printf("Runtime: Unable to enable DMA protection. HALT!\n");
-//					HALT();
-//				}
+                if(!xmhf_dmaprot_enable(protectedbuffer_paddr, protectedbuffer_vaddr, protectedbuffer_size)){
+					printf("Runtime: Unable to enable DMA protection. HALT!\n");
+					HALT();
+				}
 
                 xmhf_dmaprot_invalidate_cache();
 		}
