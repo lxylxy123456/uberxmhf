@@ -156,6 +156,16 @@ void xmhf_baseplatform_arch_smpinitialize(void){
 	  xmhf_baseplatform_arch_x86vmx_wakeupAPs();
   }
 
+/* ineffective:
+	{
+		printf("\aBegin sleep\n");
+		for (u32 i = 0; i < 0x10000000; i++) {
+			xmhf_cpu_relax();
+		}
+		printf("\aEnd sleep\n");
+		xmhf_dmaprot_invalidate_cache();
+	}
+*/
 
   //fall through to common code
   {
@@ -176,6 +186,17 @@ void xmhf_baseplatform_arch_x86_smpinitialize_commonstart(VCPU *vcpu){
   //a task for the BSP
   if(xmhf_baseplatform_arch_x86_isbsp()){
     vcpu->isbsp = 1;    //this core is a BSP
+
+/* ineffective:
+	{
+		printf("\aBegin sleep\n");
+		for (u32 i = 0; i < 0x10000000; i++) {
+			xmhf_cpu_relax();
+		}
+		printf("\aEnd sleep\n");
+		xmhf_dmaprot_invalidate_cache();
+	}
+*/
 
     printf("BSP rallying APs...\n");
 #ifdef __AMD64__
@@ -202,6 +223,16 @@ void xmhf_baseplatform_arch_x86_smpinitialize_commonstart(VCPU *vcpu){
     g_ap_go_signal=1;
     spin_unlock(&g_lock_ap_go_signal);
 
+/* effective:
+	{
+		printf("\aBegin sleep\n");
+		for (u32 i = 0; i < 0x10000000; i++) {
+			xmhf_cpu_relax();
+		}
+		printf("\aEnd sleep\n");
+		xmhf_dmaprot_invalidate_cache();
+	}
+*/
 
   }else{
     //we are an AP, so we need to simply update the AP startup counter

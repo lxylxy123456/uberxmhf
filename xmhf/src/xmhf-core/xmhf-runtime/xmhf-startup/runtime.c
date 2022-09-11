@@ -271,6 +271,17 @@ void xmhf_runtime_entry(void){
 void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 
 // ineffective:	if (vcpu->isbsp) { xmhf_dmaprot_invalidate_cache(); }
+/* effective:
+	if (vcpu->isbsp) {
+		printf("\aBegin sleep\n");
+		for (u32 i = 0; i < 0x10000000; i++) {
+			xmhf_cpu_relax();
+		}
+		printf("\aEnd sleep\n");
+		xmhf_dmaprot_invalidate_cache();
+	}
+*/
+
   //initialize CPU
   xmhf_baseplatform_cpuinitialize();
 
