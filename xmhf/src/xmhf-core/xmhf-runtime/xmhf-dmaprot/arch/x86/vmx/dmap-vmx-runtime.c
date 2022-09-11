@@ -89,8 +89,6 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
     spa_t m_low_spa = PA_PAGE_ALIGN_1G(machine_low_spa);
     spa_t m_high_spa = PA_PAGE_ALIGN_UP_1G(machine_high_spa);
     u32 num_1G_entries = (m_high_spa - (u64)m_low_spa) >> PAGE_SHIFT_1G;
-    printf("machine_low_spa = 0x%016llx\n", (u64)machine_low_spa);
-    printf("machine_high_spa = 0x%016llx\n", (u64)machine_high_spa);
 
     // Sanity checks
     if (!vtd_cap)
@@ -140,13 +138,8 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
             pt = (pt_t)(vtd_pts_vaddr + (i * PAGE_SIZE_4K * PAE_PTRS_PER_PDT) + (j * PAGE_SIZE_4K));
             for (k = 0; k < PAE_PTRS_PER_PT; k++)
             {
-                if (1) {
-                    // 0xbe000000 <= physaddr && physaddr < 0xc0000000
-                    pt[k] = (u64)physaddr;
-                    pt[k] |= ((u64)VTD_READ | (u64)VTD_WRITE);
-                } else {
-                    pt[k] = 0ULL;
-                }
+                pt[k] = (u64)physaddr;
+                pt[k] |= ((u64)VTD_READ | (u64)VTD_WRITE);
                 physaddr += PAGE_SIZE_4K;
             }
         }
@@ -196,10 +189,8 @@ static bool _vtd_setupRETCET(struct dmap_vmx_cap *vtd_cap,
         // sanity check that CET is page aligned
         HALT_ON_ERRORCOND(!(*value & 0x0000000000000FFFULL));
 
-        if (1) {
-            // set it to present
-            *value |= 0x1ULL;
-        }
+        // set it to present
+        *value |= 0x1ULL;
     }
 
     // initialize CET
@@ -227,9 +218,7 @@ static bool _vtd_setupRETCET(struct dmap_vmx_cap *vtd_cap,
                 return false;
             }
 
-            if (1) {
-                *value |= 0x1ULL; // present, enable fault recording/processing, multilevel pt translation
-            }
+            *value |= 0x1ULL; // present, enable fault recording/processing, multilevel pt translation
         }
     }
 
@@ -600,8 +589,6 @@ u32 xmhf_dmaprot_arch_x86_vmx_enable(spa_t protectedbuffer_paddr,
     return 1;
 }
 
-u64 *lxy_vmx_eap_vtd_pts_vaddr;
-
 //"normal" DMA protection initialization to setup required
 // structures for DMA protection
 // return 1 on success 0 on failure
@@ -634,10 +621,6 @@ u32 xmhf_dmaprot_arch_x86_vmx_initialize(spa_t protectedbuffer_paddr,
     vmx_eap_vtd_ret_vaddr = vmx_eap_vtd_pts_vaddr + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT * PAE_PTRS_PER_PDT);
     vmx_eap_vtd_cet_paddr = vmx_eap_vtd_ret_paddr + PAGE_SIZE_4K;
     vmx_eap_vtd_cet_vaddr = vmx_eap_vtd_ret_vaddr + PAGE_SIZE_4K;
-
-    HALT_ON_ERRORCOND(vmx_eap_vtd_cet_vaddr + PAGE_SIZE_4K * PCI_BUS_MAX == protectedbuffer_vaddr + SIZE_G_RNTM_DMAPROT_BUFFER);
-
-    lxy_vmx_eap_vtd_pts_vaddr = (u64 *) vmx_eap_vtd_pts_vaddr;
 
     // [Superymk] [TODO] ugly hack...
     vtd_cet = (void *)vmx_eap_vtd_cet_vaddr;
