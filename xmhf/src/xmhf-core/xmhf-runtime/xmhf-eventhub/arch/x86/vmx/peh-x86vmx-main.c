@@ -1163,6 +1163,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			(void) xxd;
 			// xxd(0x68000, 0xa0000);
 		}
+		HALT_ON_ERRORCOND(0 && "Stop to be simple");
 	}
 
 	//handle intercepts
