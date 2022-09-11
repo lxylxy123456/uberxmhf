@@ -1118,11 +1118,14 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				   vcpu->vmcs.info_vmexit_reason,
 				   (u32)vcpu->vmcs.guest_CS_selector,
 				   vcpu->vmcs.guest_RIP);
-			printf("  0x%08lx", vcpu->vmcs.info_exit_qualification);
+			printf("  FRR=0x%016llx:0x%016llx", *(u64 *)(0x00000000fed91208), *(u64 *)(0x00000000fed91200));
+			/*
+			printf("  QUAL=0x%08lx", vcpu->vmcs.info_exit_qualification);
 			for (u64 i = 0x68; i < 0xa0; i++) {
 				u64 addr = i << 12;
 				printf("  *0x%llx=0x%08x", addr, *(u32 *)addr);
 			}
+			*/
 			printf("\n");
 		}
 	} else if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
@@ -1134,8 +1137,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			   (u32)vcpu->vmcs.guest_CS_selector,
 			   vcpu->vmcs.guest_RIP);
 #ifdef __DMAP__
-		printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x5f]);
-		printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x60]);
+		// printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x5f]);
+		// printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x60]);
+		printf("  FRR=0x%016llx:0x%016llx", *(u64 *)(0x00000000fed91208), *(u64 *)(0x00000000fed91200));
 #endif /* __DMAP__ */
 		// printf("  0x%016llx", *(u64 *)0x60000);
 		// printf("  0x%016llx", *(u64 *)0x70000);
@@ -1165,9 +1169,10 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				xxd((i << 12), (i << 12) + 16);
 			}
 			(void) xxd;
-			// xxd(0x68000, 0xa0000);
+			// xxd(0x60000, 0xa0000);
 		}
-		HALT_ON_ERRORCOND(0 && "Stop to be simple");
+		vcpu->vmcs.control_VMX_cpu_based |= (1U << VMX_PROCBASED_USE_IO_BITMAPS);
+		// HALT_ON_ERRORCOND(0 && "Stop to be simple");
 	}
 
 	//handle intercepts
