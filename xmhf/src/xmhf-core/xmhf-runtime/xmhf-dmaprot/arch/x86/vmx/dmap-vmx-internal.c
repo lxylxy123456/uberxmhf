@@ -475,6 +475,19 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
     }
     printf("Done.\n");
 
+	{
+		u64 *frr = (u64 *)(0x00000000fed91200);
+		while (1) {
+			printf("INIT_FRR=0x%016llx:0x%016llx, LINE=%d\n", frr[1], frr[0], __LINE__);
+			if (frr[1] & (1ULL << 63)) {
+				frr[1] = frr[1];
+				printf("INIT_FRR=0x%016llx:0x%016llx, LINE=%d\n", frr[1], frr[0], __LINE__);
+			} else {
+				break;
+			}
+		}
+	}
+
     // 9. disable protected memory regions (PMR) if available
     printf("	Checking and disabling PMR...");
     {
