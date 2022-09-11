@@ -392,8 +392,7 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
         u64 addr = hva2spa( ((void*)vcpu->vmx_vaddr_iobitmap + PAGE_SIZE_4K) );
 	    vcpu->vmcs.control_IO_BitmapB_address = addr;
     }
-	// vcpu->vmcs.control_VMX_cpu_based |= (1U << VMX_PROCBASED_USE_IO_BITMAPS);
-	vcpu->vmcs.control_VMX_cpu_based |= (1U << VMX_PROCBASED_UNCONDITIONAL_IO_EXITING);
+	vcpu->vmcs.control_VMX_cpu_based |= (1U << VMX_PROCBASED_USE_IO_BITMAPS);
 
 	//Critical MSR load/store
 	{

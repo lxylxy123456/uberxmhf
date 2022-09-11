@@ -1131,6 +1131,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	} else if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
 #ifdef __DMAP__
 		extern u64 *lxy_vmx_eap_vtd_pts_vaddr;
+		(void) lxy_vmx_eap_vtd_pts_vaddr;
 #endif /* __DMAP__ */
 		printf("CPU(0x%02x): VMEXIT %d 0x%04x:0x%08llx  |", vcpu->id,
 			   vcpu->vmcs.info_vmexit_reason,
@@ -1156,22 +1157,40 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				   (u32) inb(g_uart_config.port));
 		}
 		if (vcpu->vmcs.info_vmexit_reason == 10 &&
-			vcpu->vmcs.guest_RIP == 0x9321) {
+			vcpu->vmcs.guest_RIP == 0x9fecf1d7) {
 #ifdef __DMAP__
-			printf("Remove all VT-d pages\n");
-			for (u64 i = 0x68; i < 0xa0; i++) {
-				HALT_ON_ERRORCOND(lxy_vmx_eap_vtd_pts_vaddr[i] == ((i << 12) | 3));
-				lxy_vmx_eap_vtd_pts_vaddr[i] = 0;
+			{
+				#define ADDR_512GB  (PAGE_SIZE_512G)
+				u64 protectedbuffer_paddr;
+				hva_t protectedbuffer_vaddr;
+				u32 protectedbuffer_size;
+
+				protectedbuffer_paddr = hva2spa(&g_rntm_dmaprot_buffer);
+				protectedbuffer_vaddr = (hva_t)&g_rntm_dmaprot_buffer;
+				protectedbuffer_size =
+					xmhf_dmaprot_getbuffersize(DMAPROT_PHY_ADDR_SPACE_SIZE); // ADDR_512GB
+				HALT_ON_ERRORCOND(protectedbuffer_size <= SIZE_G_RNTM_DMAPROT_BUFFER);
+				if(!xmhf_dmaprot_enable(protectedbuffer_paddr, protectedbuffer_vaddr,
+										protectedbuffer_size)){
+					printf("Runtime: Unable to enable DMA protection. HALT!\n");
+					HALT();
+				}
 			}
-			xmhf_dmaprot_arch_x86_vmx_invalidate_cache();
+			printf("Enabled DMAP\n");
+//			printf("Remove all VT-d pages\n");
+//			for (u64 i = 0x68; i < 0xa0; i++) {
+//				HALT_ON_ERRORCOND(lxy_vmx_eap_vtd_pts_vaddr[i] == ((i << 12) | 3));
+//				lxy_vmx_eap_vtd_pts_vaddr[i] = 0;
+//			}
+//			xmhf_dmaprot_arch_x86_vmx_invalidate_cache();
 #endif /* __DMAP__ */
-			for (u64 i = 0x68; i < 0xa0; i++) {
-				xxd((i << 12), (i << 12) + 16);
-			}
+			// for (u64 i = 0x68; i < 0xa0; i++) {
+			// 	xxd((i << 12), (i << 12) + 16);
+			// }
 			(void) xxd;
 			// xxd(0x60000, 0xa0000);
 		}
-		vcpu->vmcs.control_VMX_cpu_based |= (1U << VMX_PROCBASED_USE_IO_BITMAPS);
+		// vcpu->vmcs.control_VMX_cpu_based |= (1U << VMX_PROCBASED_USE_IO_BITMAPS);
 		// HALT_ON_ERRORCOND(0 && "Stop to be simple");
 	}
 
