@@ -49,6 +49,7 @@
 // author: amit vasudevan (amitvasudevan@acm.org)
 #include <xmhf.h>
 
+extern void lxy_report_dmap_fault(void);
 static void xxd(u32 start, u32 end);
 
 //---VMX decode assist----------------------------------------------------------
@@ -1063,16 +1064,6 @@ static void xxd(u32 start, u32 end) {
 			}
 		}
 		printf("\n");
-	}
-}
-
-static void lxy_report_dmap_fault(void)
-{
-	u64 *frr = (u64 *)(0x00000000fed91200);
-	u32 *fsr = (u32 *)(0x00000000fed91034);
-	printf("  FSR=0x%08x", fsr[0]);
-	if (fsr[0] & 1) {
-		printf("  FRR=0x%016llx:0x%016llx", frr[1], frr[0]);
 	}
 }
 

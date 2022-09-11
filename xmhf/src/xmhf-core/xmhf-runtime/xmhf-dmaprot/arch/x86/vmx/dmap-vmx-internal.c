@@ -50,6 +50,20 @@
 #include <xmhf.h>
 #include "dmap-vmx-internal.h"
 
+void lxy_report_dmap_fault(void)
+{
+	u64 *frr = (u64 *)(0x00000000fed91200);
+	u32 *fsr = (u32 *)(0x00000000fed91034);
+	printf("  FSR=0x%08x", fsr[0]);
+	printf("  FRR=0x%016llx:0x%016llx", frr[1], frr[0]);
+	if (fsr[0] & 1) {
+		*fsr = 1U;
+	}
+	if (frr[1] & (1ULL << 63)) {
+		frr[1] = (1ULL << 63);
+	}
+}
+
 struct dmap_vmx_cap g_vtd_cap;
 
 //------------------------------------------------------------------------------
@@ -308,19 +322,9 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
         _vtd_reg(drhd, VTD_REG_WRITE, VTD_FECTL_REG_OFF, (void *)&fectl.value);
 
 		{
-			u64 *frr = (u64 *)(0x00000000fed91200);
-			u32 *fsr = (u32 *)(0x00000000fed91034);
-			printf("\nINIT_FRR=0x%016llx:0x%016llx, FSR=0x%08x, LINE=%d\n",
-					frr[1], frr[0], fsr[0], __LINE__);
-			if (frr[1] & (1ULL << 63)) {
-				frr[1] = (1ULL << 63);
-			}
-			if (fsr[0] & 1) {
-				*fsr = 1U;
-			}
-			HALT_ON_ERRORCOND(!(fsr[0] & 1));
-			printf("INIT_FRR=0x%016llx:0x%016llx, FSR=0x%08x, LINE=%d\n",
-					frr[1], frr[0], fsr[0], __LINE__);
+			printf("INIT %d:", __LINE__);
+			lxy_report_dmap_fault();
+			printf("\n");
 		}
 
         // check to see if the im bit actually stuck
@@ -333,6 +337,12 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
         }
     }
     printf("Done.\n");
+
+	{
+		printf("INIT %d:", __LINE__);
+		lxy_report_dmap_fault();
+		printf("\n");
+	}
 
     // 4. setup RET (root-entry)
     printf("	Setting up RET...");
@@ -468,6 +478,12 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
     }
     printf("Done.\n");
 
+	{
+		printf("INIT %d:", __LINE__);
+		lxy_report_dmap_fault();
+		printf("\n");
+	}
+
     // 8. enable device
     printf("	Enabling device...");
     {
@@ -492,10 +508,9 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
     printf("Done.\n");
 
 	{
-		u64 *frr = (u64 *)(0x00000000fed91200);
-		u32 *fsr = (u32 *)(0x00000000fed91034);
-		printf("INIT_FRR=0x%016llx:0x%016llx, FSR=0x%08x, LINE=%d\n",
-				frr[1], frr[0], fsr[0], __LINE__);
+		printf("INIT %d:", __LINE__);
+		lxy_report_dmap_fault();
+		printf("\n");
 	}
 
     // 9. disable protected memory regions (PMR) if available

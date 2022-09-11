@@ -50,6 +50,8 @@
 #include <xmhf.h>
 #include "dmap-vmx-internal.h"
 
+extern void lxy_report_dmap_fault(void);
+
 void *vtd_cet = NULL; // cet holds all its structures in the memory linearly
 
 //==============================================================================
