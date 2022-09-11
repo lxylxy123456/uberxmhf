@@ -1119,6 +1119,10 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				   (u32)vcpu->vmcs.guest_CS_selector,
 				   vcpu->vmcs.guest_RIP);
 			printf("  0x%08lx", vcpu->vmcs.info_exit_qualification);
+			for (u64 i = 0x68; i < 0xa0; i++) {
+				u64 addr = i << 12;
+				printf("  *0x%llx=0x%08x", addr, *(u32 *)addr);
+			}
 			printf("\n");
 		}
 	} else if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
@@ -1133,10 +1137,10 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x5f]);
 		printf("  0x%016llx", lxy_vmx_eap_vtd_pts_vaddr[0x60]);
 #endif /* __DMAP__ */
-		printf("  0x%016llx", *(u64 *)0x60000);
-		printf("  0x%016llx", *(u64 *)0x70000);
-		printf("  0x%016llx", *(u64 *)0x80000);
-		printf("  0x%016llx", *(u64 *)0x90000);
+		// printf("  0x%016llx", *(u64 *)0x60000);
+		// printf("  0x%016llx", *(u64 *)0x70000);
+		// printf("  0x%016llx", *(u64 *)0x80000);
+		// printf("  0x%016llx", *(u64 *)0x90000);
 		printf("\n");
 		if (0) {
 			/* https://wiki.osdev.org/Serial_Ports */
