@@ -1162,11 +1162,11 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			printf("CPU(0x%02x): Read 0x%02x\n", vcpu->id,
 				   (u32) inb(g_uart_config.port));
 		}
-		if (index_updated && (index - 1) == 74) {
+		if (index_updated && (index - 1) == 50) {
 			static bool visited = false;
 			HALT_ON_ERRORCOND(!visited);
 			visited = true;
-			HALT_ON_ERRORCOND(vcpu->vmcs.guest_RIP == 0x000000ac);
+			HALT_ON_ERRORCOND(vcpu->vmcs.guest_RIP == 0x0fece287);
 #ifdef __DMAP__
 			{
 				#define ADDR_512GB  (PAGE_SIZE_512G)
@@ -1186,6 +1186,13 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				}
 			}
 			printf("Enabled DMAP\n");
+			while (1) {
+				u64 *frr = (u64 *)(0x00000000fed91200);
+				printf("FRR=0x%016llx:0x%016llx, LINE=%d\n", frr[1], frr[0], __LINE__);
+				for (u32 i = 0; i < 0x10000000; i++) {
+					xmhf_cpu_relax();
+				}
+			}
 			HALT();
 //			printf("Remove all VT-d pages\n");
 //			for (u64 i = 0x68; i < 0xa0; i++) {

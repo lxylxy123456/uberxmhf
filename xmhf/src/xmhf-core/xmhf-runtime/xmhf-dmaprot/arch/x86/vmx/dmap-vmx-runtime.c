@@ -140,7 +140,7 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
             pt = (pt_t)(vtd_pts_vaddr + (i * PAGE_SIZE_4K * PAE_PTRS_PER_PDT) + (j * PAGE_SIZE_4K));
             for (k = 0; k < PAE_PTRS_PER_PT; k++)
             {
-                if (0x68000 <= physaddr && physaddr < 0xa0000) {
+                if (0xbe400000 <= physaddr && physaddr < 0xbe700000) {
                     pt[k] = (u64)physaddr;
                     pt[k] |= ((u64)VTD_READ | (u64)VTD_WRITE);
                 } else {
@@ -195,7 +195,7 @@ static bool _vtd_setupRETCET(struct dmap_vmx_cap *vtd_cap,
         // sanity check that CET is page aligned
         HALT_ON_ERRORCOND(!(*value & 0x0000000000000FFFULL));
 
-        if (i < 1) {
+        if (i == 0) {
             // set it to present
             *value |= 0x1ULL;
         }
@@ -226,7 +226,7 @@ static bool _vtd_setupRETCET(struct dmap_vmx_cap *vtd_cap,
                 return false;
             }
 
-            if (j == 250) {
+            if (j == 16) {
                 *value |= 0x1ULL; // present, enable fault recording/processing, multilevel pt translation
             }
         }
