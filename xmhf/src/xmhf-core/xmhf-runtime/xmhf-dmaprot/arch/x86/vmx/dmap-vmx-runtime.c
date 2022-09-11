@@ -495,6 +495,16 @@ static void _vtd_invalidatecaches(void)
         iotlb.bits.iirg = 1; // global invalidation
         iotlb.bits.ivt = 1;  // invalidate
 
+#ifndef __XMHF_VERIFICATION__
+        // wait for the previous invalidation to complete
+        do
+        {
+            _vtd_reg(&vtd_drhd[i], VTD_REG_READ, VTD_IOTLB_REG_OFF, (void *)&iotlb.value);
+        } while (iotlb.bits.ivt);
+#else
+        _vtd_reg(&vtd_drhd[0], VTD_REG_READ, VTD_IOTLB_REG_OFF, (void *)&iotlb.value);
+#endif
+
         // perform the invalidation
         _vtd_reg(&vtd_drhd[i], VTD_REG_WRITE, VTD_IOTLB_REG_OFF, (void *)&iotlb.value);
 
