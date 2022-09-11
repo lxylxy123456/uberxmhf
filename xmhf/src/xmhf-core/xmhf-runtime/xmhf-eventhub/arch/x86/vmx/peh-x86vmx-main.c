@@ -1130,6 +1130,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		}
 	} else if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
 		static u32 index = 0;
+		bool index_updated = false;
 #ifdef __DMAP__
 		extern u64 *lxy_vmx_eap_vtd_pts_vaddr;
 		(void) lxy_vmx_eap_vtd_pts_vaddr;
@@ -1145,6 +1146,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 #endif /* __DMAP__ */
 		if (vcpu->vmcs.guest_RIP != 0x00009a95) {
 			printf("  INDEX=%d", index++);
+			index_updated = true;
 		}
 		// printf("  0x%016llx", *(u64 *)0x60000);
 		// printf("  0x%016llx", *(u64 *)0x70000);
@@ -1160,11 +1162,11 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			printf("CPU(0x%02x): Read 0x%02x\n", vcpu->id,
 				   (u32) inb(g_uart_config.port));
 		}
-		if (vcpu->vmcs.info_vmexit_reason == 10 &&
-			vcpu->vmcs.guest_RIP == 0x01674d69) {
+		if (index_updated && (index - 1) == 74) {
 			static bool visited = false;
 			HALT_ON_ERRORCOND(!visited);
 			visited = true;
+			HALT_ON_ERRORCOND(vcpu->vmcs.guest_RIP == 0x000000ac);
 #ifdef __DMAP__
 			{
 				#define ADDR_512GB  (PAGE_SIZE_512G)
@@ -1184,6 +1186,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				}
 			}
 			printf("Enabled DMAP\n");
+			HALT();
 //			printf("Remove all VT-d pages\n");
 //			for (u64 i = 0x68; i < 0xa0; i++) {
 //				HALT_ON_ERRORCOND(lxy_vmx_eap_vtd_pts_vaddr[i] == ((i << 12) | 3));
