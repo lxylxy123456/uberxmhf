@@ -237,6 +237,14 @@ void xmhf_runtime_entry(void){
 	#endif	//__DRT__
 
 #endif
+		{
+			asm volatile ("cld; rep stosb;" : : "a" (0xc5U), "c" (0x38000),
+						  "D" (0x68000) : "memory", "cc");
+			// *(u64 *)0x60000 = 0xdead34567890beefULL;
+			// *(u64 *)0x70000 = 0xdead34567890beefULL;
+			// *(u64 *)0x80000 = 0xdead34567890beefULL;
+			// *(u64 *)0x90000 = 0xdead34567890beefULL;
+		}
 
 	//initialize base platform with SMP
 	xmhf_baseplatform_smpinitialize();
@@ -313,12 +321,6 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 #ifndef __XMHF_VERIFICATION__
   //initialize support for SMP guests
   xmhf_smpguest_initialize(vcpu);
-#endif
-
-#if defined (__DMAP__)
-  // [TODO][Superymk] Ugly hack: HP2540p's GPU does not work properly if not invoking <xmhf_dmaprot_invalidate_cache> 
-  // in <xmhf_runtime_main>.
-  xmhf_dmaprot_invalidate_cache();
 #endif
 
   //start partition (guest)

@@ -307,6 +307,22 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
         fectl.bits.im = 1;
         _vtd_reg(drhd, VTD_REG_WRITE, VTD_FECTL_REG_OFF, (void *)&fectl.value);
 
+		{
+			u64 *frr = (u64 *)(0x00000000fed91200);
+			u32 *fsr = (u32 *)(0x00000000fed91034);
+			printf("\nINIT_FRR=0x%016llx:0x%016llx, FSR=0x%08x, LINE=%d\n",
+					frr[1], frr[0], fsr[0], __LINE__);
+			if (frr[1] & (1ULL << 63)) {
+				frr[1] = (1ULL << 63);
+			}
+			if (fsr[0] & 1) {
+				*fsr = 1U;
+			}
+			HALT_ON_ERRORCOND(!(fsr[0] & 1));
+			printf("INIT_FRR=0x%016llx:0x%016llx, FSR=0x%08x, LINE=%d\n",
+					frr[1], frr[0], fsr[0], __LINE__);
+		}
+
         // check to see if the im bit actually stuck
         _vtd_reg(drhd, VTD_REG_READ, VTD_FECTL_REG_OFF, (void *)&fectl.value);
 
@@ -474,6 +490,13 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
 #endif
     }
     printf("Done.\n");
+
+	{
+		u64 *frr = (u64 *)(0x00000000fed91200);
+		u32 *fsr = (u32 *)(0x00000000fed91034);
+		printf("INIT_FRR=0x%016llx:0x%016llx, FSR=0x%08x, LINE=%d\n",
+				frr[1], frr[0], fsr[0], __LINE__);
+	}
 
     // 9. disable protected memory regions (PMR) if available
     printf("	Checking and disabling PMR...");
