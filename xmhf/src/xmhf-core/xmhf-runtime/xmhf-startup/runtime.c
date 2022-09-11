@@ -245,6 +245,17 @@ void xmhf_runtime_entry(void){
 			// *(u64 *)0x80000 = 0xdead34567890beefULL;
 			// *(u64 *)0x90000 = 0xdead34567890beefULL;
 		}
+// ineffective:	xmhf_dmaprot_invalidate_cache();
+/* ineffective:
+	{
+		printf("\aBegin sleep\n");
+		for (u32 i = 0; i < 0x10000000; i++) {
+			xmhf_cpu_relax();
+		}
+		printf("\aEnd sleep\n");
+		xmhf_dmaprot_invalidate_cache();
+	}
+*/
 
 	//initialize base platform with SMP
 	xmhf_baseplatform_smpinitialize();
@@ -259,17 +270,24 @@ void xmhf_runtime_entry(void){
 //in the event we were launched from a running OS
 void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 
+// ineffective:	if (vcpu->isbsp) { xmhf_dmaprot_invalidate_cache(); }
   //initialize CPU
   xmhf_baseplatform_cpuinitialize();
 
   //initialize partition monitor (i.e., hypervisor) for this CPU
   xmhf_partition_initializemonitor(vcpu);
 
+// ineffective:	if (vcpu->isbsp) { xmhf_dmaprot_invalidate_cache(); }
+
   //setup guest OS state for partition
   xmhf_partition_setupguestOSstate(vcpu);
 
+// ineffective:	if (vcpu->isbsp) { xmhf_dmaprot_invalidate_cache(); }
+
   //initialize memory protection for this core
   xmhf_memprot_initialize(vcpu);
+
+// effective: if (vcpu->isbsp) { xmhf_dmaprot_invalidate_cache(); }
 
   //initialize application parameter block and call app main
   {
@@ -317,6 +335,8 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 		printf("CPU(0x%02x): Late-initialization, WiP, HALT!\n", vcpu->id);
 		HALT();
 	}
+
+// effective: if (vcpu->isbsp) { xmhf_dmaprot_invalidate_cache(); }
 
 #ifndef __XMHF_VERIFICATION__
   //initialize support for SMP guests
