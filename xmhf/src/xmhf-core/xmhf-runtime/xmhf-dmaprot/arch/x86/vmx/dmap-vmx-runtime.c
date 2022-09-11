@@ -438,9 +438,6 @@ static void _vtd_invalidatecaches(void)
     for (i = 0; i < vtd_num_drhd; i++)
     {
 #endif
-        if (i != 1) {
-            continue;
-        }
         // 1. invalidate CET cache
 
 #ifndef __XMHF_VERIFICATION__
@@ -569,9 +566,6 @@ u32 xmhf_dmaprot_arch_x86_vmx_enable(spa_t protectedbuffer_paddr,
     // initialize all DRHD units
     for (i = 0; i < vtd_num_drhd; i++)
     {
-        if (i != 1) {
-            continue;
-        }
         printf("%s: initializing DRHD unit %u...\n", __FUNCTION__, i);
         _vtd_drhd_initialize(&vtd_drhd[i], vmx_eap_vtd_ret_paddr);
     }
