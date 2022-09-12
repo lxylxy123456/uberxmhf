@@ -358,7 +358,7 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
   if(vcpu->isbsp && (g_midtable_numentries > 1)){
 		printf("CPU(0x%02x): Waiting for all cores to cycle through appmain...\n", vcpu->id);
 		while (g_appmain_success_counter < g_midtable_numentries) {
-			asm volatile ("pause");		/* Save energy when waiting */
+			xmhf_cpu_relax();
 		}
 		printf("CPU(0x%02x): All cores have successfully been through appmain.\n", vcpu->id);
   }
@@ -374,12 +374,6 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 #ifndef __XMHF_VERIFICATION__
   //initialize support for SMP guests
   xmhf_smpguest_initialize(vcpu);
-#endif
-
-#if defined (__DMAP__)
-  // [TODO][Superymk] Ugly hack: HP2540p's GPU does not work properly if not invoking <xmhf_dmaprot_invalidate_cache> 
-  // in <xmhf_runtime_main>.
-  xmhf_dmaprot_invalidate_cache();
 #endif
 
   //start partition (guest)
