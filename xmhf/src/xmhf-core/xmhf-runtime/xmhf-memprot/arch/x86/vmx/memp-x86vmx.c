@@ -85,25 +85,9 @@ void xmhf_memprot_arch_x86vmx_initialize(VCPU *vcpu){
 	HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
 
 	_vmx_gathermemorytypes(vcpu);
-
-// ineffective: if (vcpu->isbsp) { xmhf_dmaprot_invalidate_cache(); }
-
-/* effective:
-	if (vcpu->isbsp) {
-		printf("\aBegin sleep\n");
-		for (u32 i = 0; i < 0x10000000; i++) {
-			xmhf_cpu_relax();
-		}
-		printf("\aEnd sleep\n");
-		xmhf_dmaprot_invalidate_cache();
-	}
-*/
-
 #ifndef __XMHF_VERIFICATION__
 	_vmx_setupEPT(vcpu);
 #endif
-
-// effective: if (vcpu->isbsp) { xmhf_dmaprot_invalidate_cache(); }
 
 	//enable EPT
 	vcpu->vmcs.control_VMX_seccpu_based |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
@@ -117,8 +101,6 @@ void xmhf_memprot_arch_x86vmx_initialize(VCPU *vcpu){
 	vcpu->vmcs.control_VMX_cpu_based &= ~(1U << VMX_PROCBASED_CR3_LOAD_EXITING);
 	//disable CR3 store exiting
 	vcpu->vmcs.control_VMX_cpu_based &= ~(1U << VMX_PROCBASED_CR3_STORE_EXITING);
-
-// effective: if (vcpu->isbsp) { xmhf_dmaprot_invalidate_cache(); }
 }
 
 

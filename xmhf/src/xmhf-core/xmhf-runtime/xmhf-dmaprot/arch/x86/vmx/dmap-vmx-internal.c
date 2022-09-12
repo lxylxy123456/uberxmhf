@@ -50,35 +50,6 @@
 #include <xmhf.h>
 #include "dmap-vmx-internal.h"
 
-VTD_DRHD *lxy_vtd_drhd_1 = NULL;
-
-static void _vtd_drhd_write_buffer_flush(VTD_DRHD *drhd)
-{
-	VTD_GCMD_REG gcmd;
-	VTD_GSTS_REG gsts;
-	gcmd.value = 0;
-	gcmd.bits.wbf = 1;
-	_vtd_reg(drhd, VTD_REG_WRITE, VTD_GCMD_REG_OFF, (void *)&gcmd.value);
-	do {
-		_vtd_reg(drhd, VTD_REG_READ, VTD_GSTS_REG_OFF, (void *)&gsts.value);
-	} while (gsts.bits.wbfs);
-}
-
-void lxy_report_dmap_fault(void)
-{
-	u64 *frr = (u64 *)(0x00000000fed91200);
-	u32 *fsr = (u32 *)(0x00000000fed91034);
-	HALT_ON_ERRORCOND(lxy_vtd_drhd_1 != NULL);
-	printf("  FSR=0x%08x", fsr[0]);
-	printf("  FRR=0x%016llx:0x%016llx", frr[1], frr[0]);
-	if (fsr[0] & 1) {
-		*fsr = 1U;
-	}
-	if (frr[1] & (1ULL << 63)) {
-		frr[1] = (1ULL << 63);
-	}
-}
-
 struct dmap_vmx_cap g_vtd_cap;
 
 //------------------------------------------------------------------------------
@@ -309,9 +280,6 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
     // sanity check
     HALT_ON_ERRORCOND(drhd != NULL);
 
-	HALT_ON_ERRORCOND(lxy_vtd_drhd_1 == NULL);
-	lxy_vtd_drhd_1 = drhd;
-
     // check VT-d snoop control capabilities
     {
         VTD_ECAP_REG ecap;
@@ -342,12 +310,6 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
         fectl.bits.im = 1;
         _vtd_reg(drhd, VTD_REG_WRITE, VTD_FECTL_REG_OFF, (void *)&fectl.value);
 
-		{
-			printf("INIT %d:", __LINE__);
-			lxy_report_dmap_fault();
-			printf("\n");
-		}
-
         // check to see if the im bit actually stuck
         _vtd_reg(drhd, VTD_REG_READ, VTD_FECTL_REG_OFF, (void *)&fectl.value);
 
@@ -358,12 +320,6 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
         }
     }
     printf("Done.\n");
-
-	{
-		printf("INIT %d:", __LINE__);
-		lxy_report_dmap_fault();
-		printf("\n");
-	}
 
     // 4. setup RET (root-entry)
     printf("	Setting up RET...");
@@ -499,12 +455,6 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
     }
     printf("Done.\n");
 
-	{
-		printf("INIT %d:", __LINE__);
-		lxy_report_dmap_fault();
-		printf("\n");
-	}
-
     // 8. enable device
     printf("	Enabling device...");
     {
@@ -528,12 +478,6 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
     }
     printf("Done.\n");
 
-	{
-		printf("INIT %d:", __LINE__);
-		lxy_report_dmap_fault();
-		printf("\n");
-	}
-
     // 9. disable protected memory regions (PMR) if available
     printf("	Checking and disabling PMR...");
     {
@@ -555,8 +499,6 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
 #endif
         }
     }
-	_vtd_drhd_write_buffer_flush(drhd);
-
     printf("Done.\n");
 
     // 10. perform write buffer flush (WBF)

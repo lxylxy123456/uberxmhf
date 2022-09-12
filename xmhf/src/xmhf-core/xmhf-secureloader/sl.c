@@ -212,7 +212,7 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 
 #if defined (__DMAP__)
 	//setup DMA protection on runtime (secure loader is already DMA protected)
-	// xmhf_sl_arch_early_dmaprot_init(slpb.runtime_size);
+	xmhf_sl_arch_early_dmaprot_init(slpb.runtime_size);
 #endif
 
 	//transfer control to runtime
