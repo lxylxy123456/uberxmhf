@@ -581,5 +581,16 @@ Problems encountered during above
   `--sl-base 0x30000000`
 * The "screen corrupted" problem is known, see 21 Mar 2022 email
 
+After `bug_093` is fixed, try DRT and DMAP, and screen corruption no longer
+happens. Use `xmhf64-nest-dev` branch.
+```
+# build64
+./build.sh amd64 circleci O3 --drt --dmap && gr
+# build32
+./build.sh amd64 fast --sl-base 0x30000000 --no-init-smp circleci O3 && gr
+# any
+copyxmhf && hpgrub XMHF-build64 XMHF-build32 && hpinit6
+```
+
 TODO: try first level XMHF with DRT only
 

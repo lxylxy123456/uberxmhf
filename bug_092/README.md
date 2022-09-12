@@ -210,9 +210,245 @@ where `VTD_REG_WRITE` should be `VTD_REG_READ`. Fixed in `xmhf64 c510f195f`.
 Also realized that in `xmhf64` branch, GRUB VGA is good. But in `xmhf64-dev`
 branch, GRUB VGA also corrupts.
 
-TODO: monitor DRHD fault register
-TODO: read Linux code in `drivers/iommu/intel/iommu.c`
-TODO: print Linux and XMHF interaction with DRHD
-TODO: print memory dump at VMEXIT
-TODO: use I/O VMEXIT
+### Delay enable of DMAP
+
+I realized that if we call `xmhf_dmaprot_enable()` after some VMEXITs, the
+bug can still be reproducible. This can be used to find the relevant GRUB code
+that causes this bug.
+
+`grep VMEXIT 20220910154438 | cut -b 1-50 | uniq -c` shows the list of VMEXITs.
+They are:
+1. CPUID at 0x00009321
+2. E820 (19 times)
+3. CPUID at 0x00009ae7
+4. CPUID at 0x00009af5
+5. CPUID at 0x00009b36
+6. CPUID at 0x00009b7b
+7. CPUID at 0x00009a95 (76 times)
+8. CPUID at 0x0fecf1ac
+9. RDMSR at 0x0fecf1bd
+10. CPUID at 0x0fecf1d7
+
+* Enable DMAP at 1: same behavior as enable in `runtime.c`
+* Enable DMAP at 5: same behavior as enable in `runtime.c`
+* Enable DMAP at 8 (RIP=0x0fecf1ac): same behavior as enable in `runtime.c`
+* Enable DMAP at 10 (RIP=0x0fecf1d7): same behavior as enable in `runtime.c`
+* Enable DMAP at RIP=0x0fecf311 (index=42): same behavior as enable in
+  `runtime.c`
+* Enable DMAP at RIP=0x01674d69 (index=271): no bug reproduced
+* Enable DMAP at index=156: no bug reproduced
+* Enable DMAP at index=74: at first the VGA is good. Looks like the VGA is
+  corrupted as soon as DMAP is enabled.
+
+In `xmhf64-dev fb11448ea`, print index to better locate a VMEXIT. Serial
+`20220911131101`. VMEXITs at RIP=0x00009a95 are removed because they are likely
+timer-dependent. At least for index < 300, VMEXITs are reproducible.
+
+For the index=74 experiment, if we halt in hypervisor immediately after DMAP
+is enabled, still see the VGA corruption. Git `xmhf64-dev bb569fa1c`.
+
+Now my guess is that VGA accesses memory using DMA. However during debugging,
+only IDE access to 0x60000-0xa0000, so during GRUB VGA access is blocked. So
+GRUB VGA corrupts. If I revert such changes, GRUB VGA is good but Debian VGA is
+still corrupted. Now we check which device causes the GRUB VGA to corrupt
+
+* Only map 0 in RET, all in CET: VGA does not corrupt
+* Only map 0 in RET, [0, 128) in CET: VGA does not corrupt
+* Only map 0 in RET, [0, 48) in CET: VGA does not corrupt
+* Only map 0 in RET, [0, 28) in CET: VGA does not corrupt
+* Only map 0 in RET, [0, 8) in CET: VGA corrupts
+* Only map 0 in RET, [8, 18) in CET: VGA does not corrupt
+* Only map 0 in RET, [8, 13) in CET: VGA corrupts
+* Only map 0 in RET, [16, 18) in CET: VGA does not corrupt
+* Only map 0 in RET, 16 in CET: VGA does not corrupt
+* Only map 0 in RET, 16 in CET, memory 0-0x100000: VGA corrupts
+* Only map 0 in RET, 16 in CET, memory 0x100000-0x80000000: VGA corrupts
+* Only map 0 in RET, 16 in CET, memory 0xc0000000-4G: VGA corrupts
+* Only map 0 in RET, 16 in CET, memory 0-4G: VGA does not corrupt
+* Only map 0 in RET, 16 in CET, memory 0x100000-4G: VGA does not corrupt
+* Only map 0 in RET, 16 in CET, memory 0x80000000-0xc0000000: VGA does not
+  corrupt
+* Only map 0 in RET, 16 in CET, memory 0x80000000-0xa0000000: VGA corrupts
+* Only map 0 in RET, 16 in CET, memory 0xa0000000-0xb0000000: VGA corrupts
+* Only map 0 in RET, 16 in CET, memory 0xb0000000-0xc0000000: VGA does not
+  corrupt
+* Only map 0 in RET, 16 in CET, memory 0xb8000000-0xc0000000: VGA does not
+  corrupt
+* Only map 0 in RET, 16 in CET, memory 0xbc000000-0xc0000000: VGA does not
+  corrupt
+* Only map 0 in RET, 16 in CET, memory 0xbf000000-0xc0000000: VGA corrupts
+* Only map 0 in RET, 16 in CET, memory 0xbe000000-0xbf000000, stop at index=57:
+  VGA does not corrupt
+* Only map 0 in RET, 16 in CET, memory 0xbe800000-0xbf000000, stop at index=57:
+  VGA corrupts
+* Only map 0 in RET, 16 in CET, memory 0xbe000000-0xbe400000, stop at index=57:
+  VGA corrupts
+* Only map 0 in RET, 16 in CET, memory 0xbe400000-0xbe800000, stop at index=46:
+  VGA corrupts
+* Only map 0 in RET, 16 in CET, memory 0xbe000000-0xbe800000, stop at index=46:
+  screen is blank. Looks like index=46 is too early
+* Only map 0 in RET, 16 in CET, memory 0xbe400000-0xbe800000, stop at index=50:
+  The first around 4.2 rows are corrupted.
+* Only map 0 in RET, 16 in CET, memory 0xbe400000-0xbe600000, stop at index=50:
+  The first around 4.2 rows and the second half ot the screen are corrupted.
+* Only map 0 in RET, 16 in CET, memory 0xbe400000-0xbe600000 read only, stop at
+  index=50: the entire screen is corrupted
+* Only map 0 in RET, 16 in CET, memory 0xbe400000-0xbe600000 write only, stop at
+  index=50: the entire screen is corrupted
+* Only map 0 in RET, 16 in CET, memory 0xbe400000-0xbe700000, stop at index=54:
+  the entire screen is corrupted
+* Only map 0 in RET, 16 in CET, memory 0xbe400000-0xbe700000, stop at index=50:
+  The first few rows and the last quarter of the screen are corrupted.
+
+The updated story is: VGA hardware uses DMA to access memory from
+0xbe400000-delta1 to 0xbe600000-delta2 and map the memory to the screen. If the
+memory cannot be accessed, some strange value is "returned" and the screen
+displays this value.
+
+The device in lspci is:
+```
+00:02.0 VGA compatible controller: Intel Corporation Core Processor Integrated Graphics Controller (rev 02)
+```
+
+### Fault logging
+
+Looks like the Fault Recording Registers (FRR) etc will be helpful for us when
+debugging this problem. Before using it, need to make sure that PFO in Fault
+Status Register (FSR) is 0 (write 1 to clear). Otherwise, the hardware will not
+log to the FRR. This is something not implemented well in
+`_vtd_drhd_initialize()`. I think FRR.F may also need to be cleared.
+
+The hardware logic is in "7.3.1 Primary Fault Logging". It specifies how
+software should clear FRR.F and then FSR.PFO
+
+For example, during the GRUB VGA corruption, FRR becomes
+`FRR=0x8000000500000010:0x00000000be000000`. This is `FR=5`, `SID=0x0010`, and
+`FI=0x00000000be000000`. The fault reason is can be looked up in appendix A:
+> DMA Remapping Fault Conditions:
+> A non-recoverable address translation fault resulted due to lack of write
+> permission.
+
+The good news is that the lower 64 bits of FRR (`0x00000000be000000`) indicates
+the address (page granularity) that caused the fault. This is very helpful for
+debugging.
+
+Using FRR, I realized that there are more memory that are accessed by VGA
+* Only map 0xbe000000-0xb7000000: fault at 0xb7000000, part of screen corrupted
+	* Git `xmhf64-dev 5e640aef1`
+* Only map 0xbe000000-0xb8000000: fault at 0xb8000000
+* Only map 0xbe000000-0xb9000000: fault at 0xb9000000
+* Only map 0xbe000000-0xbf000000: fault at 0xbf000000
+* Only map 0xbe000000-0xc0000000: no fault
+
+I think we can stop here on GRUB and focus on Debian. However, it also means
+that `### Linux message about firmware bug` may be related, because the memory
+region identified by Linux is 0xbdc00000-0xbfffffff.
+
+### Why GRUB VGA corrupts
+
+Strangely, GRUB VGA corrupts at unexepcted code.
+* `xmhf64-dev 60ed5431f`: corrupt (unexpected)
+* `xmhf64 c510f195f`: not corrupt
+* `60ed5431f`: corrupt
+* `a1841d497`: corrupt
+* `40b8bb624`: corrupt
+* `58692ce84`: corrupt
+* `eb66d8833`: not corrupt
+
+Actually the bug happens after removing the following DMAP flush workaround in
+`runtime.c`. So should not use `xmhf64` branch as the baseline.
+```c
+#if defined (__DMAP__)
+  // [TODO][Superymk] Ugly hack: HP2540p's GPU does not work properly if not invoking <xmhf_dmaprot_invalidate_cache> 
+  // in <xmhf_runtime_main>.
+  xmhf_dmaprot_invalidate_cache();
+#endif
+```
+
+This means that GRUB can reproduce the bug, or there are 2 bugs. In
+`xmhf64-dev 661334b41..66e10f1d9`, try to bisect XMHF code logic and see where
+the bug starts to happen. However, not successful.
+
+Then we go back to fault logging. See `xmhf64-dev 5789b937a`. Looks like there
+is a fault right after enabling GCMD.TE, where
+FRR=0x0000000100000010:0x00000000be000000. However, this does not make sense
+because the cache should be flushed correctly.
+
+Now the best bet is to see how Debian initializes VT-d and compare the behavior
+with XMHF.
+
+### Write buffer flush
+
+While reviewing the documentation, I realized that there is a global command
+called "WBF: Write Buffer Flush \[1\]". The comment says:
+> 1. Implementations reporting write-buffer flushing as required in Capability
+> register must perform implicit
+> write buffer flushing as a pre-condition to all context-cache and IOTLB
+> invalidation operations.
+
+Linux code (`drivers/iommu/intel/iommu.c`) also shows the use of WBF, and XMHF
+code already identifies that "VT-d hardware access to remapping structures
+NON-COHERENT".
+```c
+void iommu_flush_write_buffer(struct intel_iommu *iommu)
+{
+	u32 val;
+	unsigned long flag;
+
+	if (!rwbf_quirk && !cap_rwbf(iommu->cap))
+		return;
+
+	raw_spin_lock_irqsave(&iommu->register_lock, flag);
+	writel(iommu->gcmd | DMA_GCMD_WBF, iommu->reg + DMAR_GCMD_REG);
+
+	/* Make sure hardware complete it */
+	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
+		      readl, (!(val & DMA_GSTS_WBFS)), val);
+
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
+}
+```
+
+So we should flush write buffer. A PoC is in `xmhf64-dev 0a9f9163e`, which
+flushes WB very frequently. Looks like the GRUB VGA corruption issue is solved.
+* Before the commit: `5789b937a`, GRUB VGA corrupts
+* After the commit: `0a9f9163e`, GRUB VGA is good
+
+After some experiments, looks like this WBF need to be done after
+`// 8. enable device`. Also read documentation "6.8 Write Buffer Flushing".
+This looks reasonable.
+
+Also, we review things done in `_vtd_drhd_initialize()`.
+```c
+    // 3. setup fault logging
+    // 4. setup RET (root-entry)
+    // 5. invalidate CET cache
+    // 6. invalidate IOTLB
+    // 7. disable options we dont support
+    // 8. enable device
+    // 9. disable protected memory regions (PMR) if available
+```
+
+Note that in 9, currently PMR is already disabled. This may change if we switch
+from `xmhf64-dev` to `xmhf64`.
+
+After performing the WBF, looks like all DMAP issues on 2540p are gone. Git
+`xmhf64 569abea18`.
+
+Untried ideas
+* Print Linux and XMHF interaction with DRHD
+	* Can use XMHF to do that, inject some exception to let Linux print call
+	  stack
+
+### Code clean-up
+
+TODO: `_vtd_drhd_initialize()` does not clear FSR.PFO and FRR.F correctly
+TODO: `_vtd_invalidatecaches()` may need to wait: see `xmhf64-dev c1e749be7`
+TODO: be able to justify where exactly WBF should be performed
+
+## Fix
+
+`xmhf64 1c3d520a9..2c767d24b`
+* Fix typo in `dmap-vmx-internal.c`
+* Perform WBF in `_vtd_drhd_initialize()`
 
