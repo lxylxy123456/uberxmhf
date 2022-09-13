@@ -24,7 +24,7 @@ summer.
 ### Testing LHV
 
 In HP 2540P, for two CPUs, `vcpu->id != vcpu->idx`. This causes a bug in LHV.
-Fixed in `93f279dae..117992a70`.
+Fixed in `lhv 93f279dae..117992a70`.
 
 * i386, `LHV_OPT=0x0`: good
 * i386, `LHV_OPT=0x1fd`: bad1
@@ -592,5 +592,35 @@ happens. Use `xmhf64-nest-dev` branch.
 copyxmhf && hpgrub XMHF-build64 XMHF-build32 && hpinit6
 ```
 
-TODO: try first level XMHF with DRT only
+### Test Result
+
+This is the test result summary after bug fixes
+
+* LHV: good
+* XMHF LHV: good
+* XMHF XMHF LHV: good
+* XMHF XMHF Debian: good
+* XMHF XMHF (other OS): good
+* INIT-SIPI-SIPI twice exploit: good, but only valid when `!DRT`
+* NMI tests (`lhv-nmi` branch): good
+
+## Fix
+
+`xmhf64 983c6bc82..1c3d520a9`
+* Fix bugs when compiling in O3
+* Fix bug in `hpt_pme_set_pmt()` (problematic with memory > 4G)
+
+`xmhf64-nest 4a0f847cb..b92c1369c`
+* Check VMCS shadowing support in hardware
+* Fix bugs when compiling in O3
+* Fix VMENTRY failure due to retrying NMI injection
+* Handle EPT02 full without crashing XMHF
+
+`lhv 93f279dae..2419e4652`
+* Fix bugs to run LHV in HP 2540p
+* Fix bugs when compiling in O3
+
+`lhv-nmi 3cee6b73a..579cce4ba`
+* Fix `experiment_27()` (hardware is good)
+* Add more experiments
 

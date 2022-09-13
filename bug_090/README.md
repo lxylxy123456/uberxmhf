@@ -379,6 +379,12 @@ See "0x000000000260a001 not in guest EPT" messages, because I forgot to remove
 a QEMU workaround. After removing it, looks like some progress is made (VGA
 screen size can be changed to 1024x768).
 
+### Event Logger
+
+To debug performance better, we need to be able to aggregate events happened in
+XMHF and output them using less serial bandwidth. We need write a small
+framework. First develop it in Linux under folder `bug_090/event_logger`.
+
 TODO: try not using VMCS shadowing
 TODO: how slow is KVM KVM KVM?
 TODO: why UP is slow (print VMEXIT and VMENTRY)
