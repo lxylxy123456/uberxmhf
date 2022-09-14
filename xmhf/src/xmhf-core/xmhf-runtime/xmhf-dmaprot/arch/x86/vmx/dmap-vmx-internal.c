@@ -275,6 +275,7 @@ static inline void cpu_relax(void)
 #define SEC_TO_CYCLES(x)                (1000UL * 1000UL) * CPU_CYCLES_PER_MICRO_SEC * x
 #define DMAR_OPERATION_TIMEOUT          SEC_TO_CYCLES(1)
 
+// [TODO] Move util functions to a better place
 static void delay_us(uint64_t us)
 {
     uint64_t cycles = 3500 * us;
