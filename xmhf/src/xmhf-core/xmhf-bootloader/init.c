@@ -839,6 +839,21 @@ void cstartup(multiboot_info_t *mbi){
     module_t *mod_array;
     u32 mods_count;
 
+	{
+		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x3E0) = 0x0000000b;
+		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x380) = 50*1000000;
+		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x320) = 0x00020022;
+		printf("Start host\n");
+		asm volatile ("sti");
+		for (int i = 0; i < 0x10000000; i++) {
+			asm volatile ("pause");
+		}
+		printf("End host\n");
+		while (1) {
+			asm volatile ("pause");
+		}
+	}
+
     /* parse command line */
     memset(g_cmdline, '\0', sizeof(g_cmdline));
     strncpy(g_cmdline, (char*)mbi->cmdline, sizeof(g_cmdline)-1);
