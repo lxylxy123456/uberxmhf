@@ -92,7 +92,7 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 	//initialze sl_baseaddr variable and print its value out
 	sl_baseaddr = baseaddr;
 
-	{
+	if (0) {
 		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x3E0) = 0x0000000b;
 		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x380) = 50*1000000;
 		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x320) = 0x00020022;

@@ -701,10 +701,26 @@ void do_drtm(VCPU __attribute__((unused))*vcpu, u32 slbase, size_t mle_size __at
 		FCALL invokesl;
 
 		printf("\n****** NO DRTM startup ******\n");
+		{
+			*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x3E0) = 0x0000000b;
+			*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x380) = 50*1000000;
+			*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x320) = 0x00020022;
+			printf("Start host\n");
+			asm volatile ("sti");
+			for (int i = 0; i < 0x10000000; i++) {
+				asm volatile ("pause");
+			}
+			printf("End host\n");
+			while (1) {
+				asm volatile ("pause");
+			}
+		}
 		printf("slbase=0x%08x, sl_entry_point_offset=0x%08x\n", (u32)slbase, *sl_entry_point_offset);
 		sl_entry_point = (u32)slbase + (u32) (*sl_entry_point_offset);
 		invokesl = (FCALL)(u32)sl_entry_point;
 		printf("SL entry point to transfer control to: 0x%08x\n", invokesl);
+
+
 		invokesl();
         printf("INIT(early): error(fatal), should never come here!\n");
         HALT();

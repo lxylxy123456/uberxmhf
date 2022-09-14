@@ -160,7 +160,7 @@ void xmhf_runtime_entry(void){
 	xmhf_debug_init((char *)&rpb->RtmUartConfig);
 	printf("runtime initializing...\n");
 
-	{
+	if (0) {
 		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x3E0) = 0x0000000b;
 		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x380) = 50*1000000;
 		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x320) = 0x00020022;
