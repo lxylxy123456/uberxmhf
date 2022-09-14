@@ -504,7 +504,7 @@ static void lhv_guest_wait_int_vmexit_handler(VCPU *vcpu, struct regs *r,
 	}
 	HALT_ON_ERRORCOND(r->eax == 25);
 	if (!(__LHV_OPT__ & (LHV_NO_EFLAGS_IF | LHV_NO_INTERRUPT))) {
-		asm volatile ("sti; hlt; cli;");
+		// asm volatile ("sti; hlt; cli;");
 	}
 	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
 	vmresume_asm(r);
@@ -613,11 +613,13 @@ void lhv_guest_main(ulong_t cpu_id)
 		HALT_ON_ERRORCOND(++iter > 0);
 		if (in_xmhf) {
 			printf("CPU(0x%02x): LHV in XMHF test iter %lld\n", vcpu->id, iter);
-		} else {
+		} else if (iter % 100000000 == 0) {
 			printf("CPU(0x%02x): LHV test iter %lld\n", vcpu->id, iter);
 		}
+		xmhf_cpu_relax();
+		continue;
 		if (!(__LHV_OPT__ & (LHV_NO_EFLAGS_IF | LHV_NO_INTERRUPT))) {
-			asm volatile ("hlt");
+			// asm volatile ("hlt");
 		}
 		if (in_xmhf && (__LHV_OPT__ & LHV_USE_MSR_LOAD) &&
 			(__LHV_OPT__ & LHV_USER_MODE)) {
