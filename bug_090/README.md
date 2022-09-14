@@ -385,6 +385,21 @@ To debug performance better, we need to be able to aggregate events happened in
 XMHF and output them using less serial bandwidth. We need write a small
 framework. First develop it in Linux under folder `bug_090/event_logger`.
 
+`xmhf64 04ed0fd93..a71084ef8` implements the event logger.
+`xmhf64-nest a3624c7bd..3cbd3ae42` merges the change add adds code for nested
+virtualization. In `xmhf64-nest-dev 8a3fa23c1`, the set up is
+
+```sh
+# build64
+./build.sh amd64 circleci O3 --event-logger && gr
+# build32
+./build.sh amd64 fast --sl-base 0x20000000 --no-init-smp circleci O3 && gr
+# any
+copyxmhf && hpgrub XMHF-build64 XMHF-build32 && hpinit6
+```
+
+TODO: break `xmhf_nested_arch_x86vmx_handle_vmexit()` (long function)
+TODO: read KVM code, try not to update all VMCS fields during 102 and 201
 TODO: try not using VMCS shadowing
 TODO: how slow is KVM KVM KVM?
 TODO: why UP is slow (print VMEXIT and VMENTRY)

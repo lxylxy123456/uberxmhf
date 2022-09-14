@@ -154,7 +154,7 @@ sudo grub-editenv /boot/grub/grubenv set next_entry=XMHF-build64 next_entry_2=XM
 
 ### Testing XMHF XMHF LHV
 
-```
+```sh
 # build64
 ./build.sh amd64 fast && gr
 # build32
@@ -521,7 +521,7 @@ In `bug_086`, wrote exploit code in `14339e362..12ade0a3b`. Now we test this
 code on HP. Looks like it works well. Code in `lhv-dev 432c0aa3b..9baab9396`.
 The set up is:
 
-```
+```sh
 # build32: xmhf64-nest f9a93b709
 ./build.sh i386 fast
 for i in g_vmx_{{{,lock_}quiesce,{,lock_}quiesce_resume}_counter,quiesce_resume_signal}; do
@@ -583,7 +583,7 @@ Problems encountered during above
 
 After `bug_093` is fixed, try DRT and DMAP, and screen corruption no longer
 happens. Use `xmhf64-nest-dev` branch.
-```
+```sh
 # build64
 ./build.sh amd64 circleci O3 --drt --dmap && gr
 # build32

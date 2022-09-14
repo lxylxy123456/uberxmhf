@@ -1,6 +1,7 @@
 #include <assert.h>
-#include <stdio.h>
+#include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #define HALT_ON_ERRORCOND assert
 #define MAX_VCPU_ENTRIES 10
