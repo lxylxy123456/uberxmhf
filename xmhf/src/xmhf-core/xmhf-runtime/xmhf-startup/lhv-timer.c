@@ -55,7 +55,7 @@ static int rtc_get_sec_of_day(void) {
 void timer_init(VCPU *vcpu)
 {
 	/* PIT */
-	if (vcpu->isbsp) {
+	if (vcpu && vcpu->isbsp) {
 		u64 ncycles = TIMER_RATE * TIMER_PERIOD / 1000;
 		HALT_ON_ERRORCOND(ncycles == (u64)(u16)ncycles);
 		if (__LHV_OPT__ & LHV_NO_INTERRUPT) {

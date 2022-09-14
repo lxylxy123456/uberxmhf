@@ -160,6 +160,19 @@ void xmhf_runtime_entry(void){
 	xmhf_debug_init((char *)&rpb->RtmUartConfig);
 	printf("runtime initializing...\n");
 
+	{
+		timer_init(NULL);
+		printf("Start host\n");
+		asm volatile ("sti");
+		for (int i = 0; i < 0x10000000; i++) {
+			xmhf_cpu_relax();
+		}
+		printf("End host\n");
+		while (1) {
+			xmhf_cpu_relax();
+		}
+	}
+
 	/*
   // initialize memory management
 	xmhf_mm_init();
