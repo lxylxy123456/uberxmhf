@@ -118,7 +118,7 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
     // of 512 entries. This is sufficient because the lower 3-level PT covers 0 - 512GB physical memory space
     pml4t = (pml4t_t)vtd_pml4t_vaddr;
     pml4t[0] = (u64)(pdptphysaddr + (0 * PAGE_SIZE_4K));
-    pml4t[0] |= ((u64)VTD_READ | (u64)VTD_WRITE);
+    pml4t[0] |= ((u64)VTD_READ | (u64)VTD_WRITE | (u64)VTD_EXECUTE);
 
     // setup pdpt, pdt and pt
     // initially set the entire spaddr space [m_low_spa, m_high_spa) as DMA read/write capable
@@ -127,19 +127,25 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
     for (i = 0; i < num_1G_entries; i++) // DMAPROT_VMX_P4L_NPDT
     {
         pdpt[i] = (u64)(pdtphysaddr + (i * PAGE_SIZE_4K));
-        pdpt[i] |= ((u64)VTD_READ | (u64)VTD_WRITE);
+        pdpt[i] |= ((u64)VTD_READ | (u64)VTD_WRITE | (u64)VTD_EXECUTE);
 
         pdt = (pdt_t)(vtd_pdts_vaddr + (i * PAGE_SIZE_4K));
         for (j = 0; j < PAE_PTRS_PER_PDT; j++)
         {
             pdt[j] = (u64)(ptphysaddr + (i * PAGE_SIZE_4K * PAE_PTRS_PER_PDT) + (j * PAGE_SIZE_4K));
-            pdt[j] |= ((u64)VTD_READ | (u64)VTD_WRITE);
+            pdt[j] |= ((u64)VTD_READ | (u64)VTD_WRITE | (u64)VTD_EXECUTE);
 
             pt = (pt_t)(vtd_pts_vaddr + (i * PAGE_SIZE_4K * PAE_PTRS_PER_PDT) + (j * PAGE_SIZE_4K));
             for (k = 0; k < PAE_PTRS_PER_PT; k++)
             {
                 pt[k] = (u64)physaddr;
-                pt[k] |= ((u64)VTD_READ | (u64)VTD_WRITE);
+                pt[k] |= ((u64)VTD_READ | (u64)VTD_WRITE | (u64)VTD_EXECUTE);
+                // [Superymk]
+                {
+                    // pt[k] |= ((1ULL << 11) | (1ULL << 6) | (1ULL << 62));
+                    // pt[k] |= ((1ULL << 6) | (1ULL << 62));
+                    // pt[k] |= (1ULL << 62);
+                }
                 physaddr += PAGE_SIZE_4K;
             }
         }
@@ -219,11 +225,92 @@ static bool _vtd_setupRETCET(struct dmap_vmx_cap *vtd_cap,
             }
 
             *value |= 0x1ULL; // present, enable fault recording/processing, multilevel pt translation
+            // [Superymk]
+            // {
+            //     if(i == 0 && j == 2 * PCI_FUNCTION_MAX)
+            //         *value |= (0x0ULL << 2);
+            // }
         }
     }
 
     return true;
 }
+
+/*static bool _vtd_setupRETCET_sm(struct dmap_vmx_cap *vtd_cap,
+                             spa_t vtd_pml4t_paddr, spa_t vtd_pdpt_paddr,
+                             spa_t vtd_ret_paddr, hva_t vtd_ret_vaddr)//,
+                             //spa_t vtd_cet_paddr, hva_t vtd_cet_vaddr)
+{
+    spa_t retphysaddr, cetphysaddr;
+    hva_t pasid_dir_vaddr = (hva_t)g_vtd_pasid_dir;
+    hva_t pasid_dir_vaddr = (hva_t)g_vtd_pasid_dir;
+    spa_t pasid_dir_paddr;
+    u32 i, j;
+    u64 *value;
+
+    // Sanity checks
+    if (!vtd_cap)
+        return false;
+
+    retphysaddr = vtd_ret_paddr;
+    (void)retphysaddr;
+    //cetphysaddr = vtd_cet_paddr;
+    cetphysaddr = hva2spa(g_vtd_ct);
+    pasid_dir_paddr = hva2spa(g_vtd_pasid_dir);
+
+    // sanity check that pdpt base address is page-aligned
+    HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_4K(vtd_pml4t_paddr) && PA_PAGE_ALIGNED_4K(vtd_pdpt_paddr));
+
+    // initialize RET
+    for (i = 0; i < PCI_BUS_MAX; i++)
+    {
+        value = (u64 *)(vtd_ret_vaddr + (i * 16));
+        *(value + 1) = (u64)0x0ULL;
+        *value = (u64)(cetphysaddr + (i * PAGE_SIZE_4K));
+
+        // sanity check that CET is page aligned
+        HALT_ON_ERRORCOND(!(*value & 0x0000000000000FFFULL));
+
+        // set it to present
+        *value |= 0x1ULL;
+    }
+
+    // initialize CET
+    for (i = 0; i < PCI_BUS_MAX; i++)
+    {
+        for (j = 0; j < (PCI_DEVICE_MAX * PCI_FUNCTION_MAX); j++)
+        {
+            value = (u64 *)(vtd_cet_vaddr + (i * PAGE_SIZE_4K) + (j * 16));
+
+            if (vtd_cap->sagaw & 0x4)
+            {
+                // Preferred to use 4-level PT
+                *(value + 1) = (u64)0x0000000000000102ULL; // domain:1, aw=48 bits, 4 level pt
+                *value = vtd_pml4t_paddr;
+            }
+            else if (vtd_cap->sagaw & 0x2)
+            {
+                // If no 4-level PT, then try 3-level PT
+                *(value + 1) = (u64)0x0000000000000101ULL; // domain:1, aw=39 bits, 3 level pt
+                *value = vtd_pdpt_paddr;
+            }
+            else
+            {
+                // Unsupported IOMMU
+                return false;
+            }
+
+            *value |= 0x1ULL; // present, enable fault recording/processing, multilevel pt translation
+            // [Superymk]
+            // {
+            //     if(i == 0 && j == 2 * PCI_FUNCTION_MAX)
+            //         *value |= (0x0ULL << 2);
+            // }
+        }
+    }
+
+    return true;
+}*/
 
 // initialize VMX EAP a.k.a VT-d
 // returns 1 if all went well, else 0
@@ -651,7 +738,7 @@ void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size)
 
         // protect the physical page
         // pt[ptindex] &= 0xFFFFFFFFFFFFFFFCULL;
-        pt[ptindex] &= (~((u64)VTD_READ | (u64)VTD_WRITE));
+        pt[ptindex] &= (~((u64)VTD_READ | (u64)VTD_WRITE) | (u64)VTD_EXECUTE);
     }
 #endif
 }
@@ -685,7 +772,7 @@ void xmhf_dmaprot_arch_x86_vmx_unprotect(spa_t start_paddr, size_t size)
 
         // protect the physical page
         // pt[ptindex] &= 0xFFFFFFFFFFFFFFFCULL;
-        pt[ptindex] |= ((u64)VTD_READ | (u64)VTD_WRITE);
+        pt[ptindex] |= ((u64)VTD_READ | (u64)VTD_WRITE | (u64)VTD_EXECUTE);
     }
 #endif
 }

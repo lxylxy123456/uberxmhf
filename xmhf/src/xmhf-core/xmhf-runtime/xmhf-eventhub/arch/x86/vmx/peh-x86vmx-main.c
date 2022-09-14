@@ -682,10 +682,14 @@ static void _vmx_handle_intercept_eptviolation(VCPU *vcpu, struct regs *r){
 	if(vcpu->isbsp && (gpa >= g_vmx_lapic_base) && (gpa < (g_vmx_lapic_base + PAGE_SIZE_4K)) ){
 		xmhf_smpguest_arch_x86_eventhandler_hwpgtblviolation(vcpu, (u32)gpa, errorcode);
 	}else{ //no, pass it to hypapp
-		xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+		// [Superymk] Some hypapps cannot use CPU quiescing when handling trapped PIO and memory accesses. For example, some
+		// hypapps must call another core to emulate the trapped CPU instructions. These hypapps cannot do so if CPU 
+		// quiescing is used.
+		// [TODO] Add a compiler flag to select this preference.
+		// xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 		xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, gpa, gva,
 				(errorcode & 7));
-		xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+		// xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 	}
 }
 
@@ -704,10 +708,14 @@ static void _vmx_handle_intercept_ioportaccess(VCPU *vcpu, struct regs *r){
 
   //call our app handler, TODO: it should be possible for an app to
   //NOT want a callback by setting up some parameters during appmain
-	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+	// [Superymk] Some hypapps cannot use CPU quiescing when handling trapped PIO and memory accesses. For example, some
+	// hypapps must call another core to emulate the trapped CPU instructions. These hypapps cannot do so if CPU 
+	// quiescing is used.
+	// [TODO] Add a compiler flag to select this preference.
+	// xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 	app_ret_status=xmhf_app_handleintercept_portaccess(vcpu, r, portnum, access_type,
           access_size);
-    xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+    // xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 
   if(app_ret_status == APP_IOINTERCEPT_CHAIN){
    	if(access_type == IO_TYPE_OUT){
@@ -1116,6 +1124,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 						(vcpu->vmcs.guest_RFLAGS & EFLAGS_VM)  ) );
 				_vmx_int15_handleintercept(vcpu, r);
 			}else{	//if not E820 hook, give hypapp a chance to handle the hypercall
+				uint32_t hypercall = r->eax;
 				xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 				if( xmhf_app_handlehypercall(vcpu, r) != APP_SUCCESS){
 					printf("CPU(0x%02x): error(halt), unhandled hypercall 0x%08x!\n", vcpu->id, r->eax);

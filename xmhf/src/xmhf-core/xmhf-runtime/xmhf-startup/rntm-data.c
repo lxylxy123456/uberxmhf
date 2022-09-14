@@ -57,6 +57,11 @@ RPB *rpb __attribute__(( section(".data") ));
 
 //runtime DMA protection buffer
 u8 g_rntm_dmaprot_buffer[SIZE_G_RNTM_DMAPROT_BUFFER] __attribute__(( section(".bss.palign_data") ));
+// [Superymk] For scalable-mode translation support
+u8 g_vtd_ct[PAGE_SIZE_4K] __attribute__(( section(".bss.palign_data") ));
+// u8 g_vtd_lct[] __attribute__(( section(".bss.palign_data") ));
+u8 g_vtd_pasid_dir[PAGE_SIZE_4K * 32] __attribute__(( section(".bss.palign_data") ));
+u8 g_vtd_pasid_table[PAGE_SIZE_4K] __attribute__(( section(".bss.palign_data") ));
 
 //variable that is incremented by 1 by all cores that cycle through appmain
 //successfully, this should be finally equal to g_midtable_numentries at

@@ -55,8 +55,9 @@
 
 // 4-level PML4 page tables + 4KB root entry table + 4K context entry table per PCI bus
 #define SIZE_G_RNTM_DMAPROT_BUFFER	(PAGE_SIZE_4K + PAGE_SIZE_4K + (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT) \
-					+ (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT * PAE_PTRS_PER_PDT) + PAGE_SIZE_4K + \
-					(PAGE_SIZE_4K * PCI_BUS_MAX))
+					+ (PAGE_SIZE_4K * DMAPROT_VMX_P4L_NPDT * PAE_PTRS_PER_PDT) \
+					+ (PAGE_SIZE_4K)  						/* size of the root table = 4KB */						\
+					+ (PAGE_SIZE_4K * PCI_BUS_MAX))			/* sizes of all context tables = 4KB * PCI_BUS_MAX */
 
 #ifndef __ASSEMBLY__
 
@@ -73,6 +74,11 @@ extern RPB *rpb __attribute__(( section(".data") ));
 
 //runtime DMA protection buffer
 extern u8 g_rntm_dmaprot_buffer[] __attribute__(( section(".bss.palign_data") ));
+// [Superymk] For scalable-mode translation support
+extern u8 g_vtd_ct[] __attribute__(( section(".bss.palign_data") ));
+// extern u8 g_vtd_lct[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vtd_pasid_dir[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vtd_pasid_table[] __attribute__(( section(".bss.palign_data") ));
 
 //variable that is incremented by 1 by all cores that cycle through appmain
 //successfully, this should be finally equal to g_midtable_numentries at
