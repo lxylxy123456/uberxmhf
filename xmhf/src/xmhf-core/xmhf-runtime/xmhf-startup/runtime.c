@@ -79,7 +79,7 @@ static void vmx_eap_zap(void)
     HALT_ON_ERRORCOND(status != 0); // we need a valid RSDP to proceed
     printf("%s: RSDP at %08x\n", __FUNCTION__, status);
 
-    // [Superymk] Use RSDT if it is ACPI v1, or use XSDT addr if it is ACPI v2
+    // Use RSDT if it is ACPI v1, or use XSDT addr if it is ACPI v2
     if (rsdp.revision == 0) // ACPI v1
     {
         printf("%s: ACPI v1\n", __FUNCTION__);
