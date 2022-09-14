@@ -92,6 +92,21 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 	//initialze sl_baseaddr variable and print its value out
 	sl_baseaddr = baseaddr;
 
+	{
+		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x3E0) = 0x0000000b;
+		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x380) = 50*1000000;
+		*(volatile u32 *)(uintptr_t)(0xfee00000 + 0x320) = 0x00020022;
+		printf("Start host\n");
+		asm volatile ("sti");
+		for (int i = 0; i < 0x10000000; i++) {
+			asm volatile ("pause");
+		}
+		printf("End host\n");
+		while (1) {
+			asm volatile ("pause");
+		}
+	}
+
 	//is our launch before the OS has been loaded (early) is loaded or
 	//is it after the OS has been loaded (late)
 	if(slpb.isEarlyInit)
