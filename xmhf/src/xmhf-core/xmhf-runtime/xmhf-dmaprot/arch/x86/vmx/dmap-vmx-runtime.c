@@ -140,12 +140,6 @@ static bool _vtd_setuppagetables(struct dmap_vmx_cap *vtd_cap,
             {
                 pt[k] = (u64)physaddr;
                 pt[k] |= ((u64)VTD_READ | (u64)VTD_WRITE | (u64)VTD_EXECUTE);
-                // [Superymk]
-                {
-                    // pt[k] |= ((1ULL << 11) | (1ULL << 6) | (1ULL << 62));
-                    // pt[k] |= ((1ULL << 6) | (1ULL << 62));
-                    // pt[k] |= (1ULL << 62);
-                }
                 physaddr += PAGE_SIZE_4K;
             }
         }
@@ -225,92 +219,11 @@ static bool _vtd_setupRETCET(struct dmap_vmx_cap *vtd_cap,
             }
 
             *value |= 0x1ULL; // present, enable fault recording/processing, multilevel pt translation
-            // [Superymk]
-            // {
-            //     if(i == 0 && j == 2 * PCI_FUNCTION_MAX)
-            //         *value |= (0x0ULL << 2);
-            // }
         }
     }
 
     return true;
 }
-
-/*static bool _vtd_setupRETCET_sm(struct dmap_vmx_cap *vtd_cap,
-                             spa_t vtd_pml4t_paddr, spa_t vtd_pdpt_paddr,
-                             spa_t vtd_ret_paddr, hva_t vtd_ret_vaddr)//,
-                             //spa_t vtd_cet_paddr, hva_t vtd_cet_vaddr)
-{
-    spa_t retphysaddr, cetphysaddr;
-    hva_t pasid_dir_vaddr = (hva_t)g_vtd_pasid_dir;
-    hva_t pasid_dir_vaddr = (hva_t)g_vtd_pasid_dir;
-    spa_t pasid_dir_paddr;
-    u32 i, j;
-    u64 *value;
-
-    // Sanity checks
-    if (!vtd_cap)
-        return false;
-
-    retphysaddr = vtd_ret_paddr;
-    (void)retphysaddr;
-    //cetphysaddr = vtd_cet_paddr;
-    cetphysaddr = hva2spa(g_vtd_ct);
-    pasid_dir_paddr = hva2spa(g_vtd_pasid_dir);
-
-    // sanity check that pdpt base address is page-aligned
-    HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_4K(vtd_pml4t_paddr) && PA_PAGE_ALIGNED_4K(vtd_pdpt_paddr));
-
-    // initialize RET
-    for (i = 0; i < PCI_BUS_MAX; i++)
-    {
-        value = (u64 *)(vtd_ret_vaddr + (i * 16));
-        *(value + 1) = (u64)0x0ULL;
-        *value = (u64)(cetphysaddr + (i * PAGE_SIZE_4K));
-
-        // sanity check that CET is page aligned
-        HALT_ON_ERRORCOND(!(*value & 0x0000000000000FFFULL));
-
-        // set it to present
-        *value |= 0x1ULL;
-    }
-
-    // initialize CET
-    for (i = 0; i < PCI_BUS_MAX; i++)
-    {
-        for (j = 0; j < (PCI_DEVICE_MAX * PCI_FUNCTION_MAX); j++)
-        {
-            value = (u64 *)(vtd_cet_vaddr + (i * PAGE_SIZE_4K) + (j * 16));
-
-            if (vtd_cap->sagaw & 0x4)
-            {
-                // Preferred to use 4-level PT
-                *(value + 1) = (u64)0x0000000000000102ULL; // domain:1, aw=48 bits, 4 level pt
-                *value = vtd_pml4t_paddr;
-            }
-            else if (vtd_cap->sagaw & 0x2)
-            {
-                // If no 4-level PT, then try 3-level PT
-                *(value + 1) = (u64)0x0000000000000101ULL; // domain:1, aw=39 bits, 3 level pt
-                *value = vtd_pdpt_paddr;
-            }
-            else
-            {
-                // Unsupported IOMMU
-                return false;
-            }
-
-            *value |= 0x1ULL; // present, enable fault recording/processing, multilevel pt translation
-            // [Superymk]
-            // {
-            //     if(i == 0 && j == 2 * PCI_FUNCTION_MAX)
-            //         *value |= (0x0ULL << 2);
-            // }
-        }
-    }
-
-    return true;
-}*/
 
 // initialize VMX EAP a.k.a VT-d
 // returns 1 if all went well, else 0

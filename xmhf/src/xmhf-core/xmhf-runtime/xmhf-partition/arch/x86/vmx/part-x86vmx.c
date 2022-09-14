@@ -74,8 +74,6 @@ static void _vmx_initVT(VCPU *vcpu){
 	//so load it for this core
 	//__vmx_loadTR();
 	{
-		// [Superymk]
-	//   hva_t gdtstart = (hva_t)&x_gdt_start;
 	  hva_t gdtstart = (hva_t)x_gdt_start;
 	  u16 trselector = 	__TRSEL;
 	  #ifndef __XMHF_VERIFICATION__
