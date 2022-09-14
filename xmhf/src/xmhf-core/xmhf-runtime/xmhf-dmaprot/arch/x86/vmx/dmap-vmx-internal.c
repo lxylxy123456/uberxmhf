@@ -53,12 +53,6 @@
 struct dmap_vmx_cap g_vtd_cap;
 
 //------------------------------------------------------------------------------
-// Return true if VTD supports scalable-mode
-static bool vtd_has_sm(void)
-{
-    return false;
-}
-
 // vt-d register access function
 void _vtd_reg(VTD_DRHD *dmardevice, u32 access, u32 reg, void *value)
 {
@@ -370,14 +364,7 @@ void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr)
     printf("	Setting up RET...");
     {
         // setup RTADDR with base of RET
-        if(vtd_has_sm())
-        {
-            rtaddr.value = (u64)vtd_ret_paddr | VTD_RTADDR_SCALABLE_MODE;
-        }
-        else
-        {
-            rtaddr.value = (u64)vtd_ret_paddr | VTD_RTADDR_LEGACY_MODE;
-        }
+        rtaddr.value = (u64)vtd_ret_paddr | VTD_RTADDR_LEGACY_MODE;
         _vtd_reg(drhd, VTD_REG_WRITE, VTD_RTADDR_REG_OFF, (void *)&rtaddr.value);
 
         // read RTADDR and verify the base address
