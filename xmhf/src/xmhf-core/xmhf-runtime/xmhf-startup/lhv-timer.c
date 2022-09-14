@@ -128,6 +128,7 @@ void handle_timer_interrupt(VCPU *vcpu, int vector, int guest)
 		return;
 	}
 	printf("Timer\n");
+	HALT();
 	if (vector == 0x20) {
 		vcpu->pit_time++;
 		update_screen(vcpu, &vcpu->lhv_pit_x[guest], 0, guest);
