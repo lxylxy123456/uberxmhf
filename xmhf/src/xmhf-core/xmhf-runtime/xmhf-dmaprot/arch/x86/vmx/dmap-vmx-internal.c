@@ -276,6 +276,7 @@ static inline void cpu_relax(void)
 #define DMAR_OPERATION_TIMEOUT          SEC_TO_CYCLES(1)
 
 // [TODO] Move util functions to a better place
+__attribute__((unused))
 static void delay_us(uint64_t us)
 {
     uint64_t cycles = 3500 * us;
