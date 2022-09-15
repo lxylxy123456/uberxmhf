@@ -398,11 +398,71 @@ virtualization. In `xmhf64-nest-dev 8a3fa23c1`, the set up is
 copyxmhf && hpgrub XMHF-build64 XMHF-build32 && hpinit6
 ```
 
+The output of event logger is made YAML so that it can be easily parsed using
+Python. Future work: write Python script to read YAML and display data in more
+compact form.
+
+### 2540P UP bug: interrupts
+
+The set up is HP 2540p, XMHF, KVM UP. KVM runs LHV with `--lhv-opt 0x0`. LHV
+tests stuck at the first iteration because at HLT instruction, interrupts are
+not delivered.
+
+Current git: `lhv e5286effc`, `lhv-dev b53a0ba09`, `xmhf64 a71084ef8`,
+`xmhf64-nest 3cbd3ae42`, `xmhf64-nest-dev 8a3fa23c1`.
+
+By printing in LHV timer driver, can see that timer interrupts are not
+delivered to LHV guest. See git `lhv-dev daef8bf9e`.
+
+In `lhv-dev ebd643440`, see that this bug is reproducible in the start of
+`lhv_main()`. So this bug has nothing to do with nested virtualization.
+
+I moved the code triggering the bug earlier. In `lhv-dev 5ac4fdd93`, this bug
+is reproduced just after entering secureloader. I noticed that in QEMU's
+`(qemu) info lapic`, the LVTT (LVT timer) is said to be "one-shot". However,
+after the LAPIC write operations, it should become peroidic.
+
+In `lhv-dev 76f2ad34e`, able to reproduce this bug at the start of bootloader.
+The QEMU command is `./bios-qemu.sh -smp 1 -d c.img +1`. Good behavior is
+infinite triple fault and printing "Start host". Bad behavior is printing
+"Start host" and then "End host".
+
+Debugging the bootloader is easy. Just set everything to 32-bits and hardware
+break at `cstartup`. There is no address offset to calculate. Use `gdb/bl.gdb`.
+
+The KVM call stack is guessed to be:
+```
+VMEXIT
+	likely apic_mmio_write, (depends on how APIC is modified)
+		kvm_lapic_reg_write
+			apic_update_lvtt
+				apic->lapic_timer.timer_mode = ...
+```
+
+I tried running 15605 P3 kernel on this configuration. When booting from floppy
+disk, everything is good. However, when booting from disk, this problem occurs.
+So now it is possible that BIOS is related to the problem.
+
+The nest step is to dump VMEXITs. If needed, to print VMEXITs for KVM running
+on hardware (without XMHF), we can compile the Debian kernel and re-compile the
+KVM kernel module frequently. Another possibility is to debug using KVM in KVM.
+
+We use GDB to step through the 3 lines of code that interacts with APIC. Can
+see that the first line triggers a 201 EPT violation. The rest of the lines
+do not have problems on EPT.
+
+TODO: print qualification, EPT12 content, ...
+TODO: print VMENTRY and VMEXIT RIPs (see whether emulate instruction)
+TODO: be able to set log level using async channel
+TODO: check `control_VM_entry_interruption_information` is not overwritten
+
+TODO: HP 2540p, XMHF, KVM UP: LHV cannot receive interrupts
+TODO: HP 2540p, XMHF, KVM SMP: BSP stucks in SeaBIOS
 TODO: break `xmhf_nested_arch_x86vmx_handle_vmexit()` (long function)
 TODO: read KVM code, try not to update all VMCS fields during 102 and 201
 TODO: try not using VMCS shadowing
 TODO: how slow is KVM KVM KVM?
-TODO: why UP is slow (print VMEXIT and VMENTRY)
-TODO: why SMP is slow
+TODO: why HP 840 KVM XMHF KVM UP is slow (print VMEXIT and VMENTRY)
+TODO: why HP 840 KVM XMHF KVM SMP is slow
 TODO: boot Debian as L2
 

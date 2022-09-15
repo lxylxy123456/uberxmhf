@@ -568,7 +568,7 @@ to boot the OS and run `pal_demo`.
 * amd64 XMHF, i386 XMHF, i386 Windows 10: good (very slow)
 * i386 XMHF, i386 XMHF, i386 Debian 11: good
 * i386 XMHF, i386 XMHF, i386 Windows 7: good
-* i386 XMHF, i386 XMHF, i386 Windows 10: not tested
+* i386 XMHF, i386 XMHF, i386 Windows 10: good (very slow, using `8a3fa23c1`)
 * amd64 XMHF DRT DMAP, i386 XMHF, i386 Debian 11: screen corrupted, but can ssh
 * amd64 XMHF DRT DMAP, i386 XMHF, i386 Windows 7: good
 * i386 XMHF DRT DMAP, i386 XMHF, i386 Debian 11: screen corrupted, but can ssh
