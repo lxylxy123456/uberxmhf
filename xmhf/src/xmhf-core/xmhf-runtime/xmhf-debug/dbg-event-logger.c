@@ -68,9 +68,19 @@ typedef struct event_log_t {
 volatile u32 turn = 0;
 event_log_t global_event_log[MAX_VCPU_ENTRIES];
 
-void xmhf_dbg_log_event(void *_vcpu, xmhf_dbg_eventlog_t event, void *key) {
+/*
+ * Log an event and print aggregated log report when it is time.
+ * _vcpu is vcpu of type VCPU *.
+ * can_print should be set to disallow this function from printing.
+ * event is the event to be logged.
+ * key is pointer to the key to be logged. The content of the pointer will be
+ * copied.
+ */
+void xmhf_dbg_log_event(void *_vcpu, bool can_print, xmhf_dbg_eventlog_t event,
+						void *key) {
 	bool print_flag = false;
 	VCPU *vcpu = _vcpu;
+	u64 tsc = 0;
 	/* Get event log */
 	event_log_t *event_log = &global_event_log[vcpu->idx];
 	/* Increase count */
@@ -80,7 +90,7 @@ void xmhf_dbg_log_event(void *_vcpu, xmhf_dbg_eventlog_t event, void *key) {
 						   key_type, key_fmt, ...) \
 	case XMHF_DBG_EVENTLOG_##name: \
 		event_log->count_##name++; \
-		{ \
+		if (lru_size) { \
 			index_type index; \
 			bool cache_hit; \
 			event_log_##name##_line_t *line; \
@@ -98,9 +108,9 @@ void xmhf_dbg_log_event(void *_vcpu, xmhf_dbg_eventlog_t event, void *key) {
 		HALT_ON_ERRORCOND(0 && "Unknown event");
 	}
 	/* Decide whether to print */
-	{
+	if (can_print) {
 		if (turn == vcpu->idx) {
-			u64 tsc = rdtsc64();
+			tsc = rdtsc64();
 			if (event_log->last_print_tsc == 0) {
 				event_log->last_print_tsc = tsc;
 			}
@@ -114,29 +124,32 @@ void xmhf_dbg_log_event(void *_vcpu, xmhf_dbg_eventlog_t event, void *key) {
 	}
 	/* Print result */
 	if (print_flag) {
-		printf("CPU(0x%02x): %s begin\n", vcpu->id, __func__);
-		printf("CPU(0x%02x):  total_count = %d\n", vcpu->id,
-			   event_log->total_count);
+		printf("EL[%d]: %s:\n", vcpu->idx, __func__);
+		printf("EL[%d]:   tsc: 0x%016llx\n", vcpu->idx, tsc);
+		printf("EL[%d]:   total: %d\n", vcpu->idx, event_log->total_count);
 		event_log->total_count = 0;
+		printf("EL[%d]:   events:\n", vcpu->idx);
 #define DEFINE_EVENT_FIELD(name, count_type, count_fmt, lru_size, index_type, \
 						   key_type, key_fmt, ...) \
-		printf("CPU(0x%02x):  count_" #name " = " count_fmt "\n", vcpu->id, \
-			   event_log->count_##name); \
-		event_log->count_##name = 0; \
-		{ \
-			index_type index; \
-			event_log_##name##_line_t *line; \
-			LRU_FOREACH(index, line, &event_log->lru_##name) { \
-				if (line->valid) { \
-					printf("CPU(0x%02x):   " key_fmt " count " count_fmt "\n", \
-						   vcpu->id, line->key, line->value); \
-					line->valid = 0; \
+		if (event_log->count_##name) { \
+			printf("EL[%d]:     " #name ":\n", vcpu->idx); \
+			printf("EL[%d]:       count: " count_fmt "\n", vcpu->idx, \
+				   event_log->count_##name); \
+			event_log->count_##name = 0; \
+			if (lru_size) { \
+				index_type index; \
+				event_log_##name##_line_t *line; \
+				printf("EL[%d]:       events:\n", vcpu->idx); \
+				LRU_FOREACH(index, line, &event_log->lru_##name) { \
+					if (line->valid) { \
+						printf("EL[%d]:         " key_fmt ": " count_fmt "\n", \
+							   vcpu->idx, line->key, line->value); \
+						line->valid = 0; \
+					} \
 				} \
 			} \
 		}
 #include <xmhf-debug-event-logger-fields.h>
-		printf("CPU(0x%02x): %s end\n", vcpu->id, __func__);
 	}
-	(void) key;
 }
 
