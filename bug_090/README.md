@@ -451,6 +451,7 @@ We use GDB to step through the 3 lines of code that interacts with APIC. Can
 see that the first line triggers a 201 EPT violation. The rest of the lines
 do not have problems on EPT.
 
+TODO: how is NMI on L2 transfered to VMEXIT to L1?
 TODO: print qualification, EPT12 content, ...
 TODO: print VMENTRY and VMEXIT RIPs (see whether emulate instruction)
 TODO: be able to set log level using async channel
