@@ -291,8 +291,8 @@ void xmhf_sl_arch_early_dmaprot_init(u32 runtime_size)
 				protectedbuffer_vaddr = (sla_t)&g_sl_protected_dmabuffer;
 				protectedbuffer_size = (2 * PAGE_SIZE_4K);
 			}else{	//CPU_VENDOR_INTEL
-				protectedbuffer_paddr = sl_baseaddr + 0x100000;
-				protectedbuffer_vaddr = 0x100000;
+				protectedbuffer_paddr = sl_baseaddr + (sla_t)&g_sl_protected_dmabuffer;
+				protectedbuffer_vaddr = (sla_t)&g_sl_protected_dmabuffer;
 				protectedbuffer_size = (2 * PAGE_SIZE_4K);
 			}
 
