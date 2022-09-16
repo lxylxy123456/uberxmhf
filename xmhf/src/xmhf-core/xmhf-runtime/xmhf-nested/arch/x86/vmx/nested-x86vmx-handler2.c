@@ -494,6 +494,8 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 		status = xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu, cache_line,
 														   guest2_paddr,
 														   qualification);
+		printf("CPU(0x%02x): EPT %d 0x%016llx 0x%08lx\n", vcpu->id, status,
+			   guest2_paddr, qualification);
 	}
 	switch (status) {
 	case 1:
@@ -663,9 +665,14 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_201,
 					   &vmcs12_info->vmcs12_value.info_vmexit_reason);
 #endif							/* __DEBUG_EVENT_LOGGER__ */
-	if (0) {
-		printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
-			   vmcs12_info->vmcs12_value.info_vmexit_reason);
+	if (1) {
+		if (vmcs12_info->vmcs12_value.info_vmexit_reason == 0) {
+			printf("CPU(0x%02x): nested vmexit 0: 0x%08x\n", vcpu->id,
+				   vmcs12_info->vmcs12_value.info_IDT_vectoring_information);
+		} else {
+			printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
+				   vmcs12_info->vmcs12_value.info_vmexit_reason);
+		}
 	}
 
 	/* Follow SDM to load host state */
