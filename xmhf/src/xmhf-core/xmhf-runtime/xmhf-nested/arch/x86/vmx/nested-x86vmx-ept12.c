@@ -49,7 +49,8 @@
 // author: Eric Li (xiaoyili@andrew.cmu.edu)
 #include <xmhf.h>
 #include "nested-x86vmx-ept12.h"
-#include "nested-x86vmx-handler.h"
+#include "nested-x86vmx-handler1.h"
+#include "nested-x86vmx-vmcs12.h"
 
 /* Number of pages in page_pool in ept02_ctx_t */
 #define EPT02_PAGE_POOL_SIZE 384
@@ -526,7 +527,7 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 			gpa_t ept12 = ept12_ctx->ctx.root_pa;
 #ifdef __DEBUG_EVENT_LOGGER__
 			xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_ept02_full, &ept12);
-#endif /* __DEBUG_EVENT_LOGGER__ */
+#endif							/* __DEBUG_EVENT_LOGGER__ */
 			if (0) {
 				printf("CPU(0x%02x): EPT02 full 0x%08llx\n", vcpu->id, ept12);
 			}
@@ -549,7 +550,7 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 static void xmhf_nested_arch_x86vmx_flush_ept02_effect(VCPU * vcpu)
 {
 	LRU_SET_INVALIDATE_ALL(&ept02_cache[vcpu->id]);
-	clear_all_vmcs12_ept02(vcpu);
+	xmhf_nested_arch_x86vmx_clear_all_vmcs12_ept02(vcpu);
 
 	/*
 	 * If the guest is using EPT02, the flushing above would make
@@ -559,7 +560,8 @@ static void xmhf_nested_arch_x86vmx_flush_ept02_effect(VCPU * vcpu)
 	if (vcpu->vmx_nested_is_vmx_operation &&
 		!vcpu->vmx_nested_is_vmx_root_operation) {
 		/* Find vmcs12_info similar to calling find_current_vmcs12() */
-		vmcs12_info_t *vmcs12_info = vcpu->vmx_nested_current_vmcs12_info;
+		vmcs12_info_t *vmcs12_info;
+		vmcs12_info = xmhf_nested_arch_x86vmx_find_current_vmcs12(vcpu);
 		if (vmcs12_info->guest_ept_enable) {
 			ept02_cache_line_t *cache_line;
 			bool cache_hit;

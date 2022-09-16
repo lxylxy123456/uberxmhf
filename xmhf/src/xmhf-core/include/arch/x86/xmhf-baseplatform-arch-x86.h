@@ -285,10 +285,12 @@ typedef struct _vcpu {
    * Undefined when not in VMX operation.
    */
   u32 vmx_nested_is_vmx_root_operation;
-  /* If in VMX operation, current-VMCS pointer ((u64)(-1) means invalid) */
-  gpa_t vmx_nested_current_vmcs_pointer;
-  /* If in VMX operation, current vmcs12_info_t (NULL means invalid) */
-  void *vmx_nested_current_vmcs12_info;
+  /*
+   * If in VMX operation, index of the current VMCS12 in cpu_active_vmcs12.
+   * INVALID_VMCS12_INDEX means there is no current VMCS12.
+   * The current-VMCS pointer is the vmcs12_ptr field in the struct.
+   */
+  u32 vmx_nested_cur_vmcs12;
   /* VMX MSR values that should be observed by the guest */
   u64 vmx_nested_msrs[IA32_VMX_MSRCOUNT];
   /* VMX control register limitations for guest hypervisor */

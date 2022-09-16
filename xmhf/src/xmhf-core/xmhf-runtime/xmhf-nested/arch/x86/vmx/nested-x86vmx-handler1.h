@@ -44,22 +44,16 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-// nested-x86vmx-handler.h
-// Intercept handlers for nested virtualization
+// nested-x86vmx-handler1.h
+// Intercept handlers for nested virtualization operations from L1
 // author: Eric Li (xiaoyili@andrew.cmu.edu)
 
-#ifndef _NESTED_X86VMX_HANDLER_H_
-#define _NESTED_X86VMX_HANDLER_H_
+#ifndef _NESTED_X86VMX_HANDLER1_H_
+#define _NESTED_X86VMX_HANDLER1_H_
 
-/*
- * Maximum number of MSRs in VMCS02's VMENTRY/VMEXIT MSR load / store. This
- * value only needs to be larger than or equal to vmx_msr_area_msrs_count.
- * It is not related to VMCS12's MSR load/store.
- */
-#define VMX_NESTED_MAX_MSR_COUNT 8
+#include "nested-x86vmx-vmcs12.h"
 
-#define VMX_NESTED_USE_SHADOW_VMCS
+vmcs12_info_t *xmhf_nested_arch_x86vmx_find_current_vmcs12(VCPU * vcpu);
+void xmhf_nested_arch_x86vmx_clear_all_vmcs12_ept02(VCPU * vcpu);
 
-void clear_all_vmcs12_ept02(VCPU * vcpu);
-
-#endif							/* _NESTED_X86VMX_HANDLER_H_ */
+#endif							/* _NESTED_X86VMX_HANDLER1_H_ */

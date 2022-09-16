@@ -51,7 +51,7 @@
 #ifndef _NESTED_X86VMX_VMCS12_H_
 #define _NESTED_X86VMX_VMCS12_H_
 
-#include "nested-x86vmx-handler.h"
+#include "nested-x86vmx-ept12.h"
 
 /*
  * Rules:
@@ -71,6 +71,19 @@
 #define FIELD_PROP_GPADDR	0x00000020	/* VMCS12 value = VMCS02 value = gpa */
 #define FIELD_PROP_ID_HOST	0x00000040	/* VMCS12 value = VMCS01 value */
 #define FIELD_PROP_SWWRONLY	0x00000080	/* Read-only by hardware */
+
+/*
+ * Control whether XMHF (L0) uses shadow VMCS if provided by hardware.
+ * Ideally this should be a configuration option, but not implemented yet.
+ */
+#define VMX_NESTED_USE_SHADOW_VMCS
+
+/*
+ * Maximum number of MSRs in VMCS02's VMENTRY/VMEXIT MSR load / store. This
+ * value only needs to be larger than or equal to vmx_msr_area_msrs_count.
+ * It is not related to VMCS12's MSR load/store.
+ */
+#define VMX_NESTED_MAX_MSR_COUNT 8
 
 /* Maximum number of active VMCS per CPU */
 #define VMX_NESTED_MAX_ACTIVE_VMCS 4
@@ -131,14 +144,11 @@ typedef struct vmcs12_info {
 	/*
 	 * When guest_ept_enable, EPT02 cache line.
 	 *
-	 * The type of this member should be ept02_cache_line_t *. However,
-	 * currently casting to void * to avoid circular includes in header files.
-	 *
 	 * This variable can be asynchronously invalidated when another CPU's EPT01
 	 * changes. So use xmhf_nested_arch_x86vmx_block_ept02_flush() to protect
 	 * it when accessing.
 	 */
-	void *guest_ept_cache_line;
+	ept02_cache_line_t *guest_ept_cache_line;
 	/* When guest_ept_enable, pointer to EPT12 root */
 	gpa_t guest_ept_root;
 	/* "NMI exiting" in VMCS */
