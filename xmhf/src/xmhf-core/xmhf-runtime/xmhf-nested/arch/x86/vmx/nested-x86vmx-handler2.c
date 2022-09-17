@@ -68,8 +68,7 @@
 /* Forward VMEXIT to L1, change reason to EPT misconfiguration */
 #define NESTED_VMEXIT_HANDLE_201_EPT_MISCONFIG	4
 
-/* Use VMCALL 1819834624 for false, 1819834625 for true */
-bool lxy_verbose = false;
+extern bool lxy_verbose;
 
 /*
  * Return whether interruption information corresponds to NMI interrupt.

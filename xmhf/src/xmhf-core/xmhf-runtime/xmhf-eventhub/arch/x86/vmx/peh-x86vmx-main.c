@@ -49,6 +49,8 @@
 // author: amit vasudevan (amitvasudevan@acm.org)
 #include <xmhf.h>
 
+/* Use VMCALL 1819834624 for false, 1819834625 for true */
+bool lxy_verbose = 0;
 
 //---VMX decode assist----------------------------------------------------------
 //map a CPU register index into appropriate VCPU *vcpu or struct regs *r field
@@ -1275,10 +1277,8 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 						(vcpu->vmcs.guest_RFLAGS & EFLAGS_VM)  ) );
 				_vmx_int15_handleintercept(vcpu, r);
 			} else if (r->eax == 255 && r->ecx == 0x6c787900) {	/* 1819834624 */
-				extern bool lxy_verbose;
 				lxy_verbose = false;
 			} else if (r->eax == 255 && r->ecx == 0x6c787901) {	/* 1819834625 */
-				extern bool lxy_verbose;
 				lxy_verbose = true;
 			}else{	//if not E820 hook, give hypapp a chance to handle the hypercall
 				xmhf_smpguest_arch_x86vmx_quiesce(vcpu);

@@ -86,7 +86,7 @@
 #define VMX_NESTED_MAX_MSR_COUNT 8
 
 /* Maximum number of active VMCS per CPU */
-#define VMX_NESTED_MAX_ACTIVE_VMCS 4
+#define VMX_NESTED_MAX_ACTIVE_VMCS 8
 
 enum vmcs_nested_encoding {
 #define DECLARE_FIELD_16(encoding, name, ...) \
