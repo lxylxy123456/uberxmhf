@@ -402,7 +402,7 @@ The output of event logger is made YAML so that it can be easily parsed using
 Python. Future work: write Python script to read YAML and display data in more
 compact form.
 
-### 2540P UP bug: interrupts
+### 2540P UP bug: interrupts not received
 
 The set up is HP 2540p, XMHF, KVM UP. KVM runs LHV with `--lhv-opt 0x0`. LHV
 tests stuck at the first iteration because at HLT instruction, interrupts are
@@ -451,11 +451,26 @@ We use GDB to step through the 3 lines of code that interacts with APIC. Can
 see that the first line triggers a 201 EPT violation. The rest of the lines
 do not have problems on EPT.
 
-TODO: how is NMI on L2 transfered to VMEXIT to L1?
-TODO: print qualification, EPT12 content, ...
-TODO: print VMENTRY and VMEXIT RIPs (see whether emulate instruction)
+In `xmhf64-nest-dev 2ede7d1f6`, print more. Looks like the first access to APIC
+causes EPT 201. Then KVM maps the page APIC page with a normal page and then
+retries the instruction. After that, APIC no longer causes EPT 201.
+
+This seems to follow the pattern of how KVM sets up EPT. Unlike XMHF that
+initializes all EPT then access, KVM starts with empty EPT and initializes as
+guest accesses memory.
+
+We need to measure the behavior of KVM on physical hardware. I guess KVM is
+expecting APIC virtualization. Also, previously I guessed that APIC may be
+accessed through MMIO. However, KVM should be using EPT misconfiguration to
+implement MMIO, instead of EPT violation. See `kvm_mmu_page_fault()`.
+
+By printing, both VMCS12 and VMCS02 has `control_VMX_seccpu_based=0x000000eb`.
+So "Virtualize APIC accesses" is enabled. Now we need to understand what APIC
+virtualization does.
+
+TODO: study APIC virtualization, check `control_virtual_APIC_address`
 TODO: be able to set log level using async channel
-TODO: check `control_VM_entry_interruption_information` is not overwritten
+TODO: print VMEXITs from KVM
 
 TODO: HP 2540p, XMHF, KVM UP: LHV cannot receive interrupts
 TODO: HP 2540p, XMHF, KVM SMP: BSP stucks in SeaBIOS
