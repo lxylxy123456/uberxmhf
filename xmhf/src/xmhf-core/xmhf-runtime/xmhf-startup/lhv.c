@@ -3,21 +3,6 @@
 
 void lhv_main(VCPU *vcpu)
 {
-	timer_init(vcpu);
-	printf("Start host\n");
-	asm volatile ("sti");
-	for (int i = 0; i < 0x10000000; i++) {
-		xmhf_cpu_relax();
-	}
-	printf("End host\n");
-	while (1) {
-		xmhf_cpu_relax();
-	}
-}
-
-#if 0
-void lhv_main(VCPU *vcpu)
-{
 	console_vc_t vc;
 	console_get_vc(&vc, vcpu->idx, 0);
 	console_clear(&vc);
@@ -63,5 +48,4 @@ void lhv_main(VCPU *vcpu)
 
 	HALT();
 }
-#endif
 

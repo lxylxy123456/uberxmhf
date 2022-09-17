@@ -55,7 +55,7 @@ static int rtc_get_sec_of_day(void) {
 void timer_init(VCPU *vcpu)
 {
 	/* PIT */
-	if (vcpu && vcpu->isbsp) {
+	if (vcpu->isbsp) {
 		u64 ncycles = TIMER_RATE * TIMER_PERIOD / 1000;
 		HALT_ON_ERRORCOND(ncycles == (u64)(u16)ncycles);
 		if (__LHV_OPT__ & LHV_NO_INTERRUPT) {
@@ -127,8 +127,6 @@ void handle_timer_interrupt(VCPU *vcpu, int vector, int guest)
 		shot_arrived = true;
 		return;
 	}
-	printf("Timer\n");
-	HALT();
 	if (vector == 0x20) {
 		vcpu->pit_time++;
 		update_screen(vcpu, &vcpu->lhv_pit_x[guest], 0, guest);
