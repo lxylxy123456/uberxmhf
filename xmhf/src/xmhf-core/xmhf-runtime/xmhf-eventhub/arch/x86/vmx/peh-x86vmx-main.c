@@ -1274,6 +1274,12 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 					( (vcpu->vmcs.guest_CR0 & CR0_PE) && (vcpu->vmcs.guest_CR0 & CR0_PG) &&
 						(vcpu->vmcs.guest_RFLAGS & EFLAGS_VM)  ) );
 				_vmx_int15_handleintercept(vcpu, r);
+			} else if (r->eax == 0x6c787900) {	/* 1819834624 */
+				extern bool lxy_verbose;
+				lxy_verbose = false;
+			} else if (r->eax == 0x6c787901) {	/* 1819834625 */
+				extern bool lxy_verbose;
+				lxy_verbose = true;
 			}else{	//if not E820 hook, give hypapp a chance to handle the hypercall
 				xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 				if( xmhf_app_handlehypercall(vcpu, r) != APP_SUCCESS){

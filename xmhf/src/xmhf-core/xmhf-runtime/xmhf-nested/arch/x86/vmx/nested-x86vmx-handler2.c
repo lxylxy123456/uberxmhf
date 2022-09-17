@@ -68,6 +68,9 @@
 /* Forward VMEXIT to L1, change reason to EPT misconfiguration */
 #define NESTED_VMEXIT_HANDLE_201_EPT_MISCONFIG	4
 
+/* Use VMCALL 1819834624 for false, 1819834625 for true */
+bool lxy_verbose = false;
+
 /*
  * Return whether interruption information corresponds to NMI interrupt.
  * The input should be one of the following VMCS fields:
@@ -227,9 +230,16 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 		return result;
 	}
 
-	if (1) {
-		printf("CPU(0x%02x): nested vmentry 0x%08lx\n", vcpu->id,
-			   vmcs12_info->vmcs12_value.guest_RIP);
+	if (lxy_verbose) {
+		printf("CPU(0x%02x): nested vmentry 0x%08lx cpu2=0x%08x=0x%08x "
+			   "vaa=0x%016llx=0x%016llx aaa=0x%016llx=0x%016llx\n",
+			   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP,
+			   vmcs12_info->vmcs12_value.control_VMX_seccpu_based,
+			   __vmx_vmread32(VMCSENC_control_VMX_seccpu_based),
+			   vmcs12_info->vmcs12_value.control_virtual_APIC_address,
+			   __vmx_vmread64(VMCSENC_control_virtual_APIC_address),
+			   vmcs12_info->vmcs12_value.control_APIC_access_address,
+			   __vmx_vmread64(VMCSENC_control_APIC_access_address));
 	}
 
 	/* From now on, cannot fail */
@@ -495,8 +505,10 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 		status = xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu, cache_line,
 														   guest2_paddr,
 														   qualification);
-		printf("CPU(0x%02x): EPT %d 0x%016llx 0x%08lx\n", vcpu->id, status,
-			   guest2_paddr, qualification);
+		if (lxy_verbose) {
+			printf("CPU(0x%02x): EPT %d 0x%016llx 0x%08lx\n", vcpu->id, status,
+				   guest2_paddr, qualification);
+		}
 	}
 	switch (status) {
 	case 1:
@@ -666,7 +678,7 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_201,
 					   &vmcs12_info->vmcs12_value.info_vmexit_reason);
 #endif							/* __DEBUG_EVENT_LOGGER__ */
-	if (1) {
+	if (lxy_verbose) {
 		if (vmcs12_info->vmcs12_value.info_vmexit_reason == 0) {
 			printf("CPU(0x%02x): nested vmexit  0x%08lx 0: 0x%08x\n", vcpu->id,
 				   vmcs12_info->vmcs12_value.guest_RIP,

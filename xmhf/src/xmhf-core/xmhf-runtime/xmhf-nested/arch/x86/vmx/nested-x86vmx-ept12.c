@@ -55,6 +55,8 @@
 /* Number of pages in page_pool in ept02_ctx_t */
 #define EPT02_PAGE_POOL_SIZE 384
 
+extern bool lxy_verbose;
+
 /*
  * For each CPU, information about all EPT12 -> EPT02 it caches.
  *
@@ -536,7 +538,7 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 		HALT_ON_ERRORCOND(hptw_insert_pmeo_alloc(&ept02_ctx->ctx, &pmeo02,
 												 guest2_paddr) == 0);
 	}
-	if (1) {
+	if (lxy_verbose) {
 		printf("CPU(0x%02x): EPT: L2=0x%08llx L1=0x%08llx L0=0x%08llx\n",
 			   vcpu->id, guest2_paddr, guest1_paddr, xmhf_paddr);
 	}
