@@ -468,13 +468,97 @@ By printing, both VMCS12 and VMCS02 has `control_VMX_seccpu_based=0x000000eb`.
 So "Virtualize APIC accesses" is enabled. Now we need to understand what APIC
 virtualization does.
 
-TODO: study APIC virtualization, check `control_virtual_APIC_address`
-TODO: be able to set log level using async channel
-TODO: print VMEXITs from KVM
+Also by printing in git `xmhf64-nest-dev 9198b8467`, I realized that
+`control_virtual_APIC_address` is correctly translated, but
+`control_APIC_access_address` is not. `control_APIC_access_address` looks like
+a KVM hva in VMCS12, but is 0 in VMCS02.
 
-TODO: HP 2540p, XMHF, KVM UP: LHV cannot receive interrupts
-TODO: HP 2540p, XMHF, KVM SMP: BSP stucks in SeaBIOS
-TODO: break `xmhf_nested_arch_x86vmx_handle_vmexit()` (long function)
+This looks like a typo in `nested-x86vmx-vmcs12-fields.h`. Fixed in
+`xmhf64-nest d6c819536`, and then `lhv-dev 76f2ad34e` can triple fault as
+expected. LHV with `--lhv-opt 0x1fd` also passes (both i386 and amd64 tested).
+
+After this fix, `HP 2540p, XMHF, KVM SMP, LHV` also works. Previously, the BSP
+will stuck in a busy loop in SeaBIOS (probably waiting for APs to wake?)
+
+Untried ideas
+* print VMEXITs from KVM
+
+### Systematically test VMCS fields in XMHF
+
+In `xmhf64-nest af4b0f9e4`, systematically test all VMCS fields for whether
+they exist and whether they are reported to exist. HP 2540p is aligned to the
+SDM. QEMU is different in the 10 fields missing (discussed a long time ago):
+* encoding=0x200c, name=`control_Executive_VMCS_pointer`
+* encoding=0x4828, name=`guest_SMBASE`
+* encoding=0x6008, name=`control_CR3_target0`
+* encoding=0x600a, name=`control_CR3_target1`
+* encoding=0x600c, name=`control_CR3_target2`
+* encoding=0x600e, name=`control_CR3_target3`
+* encoding=0x6402, name=`info_IO_RCX`
+* encoding=0x6404, name=`info_IO_RSI`
+* encoding=0x6406, name=`info_IO_RDI`
+* encoding=0x6408, name=`info_IO_RIP`
+
+and the following 14 fields not reported:
+* encoding=0x0002, name=`control_post_interrupt_notification_vec`
+* encoding=0x0810, name=`guest_interrupt_status`
+* encoding=0x0812, name=`guest_PML_index`
+* encoding=0x200e, name=`control_PML_address`
+* encoding=0x2016, name=`control_posted_interrupt_desc_address`
+* encoding=0x201c, name=`control_EOI_exit_bitmap_0`
+* encoding=0x201e, name=`control_EOI_exit_bitmap_1`
+* encoding=0x2020, name=`control_EOI_exit_bitmap_2`
+* encoding=0x2022, name=`control_EOI_exit_bitmap_3`
+* encoding=0x2024, name=`control_EPTP_list_address`
+* encoding=0x202c, name=`control_XSS_exiting_bitmap`
+* encoding=0x202e, name=`control_ENCLS_exiting_bitmap`
+* encoding=0x2032, name=`control_TSC_multiplier`
+* encoding=0x2812, name=`guest_IA32_BNDCFGS`
+
+### LHV receive exception 13
+
+In `xmhf64-nest-dev 0618ec8bb`, `lhv e5286effc` with opt 0x1fd, see exception
+13 in LHV guest:
+```
+CPU(0x00): EPT cache miss 0x0938f000
+Guest: interrupt / exception vector 13
+
+Fatal: Halting! Condition '0 && "Guest: unknown interrupt / exception!\n"' failed, line 684, file lhv-guest.c
+^Cqemu-system-x86_64: terminating on signal 2
+```
+
+This bug is reproducible in UP. The configuration is Thinkpad, KVM, amd64 XMHF,
+i386 LHV. The build command for LHV is `./build.sh i386 --lhv-opt 0x1fd && gr`
+* `LHV_OPT=0x3d`: reproducible
+* `LHV_OPT=0x1`: not reproducible
+* `LHV_OPT=0xc`: not reproducible
+* `LHV_OPT=0x34`: reproducible
+* `LHV_OPT=0x24`: reproducible
+* i386 XMHF: reproducible
+
+The function causing the problem is `lhv_guest_test_unrestricted_guest()`. In
+`write_cr0()`, the instruction that MOVs to CR0 causes the exception.
+
+This bug is strange because it looks like a regression, but it is hard to
+believe so. Unrestricted guest is introduced near LHV commit `73a70bf6e`, which
+is Jul 6, 2022. Looks like `xmhf64-nest 83ae2f294` is a relevant XMHF commit.
+However, after checking out these 2 versions, the error still happens. I guess
+I was testing on HP 840 and did not test on Thinkpad during that time. So now
+we need to work on this bug as not a regression.
+
+Printing shows that `control_CR0_mask=0x60000020` and
+`control_CR0_shadow=0x00000000`. Before, `guest_CR0=0x80000031` and guest wants
+to move `0x11` to CR0. After, `guest_CR0=0x00000031` and guest wants to move
+`0x80000011` to CR0, which caused #GP.
+
+Then I realized that it is the KVM bug. During `xmhf64-nest-dev` branch the KVM
+workarounds are disabled, so this bug happens. The workaround in
+`xmhf_nested_arch_x86vmx_hardcode_ept()` for
+<https://bugzilla.kernel.org/show_bug.cgi?id=216212> would resolve this bug. So
+no need to worry now.
+
+### Testing on HP 840
+
 TODO: read KVM code, try not to update all VMCS fields during 102 and 201
 TODO: try not using VMCS shadowing
 TODO: how slow is KVM KVM KVM?
