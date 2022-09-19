@@ -41,6 +41,9 @@ void lhv_main(VCPU *vcpu)
 	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 		/* Set EFLAGS.IF */
 		asm volatile ("sti");
+		printf("Entering user mode\n");
+		enter_user_mode(vcpu, 0);
+		printf("Entered user mode\n");
 	}
 
 	while (1) {
