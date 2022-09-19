@@ -115,7 +115,7 @@ should change this behavior to
   guest
 * VMPTRLD: load XMHF's VMCS12 content from guest memory, not initialize with 0
 
-Basically fixed in `xmhf64-nest 89d5cdf31`. 
+Basically fixed in `xmhf64-nest 89d5cdf31`.
 
 ### Possible KVM bug
 
@@ -557,12 +557,142 @@ workarounds are disabled, so this bug happens. The workaround in
 <https://bugzilla.kernel.org/show_bug.cgi?id=216212> would resolve this bug. So
 no need to worry now.
 
+### Testing on HP 2540p
+
+Now we are on `xmhf64-nest-dev f0ac41acf`, test booting Debian as L2
+
+On HP 840, tested the following
+* XMHF, KVM SMP=4, Debian 11 i386: good (can boot, login)
+* XMHF, KVM UP, Debian 11 i386: good
+* XMHF, KVM SMP=4, Debian 11 amd64: good
+* XMHF, KVM UP, Debian 11 amd64: good
+
 ### Testing on HP 840
 
-TODO: read KVM code, try not to update all VMCS fields during 102 and 201
-TODO: try not using VMCS shadowing
-TODO: how slow is KVM KVM KVM?
-TODO: why HP 840 KVM XMHF KVM UP is slow (print VMEXIT and VMENTRY)
-TODO: why HP 840 KVM XMHF KVM SMP is slow
-TODO: boot Debian as L2
+The build command is
+`./build.sh amd64 fast O3 --event-logger --no-x2apic && gr`.
+
+When testing KVM UP=1, XMHF, KVM, Debian, things are very slow. Using `el.py`
+to analyze event log, see that during each cycle, around 2600 VMEXIT 101 and
+400 VMEXIT 201 are handled. VMEXIT 202 are rare. Looks like we forgot to use
+the Circle CI workarounds, so VMEXITs are taking too long.
+
+Note, the good news is that VMEXIT due to VMWRITE and VMREAD no longer happen.
+This means that VMCS shadowing is correctly implemented.
+
+Another finding is that most VMEXIT 201s are reason=30 (I/O instruction). The
+second most popular is reason=1 (External interrupt).
+
+The updated build command is
+`./build.sh amd64 fast O3 circleci --event-logger --no-x2apic && gr`.
+
+The new event log analysis shows that for each cycle, around 3000 - 4000
+VMEXIT 101 and 400 - 800 VMEXIT 201 are handled. However, things are still very
+slow.
+
+The tentative next steps is to see whether KVM KVM KVM is also slow. If so,
+going to give up running Debian. Instead, try to run something simple like LHV
+or pebbles kernel. Also, need to make sure that SMP does not have bugs.
+
+When running KVM UP=1, XMHF, KVM, LHV, booting is successful, but looks like
+LHV tests are not executed. This is because timer interrupts in LHV are
+starving non-interrupt handler code. If I replace LHV with Pebbles kernel, the
+kernel is able to enable paging, but the command line prompt does not appear.
+This should be a similar problem.
+
+### SMP CPU systemd-udevd watchdog problem
+
+When running "HP 840, L0 Debian, KVM SMP=2, L1 XMHF, L2 Debian, KVM SMP=1", see
+watchdog detecting that `systemd-udevd.service` times out. Looks like just
+after L2 KVM is started, the L2 Debian becomes slow (SSH connections respond
+time increase). Then it stucks while entering GRUB. XMHF event logger also
+becomes slow.
+
+Sometimes, see a watchdog timeout happens in L2 Debian's dmesg. Sample content:
+```
+[  456.494343] systemd[1]: systemd-udevd.service: Watchdog timeout (limit 3min)!
+[  456.494449] systemd[1]: systemd-udevd.service: Killing process 210 (systemd-udevd) with signal SIGABRT.
+[  504.753984] ------------[ cut here ]------------
+[  504.753995] WARNING: CPU: 0 PID: 0 at arch/x86/kernel/traps.c:908 exc_debug+0x14e/0x1d0
+[  504.753998] Modules linked in: intel_rapl_msr intel_rapl_common kvm_intel kvm irqbypass ghash_clmulni_intel aesni_intel ppdev libaes crypto_simd cryptd glue_helper rapl bochs_drm drm_vram_helper drm_ttm_helper ttm evdev joydev drm_kms_helper pcspkr serio_raw cec sg parport_pc parport button qemu_fw_cfg drm fuse configfs ip_tables x_tables autofs4 ext4 crc16 mbcache jbd2 crc32c_generic sd_mod t10_pi crc_t10dif crct10dif_generic ata_generic crct10dif_pclmul crct10dif_common crc32_pclmul crc32c_intel ata_piix libata psmouse e1000 scsi_mod i2c_piix4 floppy
+[  504.754010] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 5.10.0-9-amd64 #1 Debian 5.10.70-1
+[  504.754010] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.14.0-2 04/01/2014
+[  504.754013] RIP: 0010:exc_debug+0x14e/0x1d0
+[  504.754014] Code: b9 05 00 00 00 48 89 e1 48 89 ea 48 c7 c6 0d d2 2d a5 bf 03 00 00 00 e8 70 da 7f ff 3d 01 80 00 00 74 a6 f6 44 24 01 40 74 9f <0f> 0b 48 81 a5 90 00 00 00 ff fe ff ff eb 90 31 f6 4c 89 e7 e8 c9
+[  504.754014] RSP: 0018:fffffe000000df20 EFLAGS: 00010002
+[  504.754015] RAX: 0000000000000001 RBX: 0000000000000000 RCX: fffffe000000df20
+[  504.754015] RDX: fffffe000000ded8 RSI: 0000000000000003 RDI: ffffffffa592cc20
+[  504.754016] RBP: fffffe000000df58 R08: 0000000000000000 R09: 0000000000000005
+[  504.754016] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000004000
+[  504.754016] R13: 0000000000000000 R14: 0000000002ae0001 R15: 0000000000000000
+[  504.754017] FS:  0000000000000000(0000) GS:ffff8e3ddfc00000(0000) knlGS:0000000000000000
+[  504.754017] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  504.754020] CR2: 000055843406ef80 CR3: 0000000002ae0001 CR4: 00000000001726f0
+[  504.754020] Call Trace:
+[  504.754020]  <#DB>
+[  504.754021]  asm_exc_debug+0x19/0x30
+[  504.754021] RIP: 0010:default_idle+0xa/0x10
+[  504.754022] Code: 00 0f 1f 40 00 fb 66 0f 1f 44 00 00 e9 54 ff ff ff e8 1a 30 ff ff cc cc cc cc cc cc cc cc cc cc 0f 1f 44 00 00 e8 46 01 00 00 <66> 90 c3 0f 1f 00 0f 1f 44 00 00 65 48 8b 04 25 c0 7b 01 00 f0 80
+[  504.754022] RSP: 0018:ffffffffa5803ec0 EFLAGS: 00000302
+[  504.754023] RAX: ffffffffa4ac2ce0 RBX: 0000000000000000 RCX: ffff8e3ddfc2c9c0
+[  504.754023] RDX: 000000000032ecea RSI: 0000000000000087 RDI: 0000000000000087
+[  504.754023] RBP: ffffffffa5813940 R08: 00000078269dc636 R09: 0000000000000000
+[  504.754024] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000
+[  504.754024] R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+[  504.754024]  ? __cpuidle_text_start+0x8/0x8
+[  504.754025]  </#DB>
+[  504.754025]  default_idle_call+0x38/0xc0
+[  504.754025]  do_idle+0x208/0x2b0
+[  504.754025]  cpu_startup_entry+0x19/0x20
+[  504.754026]  start_kernel+0x587/0x5a8
+[  504.754026]  secondary_startup_64_no_verify+0xb0/0xbb
+[  504.754026] ---[ end trace 12e73065807f4ad8 ]---
+[  504.755192] ata2: lost interrupt (Status 0x50)
+[  504.755247] ata2.00: exception Emask 0x0 SAct 0x0 SErr 0x0 action 0x6 frozen
+[  504.755284] ata2.00: failed command: WRITE DMA
+[  504.755297] ata2.00: cmd ca/00:08:28:22:80/00:00:00:00:00/e1 tag 0 dma 4096 out
+                        res 40/00:01:00:00:00/00:00:00:00:00/a0 Emask 0x4 (timeout)
+[  504.755347] ata2.00: status: { DRDY }
+[  504.755437] ata2: soft resetting link
+```
+
+Looks like one of the CPUs stuck in Linux code. Also, from L0 QEMU's monitor,
+running `info lapic` on CPU 1 shows that the IRR is never empty. The output
+looks like:
+```
+...
+ISR	(none)
+IRR	37(level) 236 253
+```
+
+The `(level)` means TMR (trigger mode register), see QEMU's call to
+`apic_get_bit()` in `dump_apic_interrupt()`.
+
+This behavior is similar to the KVM bug
+<https://bugzilla.kernel.org/show_bug.cgi?id=216045> found in `bug_078`. Now we
+think that L0 KVM may be unreliable. Thus, going to focus on something else.
+
+### How slow is HP 840 KVM KVM KVM
+
+KVM KVM KVM is also very slow, though it is faster than KVM XMHF KVM. When
+drawing GRUB console interface, can see the progress. Also booting Debian takes
+a long time. However, Debian is able to boot finally.
+
+At this point, for UP, KVM XMHF KVM is still slow. Untried ideas to speed XMHF
+up:
+* Try not to update all VMCS fields during 102 and 201 (similar to KVM code?)
+* Try not using VMCS shadowing
+
+## Fix
+
+`xmhf64-nest 536d95d87..db9bf0cbb`
+* Fix VMCLEAR and VMPTRLD behavior
+* Support EPT misconfiguration
+
+`xmhf64 04ed0fd93..a71084ef8`
+* Implement event logger
+
+`xmhf64-nest 454494b00..af4b0f9e4`
+* Fix typo in `nested-x86vmx-vmcs12-fields.h`
+* Test VMCS fields' existence
 
