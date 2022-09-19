@@ -43,6 +43,10 @@ void lhv_main(VCPU *vcpu)
 		asm volatile ("sti");
 	}
 
+	while (1) {
+		asm volatile ("hlt");
+	}
+
 	/* Start VT related things */
 	lhv_vmx_main(vcpu);
 
