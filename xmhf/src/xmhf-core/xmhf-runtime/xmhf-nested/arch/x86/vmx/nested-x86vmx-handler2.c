@@ -612,6 +612,22 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		 * easier. The correct behavior should be injecting the VMEXIT to
 		 * guest hypervisor.
 		 */
+		xmhf_nested_arch_x86vmx_vmcs_dump(vcpu, &vmcs12_info->vmcs12_value,
+										  "@vmentry-failure12@");
+		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "@vmentry-failure02@");
+#define P(fmt, x) printf("CPU(0x%02x): " #x " = " fmt "\n", vcpu->id, (x));
+		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[0].index);
+		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[0].reserved);
+		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[0].data);
+		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[1].index);
+		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[1].reserved);
+		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[1].data);
+		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[2].index);
+		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[2].reserved);
+		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[2].data);
+		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[3].index);
+		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[3].reserved);
+		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[3].data);
 		HALT_ON_ERRORCOND(0 && "Debug: guest hypervisor VM-entry failure");
 	}
 
@@ -687,6 +703,14 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 				   vmcs12_info->vmcs12_value.guest_RIP,
 				   vmcs12_info->vmcs12_value.info_vmexit_reason);
 		}
+	}
+	if (0) {
+		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "@vmcs02@");
+	}
+	if (1) {
+		printf("CPU(0x%02x): nested vmexit  0x%08lx %d\n", vcpu->id,
+			   vmcs12_info->vmcs12_value.guest_RIP,
+			   vmcs12_info->vmcs12_value.info_vmexit_reason);
 	}
 
 	/* Follow SDM to load host state */
