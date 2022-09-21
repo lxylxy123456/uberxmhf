@@ -591,6 +591,38 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 	return ret;
 }
 
+static void lxy_print(VCPU * vcpu, vmcs12_info_t * vmcs12_info, char *separator)
+{
+	printf("--------[%s begin]--------\n", separator);
+	xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
+	xmhf_nested_arch_x86vmx_vmcs_dump(vcpu, &vmcs12_info->vmcs12_value,
+									  ":vmcs12:");
+	xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":vmcs02:");
+	for (u32 i = 0; i < 3; i++) {
+		HALT_ON_ERRORCOND(
+			vmcs12_info->vmcs02_vmentry_msr_load_area[i].reserved == 0);
+		printf("CPU(0x%02x): :MSR:vmcs02_vmentry_msr_load_area[%d] = "
+			   "0x%08x -> 0x%016llx\n", vcpu->id, i,
+			   vmcs12_info->vmcs02_vmentry_msr_load_area[i].index,
+			   vmcs12_info->vmcs02_vmentry_msr_load_area[i].data);
+	}
+	{
+		u32 cnt = vmcs12_info->vmcs12_value.control_VM_entry_MSR_load_count;
+		gpa_t addr = vmcs12_info->vmcs12_value.control_VM_entry_MSR_load_address;
+		u64 buf[10];
+		guestmem_hptw_ctx_pair_t ctx_pair;
+		HALT_ON_ERRORCOND(cnt < 5);
+		guestmem_init(vcpu, &ctx_pair);
+		guestmem_copy_gp2h(&ctx_pair, 0, buf, addr, cnt * 16);
+		for (u32 i = 0; i < cnt; i++) {
+			printf("CPU(0x%02x): :MSR:vmcs12_vmentry_msr_load_area[%d] = "
+				   "0x%08x -> 0x%016llx\n", vcpu->id, i, buf[i * 2],
+				   buf[i * 2 + 1]);
+		}
+	}
+	printf("--------[%s end]--------\n", separator);
+}
+
 /*
  * Forward L2 to L0 VMEXIT to L1.
  * The argument behavior indicates how the VMEXIT should be transformed.
@@ -612,24 +644,11 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		 * easier. The correct behavior should be injecting the VMEXIT to
 		 * guest hypervisor.
 		 */
-		xmhf_nested_arch_x86vmx_vmcs_dump(vcpu, &vmcs12_info->vmcs12_value,
-										  "@after12@");
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "@after02@");
-#define P(fmt, x) printf("CPU(0x%02x): @after@" #x " = " fmt "\n", vcpu->id, (x));
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[0].index);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[0].reserved);
-		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[0].data);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[1].index);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[1].reserved);
-		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[1].data);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[2].index);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[2].reserved);
-		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[2].data);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[3].index);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[3].reserved);
-		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[3].data);
-#undef P
+		lxy_print(vcpu, vmcs12_info, "after");
 		HALT_ON_ERRORCOND(0 && "Debug: guest hypervisor VM-entry failure");
+	}
+	if (vmcs12_info->vmcs12_value.guest_RIP == 0x10ccfa) {
+		lxy_print(vcpu, vmcs12_info, "before");
 	}
 
 	/* Transform VMEXIT reason if needed */
@@ -709,25 +728,6 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		printf("CPU(0x%02x): nested vmexit  0x%08lx %d\n", vcpu->id,
 			   vmcs12_info->vmcs12_value.guest_RIP,
 			   vmcs12_info->vmcs12_value.info_vmexit_reason);
-	}
-	if (vmcs12_info->vmcs12_value.guest_RIP == 0x10ccfa) {
-		xmhf_nested_arch_x86vmx_vmcs_dump(vcpu, &vmcs12_info->vmcs12_value,
-										  "@before12@");
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, "@before02@");
-#define P(fmt, x) printf("CPU(0x%02x): @before@" #x " = " fmt "\n", vcpu->id, (x));
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[0].index);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[0].reserved);
-		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[0].data);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[1].index);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[1].reserved);
-		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[1].data);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[2].index);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[2].reserved);
-		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[2].data);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[3].index);
-		P("0x%08x", vmcs12_info->vmcs02_vmentry_msr_load_area[3].reserved);
-		P("0x%016llx", vmcs12_info->vmcs02_vmentry_msr_load_area[3].data);
-#undef P
 	}
 
 	/* Follow SDM to load host state */
