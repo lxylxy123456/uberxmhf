@@ -525,8 +525,8 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 		 */
 		u64 mask = ~(1ULL << (32 + VMX_VMEXIT_SAVE_IA32_PAT));
 		mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_IA32_PAT));
-		// TODO: lying: mask &= ~(1ULL << (32 + VMX_VMEXIT_SAVE_IA32_EFER));
-		// TODO: lying: mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_IA32_EFER));
+		mask &= ~(1ULL << (32 + VMX_VMEXIT_SAVE_IA32_EFER));
+		mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_IA32_EFER));
 		mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_CET_STATE));
 		vcpu->vmx_nested_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR] &= mask;
 	}
@@ -536,7 +536,7 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 		 * Need some extra logic to protect XMHF's states.
 		 */
 		u64 mask = ~(1ULL << (32 + VMX_VMENTRY_LOAD_IA32_PAT));
-		// TODO: lying: mask &= ~(1ULL << (32 + VMX_VMENTRY_LOAD_IA32_EFER));
+		mask &= ~(1ULL << (32 + VMX_VMENTRY_LOAD_IA32_EFER));
 		mask &= ~(1ULL << (32 + VMX_VMENTRY_LOAD_CET_STATE));
 		vcpu->vmx_nested_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR] &= mask;
 	}
