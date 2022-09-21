@@ -78,7 +78,29 @@ When trying to boot debian11x86, another problem happens in XMHF:
 "Debug: guest hypervisor VM-entry failure."
 
 This problem is also reproducible when trying to run 15605 p3 kernel in
-virtualbox.
+virtualbox. Due to GCC version problems, patch Makefile with the following
+before compile.
+
+```diff
+diff --git a/Makefile b/Makefile
+index 00f0ccf..04baff3 100644
+--- a/Makefile
++++ b/Makefile
+@@ -187,11 +187,11 @@ CFLAGS_COMMON = -nostdinc \
+        -fcf-protection=none \
+        --std=gnu99 \
+        -D__STDC_NO_ATOMICS__ \
+-       -Wall -Werror
++       -Wall # -Werror
+ 
+ CFLAGS_GCC = $(CFLAGS_COMMON) \
+        -fno-aggressive-loop-optimizations \
+-       -gstabs+ -gstrict-dwarf -O0 -m32
++       -g -gstrict-dwarf -O0 -m32
+ 
+ CFLAGS_CLANG = $(CFLAGS_COMMON) \
+        -gdwarf-3 -gstrict-dwarf -Og -m32 -fno-addrsig -march=i386 \
+```
 
 Now try to make LHV reproduce this problem
 * `lhv-dev fa7d55af6`: LHV do not enter guest mode, not reproducible. However
@@ -110,6 +132,15 @@ CPU(0x05): nested vmexit  0x0010cd17 28
 CPU(0x05): nested vmexit  0x0010ccfa 28
 ```
 
+The asm in pebbles kernel looks like
+```
+   0x10ccf6 <set_cr0>:	mov    0x4(%esp),%eax
+   0x10ccfa <set_cr0+4>:	mov    %eax,%cr0
+   0x10ccfd <set_cr0+7>:	pushw  %cs
+   0x10ccff <set_cr0+9>:	push   $0x10cd07
+   0x10cd04 <set_cr0+14>:	ljmp   *(%esp)
+```
+
 The relevant SDM chapter is Intel i3 "25.4 LOADING MSRS". This footnote looks
 interesting:
 > 1. If CR0.PG = 1, WRMSR to the IA32_EFER MSR causes a general-protection
@@ -122,8 +153,44 @@ Current directions are
 * Print state before and after `0x0010ccfa`, print more MSRs
 * Print KVM behavior at `0x0010ccfa` and compare
 
-TODO: double check that KVM does not have the Pebbles kernel problem
+Double check: KVM does not have this problem when running Pebbles kernel.
+
+In `xmhf64-nest-dev 280cb659f`, print full information before and after set
+CR0. Results for KVM and VirtualBox are in `compare_3_kvm.txt` and
+`compare_3_vb.txt`. Note that KVM does not have after set CR0 because setting
+CR0 succeeds. Compare using
+```sh
+diff <(grep before compare_3_vb.txt | cut -d @ -f 1,3) \
+     <(grep after  compare_3_vb.txt | cut -d @ -f 1,3)
+diff <(grep before compare_3_vb.txt  | cut -d : -f 2-) \
+     <(grep before compare_3_kvm.txt | cut -d : -f 2-)		# not used
+```
+
+The exit qualification is 1, which indicates the first entry causes the problem
+(`MSR_EFER`).
+
+Other interesting changes made by VirtualBox are
+
+|Field                  |before VMCS12|after VMCS12|before VMCS02|after VMCS02|
+|-----------------------|-------------|------------|-------------|------------|
+|`control_VMX_cpu_based`|0xb5a0fdfa   |0xb5a07dfe  |0xb5a0fdfa   |0xb5a07dfe  |
+|`control_CR0_shadow`   |0x00000015   |0x80010015  |0x00000015   |0x80010015  |
+|`guest_CR0`            |0x00000035   |0x80010035  |0x00000035   |0x80010035  |
+
+For `vmcs02_vmentry_msr_load_area`, when running KVM, `IA32_EFER=0`. However,
+when running VirtualBox, `IA32_EFER=0xd01` (looks like all possible bits set).
+This is abnormal.
+
+By reading VirtualBox source code `src/VBox/VMM/VMMR0/HMVMXR0.cpp`, search for
+`VMX_EXIT_ERR_MSR_LOAD`, can see that this VMEXIT is unexpected. So ideally if
+we move VMCS12 to VMCS02, the error should disappear.
+
+TODO: also print VMCS01
+TODO: print KVM `control_VM_entry_MSR_load_address`
+TODO: will it work if we simply copy VirtualBox's VMCS12 to VMCS02?
+
 TODO: fix i386 vmentry failure
 TODO: does LHV have the same problem?
 TODO: fix amd64 kill init problem
+TODO: review KVM's `setup_msrs()`, see whether XMHF's `vmx_msr_area_msrs` need change
 
