@@ -42,6 +42,7 @@ Removed virtualbox from previous installation, follow
 <https://www.virtualbox.org/wiki/Linux_Downloads> now.
 
 ```sh
+sudo apt-get install gpg
 sudo vi /etc/apt/sources.list
 	deb [arch=amd64 signed-by=/usr/share/keyrings/oracle-virtualbox-2016.gpg] https://download.virtualbox.org/virtualbox/debian bullseye contrib
 wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --dearmor --yes --output /usr/share/keyrings/oracle-virtualbox-2016.gpg
@@ -185,9 +186,32 @@ By reading VirtualBox source code `src/VBox/VMM/VMMR0/HMVMXR0.cpp`, search for
 `VMX_EXIT_ERR_MSR_LOAD`, can see that this VMEXIT is unexpected. So ideally if
 we move VMCS12 to VMCS02, the error should disappear.
 
-TODO: also print VMCS01
-TODO: print KVM `control_VM_entry_MSR_load_address`
+In KVM, VMCS12 sets VMENTRY MSR load `IA32_EFER=0`, so VMCS02 also loads
+`IA32_EFER=0`. This should be considered the good behavior. However, in Virtual
+Box, there are no VMENTRY MSR load fields. So during VMENTRY, the original
+state is (PG=1, PAE=0, LME=0). The WRMSR sets LME, which causes #GP as
+specified by i3 "4.1.2 Paging-Mode Enabling".
+
+Git `xmhf64-nest-dev 24028d0c5`, results in `compare_4_kvm.txt` and
+`compare_4_vb.txt`.
+
+Now, my guess is that VirtualBox is using the "Load IA32_EFER" VMENTRY control
+to load EFER, and instead of using MSR load fields. VirtualBox sets the EFER
+VMCS field to 0, so it looks like not being used. However, XMHF does not
+provide "Load IA32\_EFER" feature, so VirtualBox does not set the "Load
+IA32\_EFER" bit, causing the error. If this is true, it should be considered
+a bug in VirtaulBox. The correct behavior is to error.
+
+Now we let XMHF to lie and say that "Load IA32\_EFER" feature is provided. Git
+`xmhf64-nest-dev e68667516`, result `compare_5_vb.txt`.
+
+However, actually this guess is invalid. VirtualBox's behavior does not change.
+In 2540p, `vcpu->vmx_msrs[4]=0x0000ffff000011ff` and
+`vcpu->vmx_nested_msrs[10]=0x0000ffff000011fb`, so hardware does not support
+"Load IA32\_EFER".
+
 TODO: will it work if we simply copy VirtualBox's VMCS12 to VMCS02?
+TODO: try running KVM VirtualBox and KVM XMHF VirtualBox
 
 TODO: fix i386 vmentry failure
 TODO: does LHV have the same problem?
