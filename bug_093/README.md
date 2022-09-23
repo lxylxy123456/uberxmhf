@@ -210,6 +210,7 @@ In 2540p, `vcpu->vmx_msrs[4]=0x0000ffff000011ff` and
 `vcpu->vmx_nested_msrs[10]=0x0000ffff000011fb`, so hardware does not support
 "Load IA32\_EFER".
 
+TODO: Check what it means to set guest ia32e=0. Will it clear efer.lme automatically? See Intel footnote
 TODO: will it work if we simply copy VirtualBox's VMCS12 to VMCS02?
 TODO: try running KVM VirtualBox and KVM XMHF VirtualBox
 
