@@ -708,11 +708,6 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 		__vmx_vmwrite32(VMCSENC_control_VM_exit_controls, val);
 	}
 	{
-		/* VMCS02 needs to always process the same fields as VMCS01 */
-		memcpy(vmcs12_info->vmcs02_vmexit_msr_store_area,
-			   (void *)vcpu->vmx_vaddr_msr_area_guest,
-			   vcpu->vmcs.control_VM_exit_MSR_store_count *
-			   sizeof(msr_entry_t));
 		__vmx_vmwrite32(VMCSENC_control_VM_exit_MSR_store_count,
 						vcpu->vmcs.control_VM_exit_MSR_store_count);
 		__vmx_vmwrite64(VMCSENC_control_VM_exit_MSR_store_address,
@@ -721,10 +716,6 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 		/* VMX control is not checked here; will check in VMEXIT handler */
 	}
 	{
-		/* VMCS02 needs to always process the same fields as VMCS01 */
-		memcpy(vmcs12_info->vmcs02_vmexit_msr_load_area,
-			   (void *)vcpu->vmx_vaddr_msr_area_host,
-			   vcpu->vmcs.control_VM_exit_MSR_load_count * sizeof(msr_entry_t));
 		__vmx_vmwrite32(VMCSENC_control_VM_exit_MSR_load_count,
 						vcpu->vmcs.control_VM_exit_MSR_load_count);
 		__vmx_vmwrite64(VMCSENC_control_VM_exit_MSR_load_address,
@@ -740,7 +731,10 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 		u32 i;
 		gva_t guest_addr = vmcs12->control_VM_entry_MSR_load_address;
 
-		/* VMCS02 needs to always process the same fields as VMCS01 */
+		/*
+		 * By default, most MSRs in L1 are not changed after VMENTRY to L2.
+		 * This memcpy makes sure that XMHF managed MSRs follow this behavior.
+		 */
 		memcpy(vmcs12_info->vmcs02_vmentry_msr_load_area,
 			   (void *)vcpu->vmx_vaddr_msr_area_guest,
 			   vcpu->vmcs.control_VM_entry_MSR_load_count *
@@ -750,43 +744,44 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 		__vmx_vmwrite64(VMCSENC_control_VM_entry_MSR_load_address,
 						hva2spa(vmcs12_info->vmcs02_vmentry_msr_load_area));
 
+		/*
+		 * According to SDM, IA32_EFER is changed as following:
+		 * * IA32_EFER.LMA = "IA-32e mode guest"
+		 * * If CR0.PG = 1, IA32_EFER.LME = "IA-32e mode guest"
+		 */
+		{
+			u32 index;
+			msr_entry_t *entry;
+			u64 mask = (1ULL << EFER_LMA);
+			if (vmcs12->guest_CR0 & CR0_PG) {
+				mask |= (1ULL << EFER_LME);
+			}
+			if (xmhf_partition_arch_x86vmx_get_xmhf_msr(MSR_EFER, &index)) {
+				entry = &vmcs12_info->vmcs02_vmentry_msr_load_area[index];
+				if (_vmx_hasctl_vmentry_ia_32e_mode_guest(&ctls)) {
+					entry->data |= mask;
+				} else {
+					entry->data &= ~mask;
+				}
+			} else {
+				HALT_ON_ERRORCOND(0 && "MSR_EFER not found");
+			}
+		}
+
 		/* Write the MSRs requested by guest */
 		for (i = 0; i < vmcs12->control_VM_entry_MSR_load_count; i++) {
+			u32 index;
 			msr_entry_t guest_entry;
 			guestmem_copy_gp2h(&ctx_pair, 0, &guest_entry,
 							   guest_addr + sizeof(msr_entry_t) * i,
 							   sizeof(msr_entry_t));
-			switch (guest_entry.index) {
-			case MSR_EFER:		/* fallthrough */
-			case MSR_IA32_PAT:	/* fallthrough */
-			case MSR_K6_STAR:
-				{
-					bool found = false;
-					u32 i = 0;
-					msr_entry_t *base =
-						(msr_entry_t *) vcpu->vmx_vaddr_msr_area_guest;
-					for (i = 0; i < vcpu->vmcs.control_VM_entry_MSR_load_count;
-						 i++) {
-						msr_entry_t *entry =
-							&vmcs12_info->vmcs02_vmentry_msr_load_area[i];
-						if (entry->index == guest_entry.index) {
-							entry->data = guest_entry.data;
-							/*
-							 * If L1 guest only loads in the MSR in VMENTRY and
-							 * does not load in VMEXIT, the L1 guest should get
-							 * the MSR loaded during VMENTRY after VMEXIT.
-							 */
-							HALT_ON_ERRORCOND(base[i].index ==
-											  guest_entry.index);
-							base[i].data = guest_entry.data;
-							found = true;
-							break;
-						}
-					}
-					HALT_ON_ERRORCOND(found);
-				}
-				break;
-			default:
+			if (xmhf_partition_arch_x86vmx_get_xmhf_msr(guest_entry.index,
+														&index)) {
+				msr_entry_t *entry =
+					&vmcs12_info->vmcs02_vmentry_msr_load_area[index];
+				HALT_ON_ERRORCOND(entry->index == guest_entry.index);
+				entry->data = guest_entry.data;
+			} else {
 				if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr
 					(vcpu, guest_entry.index, guest_entry.data)) {
 					/*
@@ -794,7 +789,6 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 					 */
 					HALT_ON_ERRORCOND(0 && "WRMSR fail, what should I do?");
 				}
-				break;
 			}
 		}
 	}
@@ -1130,7 +1124,7 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		u32 i;
 		gva_t guest_addr = vmcs12->control_VM_exit_MSR_store_address;
 
-		/* VMCS02 needs to always process the same fields as VMCS01 */
+		/* VMCS02 needs to always process the same MSRs as VMCS01 */
 		u16 encoding = VMCSENC_control_VM_exit_MSR_store_count;
 		HALT_ON_ERRORCOND(vcpu->vmcs.control_VM_exit_MSR_store_count ==
 						  __vmx_vmread32(encoding));
@@ -1140,31 +1134,18 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 
 		/* Read MSRs and write to guest */
 		for (i = 0; i < vmcs12->control_VM_exit_MSR_store_count; i++) {
+			u32 index;
 			msr_entry_t guest_entry;
 			guestmem_copy_gp2h(&ctx_pair, 0, &guest_entry,
 							   guest_addr + sizeof(msr_entry_t) * i,
 							   sizeof(msr_entry_t));
-			switch (guest_entry.index) {
-			case MSR_EFER:		/* fallthrough */
-			case MSR_IA32_PAT:	/* fallthrough */
-			case MSR_K6_STAR:
-				{
-					bool found = false;
-					u32 i = 0;
-					for (i = 0; i < vcpu->vmcs.control_VM_entry_MSR_load_count;
-						 i++) {
-						msr_entry_t *entry =
-							&vmcs12_info->vmcs02_vmexit_msr_store_area[i];
-						if (entry->index == guest_entry.index) {
-							guest_entry.data = entry->data;
-							found = true;
-							break;
-						}
-					}
-					HALT_ON_ERRORCOND(found);
-				}
-				break;
-			default:
+			if (xmhf_partition_arch_x86vmx_get_xmhf_msr(guest_entry.index,
+														&index)) {
+				msr_entry_t *entry =
+					&vmcs12_info->vmcs02_vmexit_msr_store_area[index];
+				HALT_ON_ERRORCOND(entry->index == guest_entry.index);
+				guest_entry.data = entry->data;
+			} else {
 				if (xmhf_parteventhub_arch_x86vmx_handle_rdmsr
 					(vcpu, guest_entry.index, &guest_entry.data)) {
 					/*
@@ -1172,7 +1153,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 					 */
 					HALT_ON_ERRORCOND(0 && "RDMSR fail, what should I do?");
 				}
-				break;
 			}
 			guestmem_copy_h2gp(&ctx_pair, 0,
 							   guest_addr + sizeof(msr_entry_t) * i,
@@ -1183,7 +1163,7 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		u32 i;
 		gva_t guest_addr = vmcs12->control_VM_exit_MSR_load_address;
 
-		/* VMCS02 needs to always process the same fields as VMCS01 */
+		/* VMCS02 needs to always process the same MSRs as VMCS01 */
 		u16 encoding = VMCSENC_control_VM_exit_MSR_store_count;
 		HALT_ON_ERRORCOND(vcpu->vmcs.control_VM_exit_MSR_load_count ==
 						  __vmx_vmread32(encoding));
@@ -1191,34 +1171,51 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		HALT_ON_ERRORCOND(hva2spa(vmcs12_info->vmcs02_vmexit_msr_load_area) ==
 						  __vmx_vmread64(encoding));
 
+		/*
+		 * By default, most MSRs in L2 are not changed after VMEXIT to L1.
+		 * This memcpy makes sure that XMHF managed MSRs follow this behavior.
+		 */
+		memcpy((void *)vcpu->vmx_vaddr_msr_area_guest,
+			   vmcs12_info->vmcs02_vmentry_msr_load_area,
+			   vcpu->vmcs.control_VM_entry_MSR_load_count *
+			   sizeof(msr_entry_t));
+
+		/*
+		 * According to SDM, IA32_EFER is changed as following:
+		 * * IA32_EFER.LMA = "host address-space size"
+		 * * IA32_EFER.LME = "host address-space size"
+		 */
+		{
+			u32 index;
+			msr_entry_t *entry;
+			u64 mask = (1ULL << EFER_LMA) | (1ULL << EFER_LME);
+			if (xmhf_partition_arch_x86vmx_get_xmhf_msr(MSR_EFER, &index)) {
+				entry =
+					&((msr_entry_t *) vcpu->vmx_vaddr_msr_area_guest)[index];
+				if (_vmx_hasctl_vmexit_host_address_space_size(&ctls)) {
+					entry->data |= mask;
+				} else {
+					entry->data &= ~mask;
+				}
+			} else {
+				HALT_ON_ERRORCOND(0 && "MSR_EFER not found");
+			}
+		}
+
 		/* Write MSRs as requested by guest */
 		for (i = 0; i < vmcs12->control_VM_exit_MSR_load_count; i++) {
+			u32 index;
 			msr_entry_t guest_entry;
 			guestmem_copy_gp2h(&ctx_pair, 0, &guest_entry,
 							   guest_addr + sizeof(msr_entry_t) * i,
 							   sizeof(msr_entry_t));
-			switch (guest_entry.index) {
-			case MSR_EFER:		/* fallthrough */
-			case MSR_IA32_PAT:	/* fallthrough */
-			case MSR_K6_STAR:
-				{
-					bool found = false;
-					u32 i = 0;
-					msr_entry_t *base =
-						(msr_entry_t *) vcpu->vmx_vaddr_msr_area_guest;
-					for (i = 0; i < vcpu->vmcs.control_VM_entry_MSR_load_count;
-						 i++) {
-						msr_entry_t *entry = &base[i];
-						if (entry->index == guest_entry.index) {
-							entry->data = guest_entry.data;
-							found = true;
-							break;
-						}
-					}
-					HALT_ON_ERRORCOND(found);
-				}
-				break;
-			default:
+			if (xmhf_partition_arch_x86vmx_get_xmhf_msr(guest_entry.index,
+														&index)) {
+				msr_entry_t *entry =
+					&((msr_entry_t *) vcpu->vmx_vaddr_msr_area_guest)[index];
+				HALT_ON_ERRORCOND(entry->index == guest_entry.index);
+				entry->data = guest_entry.data;
+			} else {
 				if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr
 					(vcpu, guest_entry.index, guest_entry.data)) {
 					/*
@@ -1226,7 +1223,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 					 */
 					HALT_ON_ERRORCOND(0 && "WRMSR fail, what should I do?");
 				}
-				break;
 			}
 		}
 	}
@@ -1239,7 +1235,7 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		vmcs12->control_VM_entry_controls = val;
 	}
 	{
-		/* VMCS02 needs to always process the same fields as VMCS01 */
+		/* VMCS02 needs to always process the same MSRs as VMCS01 */
 		u16 encoding = VMCSENC_control_VM_entry_MSR_load_count;
 		HALT_ON_ERRORCOND(vcpu->vmcs.control_VM_entry_MSR_load_count ==
 						  __vmx_vmread32(encoding));
