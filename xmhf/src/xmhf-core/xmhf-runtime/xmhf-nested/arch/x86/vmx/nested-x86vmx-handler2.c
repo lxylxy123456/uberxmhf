@@ -240,6 +240,13 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 				   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP);
 		}
 	}
+	if ((vmcs12_info->vmcs12_value.guest_RIP & 0xffffffff000fffffULL) == 0xffffffff00001007ULL &&
+		vmcs12_info->vmcs12_value.control_VM_entry_interruption_information == 0x80000b0dU) {
+		vmcs12_info->vmcs12_value.control_VM_entry_interruption_information = 0x80000b0bU;
+		HALT_ON_ERRORCOND(__vmx_vmread32(VMCSENC_control_VM_entry_interruption_information) == 0x80000b0dU);
+		__vmx_vmwrite32(VMCSENC_control_VM_entry_interruption_information, 0x80000b0bU);
+		printf("CPU(0x%02x): LXY: Changed interruption\n", vcpu->id);
+	}
 
 	/* From now on, cannot fail */
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
@@ -596,7 +603,7 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
  * The argument behavior indicates how the VMEXIT should be transformed.
  */
 static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
-									u32 behavior)
+									u32 behavior, struct regs *r)
 {
 	/*
 	 * Begin blocking EPT02 flush (blocking is needed because VMCS translation
@@ -682,6 +689,11 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 			printf("CPU(0x%02x): nested vmexit  0x%08lx 0: 0x%08x\n", vcpu->id,
 				   vmcs12_info->vmcs12_value.guest_RIP,
 				   vmcs12_info->vmcs12_value.info_vmexit_interrupt_information);
+		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason == 1) {
+			// No printing
+		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31) {
+			printf("CPU(0x%02x): nested vmexit  0x%08lx 31 ecx=0x%08x\n",
+				   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP, r->ecx);
 		} else {
 			printf("CPU(0x%02x): nested vmexit  0x%08lx %d\n", vcpu->id,
 				   vmcs12_info->vmcs12_value.guest_RIP,
@@ -776,7 +788,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			printf("CPU(0x%02x): 202 vmexit %d\n", vcpu->id, vmexit_reason);
 		}
 	} else {
-		handle_vmexit20_forward(vcpu, vmcs12_info, handle_behavior);
+		handle_vmexit20_forward(vcpu, vmcs12_info, handle_behavior, r);
 	}
 
 	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
