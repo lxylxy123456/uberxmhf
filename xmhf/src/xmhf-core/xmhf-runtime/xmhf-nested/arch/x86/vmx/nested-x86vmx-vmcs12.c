@@ -1361,11 +1361,8 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		u32 mask = (0xfU << 0) | (1U << 4) | (3U << 5) | (1U << 7) |
 				   (1U << 14) | (1U << 15);
 		u32 val = (3U << 0) | (1U << 4) | (1U << 7) | (1U << 14) | (1U << 15);
-		/* Warn the developer when this changes hypervisor state */
-		HALT_ON_ERRORCOND(vcpu->vmcs.guest_ES_access_rights ==
-						  ((vcpu->vmcs.guest_ES_access_rights & mask) | val));
 		vcpu->vmcs.guest_ES_access_rights =
-			(vcpu->vmcs.guest_ES_access_rights & mask) | val;
+			(vcpu->vmcs.guest_ES_access_rights & ~mask) | val;
 	}
 	{
 		/*
@@ -1380,59 +1377,43 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		} else {
 			val |= (1U << 14);
 		}
-		/* Warn the developer when this changes hypervisor state */
-		HALT_ON_ERRORCOND(vcpu->vmcs.guest_CS_access_rights ==
-						  ((vcpu->vmcs.guest_CS_access_rights & mask) | val));
 		vcpu->vmcs.guest_CS_access_rights =
-			(vcpu->vmcs.guest_CS_access_rights & mask) | val;
+			(vcpu->vmcs.guest_CS_access_rights & ~mask) | val;
 	}
 	{
 		/* Type=3, S=1, DPL=0, P=1, D/B=1, G=1 */
 		u32 mask = (0xfU << 0) | (1U << 4) | (3U << 5) | (1U << 7) |
 				   (1U << 14) | (1U << 15);
 		u32 val = (3U << 0) | (1U << 4) | (1U << 7) | (1U << 14) | (1U << 15);
-		/* Warn the developer when this changes hypervisor state */
-		HALT_ON_ERRORCOND(vcpu->vmcs.guest_SS_access_rights ==
-						  ((vcpu->vmcs.guest_SS_access_rights & mask) | val));
 		vcpu->vmcs.guest_SS_access_rights =
-			(vcpu->vmcs.guest_SS_access_rights & mask) | val;
+			(vcpu->vmcs.guest_SS_access_rights & ~mask) | val;
 	}
 	{
 		/* Type=3, S=1, DPL=0, P=1, D/B=1, G=1 */
 		u32 mask = (0xfU << 0) | (1U << 4) | (3U << 5) | (1U << 7) |
 				   (1U << 14) | (1U << 15);
 		u32 val = (3U << 0) | (1U << 4) | (1U << 7) | (1U << 14) | (1U << 15);
-		/* Warn the developer when this changes hypervisor state */
-		HALT_ON_ERRORCOND(vcpu->vmcs.guest_DS_access_rights ==
-						  ((vcpu->vmcs.guest_DS_access_rights & mask) | val));
 		vcpu->vmcs.guest_DS_access_rights =
-			(vcpu->vmcs.guest_DS_access_rights & mask) | val;
+			(vcpu->vmcs.guest_DS_access_rights & ~mask) | val;
 	}
 	{
 		/* Type=3, S=1, DPL=0, P=1, D/B=1, G=1 */
 		u32 mask = (0xfU << 0) | (1U << 4) | (3U << 5) | (1U << 7) |
 				   (1U << 14) | (1U << 15);
 		u32 val = (3U << 0) | (1U << 4) | (1U << 7) | (1U << 14) | (1U << 15);
-		/* Warn the developer when this changes hypervisor state */
-		HALT_ON_ERRORCOND(vcpu->vmcs.guest_FS_access_rights ==
-						  ((vcpu->vmcs.guest_FS_access_rights & mask) | val));
 		vcpu->vmcs.guest_FS_access_rights =
-			(vcpu->vmcs.guest_FS_access_rights & mask) | val;
+			(vcpu->vmcs.guest_FS_access_rights & ~mask) | val;
 	}
 	{
 		/* Type=3, S=1, DPL=0, P=1, D/B=1, G=1 */
 		u32 mask = (0xfU << 0) | (1U << 4) | (3U << 5) | (1U << 7) |
 				   (1U << 14) | (1U << 15);
 		u32 val = (3U << 0) | (1U << 4) | (1U << 7) | (1U << 14) | (1U << 15);
-		/* Warn the developer when this changes hypervisor state */
-		HALT_ON_ERRORCOND(vcpu->vmcs.guest_GS_access_rights ==
-						  ((vcpu->vmcs.guest_GS_access_rights & mask) | val));
 		vcpu->vmcs.guest_GS_access_rights =
-			(vcpu->vmcs.guest_GS_access_rights & mask) | val;
+			(vcpu->vmcs.guest_GS_access_rights & ~mask) | val;
 	}
 	{
 		/* Unusable */
-		HALT_ON_ERRORCOND(vcpu->vmcs.guest_LDTR_access_rights & (1U << 16));
 		vcpu->vmcs.guest_LDTR_access_rights = (1U << 16);
 	}
 	{
@@ -1440,11 +1421,8 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		u32 mask = (0xfU << 0) | (1U << 4) | (3U << 5) | (1U << 7) |
 				   (1U << 14) | (1U << 15);
 		u32 val = (11U << 0) | (1U << 7);
-		/* Warn the developer when this changes hypervisor state */
-		HALT_ON_ERRORCOND(vcpu->vmcs.guest_TR_access_rights ==
-						  ((vcpu->vmcs.guest_TR_access_rights & mask) | val));
 		vcpu->vmcs.guest_TR_access_rights =
-			(vcpu->vmcs.guest_TR_access_rights & mask) | val;
+			(vcpu->vmcs.guest_TR_access_rights & ~mask) | val;
 	}
 
 	/* Natural-Width Control Fields */
