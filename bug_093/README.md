@@ -55,24 +55,6 @@ VBoxManage list vms
 	# Should not see error
 ```
 
-### VirtualBox amd64 Debian kill init Problem
-
-After trying to boot the Debian netinst image, see Linux kernel panic. The same
-happens when trying to boot debian11x64 (QCOW2 image installed using KVM). The
-panic message is "not syncing: Attempted to kill init! exit code=0x0000000b".
-
-From the kernel panic message, looks like the init process received #GP
-exception, which causes `do_exit()` to be called. This triggers kernel panic
-because init cannot exit.
-
-The RIP of init process does not look stable. So I guess the #GP may be caused
-by an interrupt. Otherwise, by looking at Linux panic message, looks like most
-instructions are accessing memory. Maybe there is something wrong with page
-table / EPT?
-
-The good news is that VirtualBox is open source. So ideally there is no
-blackbox during debugging.
-
 ### VirtualBox i386 Debian vmentry failure Problem
 
 When trying to boot debian11x86, another problem happens in XMHF:
@@ -232,11 +214,49 @@ Now we read Intel manual carefully and extract related information
 		* `IA32_EFER.LMA` = "host address-space size"
 		* CS.D/B ???
 
-TODO: Check what it means to set guest ia32e=0. Will it clear efer.lme automatically? See Intel footnote
-TODO: will it work if we simply copy VirtualBox's VMCS12 to VMCS02?
-TODO: try running KVM VirtualBox and KVM XMHF VirtualBox
+Indeed, this problem is caused by not modifying `IA32_EFER` correctly during
+nested VMENTRY and VMEXIT. Fixed in `xmhf64-nest 9d8f6ae1e`. After that,
+Pebbles kernel can run successfully. debian11x86 can also boot.
 
-TODO: fix i386 vmentry failure
+For other fields listed above
+* No need to worry about most L2 fields, because L2 is guest in both VMCS12 and
+  VMCS02
+* L1 fields need to be reviewed
+
+Untried ideas
+* Will it work if we simply copy VirtualBox's VMCS12 to VMCS02?
+* Try running KVM VirtualBox and KVM XMHF VirtualBox
+
+### Review VMCS fields for L1 after nested VMEXIT
+
+Reviewed Intel v3 26.5 "LOADING HOST STATE", modified XMHF code in
+`xmhf64-nest-dev 90707ed03..020b702cf` to update L1 state better. Rebased to
+`xmhf64-nest 9d8f6ae1e..8de661b8f`.
+
+### VirtualBox amd64 Debian kill init Problem
+
+After trying to boot the Debian netinst image, see Linux kernel panic. The same
+happens when trying to boot debian11x64 (QCOW2 image installed using KVM). The
+panic message is "not syncing: Attempted to kill init! exit code=0x0000000b".
+
+From the kernel panic message, looks like the init process received #GP
+exception, which causes `do_exit()` to be called. This triggers kernel panic
+because init cannot exit.
+
+The RIP of init process does not look stable. So I guess the #GP may be caused
+by an interrupt. Otherwise, by looking at Linux panic message, looks like most
+instructions are accessing memory. Maybe there is something wrong with page
+table / EPT?
+
+The good news is that VirtualBox is open source. So ideally there is no
+blackbox during debugging.
+
+TODO: log all VMEXITs due to #GP, log all event injection
+TODO: is the exception really #GP? exit code = 0xb = #NP
+TODO: check VirtualBox's setting of exception bitmap
+TODO: intercept all #GP using exception bitmap
+
+TODO: test Debian x86 PAE
 TODO: does LHV have the same problem?
 TODO: fix amd64 kill init problem
 TODO: review KVM's `setup_msrs()`, see whether XMHF's `vmx_msr_area_msrs` need change
