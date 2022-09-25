@@ -240,13 +240,6 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 				   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP);
 		}
 	}
-	if ((vmcs12_info->vmcs12_value.guest_RIP & 0xffffffff000fffffULL) == 0xffffffff00001007ULL &&
-		vmcs12_info->vmcs12_value.control_VM_entry_interruption_information == 0x80000b0dU) {
-		vmcs12_info->vmcs12_value.control_VM_entry_interruption_information = 0x80000b0bU;
-		HALT_ON_ERRORCOND(__vmx_vmread32(VMCSENC_control_VM_entry_interruption_information) == 0x80000b0dU);
-		__vmx_vmwrite32(VMCSENC_control_VM_entry_interruption_information, 0x80000b0bU);
-		printf("CPU(0x%02x): LXY: Changed interruption\n", vcpu->id);
-	}
 
 	/* From now on, cannot fail */
 	vcpu->vmx_nested_is_vmx_root_operation = 0;
@@ -692,18 +685,47 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason == 1) {
 			// No printing
 		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31) {
-			printf("CPU(0x%02x): nested vmexit  0x%08lx 31 ecx=0x%08x\n",
-				   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP, r->ecx);
+			// printf("CPU(0x%02x): nested vmexit  0x%08lx 31 ecx=0x%08x\n",
+			// 	   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP, r->ecx);
 		} else {
-			printf("CPU(0x%02x): nested vmexit  0x%08lx %d\n", vcpu->id,
-				   vmcs12_info->vmcs12_value.guest_RIP,
-				   vmcs12_info->vmcs12_value.info_vmexit_reason);
+			// printf("CPU(0x%02x): nested vmexit  0x%08lx %d\n", vcpu->id,
+			// 	   vmcs12_info->vmcs12_value.guest_RIP,
+			// 	   vmcs12_info->vmcs12_value.info_vmexit_reason);
 		}
 	}
-	if (0) {
-		printf("CPU(0x%02x): nested vmexit  0x%08lx %d\n", vcpu->id,
-			   vmcs12_info->vmcs12_value.guest_RIP,
-			   vmcs12_info->vmcs12_value.info_vmexit_reason);
+	if (vmcs12_info->vmcs12_value.info_vmexit_interrupt_information == 0x80000b0d) {
+		u64 kernel_offset = vmcs12_info->vmcs12_value.guest_RIP - 0xffffffff81a01007;
+		HALT_ON_ERRORCOND(
+			(vmcs12_info->vmcs12_value.guest_RIP & 0xffffffff000fffffULL) ==
+			0xffffffff00001007ULL);
+		printf("kernel_offset = 0x%08lx\n", kernel_offset);
+		xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":VMCS02:");
+		printf("CPU(0x%02x): RAX=0x%016lx RBX=0x%016lx\n", vcpu->id, r->rax, r->rbx);
+		printf("CPU(0x%02x): RCX=0x%016lx RDX=0x%016lx\n", vcpu->id, r->rcx, r->rdx);
+		printf("CPU(0x%02x): RSI=0x%016lx RDI=0x%016lx\n", vcpu->id, r->rsi, r->rdi);
+		printf("CPU(0x%02x): RBP=0x%016lx RSP=0x%016lx\n", vcpu->id, r->rbp, r->rsp);
+		printf("CPU(0x%02x): R8 =0x%016lx R9 =0x%016lx\n", vcpu->id, r->r8 , r->r9 );
+		printf("CPU(0x%02x): R10=0x%016lx R11=0x%016lx\n", vcpu->id, r->r10, r->r11);
+		printf("CPU(0x%02x): R12=0x%016lx R13=0x%016lx\n", vcpu->id, r->r12, r->r13);
+		printf("CPU(0x%02x): R14=0x%016lx R15=0x%016lx\n", vcpu->id, r->r14, r->r15);
+		{
+			guestmem_hptw_ctx_pair_t ctx_pair;
+			u64 rsp = vmcs12_info->vmcs12_value.guest_RSP;
+			guestmem_init(vcpu, &ctx_pair);
+			ctx_pair.guest_ctx.root_pa = hpt_cr3_get_address(
+				ctx_pair.guest_ctx.t,
+				__vmx_vmreadNW(VMCSENC_guest_CR3));
+			ctx_pair.host_ctx.root_pa = hpt_eptp_get_address(
+				HPT_TYPE_EPT,
+				__vmx_vmread64(VMCSENC_control_EPT_pointer));
+			for (int i = 0; i < 7; i++) {
+				u64 val;
+				guestmem_copy_gv2h(&ctx_pair, 0, &val, rsp, sizeof(val));
+				printf("Stack: *0x%016llx = 0x%016llx\n", rsp, val);
+				rsp += 8;
+			}
+		}
+		HALT_ON_ERRORCOND(0 && "Halt due to debugging");
 	}
 
 	/*
