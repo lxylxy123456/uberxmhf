@@ -1399,7 +1399,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			vcpu->vmx_guest_nmi_cfg.guest_nmi_pending--;
 			xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(
 				vcpu, &vcpu->vmcs.control_VMX_cpu_based);
-			printf("CPU(0x%02x): inject NMI\n", vcpu->id);
+			// printf("CPU(0x%02x): inject NMI\n", vcpu->id);
 		}
 		break;
 

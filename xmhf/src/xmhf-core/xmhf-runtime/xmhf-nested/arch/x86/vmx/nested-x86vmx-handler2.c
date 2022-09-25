@@ -724,6 +724,12 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 				printf("Stack: *0x%016llx = 0x%016llx\n", rsp, val);
 				rsp += 8;
 			}
+			for (u64 off = 0; off < vmcs12_info->vmcs12_value.guest_GDTR_limit; off += 8) {
+				u64 addr = vmcs12_info->vmcs12_value.guest_GDTR_base + off;
+				u64 val;
+				guestmem_copy_gv2h(&ctx_pair, 0, &val, addr, sizeof(val));
+				printf("GDT: *0x%016llx = 0x%016llx\n", addr, val);
+			}
 		}
 		HALT_ON_ERRORCOND(0 && "Halt due to debugging");
 	}
