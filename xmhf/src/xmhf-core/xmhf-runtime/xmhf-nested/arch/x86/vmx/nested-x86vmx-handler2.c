@@ -630,7 +630,6 @@ static void lxy_print(VCPU * vcpu, vmcs12_info_t * vmcs12_info, char *separator)
 static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 									u32 behavior)
 {
-	static int state = 0;
 	/*
 	 * Begin blocking EPT02 flush (blocking is needed because VMCS translation
 	 * calls xmhf_nested_arch_x86vmx_get_ept02()).
@@ -639,10 +638,6 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 
 	/* Wake the guest hypervisor up for the VMEXIT */
 	xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(vcpu, vmcs12_info);
-	if (state != 0) {
-		lxy_print(vcpu, vmcs12_info, "changed");
-		HALT_ON_ERRORCOND(0 && "Done");
-	}
 	if (vmcs12_info->vmcs12_value.info_vmexit_reason & 0x80000000U) {
 		/*
 		 * Note: stopping here makes debugging with a correct guest hypervisor
@@ -650,10 +645,6 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		 * guest hypervisor.
 		 */
 		lxy_print(vcpu, vmcs12_info, "after");
-		state = 1;
-		xmhf_nested_arch_x86vmx_unblock_ept02_flush(vcpu);
-		xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
-		__vmx_vmentry_vmresume(r);
 		HALT_ON_ERRORCOND(0 && "Debug: guest hypervisor VM-entry failure");
 	}
 	if (vmcs12_info->vmcs12_value.guest_RIP == 0x10ccfa) {
