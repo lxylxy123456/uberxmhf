@@ -230,8 +230,15 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 	}
 
 	if (lxy_verbose) {
-		printf("CPU(0x%02x): nested vmentry 0x%08lx\n",
-			   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP);
+		if (vmcs12_info->vmcs12_value.control_VM_entry_interruption_information &
+			INTR_INFO_VALID_MASK) {
+			printf("CPU(0x%02x): nested vmentry 0x%08lx intr_inj=0x%08x\n",
+				   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP,
+				   vmcs12_info->vmcs12_value.control_VM_entry_interruption_information);
+		} else if (0) {
+			printf("CPU(0x%02x): nested vmentry 0x%08lx\n",
+				   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP);
+		}
 	}
 
 	/* From now on, cannot fail */
@@ -497,7 +504,7 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 		status = xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu, cache_line,
 														   guest2_paddr,
 														   qualification);
-		if (lxy_verbose) {
+		if (0 && lxy_verbose) {
 			printf("CPU(0x%02x): EPT %d 0x%016llx 0x%08lx\n", vcpu->id, status,
 				   guest2_paddr, qualification);
 		}
