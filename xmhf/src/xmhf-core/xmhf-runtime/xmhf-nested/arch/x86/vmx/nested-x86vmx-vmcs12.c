@@ -686,7 +686,6 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 	{
 		u32 val = vmcs12->control_exception_bitmap;
 		// TODO: in the future, need to merge with host's exception bitmap
-		HALT_ON_ERRORCOND(val & (1 << CPU_EXCEPTION_GP));	// For debugging virtualbox
 		__vmx_vmwrite32(VMCSENC_control_exception_bitmap, val);
 	}
 	{
@@ -1110,7 +1109,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		u32 val = vmcs12->control_exception_bitmap;
 		u16 encoding = VMCSENC_control_exception_bitmap;
 		HALT_ON_ERRORCOND(val == __vmx_vmread32(encoding));
-		HALT_ON_ERRORCOND(val & (1 << CPU_EXCEPTION_GP));	// For debugging virtualbox
 	}
 	{
 		u32 val = vmcs12->control_VM_exit_controls;

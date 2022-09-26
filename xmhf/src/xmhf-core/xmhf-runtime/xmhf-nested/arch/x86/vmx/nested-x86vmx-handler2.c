@@ -591,22 +591,6 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 	return ret;
 }
 
-static void xxd(u32 start, u32 end) {
-	HALT_ON_ERRORCOND((start & 0xf) == 0);
-	HALT_ON_ERRORCOND((end & 0xf) == 0);
-	for (u32 i = start; i < end; i += 0x10) {
-		printf("XXD: %08x: ", i);
-		for (u32 j = 0; j < 0x10; j++) {
-			if (j & 1) {
-				printf("%02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
-			} else {
-				printf(" %02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
-			}
-		}
-		printf("\n");
-	}
-}
-
 /*
  * Forward L2 to L0 VMEXIT to L1.
  * The argument behavior indicates how the VMEXIT should be transformed.
@@ -701,151 +685,13 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason == 1) {
 			// No printing
 		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31) {
-			// printf("CPU(0x%02x): nested vmexit  0x%08lx 31 ecx=0x%08x\n",
-			// 	   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP, r->ecx);
+			printf("CPU(0x%02x): nested vmexit  0x%08lx 31 ecx=0x%08x\n",
+				   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP, r->ecx);
 		} else {
-			// printf("CPU(0x%02x): nested vmexit  0x%08lx %d\n", vcpu->id,
-			// 	   vmcs12_info->vmcs12_value.guest_RIP,
-			// 	   vmcs12_info->vmcs12_value.info_vmexit_reason);
+			printf("CPU(0x%02x): nested vmexit  0x%08lx %d\n", vcpu->id,
+				   vmcs12_info->vmcs12_value.guest_RIP,
+				   vmcs12_info->vmcs12_value.info_vmexit_reason);
 		}
-	}
-	if (vmcs12_info->vmcs12_value.info_vmexit_interrupt_information == 0x80000b0d) {
-		u64 kernel_offset = vmcs12_info->vmcs12_value.guest_RIP - 0xffffffff81a01007;
-		HALT_ON_ERRORCOND(
-			(vmcs12_info->vmcs12_value.guest_RIP & 0xffffffff000fffffULL) ==
-			0xffffffff00001007ULL);
-		printf("kernel_offset = 0x%08lx\n", kernel_offset);
-		xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":VMCS02:");
-		xmhf_nested_arch_x86vmx_vmcs_dump(vcpu, &vmcs12_info->vmcs12_value, ":VMCS12:");
-		printf("CPU(0x%02x): RAX=0x%016lx RBX=0x%016lx\n", vcpu->id, r->rax, r->rbx);
-		printf("CPU(0x%02x): RCX=0x%016lx RDX=0x%016lx\n", vcpu->id, r->rcx, r->rdx);
-		printf("CPU(0x%02x): RSI=0x%016lx RDI=0x%016lx\n", vcpu->id, r->rsi, r->rdi);
-		printf("CPU(0x%02x): RBP=0x%016lx RSP=0x%016lx\n", vcpu->id, r->rbp, r->rsp);
-		printf("CPU(0x%02x): R8 =0x%016lx R9 =0x%016lx\n", vcpu->id, r->r8 , r->r9 );
-		printf("CPU(0x%02x): R10=0x%016lx R11=0x%016lx\n", vcpu->id, r->r10, r->r11);
-		printf("CPU(0x%02x): R12=0x%016lx R13=0x%016lx\n", vcpu->id, r->r12, r->r13);
-		printf("CPU(0x%02x): R14=0x%016lx R15=0x%016lx\n", vcpu->id, r->r14, r->r15);
-		{
-			guestmem_hptw_ctx_pair_t ctx_pair;
-			u64 rsp = vmcs12_info->vmcs12_value.guest_RSP;
-			guestmem_init(vcpu, &ctx_pair);
-			ctx_pair.guest_ctx.root_pa = hpt_cr3_get_address(
-				ctx_pair.guest_ctx.t,
-				__vmx_vmreadNW(VMCSENC_guest_CR3));
-			ctx_pair.host_ctx.root_pa = hpt_eptp_get_address(
-				HPT_TYPE_EPT,
-				__vmx_vmread64(VMCSENC_control_EPT_pointer));
-			for (int i = 0; i < 7; i++) {
-				u64 val;
-				guestmem_copy_gv2h(&ctx_pair, 0, &val, rsp, sizeof(val));
-				printf("Stack: *0x%016llx = 0x%016llx\n", rsp, val);
-				rsp += 8;
-			}
-			for (u64 off = 0; off < vmcs12_info->vmcs12_value.guest_GDTR_limit; off += 8) {
-				u64 addr = vmcs12_info->vmcs12_value.guest_GDTR_base + off;
-				u64 val;
-				guestmem_copy_gv2h(&ctx_pair, 0, &val, addr, sizeof(val));
-				printf("GDT: *0x%016llx = 0x%016llx\n", addr, val);
-			}
-			for (u32 i = 0; i < vmcs12_info->vmcs12_value.control_VM_exit_MSR_store_count; i++) {
-				u64 *base = (u64 *)vmcs12_info->vmcs12_value.control_VM_exit_MSR_store_address;
-				// TODO: insecure: should use guestmem
-				printf("VMCS12 MSR exit store: 0x%08llx 0x%016llx 0x%016llx\n",
-					   &base[i * 2], base[i * 2], base[i * 2 + 1]);
-			}
-			for (u32 i = 0; i < vmcs12_info->vmcs12_value.control_VM_exit_MSR_load_count; i++) {
-				u64 *base = (u64 *)vmcs12_info->vmcs12_value.control_VM_exit_MSR_load_address;
-				// TODO: insecure: should use guestmem
-				printf("VMCS12 MSR exit load: 0x%08llx 0x%016llx 0x%016llx\n",
-					   &base[i * 2], base[i * 2], base[i * 2 + 1]);
-			}
-			for (u32 i = 0; i < vmcs12_info->vmcs12_value.control_VM_entry_MSR_load_count; i++) {
-				u64 *base = (u64 *)vmcs12_info->vmcs12_value.control_VM_entry_MSR_load_address;
-				// TODO: insecure: should use guestmem
-				printf("VMCS12 MSR entry load: 0x%08llx 0x%016llx 0x%016llx\n",
-					   &base[i * 2], base[i * 2], base[i * 2 + 1]);
-			}
-			{
-				u64 base = vmcs12_info->vmcs12_value.control_MSR_Bitmaps_address;
-				printf("VMCS12 MSR bitmap: 0x%08llx start\n", base);
-				// TODO: insecure: should use guestmem
-				xxd(base, base + 4096);
-				printf("VMCS12 MSR bitmap: 0x%08llx end\n", base);
-			}
-			{
-				u32 count = __vmx_vmread32(VMCSENC_control_VM_exit_MSR_store_count);
-				u64 *base = (u64 *)__vmx_vmread64(VMCSENC_control_VM_exit_MSR_store_address);
-				for (u32 i = 0; i < count; i++) {
-					printf("VMCS02 MSR exit store: 0x%08llx 0x%016llx 0x%016llx\n",
-						   &base[i * 2], base[i * 2], base[i * 2 + 1]);
-				}
-			}
-			{
-				u32 count = __vmx_vmread32(VMCSENC_control_VM_exit_MSR_load_count);
-				u64 *base = (u64 *)__vmx_vmread64(VMCSENC_control_VM_exit_MSR_load_address);
-				for (u32 i = 0; i < count; i++) {
-					printf("VMCS02 MSR exit load: 0x%08llx 0x%016llx 0x%016llx\n",
-						   &base[i * 2], base[i * 2], base[i * 2 + 1]);
-				}
-			}
-			{
-				u32 count = __vmx_vmread32(VMCSENC_control_VM_entry_MSR_load_count);
-				u64 *base = (u64 *)__vmx_vmread64(VMCSENC_control_VM_entry_MSR_load_address);
-				for (u32 i = 0; i < count; i++) {
-					printf("VMCS02 MSR entry load: 0x%08llx 0x%016llx 0x%016llx\n",
-						   &base[i * 2], base[i * 2], base[i * 2 + 1]);
-				}
-			}
-			{
-				u32 count = vcpu->vmcs.control_VM_exit_MSR_store_count;
-				u64 *base = (u64 *)vcpu->vmcs.control_VM_exit_MSR_store_address;
-				for (u32 i = 0; i < count; i++) {
-					printf("VMCS01 MSR exit store: 0x%08llx 0x%016llx 0x%016llx\n",
-						   &base[i * 2], base[i * 2], base[i * 2 + 1]);
-				}
-			}
-			{
-				u32 count = vcpu->vmcs.control_VM_exit_MSR_load_count;
-				u64 *base = (u64 *)vcpu->vmcs.control_VM_exit_MSR_load_address;
-				for (u32 i = 0; i < count; i++) {
-					printf("VMCS01 MSR exit load: 0x%08llx 0x%016llx 0x%016llx\n",
-						   &base[i * 2], base[i * 2], base[i * 2 + 1]);
-				}
-			}
-			{
-				u32 count = vcpu->vmcs.control_VM_entry_MSR_load_count;
-				u64 *base = (u64 *)vcpu->vmcs.control_VM_entry_MSR_load_address;
-				for (u32 i = 0; i < count; i++) {
-					printf("VMCS01 MSR entry load: 0x%08llx 0x%016llx 0x%016llx\n",
-						   &base[i * 2], base[i * 2], base[i * 2 + 1]);
-				}
-			}
-			printf("vmcs02_vmentry_msr_load_area = 0x%08lx\n",
-				   (uintptr_t) (vmcs12_info->vmcs02_vmentry_msr_load_area));
-			for (u32 i = 0; i < 3; i++) {
-				HALT_ON_ERRORCOND(
-					vmcs12_info->vmcs02_vmentry_msr_load_area[i].reserved == 0);
-				printf("CPU(0x%02x): :MSR:vmcs02_vmentry_msr_load_area[%d] = "
-					   "0x%08x -> 0x%016llx\n", vcpu->id, i,
-					   vmcs12_info->vmcs02_vmentry_msr_load_area[i].index,
-					   vmcs12_info->vmcs02_vmentry_msr_load_area[i].data);
-			}
-			{
-				u32 cnt = vmcs12_info->vmcs12_value.control_VM_entry_MSR_load_count;
-				gpa_t addr = vmcs12_info->vmcs12_value.control_VM_entry_MSR_load_address;
-				u64 buf[10];
-				guestmem_hptw_ctx_pair_t ctx_pair;
-				HALT_ON_ERRORCOND(cnt < 5);
-				guestmem_init(vcpu, &ctx_pair);
-				guestmem_copy_gp2h(&ctx_pair, 0, buf, addr, cnt * 16);
-				for (u32 i = 0; i < cnt; i++) {
-					printf("CPU(0x%02x): :MSR:vmcs12_vmentry_msr_load_area[%d] = "
-						   "0x%08x -> 0x%016llx\n", vcpu->id, i, buf[i * 2],
-						   buf[i * 2 + 1]);
-				}
-			}
-		}
-		HALT_ON_ERRORCOND(0 && "Halt due to debugging");
 	}
 
 	/*
