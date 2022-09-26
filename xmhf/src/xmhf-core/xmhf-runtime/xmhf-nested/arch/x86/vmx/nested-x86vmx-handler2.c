@@ -765,7 +765,7 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 				printf("VMCS12 MSR entry load: 0x%08llx 0x%016llx 0x%016llx\n",
 					   &base[i * 2], base[i * 2], base[i * 2 + 1]);
 			}
-			for (u32 i = 0; i < 4096; i++) {
+			{
 				u64 base = vmcs12_info->vmcs12_value.control_MSR_Bitmaps_address;
 				printf("VMCS12 MSR bitmap: 0x%08llx start\n", base);
 				// TODO: insecure: should use guestmem
