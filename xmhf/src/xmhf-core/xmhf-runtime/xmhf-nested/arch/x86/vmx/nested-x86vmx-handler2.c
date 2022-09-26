@@ -700,6 +700,7 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 			0xffffffff00001007ULL);
 		printf("kernel_offset = 0x%08lx\n", kernel_offset);
 		xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":VMCS02:");
+		xmhf_nested_arch_x86vmx_vmcs_dump(vcpu, &vmcs12_info->vmcs12_value, ":VMCS12:");
 		printf("CPU(0x%02x): RAX=0x%016lx RBX=0x%016lx\n", vcpu->id, r->rax, r->rbx);
 		printf("CPU(0x%02x): RCX=0x%016lx RDX=0x%016lx\n", vcpu->id, r->rcx, r->rdx);
 		printf("CPU(0x%02x): RSI=0x%016lx RDI=0x%016lx\n", vcpu->id, r->rsi, r->rdi);
