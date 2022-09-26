@@ -124,7 +124,7 @@ The asm in pebbles kernel looks like
    0x10cd04 <set_cr0+14>:	ljmp   *(%esp)
 ```
 
-The relevant SDM chapter is Intel i3 "25.4 LOADING MSRS". This footnote looks
+The relevant SDM chapter is Intel v3 "25.4 LOADING MSRS". This footnote looks
 interesting:
 > 1. If CR0.PG = 1, WRMSR to the IA32_EFER MSR causes a general-protection
 > exception if it would modify the LME bit. If VM entry has
@@ -251,13 +251,169 @@ table / EPT?
 The good news is that VirtualBox is open source. So ideally there is no
 blackbox during debugging.
 
-TODO: log all VMEXITs due to #GP, log all event injection
-TODO: is the exception really #GP? exit code = 0xb = #NP
-TODO: check VirtualBox's setting of exception bitmap
-TODO: intercept all #GP using exception bitmap
+First, we can verify that the signal received is #GP. The exit code 0xb is
+strange, but the call stack shows `asm_exc_general_protection()` is called. For
+exception #NP (0xb), `asm_exc_segment_not_present()` will be used.
 
-TODO: test Debian x86 PAE
-TODO: does LHV have the same problem?
-TODO: fix amd64 kill init problem
+By printing at every VMEXIT, looks like the exception bitmap after kernel
+enters long mode and becomes stable is always `0x00022002`, which captures
+`#GP`. So we should be able to see the exception in XMHF log.
+
+In `xmhf64-nest-dev 9c42efd25`, we see a strange pattern
+```
+...
+CPU(0x04): nested vmexit  0xffffffffb0c12050 48
+CPU(0x04): nested vmexit  0x7f88f438297c 10
+CPU(0x04): nested vmexit  0x7f88f4382258 10
+CPU(0x04): nested vmexit  0x7f88f43822b5 10
+CPU(0x04): nested vmexit  0x7f88f4382d5b 10
+CPU(0x04): nested vmexit  0x7f88f4382d6b 10
+CPU(0x04): nested vmexit  0x7f88f4382d92 10
+CPU(0x04): nested vmexit  0x7f88f4382db9 10
+CPU(0x04): nested vmexit  0xffffffffb0e01007 0: 0x80000b0d
+CPU(0x04): nested vmentry 0xffffffffb0e01007 intr_inj=0x80000b0d
+```
+
+Looks like Linux enters user mode, then performs some CPUIDs, then at
+`0xffffffffb0e01007` gets a #GP. This pattern consistently occurs 5 times,
+which is strange because we are expecting only one #GP to kill the init
+process.
+
+Also, in VirtualBox log (`~/VirtualBox VMs/*/Logs/VBox.log`), see
+`IEM: rdmsr(0x140) -> #GP(0)`. This message is close to when the kernel panic
+happens. This message only happens once. The call stack in VirtualBox should be:
+```
+hmR0VmxExitRdmsr
+	IEMExecDecodedRdmsr
+		iemCImpl_rdmsr
+```
+
+In `xmhf64-nest-dev b9c3d8e54`, manually change `intr_inj=0x80000b0d` to
+`0x80000b0b`. Can see that Linux panic message also changes. So the kernel
+panic happens in kernel code, though Linux prints mainly user space registers.
+By further changing, looks like the last exception of the 5 will be reported in
+the kernel panic message.
+
+As for the RDMSR to 0x140, XMHF log shows that it should be unrelated. It
+happens before the 5 tries to spawn init.
+
+Also, why does Linux try to spawn init 5 times? Probably because it is the
+standard to try spawning a service 5 times. init is systemd, which is a
+service. e.g. <https://openwrt.org/docs/guide-developer/procd-init-scripts>:
+> if process dies sooner than respawn\_threshold, it is considered crashed and
+> after 5 retries the service is stopped
+
+If without KASLR, the exception happens in `0xffffffff81a01007`. The symbol is
+`native_irq_return_iret`. The Linux source code is in
+`arch/x86/entry/entry_64.S`, which looks like
+```
+   0xffffffff81a01000 <native_iret>:	testb  $0x4,0x20(%rsp)
+   0xffffffff81a01005 <native_iret+5>:	jne    0xffffffff81a01009 <native_irq_return_ldt>
+   0xffffffff81a01007 <native_irq_return_iret>:	iretq  
+   0xffffffff81a01009 <native_irq_return_ldt>:	push   %rdi
+   0xffffffff81a0100a <native_irq_return_ldt+1>:	swapgs 
+   ...
+```
+
+So now the question is why iret causes the exception. We should start
+collecting VMCS fields during the VMEXIT.
+
+Git `xmhf64-nest-dev 15f44fd42`, serial `20220925152711`. Notice that the
+exception error code is 0x10 instead of 0. This should be helpful.
+```
+CPU(0x05): (0x4402) :VMCS02:info_vmexit_reason = 0x00000000
+CPU(0x05): (0x4404) :VMCS02:info_vmexit_interrupt_information = 0x80000b0d
+CPU(0x05): (0x4406) :VMCS02:info_vmexit_interrupt_error_code = 0x00000010
+CPU(0x05): (0x4408) :VMCS02:info_IDT_vectoring_information = 0x00000000
+CPU(0x05): (0x440a) :VMCS02:info_IDT_vectoring_error_code = 0x00000000
+CPU(0x05): (0x440c) :VMCS02:info_vmexit_instruction_length = 0x00000002
+```
+
+Intel v2 shows a list of possible causes to this exception, see
+`#GP(Selector)`. However, a strange thing is that we are expecting error code
+`0x13`, not `0x10`. Linux GDT is defined in
+`arch/x86/boot/compressed/head_64.S`.
+
+In git `xmhf64-nest-dev ad9ca3488`, serial `20220925155823`, also print GDT.
+Now we follow check the checklist. The Segment descriptor is
+`0x00af9b000000ffff`, `gdt.py` gives
+```
+Segment Limit 0xfffff	Base Address 0x0	Type=0xb S=1 DPL=0 P=1 AVL=0 L=1 DB=0 G=1
+```
+
+* If a segment selector index is outside its descriptor table limits.
+	* No, `guest_GDTR_limit=0x7f`, but segment selector is `0x13`.
+* If a segment descriptor memory address is non-canonical.
+	* No, memory address is `0`, which is canonical.
+* If the segment descriptor for a code segment does not indicate it is a code
+  segment.
+	* No, type is 0xb, which is code segment type (0x8-0xf)
+* If the proposed new code segment descriptor has both the D-bit and L-bit set.
+	* No, D=0
+* If the DPL for a nonconforming-code segment is not equal to the RPL of the
+  code segment selector.
+	* This is probably the cause. Type 0xb means it is nonconforming, DPL=0.
+	  However, RPL=3.
+		* TODO
+* If CPL is greater than the RPL of the code segment selector.
+	* No, CPL = 0 and RPL = 3
+* If the DPL of a conforming-code segment is greater than the return code
+  segment selector RPL.
+	* No, DPL = 0 and RPL = 3. Also this is nonconforming
+* If the stack segment is not a writable data segment.
+	* No, not related to stack
+* If the stack segment descriptor DPL is not equal to the RPL of the return
+  code segment selector.
+	* No, not related to stack
+* If the stack segment selector RPL is not equal to the RPL of the return code
+  segment selector.
+	* No, not related to stack
+
+Using QEMU to quickly experiment, a normal Linux user program uses CS=0x33 and
+SS=0x2b. CS descriptor is `0x00affb000000ffff`, `gdt.py` shows:
+```
+Segment Limit 0xfffff	Base Address 0x0	Type=0xb S=1 DPL=3 P=1 AVL=0 L=1 DB=0 G=1
+```
+
+At this point, looks like the IRET stack of Linux is wrong. Instead of using
+CS=0x13 and SS=0xb, Linux should use CS=0x33 and SS=0x2b. Use QEMU to verify
+this behavior.
+
+To debug Linux, remove kaslr and aslr. For ASLR, create a file
+`/etc/sysctl.d/01-disable-aslr.conf` with `kernel.randomize_va_space = 0`. Then
+after reboot, `/proc/sys/kernel/randomize_va_space` should be `0`.
+Ref: <https://askubuntu.com/a/318476>.
+
+While reading Linux source `arch/x86/entry/entry_64.S` function
+`entry_SYSCALL_64`, looks like a failure in syscall return can result in
+executing IRET with incorrect CS. In `entry_SYSCALL_64`, there are a lot of
+calls to `swapgs_restore_regs_and_return_to_usermode`. The guessed call stack
+that triggers this bug is
+```
+entry_SYSCALL_64
+	swapgs_restore_regs_and_return_to_usermode
+		native_iret (INTERRUPT_RETURN, see arch/x86/include/asm/irqflags.h)
+			native_irq_return_iret
+				IRETQ
+```
+
+Current ideas
+* Use monitor trap to print Linux control flow (disable interrupts)
+	* Also try debug registers (e.g. DR7)
+* Review SYSCALL related VMCS and MSRs
+* Try not protecting `MSR_K6_STAR`
+* Try protecting `MSR_K6_LSTAR` etc
+
+In `xmhf64 77921d016..6e56fffcf`, I removed protection of `MSR_K6_STAR` in
+XMHF. Then looks like the error disappears mysteriously. However, this should
+be investigated as the remaining MSRs like EFER may still suffer from this bug.
+
+TODO: Use monitor trap to print Linux control flow
+TODO: Review SYSCALL related VMCS and MSRs
+TODO: try not protecting `MSR_K6_STAR`
+TODO: try protecting `MSR_K6_LSTAR` etc
+
+TODO: investigate root cause of amd64 kill init problem
 TODO: review KVM's `setup_msrs()`, see whether XMHF's `vmx_msr_area_msrs` need change
+TODO: likely no need to protect `MSR_K6_STAR`
 

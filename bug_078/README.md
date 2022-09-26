@@ -632,7 +632,7 @@ In xmhf git `37643df66`, Linux patch `b.diff`, the output is
 ```
 
 Looks like the hypervisor is not responsible for clearing ISR. The hardware is.
-This can be confirmed in Intel i3 "28.1.4 EOI Virtualization"
+This can be confirmed in Intel v3 "28.1.4 EOI Virtualization"
 > `VISR[Vector] := 0; (see Section 28.1.1 for definition of VISR)`
 
 We can easily confirm that when XMHF has EFLAGS.IF = 0. So we assume that maybe

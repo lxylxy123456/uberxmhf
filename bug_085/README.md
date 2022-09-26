@@ -79,10 +79,10 @@ Fatal: Halting! Condition 'cache01 == HPT_PMT_UC || cache01 == HPT_PMT_WB' faile
 This problem happens in the outer XMHF. This is simply an unimplemented feature
 in EPT.
 
-EPT entries have 5 possible values, as defined in Intel i3
+EPT entries have 5 possible values, as defined in Intel v3
 "27.2.7.2 Memory Type Used for Translated Guest-Physical Addresses" (page 1023):
 `0 = UC; 1 = WC; 4 = WT; 5 = WP; and 6 = WB.`. This is similar to MTRRs. We use
-MTRR's rules to handle merging, see Intel i3 "11.11.4.1 MTRR Precedences"
+MTRR's rules to handle merging, see Intel v3 "11.11.4.1 MTRR Precedences"
 (page 454).
 
 Another table is "11.5.2.2 Selecting Memory Types for Pentium III and More

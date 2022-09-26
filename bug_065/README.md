@@ -10,7 +10,7 @@ Currently when guest accesses APIC (e.g. waking up other CPUs), two intercepts
 are made, using not-so-clean techniques. This may be inefficient and cause
 problems in extreme cases.
 
-Intel i3 shows that there is a feature called APIC virtualization. Maybe we
+Intel v3 shows that there is a feature called APIC virtualization. Maybe we
 should use it. See Chapter 28: "APIC VIRTUALIZATION AND VIRTUAL INTERRUPTS"
 
 ## Debugging
