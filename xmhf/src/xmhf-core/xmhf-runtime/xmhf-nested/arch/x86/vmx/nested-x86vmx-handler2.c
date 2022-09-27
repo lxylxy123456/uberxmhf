@@ -230,15 +230,8 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 	}
 
 	if (lxy_verbose) {
-		if (vmcs12_info->vmcs12_value.control_VM_entry_interruption_information &
-			INTR_INFO_VALID_MASK) {
-			printf("CPU(0x%02x): nested vmentry 0x%08lx intr_inj=0x%08x\n",
-				   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP,
-				   vmcs12_info->vmcs12_value.control_VM_entry_interruption_information);
-		} else if (0) {
-			printf("CPU(0x%02x): nested vmentry 0x%08lx\n",
-				   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP);
-		}
+		printf("CPU(0x%02x): nested vmentry 0x%08lx\n",
+			   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP);
 	}
 
 	/* From now on, cannot fail */
