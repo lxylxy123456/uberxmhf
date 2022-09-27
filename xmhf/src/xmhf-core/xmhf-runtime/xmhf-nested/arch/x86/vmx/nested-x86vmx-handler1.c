@@ -335,12 +335,12 @@ static vmcs12_info_t *new_active_vmcs12(VCPU * vcpu, gpa_t vmcs_ptr, u32 rev)
 	memcpy(vmcs12_info->vmcs02_vmexit_msr_load_area,
 		   (void *)vcpu->vmx_vaddr_msr_area_host,
 		   vcpu->vmcs.control_VM_exit_MSR_load_count * sizeof(msr_entry_t));
-	/*
-	 * vmcs02_vmentry_msr_load_area need to process the same MSRs as VMCS01,
-	 * but the memcpy will happen in xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02().
-	 */
+	/* vmcs02_vmentry_msr_load_area need to process the same MSRs as VMCS01 */
 	memset(&vmcs12_info->vmcs02_vmentry_msr_load_area, 0,
 		   sizeof(vmcs12_info->vmcs02_vmentry_msr_load_area));
+	memcpy(vmcs12_info->vmcs02_vmentry_msr_load_area,
+		   (void *)vcpu->vmx_vaddr_msr_area_guest,
+		   vcpu->vmcs.control_VM_entry_MSR_load_count * sizeof(msr_entry_t));
 	vmcs12_info->guest_ept_enable = 0;
 	vmcs12_info->guest_ept_root = 0;
 	vmcs12_info->guest_nmi_exiting = false;
@@ -536,27 +536,13 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 		vcpu->vmx_nested_msrs[INDEX_IA32_VMX_TRUE_PROCBASED_CTLS_MSR] &= mask;
 	}
 	{
-		/*
-		 * Modifying IA32_PAT and IA32_EFER and CET state not supported yet.
-		 * Need some extra logic to protect XMHF's states.
-		 */
-		u64 mask = ~0;
-		// u64 mask = ~(1ULL << (32 + VMX_VMEXIT_SAVE_IA32_PAT));
-		// mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_IA32_PAT));
-		// mask &= ~(1ULL << (32 + VMX_VMEXIT_SAVE_IA32_EFER));
-		// mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_IA32_EFER));
-		mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_CET_STATE));
+		/* Modifying CET state not supported yet (need extra logic) */
+		u64 mask = ~(1ULL << (32 + VMX_VMEXIT_LOAD_CET_STATE));
 		vcpu->vmx_nested_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR] &= mask;
 	}
 	{
-		/*
-		 * Modifying IA32_PAT and IA32_EFER and CET state not supported yet.
-		 * Need some extra logic to protect XMHF's states.
-		 */
-		u64 mask = ~0;
-		// u64 mask = ~(1ULL << (32 + VMX_VMENTRY_LOAD_IA32_PAT));
-		// mask &= ~(1ULL << (32 + VMX_VMENTRY_LOAD_IA32_EFER));
-		mask &= ~(1ULL << (32 + VMX_VMENTRY_LOAD_CET_STATE));
+		/* Modifying CET state not supported yet (need extra logic) */
+		u64 mask = ~(1ULL << (32 + VMX_VMENTRY_LOAD_CET_STATE));
 		vcpu->vmx_nested_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR] &= mask;
 	}
 	{
