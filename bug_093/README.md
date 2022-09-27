@@ -12,6 +12,11 @@ hypervisors.
 
 ## Debugging
 
+Planned hypervisor to try on Linux
+* Virtual Box
+* VMware
+* Xen
+
 ### Setting up VirtualBox
 Following <https://wiki.debian.org/VirtualBox> to install VirtualBox on Debian.
 
@@ -408,12 +413,129 @@ In `xmhf64 77921d016..6e56fffcf`, I removed protection of `MSR_K6_STAR` in
 XMHF. Then looks like the error disappears mysteriously. However, this should
 be investigated as the remaining MSRs like EFER may still suffer from this bug.
 
-TODO: Use monitor trap to print Linux control flow
-TODO: Review SYSCALL related VMCS and MSRs
-TODO: try not protecting `MSR_K6_STAR`
-TODO: try protecting `MSR_K6_LSTAR` etc
+The root cause of this problem is that `control_MSR_Bitmaps_address` is set by
+Virtual Box, but XMHF does not recognize this field. For now, should remove
+support for MSR bitmap. Can implement support in the future. MSR bitmap removed
+in `xmhf64-nest a1215598b..e58ae3fb2`.
 
-TODO: investigate root cause of amd64 kill init problem
-TODO: review KVM's `setup_msrs()`, see whether XMHF's `vmx_msr_area_msrs` need change
-TODO: likely no need to protect `MSR_K6_STAR`
+Also, through printing, looks like most of the MSR bitmap of VirtualBox are 1.
+So I am guessing that the MSR bitmap may not be too helpful?
+
+### Review XMHF managed MSRs
+
+KVM performs a similar job of `vmx_msr_area_msrs` in function `setup_msrs()`.
+This is Linux version v5.10.83. In newer Linux version (e.g. v5.19.11), the
+function name becomes `vmx_setup_uret_msrs()`.
+
+KVM manages the following MSRs
+
+|Linux name         |Intel name     |XMHF Need|Comment                       |
+|-------------------|---------------|---------|------------------------------|
+|`MSR_STAR`         |`IA32_STAR`    |no       |XMHF does not handle syscalls |
+|`MSR_LSTAR`        |`IA32_LSTAR`   |no       |XMHF does not handle syscalls |
+|`MSR_SYSCALL_MASK` |`IA32_FMASK`   |no       |XMHF does not handle syscalls |
+|`MSR_EFER`         |`IA32_EFER`    |yes      |XMHF may enter x64 mode       |
+|`MSR_TSC_AUX`      |`IA32_TSC_AUX` |no       |XMHF does not use RDTSCP      |
+|`MSR_IA32_TSX_CTRL`|`IA32_TSX_CTRL`|no       |XMHF does not use transactions|
+
+So there are no needs to add to `vmx_msr_area_msrs`. As for `MSR_IA32_PAT`,
+not sure why Linux does not use it. However, XMHF should have it.
+
+### VMware
+
+VMware Workstation Player can be downloaded for free at
+<https://www.vmware.com/products/workstation-player.html>. I downloaded version
+16.2.4 (Release Date 2022-07-21).
+
+### VMware exiting immediately
+
+With XMHF vmware, when starting a hypervisor, vmware exits immediately without
+error messages. Without XMHF, vmware works fine. In `vmware/*/vmware.log`, see
+the possible cause.
+```
+In(05)+ vmx VMware Player does not support the user level monitor on this host.
+In(05)+ vmx Module 'MonitorMode' power on failed.
+In(05)+ vmx Failed to start the virtual machine.
+In(05)+ vmx 
+```
+
+However, it is strange because XMHF supports EPT. Maybe vmware is referring to
+some other feature related to EPT. By not clearing some bits in
+`xmhf_nested_arch_x86vmx_vcpu_init()`, we can bisect the features vmware wants
+
+* Result: at least executes VMXON
+	* Keep `INDEX_IA32_VMX_BASIC_MSR`
+	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS_MSR`
+	* Keep `INDEX_IA32_VMX_EXIT_CTLS_MSR`
+	* Keep `INDEX_IA32_VMX_ENTRY_CTLS_MSR`
+	* Keep `INDEX_IA32_VMX_MISC_MSR`
+	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS2_MSR`
+	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
+* Result: exit immediately
+	* Change `INDEX_IA32_VMX_BASIC_MSR`
+	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS_MSR`
+	* Change `INDEX_IA32_VMX_EXIT_CTLS_MSR`
+	* Change `INDEX_IA32_VMX_ENTRY_CTLS_MSR`
+	* Keep `INDEX_IA32_VMX_MISC_MSR`
+	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS2_MSR`
+	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
+* Result: at least executes VMXON
+	* Change `INDEX_IA32_VMX_BASIC_MSR`
+	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS_MSR`
+	* Keep `INDEX_IA32_VMX_EXIT_CTLS_MSR`
+	* Keep `INDEX_IA32_VMX_ENTRY_CTLS_MSR`
+	* Keep `INDEX_IA32_VMX_MISC_MSR`
+	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS2_MSR`
+	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
+* Result: at least executes VMXON
+	* Change `INDEX_IA32_VMX_BASIC_MSR`
+	* Change `INDEX_IA32_VMX_PROCBASED_CTLS_MSR`
+	* Keep `INDEX_IA32_VMX_EXIT_CTLS_MSR`
+	* Keep `INDEX_IA32_VMX_ENTRY_CTLS_MSR`
+	* Change `INDEX_IA32_VMX_MISC_MSR`
+	* Change `INDEX_IA32_VMX_PROCBASED_CTLS2_MSR`
+	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
+* Result: exit immediately
+	* Keep `INDEX_IA32_VMX_EXIT_CTLS_MSR`
+	* Keep `INDEX_IA32_VMX_ENTRY_CTLS_MSR`
+	* Change `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
+* Result: exit immediately
+	* Keep `INDEX_IA32_VMX_EXIT_CTLS_MSR`
+	* `INDEX_IA32_VMX_ENTRY_CTLS_MSR`: change `CET_STATE`, keep others
+	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
+* Result: at least executes VMXON
+	* `INDEX_IA32_VMX_EXIT_CTLS_MSR`: keep EFER and PAT, change CET
+	* `INDEX_IA32_VMX_ENTRY_CTLS_MSR`: keep EFER and PAT, change CET
+	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
+* Result: at least executes VMXON
+	* `INDEX_IA32_VMX_EXIT_CTLS_MSR`: keep EFER and PAT, change CET
+	* `INDEX_IA32_VMX_ENTRY_CTLS_MSR`: keep EFER and PAT, change CET
+	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`, keep 2M page and 1G page, change
+	  "accessed and dirty flags"
+* Result: at least executes VMXON
+	* `INDEX_IA32_VMX_EXIT_CTLS_MSR`: keep EFER and PAT, change CET
+	* `INDEX_IA32_VMX_ENTRY_CTLS_MSR`: keep EFER and PAT, change CET
+	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`, keep 2M page, change 1G page and
+	  "accessed and dirty flags"
+* Result: exit immediately
+	* `INDEX_IA32_VMX_EXIT_CTLS_MSR`: keep EFER and PAT, change CET
+	* `INDEX_IA32_VMX_ENTRY_CTLS_MSR`: keep EFER and PAT, change CET
+	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`, change 2M page, 1G page, and
+	  "accessed and dirty flags"
+
+From the above experiments, we need to support 2 extra features
+* Load `IA32_PAT` and `IA32_EFER`
+* EPT 2M and 1G page
+
+Also the "at least executes VMXON" result is actually vmware constantly running
+the following instructions: VMXON, VMPTRLD, INVVPID, VMCLEAR, VMXOFF. 2 things
+are suspective:
+* Why does vmware execute VMXOFF? probably INVVPID failed?
+* Why does vmware perform VMPTRLD without VMCLEAR? vmware bug?
+
+The VMXOFF problem is not very stable. Should first implement the features.
+
+TODO: implement features
+TODO: check whether INVVPID fails / why VMXOFF
+TODO: VMware exits immediately
 
