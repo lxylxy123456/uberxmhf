@@ -374,6 +374,7 @@ vmcs12_info_t *xmhf_nested_arch_x86vmx_find_current_vmcs12(VCPU * vcpu)
 static void _vmx_nested_vm_succeed(VCPU * vcpu)
 {
 	vcpu->vmcs.guest_RFLAGS &= ~VMX_INST_RFLAGS_MASK;
+	printf("CPU(0x%02x): succeed\n", vcpu->id);
 }
 
 static void _vmx_nested_vm_fail_valid(VCPU * vcpu, u32 error_number)
@@ -393,12 +394,14 @@ static void _vmx_nested_vm_fail_valid(VCPU * vcpu, u32 error_number)
 		HALT_ON_ERRORCOND(__vmx_vmptrld(cur_vmcs));
 	}
 #endif							/* VMX_NESTED_USE_SHADOW_VMCS */
+	printf("CPU(0x%02x): fail valid\n", vcpu->id);
 }
 
 static void _vmx_nested_vm_fail_invalid(VCPU * vcpu)
 {
 	vcpu->vmcs.guest_RFLAGS &= ~VMX_INST_RFLAGS_MASK;
 	vcpu->vmcs.guest_RFLAGS |= EFLAGS_CF;
+	printf("CPU(0x%02x): fail invalid\n", vcpu->id);
 }
 
 static void _vmx_nested_vm_fail(VCPU * vcpu, u32 error_number)
@@ -537,10 +540,11 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 		 * Modifying IA32_PAT and IA32_EFER and CET state not supported yet.
 		 * Need some extra logic to protect XMHF's states.
 		 */
-		u64 mask = ~(1ULL << (32 + VMX_VMEXIT_SAVE_IA32_PAT));
-		mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_IA32_PAT));
-		mask &= ~(1ULL << (32 + VMX_VMEXIT_SAVE_IA32_EFER));
-		mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_IA32_EFER));
+		u64 mask = ~0;
+		// u64 mask = ~(1ULL << (32 + VMX_VMEXIT_SAVE_IA32_PAT));
+		// mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_IA32_PAT));
+		// mask &= ~(1ULL << (32 + VMX_VMEXIT_SAVE_IA32_EFER));
+		// mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_IA32_EFER));
 		mask &= ~(1ULL << (32 + VMX_VMEXIT_LOAD_CET_STATE));
 		vcpu->vmx_nested_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR] &= mask;
 	}
@@ -549,8 +553,9 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 		 * Modifying IA32_PAT and IA32_EFER and CET state not supported yet.
 		 * Need some extra logic to protect XMHF's states.
 		 */
-		u64 mask = ~(1ULL << (32 + VMX_VMENTRY_LOAD_IA32_PAT));
-		mask &= ~(1ULL << (32 + VMX_VMENTRY_LOAD_IA32_EFER));
+		u64 mask = ~0;
+		// u64 mask = ~(1ULL << (32 + VMX_VMENTRY_LOAD_IA32_PAT));
+		// mask &= ~(1ULL << (32 + VMX_VMENTRY_LOAD_IA32_EFER));
 		mask &= ~(1ULL << (32 + VMX_VMENTRY_LOAD_CET_STATE));
 		vcpu->vmx_nested_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR] &= mask;
 	}
@@ -575,7 +580,8 @@ void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 	}
 	{
 		/* "configure a EPT PDE to map a 2-Mbyte page" not supported */
-		u64 mask = ~(1ULL << 16);
+		u64 mask = ~0;
+		// u64 mask = ~(1ULL << 16);
 		/* "configure a EPT PDPTE to map a 1-Gbyte page" not supported */
 		mask &= ~(1ULL << 17);
 		/* "accessed and dirty flags for EPT" not supported */
@@ -622,6 +628,7 @@ void xmhf_nested_arch_x86vmx_handle_vmentry_fail(VCPU * vcpu, bool is_resume)
 
 void xmhf_nested_arch_x86vmx_handle_invept(VCPU * vcpu, struct regs *r)
 {
+	printf("CPU(0x%02x): INVEPT\n", vcpu->id);
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
@@ -685,6 +692,7 @@ void xmhf_nested_arch_x86vmx_handle_invept(VCPU * vcpu, struct regs *r)
 
 void xmhf_nested_arch_x86vmx_handle_invvpid(VCPU * vcpu, struct regs *r)
 {
+	printf("CPU(0x%02x): INVVPID\n", vcpu->id);
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
@@ -756,6 +764,7 @@ void xmhf_nested_arch_x86vmx_handle_invvpid(VCPU * vcpu, struct regs *r)
 
 void xmhf_nested_arch_x86vmx_handle_vmclear(VCPU * vcpu, struct regs *r)
 {
+	printf("CPU(0x%02x): VMCLEAR\n", vcpu->id);
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
@@ -845,6 +854,7 @@ void xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(VCPU * vcpu,
 													  struct regs *r,
 													  int is_vmresume)
 {
+	printf("CPU(0x%02x): VMLAUNCH / VMRESUME\n", vcpu->id);
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
@@ -885,6 +895,7 @@ void xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(VCPU * vcpu,
 
 void xmhf_nested_arch_x86vmx_handle_vmptrld(VCPU * vcpu, struct regs *r)
 {
+	printf("CPU(0x%02x): VMPTRLD\n", vcpu->id);
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
@@ -957,6 +968,7 @@ void xmhf_nested_arch_x86vmx_handle_vmptrld(VCPU * vcpu, struct regs *r)
 
 void xmhf_nested_arch_x86vmx_handle_vmptrst(VCPU * vcpu, struct regs *r)
 {
+	printf("CPU(0x%02x): VMPTRST\n", vcpu->id);
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
@@ -985,6 +997,7 @@ void xmhf_nested_arch_x86vmx_handle_vmptrst(VCPU * vcpu, struct regs *r)
 
 void xmhf_nested_arch_x86vmx_handle_vmread(VCPU * vcpu, struct regs *r)
 {
+	printf("CPU(0x%02x): VMREAD\n", vcpu->id);
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
@@ -1038,6 +1051,7 @@ void xmhf_nested_arch_x86vmx_handle_vmread(VCPU * vcpu, struct regs *r)
 
 void xmhf_nested_arch_x86vmx_handle_vmwrite(VCPU * vcpu, struct regs *r)
 {
+	printf("CPU(0x%02x): VMWRITE\n", vcpu->id);
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
@@ -1100,6 +1114,7 @@ void xmhf_nested_arch_x86vmx_handle_vmwrite(VCPU * vcpu, struct regs *r)
 void xmhf_nested_arch_x86vmx_handle_vmxoff(VCPU * vcpu, struct regs *r)
 {
 	(void)r;
+	printf("CPU(0x%02x): VMXOFF\n", vcpu->id);
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
 	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
@@ -1138,6 +1153,7 @@ void xmhf_nested_arch_x86vmx_handle_vmxoff(VCPU * vcpu, struct regs *r)
 
 void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU * vcpu, struct regs *r)
 {
+	printf("CPU(0x%02x): VMXON\n", vcpu->id);
 #ifdef __DEBUG_QEMU__
 	{
 		static bool tested = false;
