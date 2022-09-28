@@ -1,4 +1,4 @@
-# Test other hypervisors
+# Test other hypervisors (Virtual Box)
 
 ## Scope
 * All configurations, focus on amd64
@@ -441,101 +441,13 @@ KVM manages the following MSRs
 So there are no needs to add to `vmx_msr_area_msrs`. As for `MSR_IA32_PAT`,
 not sure why Linux does not use it. However, XMHF should have it.
 
-### VMware
+## Fix
 
-VMware Workstation Player can be downloaded for free at
-<https://www.vmware.com/products/workstation-player.html>. I downloaded version
-16.2.4 (Release Date 2022-07-21).
+`xmhf64 3875e68b1..710e9a847`
+* Do not let XMHF manage `MSR_K6_STAR`
 
-### VMware exiting immediately
-
-With XMHF vmware, when starting a hypervisor, vmware exits immediately without
-error messages. Without XMHF, vmware works fine. In `vmware/*/vmware.log`, see
-the possible cause.
-```
-In(05)+ vmx VMware Player does not support the user level monitor on this host.
-In(05)+ vmx Module 'MonitorMode' power on failed.
-In(05)+ vmx Failed to start the virtual machine.
-In(05)+ vmx 
-```
-
-However, it is strange because XMHF supports EPT. Maybe vmware is referring to
-some other feature related to EPT. By not clearing some bits in
-`xmhf_nested_arch_x86vmx_vcpu_init()`, we can bisect the features vmware wants
-
-* Result: at least executes VMXON
-	* Keep `INDEX_IA32_VMX_BASIC_MSR`
-	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS_MSR`
-	* Keep `INDEX_IA32_VMX_EXIT_CTLS_MSR`
-	* Keep `INDEX_IA32_VMX_ENTRY_CTLS_MSR`
-	* Keep `INDEX_IA32_VMX_MISC_MSR`
-	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS2_MSR`
-	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
-* Result: exit immediately
-	* Change `INDEX_IA32_VMX_BASIC_MSR`
-	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS_MSR`
-	* Change `INDEX_IA32_VMX_EXIT_CTLS_MSR`
-	* Change `INDEX_IA32_VMX_ENTRY_CTLS_MSR`
-	* Keep `INDEX_IA32_VMX_MISC_MSR`
-	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS2_MSR`
-	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
-* Result: at least executes VMXON
-	* Change `INDEX_IA32_VMX_BASIC_MSR`
-	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS_MSR`
-	* Keep `INDEX_IA32_VMX_EXIT_CTLS_MSR`
-	* Keep `INDEX_IA32_VMX_ENTRY_CTLS_MSR`
-	* Keep `INDEX_IA32_VMX_MISC_MSR`
-	* Keep `INDEX_IA32_VMX_PROCBASED_CTLS2_MSR`
-	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
-* Result: at least executes VMXON
-	* Change `INDEX_IA32_VMX_BASIC_MSR`
-	* Change `INDEX_IA32_VMX_PROCBASED_CTLS_MSR`
-	* Keep `INDEX_IA32_VMX_EXIT_CTLS_MSR`
-	* Keep `INDEX_IA32_VMX_ENTRY_CTLS_MSR`
-	* Change `INDEX_IA32_VMX_MISC_MSR`
-	* Change `INDEX_IA32_VMX_PROCBASED_CTLS2_MSR`
-	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
-* Result: exit immediately
-	* Keep `INDEX_IA32_VMX_EXIT_CTLS_MSR`
-	* Keep `INDEX_IA32_VMX_ENTRY_CTLS_MSR`
-	* Change `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
-* Result: exit immediately
-	* Keep `INDEX_IA32_VMX_EXIT_CTLS_MSR`
-	* `INDEX_IA32_VMX_ENTRY_CTLS_MSR`: change `CET_STATE`, keep others
-	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
-* Result: at least executes VMXON
-	* `INDEX_IA32_VMX_EXIT_CTLS_MSR`: keep EFER and PAT, change CET
-	* `INDEX_IA32_VMX_ENTRY_CTLS_MSR`: keep EFER and PAT, change CET
-	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`
-* Result: at least executes VMXON
-	* `INDEX_IA32_VMX_EXIT_CTLS_MSR`: keep EFER and PAT, change CET
-	* `INDEX_IA32_VMX_ENTRY_CTLS_MSR`: keep EFER and PAT, change CET
-	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`, keep 2M page and 1G page, change
-	  "accessed and dirty flags"
-* Result: at least executes VMXON
-	* `INDEX_IA32_VMX_EXIT_CTLS_MSR`: keep EFER and PAT, change CET
-	* `INDEX_IA32_VMX_ENTRY_CTLS_MSR`: keep EFER and PAT, change CET
-	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`, keep 2M page, change 1G page and
-	  "accessed and dirty flags"
-* Result: exit immediately
-	* `INDEX_IA32_VMX_EXIT_CTLS_MSR`: keep EFER and PAT, change CET
-	* `INDEX_IA32_VMX_ENTRY_CTLS_MSR`: keep EFER and PAT, change CET
-	* Keep `INDEX_IA32_VMX_EPT_VPID_CAP_MSR`, change 2M page, 1G page, and
-	  "accessed and dirty flags"
-
-From the above experiments, we need to support 2 extra features
-* Load `IA32_PAT` and `IA32_EFER`
-* EPT 2M and 1G page
-
-Also the "at least executes VMXON" result is actually vmware constantly running
-the following instructions: VMXON, VMPTRLD, INVVPID, VMCLEAR, VMXOFF. 2 things
-are suspective:
-* Why does vmware execute VMXOFF? probably INVVPID failed?
-* Why does vmware perform VMPTRLD without VMCLEAR? vmware bug?
-
-The VMXOFF problem is not very stable. Should first implement the features.
-
-TODO: implement features
-TODO: check whether INVVPID fails / why VMXOFF
-TODO: VMware exits immediately
+`xmhf64-nest 35ef22bcd..c44296487`
+* Update `IA32_EFER` and other L1 states during VMEXIT / VMENTRY
+* Update logic for MSR copying between L1 and L2
+* Remove support for MSR bitmap
 
