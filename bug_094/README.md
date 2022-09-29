@@ -183,5 +183,72 @@ After that, vmware can boot into debian11x64 (QEMU image converted to vmdk).
 
 ### Creating multiple VMware virtual machines
 
-TODO: <https://serverfault.com/questions/198391/>
+Now it is time to test more L2 guest systems on VMware / Virtual Box. First,
+VMware workstation player does not support disk formats other than VMDK. So we
+need to convert QCOW2 format to VMDK.
+```
+qemu-img convert $i.qcow2 -O vmdk $i.vmdk
+```
+
+Thanks to <https://serverfault.com/questions/198391/>, looks like we just need
+to manually create a `.vmx` file in order to create a virtual machine for
+VMware. Use `vmware.py` in this bug folder. Then use bash script
+```sh
+for i in debian11x64 debian11x86 ...; do
+	mkdir $i && python3 vmware.py $i .../$i.vmdk > $i/$i.vmx
+done
+```
+
+When opening the virtual machine, select "I Copied it"
+
+VMware test result
+* debian11x64: good
+* debian11x86-p: good
+* debian11x86: good
+* win10x64 bluescreen, code `INACCESSIBLE_BOOT_DEVICE`
+* win10x86: bluescreen, code `INACCESSIBLE_BOOT_DEVICE`
+* win7x64
+* win7x86: bluescreen
+* winxpx64: bluescreen
+* winxpx86: bluescreen
+
+TODO: check whether need to select correct OS type
+
+### Creating multiple VirtualBox virtual machines
+
+For virtual box, use `VBoxManage`
+VBoxManage modifyvm winxpx64 --hda /media/dev/Last/winxpx64.vmdk
+```
+VBoxManage createvm --name $i --register
+VBoxManage storagectl $i \
+                      --name "SATA Controller" \
+                      --add sata \
+                      --controller IntelAHCI \
+                      --portcount 1 \
+                      --bootable on
+VBoxManage storageattach $i \
+                         --storagectl "SATA Controller" \
+                         --device 0 \
+                         --port 0 \
+                         --type hdd \
+                         --medium $disk_file
+```
+
+* Ref: <https://serverfault.com/questions/171665/>
+
+I tried winxpx64. However, I realized that for VirtualBox and VMware, opening
+a Windows that was installed from KVM will result in blue screen, even not
+running nested virtualization. So we need to install Windows from scratch.
+
+### VMXON twice problem
+
+When running vmware VM, if start a virtual box VM, the CPU will execute VMXON
+twice. Currently this is not implemented by XMHF, and XMHF prints
+"Not implemented, HALT!". See `xmhf_nested_arch_x86vmx_handle_vmxon()`.
+
+Fixing in `xmhf64-nest 0bd29bc66`. However, the problem now becomes an
+assertion error. This is because VMPTRLD is called with no active VMCS pointer.
+Fixed in `xmhf64-nest 3ca7e20f5` by checking for this special case.
+
+TODO: test Windows
 
