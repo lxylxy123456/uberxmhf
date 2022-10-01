@@ -365,8 +365,6 @@ void xmhf_sl_arch_xfer_control_to_runtime(RPB *rpb){
 
 	printf("SL: setup runtime paging structures.\n");
 
-    asm volatile ("movb $'A', %al; movq $0xf00b80a2, %r10; movb %al, (%r10);");
-
 	printf("Transferring control to runtime\n");
 	//printf("GDT=%08x, IDT=%08x, EntryPoint=%08x\n", rpb->XtVmmGdt, rpb->XtVmmIdt, rpb->XtVmmEntryPoint);
 	//printf("Top-of-stack=%08x, CR3=%08x\n", (rpb->XtVmmStackBase+rpb->XtVmmStackSize), ptba);
