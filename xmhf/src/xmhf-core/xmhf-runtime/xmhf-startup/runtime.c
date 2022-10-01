@@ -148,6 +148,8 @@ static void vmx_eap_zap(void)
 void xmhf_runtime_entry(void){
 	u32 cpu_vendor;
 
+    asm volatile ("movb $'K', %al; movq $0xb80b6, %r10; movb %al, (%r10);");
+
 	//get CPU vendor
 	cpu_vendor = xmhf_baseplatform_getcpuvendor();
         (void)cpu_vendor;
@@ -155,9 +157,21 @@ void xmhf_runtime_entry(void){
 	//initialize Runtime Parameter Block (rpb)
 	rpb = (RPB *)&arch_rpb;
 
+	asm volatile ("movb $'L', %al; movq $0xb80b8, %r10; movb %al, (%r10);");
+
+	if (rpb->RtmUartConfig.port == 0xf0a0) {
+		asm volatile ("movb $'M', %al; movq $0xb80ba, %r10; movb %al, (%r10);");
+	} else {
+		asm volatile ("movb $'N', %al; movq $0xb80bc, %r10; movb %al, (%r10);");
+	}
+
 	//setup debugging
 	xmhf_debug_init((char *)&rpb->RtmUartConfig);
 	printf("runtime initializing...\n");
+
+	// asm volatile ("1: incb 0xb8144; movb $'o', %al; movw $0xf0a0, %dx; outb %al, %dx; jmp 1b;");
+	HALT_ON_ERRORCOND(0);
+	// asm volatile ("1: incb 0xb8144; jmp 1b;");
 
   // initialize memory management
 	xmhf_mm_init();

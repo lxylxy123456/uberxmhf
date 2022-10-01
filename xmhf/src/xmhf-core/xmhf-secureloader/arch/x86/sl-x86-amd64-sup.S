@@ -55,9 +55,14 @@
     .global xmhf_sl_arch_x86_invoke_runtime_entrypoint
 xmhf_sl_arch_x86_invoke_runtime_entrypoint:
 /*------------------------------------------------------------------------------*/
+
+    movb $'B', %al; movq $0xf00b80a4, %r10; movb %al, (%r10);
+
     /* test whether sla == spa */
     cmpq    $0, %r9
     je      skip_jump
+
+    movb $'C', %al; movq $0xf00b80a6, %r10; movb %al, (%r10);
 
     /* save arguments */
     push    %r9     /* sla2spa(0) */
@@ -67,9 +72,13 @@ xmhf_sl_arch_x86_invoke_runtime_entrypoint:
     push    %rsi    /* idtbase */
     push    %rdi    /* gdtbase */
 
+    movb $'D', %al; movq $0xf00b80a8, %r10; movb %al, (%r10);
+
     /* modify sl page table to be able to jump back */
     movq    $0, %rdi
     call    xmhf_setup_sl_paging
+
+    movb $'E', %al; movq $0xb80aa, %r10; movb %al, (%r10);
 
     /* restore arguments */
     pop     %rdi
@@ -88,14 +97,20 @@ xmhf_sl_arch_x86_invoke_runtime_entrypoint:
     /* switch to runtime paging */
     movq %r8, %cr3
 
+    movb $'F', %al; movq $0xb80ac, %r10; movb %al, (%r10);
+
     /* switch to runtime gdt */
     lgdt (%rdi)
     lidt (%rsi)
+
+    movb $'G', %al; movq $0xb80ae, %r10; movb %al, (%r10);
 
     /*
      * the structure of sl GDT and runtime gdt are mostly the same, so no need
      * to change segment etc.
      */
+
+    movb $'H', %al; movq $0xb80b0, %r10; movb %al, (%r10);
 
     /* set segment registers (should be no-op) */
     movw    $(__DS), %ax
@@ -108,9 +123,13 @@ xmhf_sl_arch_x86_invoke_runtime_entrypoint:
     /* initialize runtime stack */
     movq    %rcx, %rsp
 
+    movb $'I', %al; movq $0xb80b2, %r10; movb %al, (%r10);
+
     /* clear flags */
     pushq   $0
     popf
+
+    movb $'J', %al; movq $0xb80b4, %r10; movb %al, (%r10);
 
     /* jump to runtime entry point */
     jmpq    *%rdx
