@@ -164,7 +164,6 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 			asm volatile ("cld; rep stosb;" : : "a" (0), "c" (rt_bss_size),
 						  "D" (rt_bss_phys_begin) : "memory", "cc");
 		}
-		printf("LXY: reach %d\n", __LINE__);
 #endif /* __SKIP_RUNTIME_BSS__ */
 
 		//store revised E820 map and number of entries
