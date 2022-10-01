@@ -81,14 +81,13 @@ void xmhf_setup_sl_paging(u32 baseaddr) {
      * This function sets up paging for the rest virtual pages (up to 4 GiB).
      */
     default_flags = (u64)(_PAGE_PRESENT | _PAGE_RW | _PAGE_PSE);
-    printf("Start xmhf_setup_sl_paging(0x%08x)\n", baseaddr);
     for (u64 i = 1; i < (PAGE_ALIGN_UP_2M(ADDR_4GB) >> PAGE_SHIFT_2M); i++) {
         u64 sla = (i << PAGE_SHIFT_2M);
         u64 hva = sla + (u64)baseaddr;
         hva &= ADDR_4GB - 1ULL; /* wrap around for low physical addresses */
         sl_pdt[i] = p4l_make_pde_big(hva, default_flags);
     }
-    printf("End xmhf_setup_sl_paging(0x%08x)\n", baseaddr);
+    write_cr3(read_cr3());
 }
 #elif !defined(__I386__)
     #error "Unsupported Arch"
@@ -369,12 +368,6 @@ void xmhf_sl_arch_xfer_control_to_runtime(RPB *rpb){
 	//printf("GDT=%08x, IDT=%08x, EntryPoint=%08x\n", rpb->XtVmmGdt, rpb->XtVmmIdt, rpb->XtVmmEntryPoint);
 	//printf("Top-of-stack=%08x, CR3=%08x\n", (rpb->XtVmmStackBase+rpb->XtVmmStackSize), ptba);
 
-	printf("rpb->XtVmmGdt = 0x%08lx\n", rpb->XtVmmGdt);
-	printf("rpb->XtVmmIdt = 0x%08lx\n", rpb->XtVmmIdt);
-	printf("rpb->XtVmmEntryPoint = 0x%08lx\n", rpb->XtVmmEntryPoint);
-	printf("(rpb->XtVmmStackBase+rpb->XtVmmStackSize) = 0x%08lx\n", (rpb->XtVmmStackBase+rpb->XtVmmStackSize));
-	printf("ptba = 0x%08lx\n", ptba);
-	printf("sla2spa((void *)0) = 0x%08lx\n", sla2spa((void *)0));
 
 	#ifndef __XMHF_VERIFICATION__
 	//transfer control to runtime and never return

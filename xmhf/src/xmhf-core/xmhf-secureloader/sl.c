@@ -157,21 +157,13 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 	#error "__SKIP_RUNTIME_BSS__ not supported when __DRT__"
 #endif /* __DRT__ */
 
-		printf("LXY: rpb = 0x%08lx\n", (uintptr_t) rpb);
-		printf("LXY: rpb->XtVmmRuntimeBssBegin = 0x%08lx\n", rpb->XtVmmRuntimeBssBegin);
-		printf("LXY: rpb->XtVmmRuntimeBssEnd = 0x%08lx\n", rpb->XtVmmRuntimeBssEnd);
-		HALT_ON_ERRORCOND(rpb->XtVmmRuntimeBssEnd < 0x100000000ULL);
-
 		{
 			u32 rt_bss_phys_begin = rpb->XtVmmRuntimeBssBegin - __TARGET_BASE_SL;
 			u32 rt_bss_size = rpb->XtVmmRuntimeBssEnd - rpb->XtVmmRuntimeBssBegin;
-			printf("rt_bss_phys_begin = 0x%08x\n", rt_bss_phys_begin);
-			printf("rt_bss_size = 0x%08x\n", rt_bss_size);
 			// memset((void *)(uintptr_t)rt_bss_phys_begin, 0, rt_bss_size);
 			asm volatile ("cld; rep stosb;" : : "a" (0), "c" (rt_bss_size),
 						  "D" (rt_bss_phys_begin) : "memory", "cc");
 		}
-
 		printf("LXY: reach %d\n", __LINE__);
 #endif /* __SKIP_RUNTIME_BSS__ */
 

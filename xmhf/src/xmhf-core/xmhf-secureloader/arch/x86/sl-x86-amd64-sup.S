@@ -55,7 +55,6 @@
     .global xmhf_sl_arch_x86_invoke_runtime_entrypoint
 xmhf_sl_arch_x86_invoke_runtime_entrypoint:
 /*------------------------------------------------------------------------------*/
-
     /* test whether sla == spa */
     cmpq    $0, %r9
     je      skip_jump
@@ -71,10 +70,6 @@ xmhf_sl_arch_x86_invoke_runtime_entrypoint:
     /* modify sl page table to be able to jump back */
     movq    $0, %rdi
     call    xmhf_setup_sl_paging
-
-    /* flush TLB */
-    movq    %cr3, %rax
-    movq    %rax, %cr3
 
     /* restore arguments */
     pop     %rdi
