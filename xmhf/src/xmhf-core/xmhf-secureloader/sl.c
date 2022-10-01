@@ -147,8 +147,6 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 		//populate runtime parameter block fields
 		rpb->isEarlyInit = slpb.isEarlyInit; //tell runtime if we started "early" or "late"
 
-		printf("LXY: reach %d\n", __LINE__);
-
 		//store runtime physical and virtual base addresses along with size
 		rpb->XtVmmRuntimePhysBase = runtime_physical_base;
 		rpb->XtVmmRuntimeVirtBase = __TARGET_BASE;
@@ -159,11 +157,9 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 	#error "__SKIP_RUNTIME_BSS__ not supported when __DRT__"
 #endif /* __DRT__ */
 
-		printf("LXY: reach %d\n", __LINE__);
-
-		printf("rpb = 0x%08lx\n", (uintptr_t) rpb);
-		printf("rpb->XtVmmRuntimeBssBegin = 0x%08lx\n", rpb->XtVmmRuntimeBssBegin);
-		printf("rpb->XtVmmRuntimeBssEnd = 0x%08lx\n", rpb->XtVmmRuntimeBssEnd);
+		printf("LXY: rpb = 0x%08lx\n", (uintptr_t) rpb);
+		printf("LXY: rpb->XtVmmRuntimeBssBegin = 0x%08lx\n", rpb->XtVmmRuntimeBssBegin);
+		printf("LXY: rpb->XtVmmRuntimeBssEnd = 0x%08lx\n", rpb->XtVmmRuntimeBssEnd);
 		HALT_ON_ERRORCOND(rpb->XtVmmRuntimeBssEnd < 0x100000000ULL);
 
 		{
@@ -191,8 +187,6 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 		#endif
 		rpb->XtVmmMPCpuinfoNumEntries = slpb.numCPUEntries;
 
-		printf("LXY: reach %d\n", __LINE__);
-
 		//setup guest OS boot module info in LPB
 		rpb->XtGuestOSBootModuleBase=(hva_t)(slpb.runtime_osbootmodule_base);
 		rpb->XtGuestOSBootModuleSize=(hva_t)(slpb.runtime_osbootmodule_size);
@@ -208,8 +202,6 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 		rpb->RtmUartConfig = slpb.uart_config;
 	#endif
 
-		printf("LXY: reach %d\n", __LINE__);
-
 		//pass command line configuration forward
 		COMPILE_TIME_ASSERT(sizeof(slpb.cmdline) == sizeof(rpb->cmdline));
 	#ifndef __XMHF_VERIFICATION__
@@ -218,12 +210,8 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 
 	}
 
-	printf("LXY: reach %d\n", __LINE__);
-
 	//initialize basic platform elements
 	xmhf_baseplatform_initialize();
-
-	printf("LXY: reach %d\n", __LINE__);
 
 	//sanitize cache/MTRR/SMRAM (most important is to ensure that MTRRs
 	//do not contain weird mappings)
@@ -235,8 +223,6 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 	//setup DMA protection on runtime (secure loader is already DMA protected)
 	xmhf_sl_arch_early_dmaprot_init(slpb.runtime_size);
 #endif
-
-	printf("LXY: reach %d\n", __LINE__);
 
 	//transfer control to runtime
 	xmhf_sl_arch_xfer_control_to_runtime(rpb);
