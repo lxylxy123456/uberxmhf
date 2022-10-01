@@ -35,11 +35,13 @@ export APP_ARCHIVE := $(APP_ROOT)/xmhfhypapp.a
 # For an explanation of these options, see configure.ac or run:
 # ./configure --help
 export MP_VERSION := @MP_VERSION@
+export ENABLE_QUIESCING_IN_GUEST_MEM_PIO_TRAPS := @ENABLE_QUIESCING_IN_GUEST_MEM_PIO_TRAPS@
 export DEBUG_SYMBOLS := @DEBUG_SYMBOLS@
 export DEBUG_QEMU := @DEBUG_QEMU@
 export DEBUG_SERIAL := @DEBUG_SERIAL@
 export DEBUG_SERIAL_PORT := @DEBUG_SERIAL_PORT@
 export DEBUG_VGA := @DEBUG_VGA@
+export DEBUG_EVENT_LOGGER := @DEBUG_EVENT_LOGGER@
 export DRT := @DRT@
 export DMAP := @DMAP@
 export TARGET_HWPLATFORM := x86
@@ -211,6 +213,11 @@ CFLAGS += $(OPT_FLAGS)
 CFLAGS += $(ADDL_INCLUDES)
 VFLAGS = $(ADDL_INCLUDES)
 
+ifeq ($(ENABLE_QUIESCING_IN_GUEST_MEM_PIO_TRAPS), y)
+	CFLAGS += -D__XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
+	VFLAGS += -D__XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
+endif
+
 ifeq ($(DEBUG_SYMBOLS), y)
 	CFLAGS += -g
 endif
@@ -272,6 +279,10 @@ endif
 ifeq ($(DEBUG_VGA), y)
 	CFLAGS += -D__DEBUG_VGA__
 	VFLAGS += -D__DEBUG_VGA__
+endif
+ifeq ($(DEBUG_EVENT_LOGGER), y)
+	CFLAGS += -D__DEBUG_EVENT_LOGGER__
+	VFLAGS += -D__DEBUG_EVENT_LOGGER__
 endif
 ifeq ($(MP_VERSION), y)
 	CFLAGS += -D__MP_VERSION__

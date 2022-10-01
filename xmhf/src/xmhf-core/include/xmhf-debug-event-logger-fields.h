@@ -44,25 +44,32 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-/**
- * rntm-data.c
- * EMHF runtime data definitions
- * author: amit vasudevan (amitvasudevan@acm.org)
+// dbg-event-logger.c
+// All types of events in event logger for debugging
+// Author(s): Eric Li (xiaoyili@andrew.cmu.edu)
+
+#ifndef DEFINE_EVENT_FIELD
+#error "DEFINE_EVENT_FIELD must be defined"
+#endif
+
+/*
+ * Arguments of macro DEFINE_EVENT_FIELD:
+ * name: Name of the event
+ * count_type: type of the cache value (count)
+ * count_fmt: format string to print the count
+ * lru_size: size of the LRU cache
+ * index_type: type of the cache index
+ * key_type: type of the cache key
+ * key_fmt: format string to print the key
  */
 
-#include <xmhf.h>
+DEFINE_EVENT_FIELD(vmexit_cpuid, u32, "%d", 4, u16, u32, "0x%08x")
+DEFINE_EVENT_FIELD(vmexit_rdmsr, u32, "%d", 4, u16, u32, "0x%08x")
+DEFINE_EVENT_FIELD(vmexit_wrmsr, u32, "%d", 4, u16, u32, "0x%08x")
+DEFINE_EVENT_FIELD(vmexit_xcph, u32, "%d", 4, u16, u8, "0x%02x")
+DEFINE_EVENT_FIELD(vmexit_other, u32, "%d", 4, u16, u32, "%d")
+DEFINE_EVENT_FIELD(inject_nmi, u32, "%d", 1, u16, u8, "%d")
+DEFINE_EVENT_FIELD(exception, u32, "%d", 1, u16, u8, "%d")
 
-//runtime parameter block pointer
-RPB *rpb __attribute__(( section(".data") ));
+#undef DEFINE_EVENT_FIELD
 
-//runtime DMA protection buffer
-u8 g_rntm_dmaprot_buffer[SIZE_G_RNTM_DMAPROT_BUFFER] __attribute__(( section(".bss.palign_data") ));
-
-//variable that is incremented by 1 by all cores that cycle through appmain
-//successfully, this should be finally equal to g_midtable_numentries at
-//runtime which signifies that EMHF appmain executed successfully on all
-//cores
-u32 volatile g_appmain_success_counter __attribute__(( section(".data") )) = 0;
-
-//SMP lock for the above variable
-u32 volatile g_lock_appmain_success_counter __attribute__(( section(".data") )) = 1;

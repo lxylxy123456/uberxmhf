@@ -69,6 +69,16 @@ AC_ARG_WITH([target_arch],
                 , [with_target_arch=x86-vmx])
 TARGET_ARCH=$[]with_target_arch
 
+# Enable CPU quiescing in guest memory/PIO access traps
+AC_SUBST([ENABLE_QUIESCING_IN_GUEST_MEM_PIO_TRAPS])
+AC_ARG_ENABLE([quiesce_in_guest_mem_pio_traps],
+        AS_HELP_STRING([--enable-quiesce-in-guest-mem-pio-traps@<:@=yes|no@:>@],
+                [enable CPU quiescing in guest memory/PIO access traps]),
+                , [enable_quiesce_in_guest_mem_pio_traps=yes])
+AS_IF([test "x${enable_quiesce_in_guest_mem_pio_traps}" != "xno"],
+      [ENABLE_QUIESCING_IN_GUEST_MEM_PIO_TRAPS=y],
+      [ENABLE_QUIESCING_IN_GUEST_MEM_PIO_TRAPS=n])
+
 # debug symbols (-g in gcc)
 AC_SUBST([DEBUG_SYMBOLS])
 AC_ARG_ENABLE([debug_symbols],
@@ -156,6 +166,15 @@ AC_ARG_ENABLE([debug_vga],
 AS_IF([test "x${enable_debug_vga}" != "xno"],
       [DEBUG_VGA=y],
       [DEBUG_VGA=n])
+
+AC_SUBST([DEBUG_EVENT_LOGGER])
+AC_ARG_ENABLE([debug_event_logger],
+        AS_HELP_STRING([--enable-debug-event-logger@<:@=yes|no@:>@],
+                [enable event logger debugging]),
+                , [enable_debug_event_logger=no])
+AS_IF([test "x${enable_debug_event_logger}" != "xno"],
+      [DEBUG_EVENT_LOGGER=y],
+      [DEBUG_EVENT_LOGGER=n])
 
 AC_SUBST([MP_VERSION])
 AC_ARG_ENABLE([mp],

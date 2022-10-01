@@ -137,9 +137,14 @@ void _vmx_inject_exception(VCPU *vcpu, u32 vector, u32 has_ec, u32 errcode)
 
 u64 _vmx_get_guest_efer(VCPU *vcpu)
 {
-	msr_entry_t *efer = &((msr_entry_t *)vcpu->vmx_vaddr_msr_area_guest)[0];
-	HALT_ON_ERRORCOND(efer->index == MSR_EFER);
-	return efer->data;
+	u32 index;
+	if (xmhf_partition_arch_x86vmx_get_xmhf_msr(MSR_EFER, &index)) {
+		msr_entry_t *efer = &((msr_entry_t *)vcpu->vmx_vaddr_msr_area_guest)[index];
+		HALT_ON_ERRORCOND(efer->index == MSR_EFER);
+		return efer->data;
+	} else {
+		HALT_ON_ERRORCOND(0 && "EFER is expected to be managed by XMHF");
+	}
 }
 
 
@@ -392,7 +397,7 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
  * Simulate guest writing a MSR with ecx=index, value=edx:eax
  *
  * The MSRs that will be changed by VMENTRY/VMEXIT MSR load/store are not
- * supported: MSR_EFER, MSR_IA32_PAT, MSR_K6_STAR
+ * supported: MSR_EFER, MSR_IA32_PAT
  *
  * Return 0 if success, 1 if failure (should inject #GP to guest)
  */
@@ -400,8 +405,7 @@ u32 xmhf_parteventhub_arch_x86vmx_handle_wrmsr(VCPU *vcpu, u32 index, u64 value)
 {
 	switch (index) {
 		case MSR_EFER: /* fallthrough */
-		case MSR_IA32_PAT: /* fallthrough */
-		case MSR_K6_STAR:
+		case MSR_IA32_PAT:
 			HALT_ON_ERRORCOND(0 && "Illegal behavior");
 			break;
 		case IA32_SYSENTER_CS_MSR:
@@ -496,31 +500,19 @@ u32 xmhf_parteventhub_arch_x86vmx_handle_wrmsr(VCPU *vcpu, u32 index, u64 value)
 //---intercept handler (WRMSR)--------------------------------------------------
 static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
 	u64 write_data = ((u64)r->edx << 32) | (u64)r->eax;
+	u32 index;
 
 	//printf("CPU(0x%02x): WRMSR 0x%08x 0x%08x%08x @ %p\n", vcpu->id, r->ecx, r->edx, r->eax, vcpu->vmcs.guest_RIP);
 
-	switch(r->ecx){
-		case MSR_EFER: /* fallthrough */
-		case MSR_IA32_PAT: /* fallthrough */
-		case MSR_K6_STAR: {
-			u32 found = 0;
-            u32 i = 0;
-			for (i = 0; i < vcpu->vmcs.control_VM_entry_MSR_load_count; i++) {
-				msr_entry_t *entry = &((msr_entry_t *)vcpu->vmx_vaddr_msr_area_guest)[i];
-				if (entry->index == r->ecx) {
-					entry->data = write_data;
-					found = 1;
-					break;
-				}
-			}
-			HALT_ON_ERRORCOND(found != 0);
-			break;
+	if (xmhf_partition_arch_x86vmx_get_xmhf_msr(r->ecx, &index)) {
+		msr_entry_t *entry = &((msr_entry_t *)vcpu->vmx_vaddr_msr_area_guest)[index];
+		HALT_ON_ERRORCOND(entry->index == r->ecx);
+		entry->data = write_data;
+	} else {
+		if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr(vcpu, r->ecx, write_data)) {
+			_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
+			return;
 		}
-		default:
-			if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr(vcpu, r->ecx, write_data)) {
-				_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
-				return;
-			}
 	}
 
 	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
@@ -532,7 +524,7 @@ static void _vmx_handle_intercept_wrmsr(VCPU *vcpu, struct regs *r){
  * Simulate guest reading a MSR with ecx=index. *value will become edx:eax
  *
  * The MSRs that will be changed by VMENTRY/VMEXIT MSR load/store are not
- * supported: MSR_EFER, MSR_IA32_PAT, MSR_K6_STAR
+ * supported: MSR_EFER, MSR_IA32_PAT
  *
  * Return 0 if success, 1 if failure (should inject #GP to guest)
  */
@@ -540,8 +532,7 @@ u32 xmhf_parteventhub_arch_x86vmx_handle_rdmsr(VCPU *vcpu, u32 index, u64 *value
 {
 	switch (index) {
 		case MSR_EFER: /* fallthrough */
-		case MSR_IA32_PAT: /* fallthrough */
-		case MSR_K6_STAR:
+		case MSR_IA32_PAT:
 			HALT_ON_ERRORCOND(0 && "Illegal behavior");
 			break;
 		case IA32_SYSENTER_CS_MSR:
@@ -622,32 +613,19 @@ u32 xmhf_parteventhub_arch_x86vmx_handle_rdmsr(VCPU *vcpu, u32 index, u64 *value
 static void _vmx_handle_intercept_rdmsr(VCPU *vcpu, struct regs *r){
 	/* After switch statement, will assign this value to r->eax and r->edx */
 	u64 read_result = 0;
+	u32 index;
 
 	//printf("CPU(0x%02x): RDMSR 0x%08x @ %p\n", vcpu->id, r->ecx, vcpu->vmcs.guest_RIP);
 
-	switch(r->ecx){
-		case MSR_EFER: /* fallthrough */
-		case MSR_IA32_PAT: /* fallthrough */
-		case MSR_K6_STAR: {
-			u32 found = 0;
-            u32 i = 0;
-			for (i = 0; i < vcpu->vmcs.control_VM_exit_MSR_store_count; i++) {
-				msr_entry_t *entry = &((msr_entry_t *)vcpu->vmx_vaddr_msr_area_guest)[i];
-				if (entry->index == r->ecx) {
-					read_result = entry->data;
-					found = 1;
-					break;
-				}
-			}
-			HALT_ON_ERRORCOND(found != 0);
-			break;
+	if (xmhf_partition_arch_x86vmx_get_xmhf_msr(r->ecx, &index)) {
+		msr_entry_t *entry = &((msr_entry_t *)vcpu->vmx_vaddr_msr_area_guest)[index];
+		HALT_ON_ERRORCOND(entry->index == r->ecx);
+		read_result = entry->data;
+	} else {
+		if (xmhf_parteventhub_arch_x86vmx_handle_rdmsr(vcpu, r->ecx, &read_result)) {
+			_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
+			return;
 		}
-		default:
-			if (xmhf_parteventhub_arch_x86vmx_handle_rdmsr(vcpu, r->ecx, &read_result)) {
-				_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
-				return;
-			}
-			break;
 	}
 
 	/* Assign read_result to r->eax and r->edx */
@@ -682,10 +660,18 @@ static void _vmx_handle_intercept_eptviolation(VCPU *vcpu, struct regs *r){
 	if(vcpu->isbsp && (gpa >= g_vmx_lapic_base) && (gpa < (g_vmx_lapic_base + PAGE_SIZE_4K)) ){
 		xmhf_smpguest_arch_x86_eventhandler_hwpgtblviolation(vcpu, (u32)gpa, errorcode);
 	}else{ //no, pass it to hypapp
+#ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
 		xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 		xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, gpa, gva,
 				(errorcode & 7));
 		xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+#else
+		// [Superymk] Some hypapps cannot use CPU quiescing when handling trapped PIO and memory accesses. For example, some
+		// hypapps must call another core to emulate the trapped CPU instructions. These hypapps cannot do so if CPU 
+		// quiescing is used.
+		xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, gpa, gva,
+				(errorcode & 7));
+#endif // __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
 	}
 }
 
@@ -704,10 +690,19 @@ static void _vmx_handle_intercept_ioportaccess(VCPU *vcpu, struct regs *r){
 
   //call our app handler, TODO: it should be possible for an app to
   //NOT want a callback by setting up some parameters during appmain
+
+#ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
 	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 	app_ret_status=xmhf_app_handleintercept_portaccess(vcpu, r, portnum, access_type,
           access_size);
     xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+#else
+	// [Superymk] Some hypapps cannot use CPU quiescing when handling trapped PIO and memory accesses. For example, some
+	// hypapps must call another core to emulate the trapped CPU instructions. These hypapps cannot do so if CPU 
+	// quiescing is used.
+	app_ret_status=xmhf_app_handleintercept_portaccess(vcpu, r, portnum, access_type,
+          access_size);
+#endif // __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
 
   if(app_ret_status == APP_IOINTERCEPT_CHAIN){
    	if(access_type == IO_TYPE_OUT){
@@ -860,11 +855,11 @@ static void vmx_handle_intercept_cr4access_ug(VCPU *vcpu, struct regs *r, u32 gp
 
 	cr4_proposed_value = *((uintptr_t *)_vmx_decode_reg(gpr, vcpu, r));
 
-	printf("CPU(0x%02x): CS:RIP=0x%04x:0x%08lx MOV CR4, xx\n", vcpu->id,
-			(u32)vcpu->vmcs.guest_CS_selector, vcpu->vmcs.guest_RIP);
+	//printf("CPU(0x%02x): CS:RIP=0x%04x:0x%08lx MOV CR4, xx\n", vcpu->id,
+	//		(u32)vcpu->vmcs.guest_CS_selector, vcpu->vmcs.guest_RIP);
 
-	printf("MOV TO CR4 (flush TLB?), current=0x%08lx, proposed=0x%08lx\n",
-			vcpu->vmcs.guest_CR4, cr4_proposed_value);
+	//printf("MOV TO CR4 (flush TLB?), current=0x%08lx, proposed=0x%08lx\n",
+	//		vcpu->vmcs.guest_CR4, cr4_proposed_value);
 
 	/*
 	 * CR4 mask is the IA32_VMX_CR4_FIXED0 MSR. Modify CR4 shadow to let the
@@ -872,11 +867,6 @@ static void vmx_handle_intercept_cr4access_ug(VCPU *vcpu, struct regs *r, u32 gp
 	 */
 	vcpu->vmcs.control_CR4_shadow = cr4_proposed_value;
 	vcpu->vmcs.guest_CR4 = (cr4_proposed_value | vcpu->vmcs.control_CR4_mask);
-
-	#if defined (__NESTED_PAGING__)
-	//we need to flush EPT mappings as we emulated CR4 load above
-	HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT, 1, 0));
-	#endif
   }
 
   vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
@@ -936,6 +926,10 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		case 0x6e0:	/* IA32_TSC_DEADLINE */
 			/* fallthrough */
 		case 0x80b:	/* IA32_X2APIC_EOI */
+#ifdef __DEBUG_EVENT_LOGGER__
+			xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_wrmsr,
+							   &r->ecx);
+#endif /* __DEBUG_EVENT_LOGGER__ */
 			vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
 			vcpu->vmcs.info_vmexit_instruction_length = __vmx_vmread32(0x440C);
 			_vmx_handle_intercept_wrmsr(vcpu, r);
@@ -946,6 +940,9 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		}
 	case VMX_VMEXIT_CPUID:
 		/* Always optimize CPUID */
+#ifdef __DEBUG_EVENT_LOGGER__
+		xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_cpuid, &r->eax);
+#endif /* __DEBUG_EVENT_LOGGER__ */
 		vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
 		vcpu->vmcs.info_vmexit_instruction_length = __vmx_vmread32(0x440C);
 		_vmx_handle_intercept_cpuid(vcpu, r);
@@ -957,6 +954,10 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		vcpu->vmcs.guest_paddr = __vmx_vmread64(0x2400);
 		gpa = vcpu->vmcs.guest_paddr;
 		if(vcpu->isbsp && (gpa >= g_vmx_lapic_base) && (gpa < (g_vmx_lapic_base + PAGE_SIZE_4K)) ){
+#ifdef __DEBUG_EVENT_LOGGER__
+			xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_other,
+							   &vcpu->vmcs.info_vmexit_reason);
+#endif /* __DEBUG_EVENT_LOGGER__ */
 			vcpu->vmcs.info_exit_qualification = __vmx_vmreadNW(0x6400);
 			vcpu->vmcs.control_exception_bitmap = __vmx_vmread32(0x4004);
 			vcpu->vmcs.guest_interruptibility = __vmx_vmread32(0x4824);
@@ -975,6 +976,11 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		vcpu->vmcs.info_vmexit_interrupt_information = __vmx_vmread32(0x4404);
 		if (((u32)vcpu->vmcs.info_vmexit_interrupt_information &
 			 INTR_INFO_VECTOR_MASK) == INT1_VECTOR) {
+#ifdef __DEBUG_EVENT_LOGGER__
+			u8 key = vcpu->vmcs.info_vmexit_interrupt_information &
+				 INTR_INFO_VECTOR_MASK;
+			xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_xcph, &key);
+#endif /* __DEBUG_EVENT_LOGGER__ */
 			vcpu->vmcs.guest_CS_selector = __vmx_vmread16(0x0802);
 			vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
 			vcpu->vmcs.control_exception_bitmap = __vmx_vmread32(0x4004);
@@ -1087,6 +1093,23 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 //		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
 //	}
 
+#ifdef __DEBUG_EVENT_LOGGER__
+	if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_CPUID) {
+		xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_cpuid, &r->eax);
+	} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_RDMSR) {
+		xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_rdmsr, &r->ecx);
+	} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_WRMSR) {
+		xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_wrmsr, &r->ecx);
+	} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION) {
+		u8 key = vcpu->vmcs.info_vmexit_interrupt_information &
+				 INTR_INFO_VECTOR_MASK;
+		xmhf_dbg_log_event(vcpu, 0, XMHF_DBG_EVENTLOG_vmexit_xcph, &key);
+	} else {
+		xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_other,
+						   &vcpu->vmcs.info_vmexit_reason);
+	}
+#endif /* __DEBUG_EVENT_LOGGER__ */
+
 	//handle intercepts
 	switch((u32)vcpu->vmcs.info_vmexit_reason){
 		//--------------------------------------------------------------
@@ -1192,7 +1215,12 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			vcpu->vmx_guest_nmi_cfg.guest_nmi_pending--;
 			xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(
 				vcpu, &vcpu->vmcs.control_VMX_cpu_based);
-			printf("CPU(0x%02x): inject NMI\n", vcpu->id);
+#ifdef __DEBUG_EVENT_LOGGER__
+			{
+				u8 key = 0;
+				xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_inject_nmi, &key);
+			}
+#endif /* __DEBUG_EVENT_LOGGER__ */
 		}
 		break;
 
