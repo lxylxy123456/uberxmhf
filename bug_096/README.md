@@ -49,7 +49,7 @@ maximum memory should be set to `0x230000000`, or 8.75 GiB. Use
 `--mem 0x230000000` in `build.sh`.
 
 The complete command is now
-```
+```sh
 ./build.sh amd64 --event-logger --mem 0x230000000 && gr
 make -j 4 && gr && copyxmhf && hpgrub XMHF-build64 0 && hpinit6
 ```
@@ -139,8 +139,38 @@ hard to reproduce it (i.e. not stable).
 The possible places to trigger the bug are:
 * After `SL: RPB, magic=0xf00ddead`
 	* `sl.c:149-195`
+* Around `jmpq    *%rax`
 
-TODO: flush TLB after `xmhf_setup_sl_paging` in `sl-x86-amd64-sup.S`
+I realized that in `sl-x86-amd64-sup.S`, after the call to
+`xmhf_setup_sl_paging`, the TLB needs to be flushed. It can be flushed by MOV
+to CR3. Fixed in `xmhf64 d6ce3f2ad`.
 
-TODO: Linux panic
+After that, still may stuck at `SL: RPB, magic=0xf00ddead`.
+
+Actually, `sl-x86-amd64-entry.S` may also be in trouble. First identity paging
+in 64-bit mode is set. Then offset is set (to simulate address change caused
+by segmentation in 32-bit). However, TLB is not flushed. Fixed in
+`xmhf64 2f01c38a1`.
+
+After the fix, everything looks good.
+
+### Linux panic
+
+Basically in all configurations, see Linux kernel panic during boot (before VGA
+resolution increase).
+
+In Linux, can use `console=ttyS1` to output dmesg to serial port. Otherwise the
+panic message is too long.
+
+```sh
+./build.sh amd64 fast --mem 0x230000000 && gr
+make -j 4 && gr && copyxmhf && hpgrub XMHF-build64 0 && hpinit6
+```
+
+Using the build command above, Linux dmesg is in `linux_panic1.txt`. Looks like
+some problem happens in FPU. Note that there are a few FPU warnings before
+panic. Finally the FPU problem causes kernel stack overflow, which causes the
+panic.
+
+TODO: Linux panic (due to FPU?)
 
