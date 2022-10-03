@@ -49,6 +49,7 @@
 
 #include <xmhf.h>
 #include "dmap-vmx-internal.h"
+#include "dmap-vmx-quirks.h"
 
 void *vtd_cet = NULL; // cet holds all its structures in the memory linearly
 
