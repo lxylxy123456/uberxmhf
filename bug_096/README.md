@@ -5,7 +5,7 @@
 * `xmhf64 427b6d6b7`
 
 ## Behavior
-Recently received a Dell laptop. Should test XMHF on it.
+Recently received a Dell desktop. Should test XMHF on it.
 
 ## Debugging
 
@@ -167,10 +167,90 @@ panic message is too long.
 make -j 4 && gr && copyxmhf && hpgrub XMHF-build64 0 && hpinit6
 ```
 
+To help debugging, `nokaslr` is disabled.
+
 Using the build command above, Linux dmesg is in `linux_panic1.txt`. Looks like
 some problem happens in FPU. Note that there are a few FPU warnings before
 panic. Finally the FPU problem causes kernel stack overflow, which causes the
 panic.
 
-TODO: Linux panic (due to FPU?)
+Can also add `nosmp` to Linux, and the problem is still reproducible.
+
+The first warning message in `linux_panic1.txt` happens very early. The warning
+happens on this line:
+<https://elixir.bootlin.com/linux/v5.10.140/source/arch/x86/include/asm/fpu/internal.h#L306>
+
+```
+/*
+ * This function is called only during boot time when x86 caps are not set
+ * up and alternative can not be used yet.
+ */
+static inline void copy_kernel_to_xregs_booting(struct xregs_state *xstate)
+{
+	u64 mask = -1;
+	u32 lmask = mask;
+	u32 hmask = mask >> 32;
+	int err;
+
+	WARN_ON(system_state != SYSTEM_BOOTING);
+
+	if (boot_cpu_has(X86_FEATURE_XSAVES))
+		XSTATE_OP(XRSTORS, xstate, lmask, hmask, err);
+	else
+		XSTATE_OP(XRSTOR, xstate, lmask, hmask, err);
+
+	/*
+	 * We should never fault when copying from a kernel buffer, and the FPU
+	 * state we set at boot time should be valid.
+	 */
+	WARN_ON_FPU(err);
+}
+```
+
+So `XSTATE_OP` receives an exception and triggers the warning. The
+`X86_FEATURE_XSAVES` macro refers to CPUID
+"Processor Extended State Enumeration Sub-leaf (EAX = 0DH, ECX = 1)" with bit 3
+in EAX (i.e. `CPUID.(0DH, 1):EAX.[3]`). The description of this bit is:
+> Supports XSAVES/XRSTORS and IA32_XSS if set
+
+Then the XRSTORS instruction gives us a hint. We go to Intel volume 3c, and see
+that:
+> XRSTORS. Behavior of the XRSTORS instruction is determined first by the
+> setting of the "enable XSAVES/XRSTORS" VM-execution control:
+>
+> - If the "enable XSAVES/XRSTORS" VM-execution control is 0, XRSTORS causes an
+> invalid-opcode exception (#UD).
+>
+> - If the "enable XSAVES/XRSTORS" VM-execution control is 1, treatment is
+> based on the value of the XSS-exiting bitmap (see Section 23.6.20):
+> ...
+
+So I guess the story is that
+* Linux needs FPU, obviously
+* In previous machines I have tested, XSAVE/XRSTOR is supported, but
+  XSAVES/XRSTORS is not. So everything works fine in VMX mode.
+* In this new Dell machine, XSAVES/XRSTORS becomes supported and is reported in
+  CPUID, so Linux uses it. However, the VMX configuration does not say so, so
+  Linux gets #UD.
+
+The implication of this bug is that XMHF may never become perfect. Currently
+XMHF tries to provide all features from the hardware to the guest. However, in
+this case it needs to know everything about the VMX control bits. In this case
+setting a bit to 0 causes incorrect behavior. Ideally, after each release of
+SDM, XMHF should be reviewed to react to new features correctly.
+
+To fix, simply set "enable XSAVES/XRSTORS" to 1. However, this also requires
+setting the "XSS-exiting bitmap" to 0. This is a problem because in some
+machines, this VMCS field is not available. In others, this is available.
+However, XMHF is not very good at handling VMCS fields that do not exist.
+
+In `xmhf64 3266af64f`, set "enable XSAVES/XRSTORS" but did not touch
+"XSS-exiting bitmap". Debian can already successfully boot (with `nosmp`). Also
+can successfully boot with SMP.
+
+In `xmhf64-dev 7d1ea3bee`, add the VMCS field `control_XSS_exiting_bitmap` to
+XMHF. As expected, 2540P does not have this field and encouters regression.
+
+TODO: "XSS-exiting bitmap" does not exist in 2540p, see `xmhf64-dev 7d1ea3bee`
+TODO: Dell cannot run `pal_demo`
 
