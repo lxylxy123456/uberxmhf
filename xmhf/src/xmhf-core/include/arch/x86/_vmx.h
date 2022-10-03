@@ -536,12 +536,14 @@ struct _vmx_vmcsrofields_encodings	{
  unsigned int  encoding;
  unsigned int  fieldoffset;
  unsigned int  membersize;
+ unsigned int  exist;
 };
 
 struct _vmx_vmcsrwfields_encodings	{
  unsigned int  encoding;
  unsigned int  fieldoffset;
  unsigned int  membersize;
+ unsigned int  exist;
 };
 
 /* VM-Entry Interruption-Information Field */

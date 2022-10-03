@@ -177,7 +177,9 @@ void xmhf_baseplatform_arch_x86vmx_putVMCS(VCPU *vcpu){
       u32 offset = g_vmx_vmcsrwfields_encodings[i].fieldoffset;
       void *field = (void *)((hva_t)&vcpu->vmcs + offset);
       u32 size = g_vmx_vmcsrwfields_encodings[i].membersize;
-      xmhf_baseplatform_arch_x86vmx_write_field(encoding, field, size);
+      if (g_vmx_vmcsrwfields_encodings[i].exist) {
+          xmhf_baseplatform_arch_x86vmx_write_field(encoding, field, size);
+      }
     }
 }
 
@@ -222,14 +224,18 @@ void xmhf_baseplatform_arch_x86vmx_getVMCS(VCPU *vcpu){
         u32 offset = g_vmx_vmcsrwfields_encodings[i].fieldoffset;
         void *field = (void *)((hva_t)&vcpu->vmcs + offset);
         u32 size = g_vmx_vmcsrwfields_encodings[i].membersize;
-        xmhf_baseplatform_arch_x86vmx_read_field(encoding, field, size);
+        if (g_vmx_vmcsrwfields_encodings[i].exist) {
+            xmhf_baseplatform_arch_x86vmx_read_field(encoding, field, size);
+        }
     }
     for(i=0; i < g_vmx_vmcsrofields_encodings_count; i++){
         u32 encoding = g_vmx_vmcsrofields_encodings[i].encoding;
         u32 offset = g_vmx_vmcsrofields_encodings[i].fieldoffset;
         void *field = (void *)((hva_t)&vcpu->vmcs + offset);
         u32 size = g_vmx_vmcsrofields_encodings[i].membersize;
-        xmhf_baseplatform_arch_x86vmx_read_field(encoding, field, size);
+        if (g_vmx_vmcsrofields_encodings[i].exist) {
+            xmhf_baseplatform_arch_x86vmx_read_field(encoding, field, size);
+        }
     }
 }
 

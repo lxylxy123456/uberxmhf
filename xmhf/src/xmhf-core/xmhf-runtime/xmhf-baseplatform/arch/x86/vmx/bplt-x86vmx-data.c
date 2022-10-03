@@ -55,7 +55,8 @@
     {                                                           \
         encoding,                                               \
         offsetof(struct _vmx_vmcsfields, member),               \
-        sizeof((struct _vmx_vmcsfields){}.member)               \
+        sizeof((struct _vmx_vmcsfields){}.member),              \
+        1,                                                      \
     },
 
 //VMX VMCS read-only field encodings
