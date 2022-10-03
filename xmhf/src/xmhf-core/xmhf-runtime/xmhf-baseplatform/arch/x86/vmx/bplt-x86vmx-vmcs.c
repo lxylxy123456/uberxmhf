@@ -346,6 +346,7 @@ void xmhf_baseplatform_arch_x86vmx_dump_vcpu(VCPU *vcpu){
     DUMP_VCPU_PRINT_INT64(vcpu->vmcs.control_TSC_offset);
     DUMP_VCPU_PRINT_INT64(vcpu->vmcs.control_virtual_APIC_page_address);
     DUMP_VCPU_PRINT_INT64(vcpu->vmcs.control_EPT_pointer);
+    DUMP_VCPU_PRINT_INT64(vcpu->vmcs.control_XSS_exiting_bitmap);
     DUMP_VCPU_PRINT_INTNW(vcpu->vmcs.host_CR0);
     DUMP_VCPU_PRINT_INTNW(vcpu->vmcs.host_CR3);
     DUMP_VCPU_PRINT_INTNW(vcpu->vmcs.host_CR4);

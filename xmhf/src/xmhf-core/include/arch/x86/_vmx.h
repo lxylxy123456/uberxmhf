@@ -423,6 +423,7 @@ struct _vmx_vmcsfields {
 #if defined(__NESTED_PAGING__)
   u64       control_EPT_pointer;
 #endif
+  u64       control_XSS_exiting_bitmap;
   // Natural 64-bit Host-State fields
   ulong_t   host_CR0;
   ulong_t   host_CR3;
