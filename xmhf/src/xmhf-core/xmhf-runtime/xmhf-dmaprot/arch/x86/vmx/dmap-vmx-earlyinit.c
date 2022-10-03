@@ -188,11 +188,11 @@ static u32 vmx_eap_initialize_early(
     for (i = 0; i < vtd_num_drhd; i++)
     {
         printf("%s: initializing DRHD unit %u...\n", __FUNCTION__, i);
-        _vtd_drhd_initialize(&vtd_drhd[i], vtd_ret_paddr);
+        _vtd_drhd_initialize_earlyinit(&vtd_drhd[i], vtd_ret_paddr);
     }
 #else
     printf("%s: initializing DRHD unit %u...\n", __FUNCTION__, i);
-    _vtd_drhd_initialize(&vtd_drhd[0], vtd_ret_paddr);
+    _vtd_drhd_initialize_earlyinit(&vtd_drhd[0], vtd_ret_paddr);
 #endif
 
     // success

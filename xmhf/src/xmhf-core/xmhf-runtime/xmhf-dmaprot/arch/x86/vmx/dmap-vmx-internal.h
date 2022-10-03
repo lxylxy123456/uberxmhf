@@ -51,7 +51,7 @@ extern bool _vtd_verify_cap(VTD_DRHD* vtd_drhd, u32 vtd_num_drhd, struct dmap_vm
 //note that the VT-d documentation does not describe the precise sequence of
 //steps that need to be followed to initialize a DRHD unit!. we use our
 //common sense instead...:p
-extern void _vtd_drhd_initialize(VTD_DRHD *drhd, u32 vtd_ret_paddr);
+extern void _vtd_drhd_initialize_runtime(VTD_DRHD *drhd, u32 vtd_ret_paddr);
 
 // vt-d invalidate cachess note: we do global invalidation currently
 // [NOTE] <drhd0> refers to &vtd_drhd[0] and is used for __XMHF_VERIFICATION__ only.

@@ -485,11 +485,11 @@ u32 xmhf_dmaprot_arch_x86_vmx_enable(spa_t protectedbuffer_paddr,
     FOREACH_S(i, vtd_num_drhd, VTD_MAX_DRHD, 0, 1)
     {
         printf("%s: initializing DRHD unit %u...\n", __FUNCTION__, i);
-        _vtd_drhd_initialize(&vtd_drhd[i], vmx_eap_vtd_ret_paddr);
+        _vtd_drhd_initialize_runtime(&vtd_drhd[i], vmx_eap_vtd_ret_paddr);
     }
 #else
     printf("%s: initializing DRHD unit %u...\n", __FUNCTION__, i);
-    _vtd_drhd_initialize(&vtd_drhd[0], vmx_eap_vtd_ret_paddr);
+    _vtd_drhd_initialize_runtime(&vtd_drhd[0], vmx_eap_vtd_ret_paddr);
 #endif
 
     // Clear VT-d caches
