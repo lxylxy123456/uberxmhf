@@ -7,6 +7,13 @@
 ## Behavior
 Recently received a Dell desktop. Should test XMHF on it.
 
+The machine info is:
+* CPU: `Intel(R) Core(TM) i5-7600 CPU @ 3.50GHz`
+* Address sizes: 39 bits physical, 48 bits virtual
+* Memory: 7.6Gi
+	* 0x0000000000000000-0x00000000cfffffff
+	* 0x0000000100000000-0x000000022fffffff
+
 ## Debugging
 
 ### Set up AMT
@@ -251,6 +258,84 @@ can successfully boot with SMP.
 In `xmhf64-dev 7d1ea3bee`, add the VMCS field `control_XSS_exiting_bitmap` to
 XMHF. As expected, 2540P does not have this field and encouters regression.
 
-TODO: "XSS-exiting bitmap" does not exist in 2540p, see `xmhf64-dev 7d1ea3bee`
-TODO: Dell cannot run `pal_demo`
+In `xmhf64-dev 275e2e6c4`, be able to skip a VMCS field due to not existing.
+Rebased `xmhf64-dev 4da3af3e5..275e2e6c4` to `xmhf64 6c6c3294b`.
+
+### Testing nested virtualization
+
+After git merging, we are at `xmhf64-nest fbd6319d3`. Using
+`./build.sh amd64 fast --mem 0x230000000 --event-logger`, we build nested
+virtualization and copy to the Dell desktop.
+
+Looks like KVM can work well booting 15410 Pebbles Kernel.
+
+Looks like by default XSETBV will cause VMEXITs, and VMEXITs will print a
+message. This becomes too much messages on the serial port when trying to boot
+Debian in KVM. Looks like the cause is in KVM code
+<https://elixir.bootlin.com/linux/v5.10.140/source/arch/x86/kvm/x86.c#L892>:
+
+```
+void kvm_load_host_xsave_state(struct kvm_vcpu *vcpu)
+{
+	if (static_cpu_has(X86_FEATURE_PKU) &&
+	    (kvm_read_cr4_bits(vcpu, X86_CR4_PKE) ||
+	     (vcpu->arch.xcr0 & XFEATURE_MASK_PKRU))) {
+		vcpu->arch.pkru = rdpkru();
+		if (vcpu->arch.pkru != vcpu->arch.host_pkru)
+			__write_pkru(vcpu->arch.host_pkru);
+	}
+
+	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE)) {
+
+		if (vcpu->arch.xcr0 != host_xcr0)
+			xsetbv(XCR_XFEATURE_ENABLED_MASK, host_xcr0);
+
+		if (vcpu->arch.xsaves_enabled &&
+		    vcpu->arch.ia32_xss != host_xss)
+			wrmsrl(MSR_IA32_XSS, host_xss);
+	}
+
+}
+```
+
+Basically KVM is doing the right thing of updating XCR0 when host and guest
+values do not match. We simply need to remove the `printf()` calls and Debian
+can boot. Fixed in `xmhf64 ac3f3a510`. VirtualBox also looks good for booting
+x64 and x86 Debian 11. VMware can boot x86, x86pae, and x64 Debian 11.
+
+The problem is that VirtualBox cannot boot x86 Debian 11 with PAE. This happens
+even without XMHF. The host machine outputs:
+```
+[  258.156665] 
+[  258.156665] !!Assertion Failed!!
+[  258.156665] Expression: (null)
+[  258.156665] Location  : /home/vbox/tinderbox/debian11.0-amd64-build-VBox-6.1/svn/src/VBox/VMM/VMMAll/VMAll.cpp(280) int VMSetRuntimeErrorV(PVMCC, uint32_t, const char*, const char*, __va_list_tag*)
+[  258.156669] Congratulations! You will have the pleasure of debugging the RC/R0 path.
+```
+
+Looks like in VirtualBox configuration,
+`Settings -> System -> Process -> Enable PAE/NX` need to be checked. It is
+strange that VirtualBox ends up with an assertion error, but not something to
+be reported. See <https://forums.virtualbox.org/viewtopic.php?f=6&t=94677>.
+
+Also, interestingly on 2540P, `Enable PAE/NX` does not need to be checked.
+
+After checking `Enable PAE/NX`, XMHF VirtualBox Debian 11 PAE also works well.
+
+### Testing DRT and DMAP
+
+Running DMAP looks fine.
+
+Since this CPU is 7th generation i5, need to download SINIT ACM from Intel.
+The file names are `6th_7th_gen_i5_i7-SINIT_74.zip` and
+`6th_7th_gen_i5_i7_SINIT_79.BIN`. However, running DRT does not work well.
+
+Will work on it in `bug_097`.
+
+## Fix
+
+`xmhf64 427b6d6b7..ac3f3a510`
+* Flush TLB in SL
+* Enable XSAVES/XRSTORS instructions in the guest
+* Allow some VMCS fields to be not existing in XMHF
 
