@@ -212,6 +212,10 @@ bool set_mem_type(void *base, uint32_t size, uint32_t mem_type)
     mtrr_physmask_t mtrr_physmask;
     mtrr_physbase_t mtrr_physbase;
 
+	printf("LXY: base=0x%08llx\n", (u64) (uintptr_t) base);
+	printf("LXY: size=0x%08x\n", size);
+	printf("LXY: mem_type=0x%08x\n", mem_type);
+
     /*
      * disable all fixed MTRRs
      * set default type to UC
@@ -313,10 +317,6 @@ bool set_mem_type(void *base, uint32_t size, uint32_t mem_type)
             return false;
         }
     }
-
-	printf("LXY: base=0x%08llx\n", (u64) (uintptr_t) base);
-	printf("LXY: size=0x%08x\n", size);
-	printf("LXY: mem_type=0x%08x\n", mem_type);
 
     return true;
 }
