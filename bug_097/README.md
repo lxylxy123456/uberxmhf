@@ -304,14 +304,117 @@ mtrrs:
 LXY: print MTRR end
 ```
 
-The MTRRs are covering 0xcced0000-0xccef0000, but we need to cover
+<del>The MTRRs are covering 0xcced0000-0xccef0000, but we need to cover
 0xccef0000-0xccf10000. The MTRR results are not the same as `mtrr2.c`. IIRC
 the MTRRs are different between the input of `wrmsr64()` in `set_mem_type()`
-and the printed value in `print_mtrrs()`.
+and the printed value in `print_mtrrs()`.</del>
 
-TODO: looks like the MTRRs are still wrong
+The previous print of base is wrong, because base changes in function
+`set_mem_type()`. Should instead print the base in the beginning. See
+`xmhf64-dev 2cf3416ca`. The correct values are:
+```
+LXY: base=0xcced0000
+LXY: size=0x00020000
+LXY: mem_type=0x00000006
+```
 
-TODO: print machine check banks
-TODO: try running tboot, compare. I feel that #MC may be related to MTRR
+This time MTRRs are covering the correct memory range.
+
+### Check machine check banks
+
+In `xmhf64-dev baa408dbb`, print machine check MSRs at the start of bootloader.
+Then completely power off the machine, then run XMHF with DRT twice. The serial
+output are in `20221005122111` and `20221005122114`. Can see that
+`IA32_MC9_ADDR` and `IA32_MC9_MISC` changed. `IA32_MC9_ADDR` is `0xf000eec0`,
+which is within reserved memory reported by E820. `IA32_MC9_MISC` is
+`0x0000043020000086`. The lower bits indicate Address Mode = 010 (Physical
+Address) and Recoverable Address LSB = 6.
+
+I think the most important MSR, `IA32_MC9_STATUS`, is cleared on reset. So
+debugging becomes hard. We can try looking into the address `0xf000eec0`, but
+it may not be very helpful.
+
+After trying a few more times, looks like this address is consistent.
+
+### Running tboot
+
+I am able to run tboot 1.9.12 on Dell, which is provided by apt-get in Debian.
+Now need to be able to compile tboot from source in order to change. Maybe
+`bug_046` can help.
+
+To let tboot print to AMT serial port, use the same multiboot2 argument:
+`serial=115200,8n1,0xf0a0`. Sample tboot output is in `20221005142345`.
+Note that tboot prints
+`TBOOT: acpi_table_mcfg @ 0xca50d490, .base_address = 0xf0000000`. This is
+close to the `IA32_MC9_ADDR` address.
+
+Next steps
+* Discover what is in memory 0xf000eec0
+	* MCFG is likely related to PCI, which I think is likely unrelated.
+* Try running tboot, compare. I feel that #MC may be related to MTRR
+	* I think MTRR is checked, probably something else is wrong
+* Try to randomly insert WBINVD and maybe invalidate page table
+	* Not likely, because TXT doc only requires WBINVD before and after MTRR.
+	  Bootloader does not enable paging, and tboot 1.10.4 code does not flush
+	  TLB.
+* Try manually setting more / less memory as WB in MTRR
+	* Not prioritized because reasoning about MTRR above
+
+From comments in XMHF, looks like XMHF used tboot version `tboot-20101005`.
+All versions can be downloaded in
+<https://sourceforge.net/projects/tboot/files/tboot/>. Looks like this version
+contains the MTRR bug I discovered earlier. This explains why XMHF contains 1
+while loop but tboot 1.10.4 contains 2 while loops. Now we have better plans
+* Try running older version of tboot, bisect to see which version breaks
+* Compare different versions of tboot (e.g. `git diff`), can use unofficial Git
+  mirror <https://github.com/tklengyel/tboot>
+	* However, looks like this repository ends at May 2018, but there is active
+	  development in 2022.
+* Update XMHF with newer version of tboot
+
+For now, downloaded 27 tar.gz versions from Source Forge.
+```
+tboot-1.10.5.tar.gz 	2022-03-09 	907.7 kB
+tboot-1.10.4.tar.gz 	2022-02-24 	908.0 kB
+tboot-1.10.3.tar.gz 	2021-12-10 	906.7 kB
+tboot-1.10.2.tar.gz 	2021-06-14 	8.3 MB
+tboot-1.10.1.tar.gz 	2021-03-30 	8.3 MB
+tboot-1.10.0.tar.gz 	2020-12-11 	8.5 MB
+tboot-1.9.12.tar.gz 	2020-04-29 	717.6 kB
+tboot-1.9.11.tar.gz 	2019-12-12 	709.1 kB
+tboot-1.9.10.tar.gz 	2019-04-24 	707.1 kB
+tboot-1.9.9.tar.gz 	2018-11-30 	708.1 kB
+tboot-1.9.8.tar.gz 	2018-10-18 	663.3 kB
+tboot-1.9.7.tar.gz 	2018-09-03 	662.7 kB
+tboot-1.9.6.tar.gz 	2017-07-12 	693.6 kB
+tboot-1.9.5.tar.gz 	2016-12-20 	685.5 kB
+tboot-1.9.4.tar.gz 	2016-08-06 	576.6 kB
+tboot-1.8.3.tar.gz 	2015-05-07 	554.1 kB
+tboot-1.8.2.tar.gz 	2014-07-28 	566.0 kB
+tboot-1.8.1.tar.gz 	2014-05-16 	547.2 kB
+tboot-1.8.0.tar.gz 	2014-01-30 	517.3 kB
+tboot-1.7.4.tar.gz 	2013-08-12 	475.0 kB
+tboot-1.7.3.tar.gz 	2012-12-28 	473.7 kB
+tboot-1.7.2.tar.gz 	2012-09-29 	471.2 kB
+tboot-1.7.1.tar.gz 	2012-04-27 	472.6 kB
+tboot-1.7.0.tar.gz 	2012-01-26 	465.8 kB
+tboot-1.6.tar.gz 	2011-08-04 	459.6 kB
+tboot-20110714.tar.gz 	2011-07-26 	461.3 kB
+tboot-20101005.tar.gz 	2010-11-02 	457.1 kB
+```
+
+### Compiling and running tboot
+
+To compile tboot from source, use
+```sh
+cd tboot
+make -j `nproc`
+```
+
+Then `tboot.gz` is generated. To install, put this file to `/boot/tboot.gz`,
+replacing the previously installed one (using apt-get).
+
+TODO: run old version of tboot, expect failure in tboot-20101005
+TODO: compare XMHF and tboot code
 TODO: TXT.ERRORCODE=8000000c
 
