@@ -196,6 +196,9 @@ bool set_mem_type(const void *base, uint32_t size, uint32_t mem_type)
     mtrr_cap_t mtrr_cap;
     mtrr_physmask_t mtrr_physmask;
     mtrr_physbase_t mtrr_physbase;
+    unsigned long base_v;
+    int i;
+    int mtrr_s;
 
     /*
      * disable all fixed MTRRs
@@ -228,11 +231,10 @@ bool set_mem_type(const void *base, uint32_t size, uint32_t mem_type)
     /*
      * Each VAR MTRR base must be a multiple if that MTRR's Size
     */
-    unsigned long base_v;
     base_v = (unsigned long) base;
-    int i =0;
+    i =0;
     // mtrr size in pages
-    int mtrr_s = 1;
+    mtrr_s = 1;
     while ((base_v & 0x01) == 0) {
           i++;
           base_v = base_v >>1 ;

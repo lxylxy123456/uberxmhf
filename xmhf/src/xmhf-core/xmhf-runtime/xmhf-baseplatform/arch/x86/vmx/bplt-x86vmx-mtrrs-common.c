@@ -194,6 +194,7 @@ bool validate_mtrrs(const mtrr_state_t *saved_state)
         for ( unsigned int i = ndx + 1; i < saved_state->num_var_mtrrs; i++ ) {
             const mtrr_physbase_t *base_i = &saved_state->mtrr_physbases[i];
             const mtrr_physmask_t *mask_i = &saved_state->mtrr_physmasks[i];
+            unsigned int j;
 
             if ( mask_i->v == 0 )
                 continue;
@@ -220,7 +221,6 @@ bool validate_mtrrs(const mtrr_state_t *saved_state)
             /* need to check whether there is a third region which has type */
             /* of UNCACHABLE and contains at least one of these two regions. */
             /* If there is, then the combination of these 3 region is valid */
-            unsigned int j;
             for ( j = 0; j < saved_state->num_var_mtrrs; j++ ) {
                 const mtrr_physbase_t *base_j
                         = &saved_state->mtrr_physbases[j];
