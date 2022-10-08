@@ -45,9 +45,10 @@
  */
 
 /*
- * The following file is taken from tboot-1.10.5/tboot/include/txt/mtrrs.h .
+ * XMHF: The following file is taken from:
+ *  tboot-1.10.5/tboot/include/txt/mtrrs.h
  * Changes made include:
- * Add "__attribute__((packed))" to structs.
+ *  Add "__attribute__((packed))" to structs.
  */
 
 /*
@@ -88,10 +89,7 @@
 #ifndef __TXT_MTRRS_H__
 #define __TXT_MTRRS_H__
 
-/* XXX TODO eliminate this dependency.  txt_heap.h is also dependent
- * on the current file.  tboot code has the ugly structure.  we should
- * do better. */
-//#include "_txt_acmod.h"
+// XMHF: removed #include <txt/acmod.h>
 
 enum fix_mtrr_t {
     MTRR_FIX64K_00000 = 0x250,

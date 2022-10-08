@@ -45,11 +45,31 @@
  */
 
 /*
- * The following file is taken from tboot-1.10.5/tboot/txt/mtrrs.c .
+ * XMHF: The following file is taken from:
+ *  tboot-1.10.5/tboot/txt/mtrrs.c
  * Changes made include:
- * Split to bplt-x86vmx-mtrrs-common.c and bplt-x86vmx-mtrrs-bootloader.c .
- * Remove use of global variable g_saved_mtrrs.
- * TODO
+ *  Split to bplt-x86vmx-mtrrs-common.c and bplt-x86vmx-mtrrs-bootloader.c .
+ *  Remove use of global variable g_saved_mtrrs.
+ * The list of symbols in the order of appearance in mtrrs.c is:
+ *  symbol                  location    comment
+ *  MTRR_TYPE_MIXED         common
+ *  MMIO_APIC_BASE          common
+ *  NR_MMIO_APIC_PAGES      common
+ *  NR_MMIO_IOAPIC_PAGES    common
+ *  NR_MMIO_PCICFG_PAGES    common
+ *  SINIT_MTRR_MASK         bootloader
+ *  g_saved_mtrrs           discarded
+ *  get_maxphyaddr_mask     common
+ *  set_mtrrs_for_acmod     bootloader
+ *  save_mtrrs              bootloader
+ *  print_mtrrs             common      set to non-static
+ *  get_page_type           discarded
+ *  get_region_type         discarded
+ *  validate_mmio_regions   discarded
+ *  validate_mtrrs          common
+ *  restore_mtrrs           common
+ *  set_mem_type            bootloader
+ *  set_all_mtrrs           common
  */
 
 /*
