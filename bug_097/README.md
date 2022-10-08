@@ -414,7 +414,166 @@ make -j `nproc`
 Then `tboot.gz` is generated. To install, put this file to `/boot/tboot.gz`,
 replacing the previously installed one (using apt-get).
 
-TODO: run old version of tboot, expect failure in tboot-20101005
-TODO: compare XMHF and tboot code
+Running `tboot-1.10.5` (newest version) is easy, but running `tboot-20101005`
+has some challenges
+* Compiler warnings appear, need to remove `-Werror` in `Config.mk`
+* multiboot2 is not supported, need to use multiboot. Change all `multiboot2`
+  to `multiboot` and `module2` to `module`.
+
+```
+results/20221007133734-tboot-1.10.5		good (can boot Linux)
+tboot-1.10.4
+tboot-1.10.3
+tboot-1.10.2
+tboot-1.10.1
+tboot-1.10.0
+tboot-1.9.12
+tboot-1.9.11
+tboot-1.9.10
+results/20221007135745-tboot-1.9.9		good (can boot Linux)
+tboot-1.9.8
+tboot-1.9.7
+tboot-1.9.6
+tboot-1.9.5
+tboot-1.9.4
+results/20221007140124-tboot-1.8.3		TXT.ERRORCODE: 0xc0060000
+results/20221007141811-tboot-1.8.2		Unable to test: TPM not ready
+tboot-1.8.1
+results/20221007141345-tboot-1.8.0		Unable to test: TPM not ready
+results/20221007141025-tboot-1.7.4		Unable to test: TPM not ready
+tboot-1.7.3
+tboot-1.7.2
+tboot-1.7.1
+tboot-1.7.0
+tboot-1.6
+results/20221007135309-tboot-20101005	Unable to test: TPM not ready
+```
+
+Notes:
+* tboot-1.10.5: good
+* tboot-20101005: need multiboot, bug before `GETSEC[SENTER]` is attempted
+* tboot-1.9.9: good
+* tboot-1.8.3: another bug, but happens after `GETSEC[SENTER]`
+* tboot-1.7.4: need multiboot, same as tboot-20101005
+* tboot-1.8.0: have multiboot2, bug same as tboot-20101005 and tboot-1.7.4
+* tboot-1.8.2: same as tboot-1.8.0
+
+The above experiments indicate that the bug should be fixed between
+`tboot-20101005` and `tboot-1.8.3`. However older versions cannot be
+reproduced, so we try to manually review the code
+
+* bca156d tboot-1.8.3.tar.gz
+* c436549 tboot-1.8.2.tar.gz
+* f8eaf0e tboot-1.8.1.tar.gz
+* 87f8cfa tboot-1.8.0.tar.gz
+* a81d112 tboot-1.7.4.tar.gz
+* 29c58cb tboot-1.7.3.tar.gz
+* 85a1945 tboot-1.7.2.tar.gz
+* 2f4f636 tboot-1.7.1.tar.gz
+* 630b424 tboot-1.7.0.tar.gz
+* 3197047 tboot-1.6.tar.gz
+	* Bug in `mtrrs.c` fixed
+* a5aab18 tboot-20101005.tar.gz
+	* Initial commit, no review
+
+It becomes a pain to review all the code because there are too much change.
+However, in the mean time I noticed that XMHF prints two warnings (e.g.
+`20221003221201`)
+```
+unsupported BIOS data version (6)
+SINIT's os_sinit_data version unsupported (7)
+```
+
+However, Intel TXT manual says the data structures should be backward
+compatible, so likely not related to the error.
+
+Current ideas:
+* Print and compare data structures between XMHF and tboot
+* Replace XMHF code with new tboot version code
+* Review XMHF code, check with TXT documentation
+* Manually implement TXT documentation
+
+### How XMHF adapts tboot code
+
+Search for the following to find files that are likely adapted from Intel
+* "Intel Corporation" (comment for copyright)
+* `__DRT__`
+* `$(DRT)` in Makefile
+* `tboot`
+
+Files in XMHF:
+* `xmhf/src/libbaremetal/libtpm/include/tpm.h`
+	* line 108 - 330 are from `tboot/include/tpm.h`
+* `xmhf/src/libbaremetal/libtpm/tpm.c`
+	* Selected functions from `tboot/common/tpm.c`
+* `xmhf/src/libbaremetal/libtpm/tpm_extra.c`
+	* Rest of `tboot/common/tpm.c`, looks like not used
+* `xmhf/src/libbaremetal/libxmhfutil/cmdline.c`
+	* `get_option_val()` and `cmdline_parse()` from `tboot/common/cmdline.c`
+* `xmhf/src/xmhf-core/include/arch/x86/_cmdline.h`
+	* From `tboot/include/cmdline.h`
+* `xmhf/src/xmhf-core/include/arch/x86/_com.h`
+	* Not related
+* `xmhf/src/xmhf-core/include/arch/x86/_error.h`
+	* From `tboot/include/misc.h`
+* `xmhf/src/xmhf-core/include/arch/x86/_msr.h`
+	* Not related
+* `xmhf/src/xmhf-core/include/arch/x86/_txt_acmod.h`
+	* From `tboot/include/txt/acmod.h`
+* `xmhf/src/xmhf-core/include/arch/x86/_txt_config_regs.h`
+	* From `tboot/include/txt/config_regs.h` and `tboot/include/txt/errorcode.h`
+* `xmhf/src/xmhf-core/include/arch/x86/_txt.h`
+	* Not related
+* `xmhf/src/xmhf-core/include/arch/x86/_txt_hash.h`
+	* From `include/hash.h`
+* `xmhf/src/xmhf-core/include/arch/x86/_txt_heap.h`
+	* From `tboot/include/txt/heap.h`
+* `xmhf/src/xmhf-core/include/arch/x86/_txt_mle.h`
+	* From `include/mle.h` and `include/uuid.h` and `include/tb_error.h`
+* `xmhf/src/xmhf-core/include/arch/x86/_txt_mtrrs.h`
+	* From `tboot/include/txt/mtrrs.h`
+* `xmhf/src/xmhf-core/include/arch/x86/_txt_smx.h`
+	* From `tboot/include/txt/smx.h`
+* `xmhf/src/xmhf-core/include/arch/x86/xmhf-tpm-arch-x86.h`
+	* Not related
+* `xmhf/src/xmhf-core/xmhf-bootloader/cmdline.c`
+	* From `tboot/common/cmdline.c`
+* `xmhf/src/xmhf-core/xmhf-bootloader/init.c`
+	* `txt_supports_txt()`: based on `tboot/txt/verify.c` function
+	  `supports_vmx()`, `supports_smx()`, ...
+	* `txt_verify_platform()`: based on `tboot/txt/verify.c`
+	* `txt_status_regs()`: based on `tboot/txt/errors.c`
+* `xmhf/src/xmhf-core/xmhf-bootloader/txt_acmod.c`
+	* From `tboot/txt/acmod.c`
+* `xmhf/src/xmhf-core/xmhf-bootloader/txt.c`
+	* From `tboot/txt/txt.c`
+* `xmhf/src/xmhf-core/xmhf-bootloader/txt_hash.c`
+	* From `tboot/common/hash.c`
+* `xmhf/src/xmhf-core/xmhf-bootloader/txt_heap.c`
+	* From `tboot/txt/heap.c`
+* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.c`
+	* Call to `restore_mtrrs()` etc: from `tboot/txt/txt.c` function
+	  `txt_post_launch()`
+* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs-bootloader.c`
+	* Some functions in `tboot/txt/mtrrs.c`
+* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs-common.c`
+	* Other functions in `tboot/txt/mtrrs.c`
+* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-smp.c`
+	* `__DRT__`: wake up APs, from `tboot/txt/txt.c` function `txt_wakeup_cpus()`
+* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-startup/runtime.c`
+	* Not related (`vmx_eap_zap()`)
+* `xmhf/src/xmhf-core/xmhf-secureloader/arch/x86/sl-x86.c`
+	* Call to `restore_mtrrs()` etc: from `tboot/txt/txt.c` function
+	  `txt_post_launch()`
+* `xmhf/src/xmhf-core/xmhf-secureloader/sl.c`
+	* Not related
+
+Modifications to be noticed
+* `printk() -> printf()`
+* XMHF has "ISO C90 forbids mixed declarations and code", but tboot does not
+* Check changes to support x64 XMHF
+
+TODO: post question on debugging 8000000c on Intel forum
+TODO: update with new version of tboot
 TODO: TXT.ERRORCODE=8000000c
 
