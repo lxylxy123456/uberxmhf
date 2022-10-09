@@ -332,6 +332,7 @@ void print_txt_caps(const char *prefix, txt_caps_t caps)
 static void print_acm_hdr(const acm_hdr_t *hdr, const char *mod_name)
 {
     acm_info_table_t *info_table;
+    acm_chipset_id_list_t *chipset_id_list;
 
     printf("AC module header dump for %s:\n",
            (mod_name == NULL) ? "?" : mod_name);
@@ -404,15 +405,16 @@ static void print_acm_hdr(const acm_hdr_t *hdr, const char *mod_name)
 
     /* chipset list */
     printf("\t chipset list:\n");
-    acm_chipset_id_list_t *chipset_id_list = get_acmod_chipset_list(hdr);
+    chipset_id_list = get_acmod_chipset_list(hdr);
     if ( chipset_id_list == NULL ) {
         printf("\t\t <invalid>\n");
         return;
     }
     printf("\t\t count: %u\n", chipset_id_list->count);
     for ( unsigned int i = 0; i < chipset_id_list->count; i++ ) {
+        acm_chipset_id_t *chipset_id;
         printf("\t\t entry %u:\n", i);
-        acm_chipset_id_t *chipset_id = &(chipset_id_list->chipset_ids[i]);
+        chipset_id = &(chipset_id_list->chipset_ids[i]);
         printf("\t\t     flags: 0x%x\n", chipset_id->flags);
         printf("\t\t     vendor_id: 0x%x\n", (uint32_t)chipset_id->vendor_id);
         printf("\t\t     device_id: 0x%x\n", (uint32_t)chipset_id->device_id);
@@ -422,17 +424,19 @@ static void print_acm_hdr(const acm_hdr_t *hdr, const char *mod_name)
     }
 
     if ( info_table->version >= 4 ) {
+        acm_processor_id_list_t *proc_id_list;
         /* processor list */
         printf("\t processor list:\n");
-        acm_processor_id_list_t *proc_id_list = get_acmod_processor_list(hdr);
+        proc_id_list = get_acmod_processor_list(hdr);
         if ( proc_id_list == NULL ) {
             printf("\t\t <invalid>\n");
             return;
         }
         printf("\t\t count: %u\n", proc_id_list->count);
         for ( unsigned int i = 0; i < proc_id_list->count; i++ ) {
+            acm_processor_id_t *proc_id;
             printf("\t\t entry %u:\n", i);
-            acm_processor_id_t *proc_id = &(proc_id_list->processor_ids[i]);
+            proc_id = &(proc_id_list->processor_ids[i]);
             printf("\t\t     fms: 0x%x\n", proc_id->fms);
             printf("\t\t     fms_mask: 0x%x\n", proc_id->fms_mask);
             printf("\t\t     platform_id: 0x%Lx\n", (unsigned long long)proc_id->platform_id);
@@ -441,9 +445,10 @@ static void print_acm_hdr(const acm_hdr_t *hdr, const char *mod_name)
     }
 
     if ( info_table->version >= 5 ){
+        tpm_info_list_t *info_list;
         /* tpm infor list */
         printf("\t TPM info list:\n");
-        tpm_info_list_t *info_list = get_tpm_info_list(hdr);
+        info_list = get_tpm_info_list(hdr);
         if ( info_list == NULL ) {
             printf("\t\t <invalid>\n");
             return;
@@ -509,6 +514,7 @@ static bool are_sizes_equal_pad_adjusted(uint32_t acmod_size, acm_hdr_t *acm_hdr
 static bool is_acmod(const void *acmod_base, uint32_t acmod_size, uint8_t *type, bool quiet)
 {
     acm_hdr_t *acm_hdr = (acm_hdr_t *)acmod_base;
+    acm_info_table_t *info_table;
 
     /* first check size */
     if ( acmod_size < sizeof(acm_hdr_t) ) {
@@ -544,7 +550,7 @@ static bool is_acmod(const void *acmod_base, uint32_t acmod_size, uint8_t *type,
         return false;
     }
 
-    acm_info_table_t *info_table = get_acmod_info_table(acm_hdr);
+    info_table = get_acmod_info_table(acm_hdr);
     if ( info_table == NULL )
         return false;
 
@@ -616,6 +622,14 @@ bool does_acmod_match_platform(const acm_hdr_t* hdr)
 {
     /* used to ensure we don't print chipset/proc info for each module */
     static bool printed_host_info;
+    txt_heap_t *txt_heap;
+    bios_data_t *bios_data;
+    txt_didvid_t didvid;
+    txt_ver_fsbif_qpiif_t ver;
+    uint64_t platform_id;
+    uint32_t fms;
+    acm_chipset_id_list_t *chipset_id_list;
+    unsigned int i;
 
     /* this fn assumes that the ACM has already passed the is_acmod() checks */
     acm_info_table_t *info_table = get_acmod_info_table(hdr);
@@ -623,8 +637,8 @@ bool does_acmod_match_platform(const acm_hdr_t* hdr)
         return false;
 
     /* verify client/server platform match */
-    txt_heap_t *txt_heap = get_txt_heap();
-    bios_data_t *bios_data = get_bios_data_start(txt_heap);
+    txt_heap = get_txt_heap();
+    bios_data = get_bios_data_start(txt_heap);
     if (info_table->version >= 5 && bios_data->version >= 6) {
         uint32_t bios_type = bios_data->flags.bits.mle.platform_type;
         uint32_t sinit_type = info_table->capabilities.platform_type;
@@ -641,9 +655,7 @@ bool does_acmod_match_platform(const acm_hdr_t* hdr)
     }
 
     /* get chipset fusing, device, and vendor id info */
-    txt_didvid_t didvid;
     didvid._raw = read_pub_config_reg(TXTCR_DIDVID);
-    txt_ver_fsbif_qpiif_t ver;
     ver._raw = read_pub_config_reg(TXTCR_VER_FSBIF);
     if ( (ver._raw & 0xffffffff) == 0xffffffff ||
          (ver._raw & 0xffffffff) == 0x00 )         /* need to use VER.QPIIF */
@@ -655,8 +667,7 @@ bool does_acmod_match_platform(const acm_hdr_t* hdr)
     }
 
     /* get processor family/model/stepping and platform ID */
-    uint64_t platform_id;
-    uint32_t fms = cpuid_eax(1);
+    fms = cpuid_eax(1);
     platform_id = rdmsr64(IA32_PLATFORM_ID);
     if ( !printed_host_info ) {
         printf("processor family/model/stepping: 0x%x\n", fms );
@@ -675,12 +686,11 @@ bool does_acmod_match_platform(const acm_hdr_t* hdr)
     /*
      * check if chipset vendor/device/revision IDs match
      */
-    acm_chipset_id_list_t *chipset_id_list = get_acmod_chipset_list(hdr);
+    chipset_id_list = get_acmod_chipset_list(hdr);
     if ( chipset_id_list == NULL )
         return false;
 
     printf("\t %x ACM chipset id entries:\n", chipset_id_list->count);
-    unsigned int i;
     for ( i = 0; i < chipset_id_list->count; i++ ) {
         acm_chipset_id_t *chipset_id = &(chipset_id_list->chipset_ids[i]);
         printf("\t     vendor: 0x%x, device: 0x%x, flags: 0x%x, "
@@ -735,10 +745,13 @@ bool does_acmod_match_platform(const acm_hdr_t* hdr)
 
 acm_hdr_t *get_bios_sinit(const void *sinit_region_base)
 {
+    txt_heap_t *txt_heap;
+    bios_data_t *bios_data;
+
     if ( sinit_region_base == NULL )
        return NULL;
-    txt_heap_t *txt_heap = get_txt_heap();
-    bios_data_t *bios_data = get_bios_data_start(txt_heap);
+    txt_heap = get_txt_heap();
+    bios_data = get_bios_data_start(txt_heap);
 
     if ( bios_data->bios_sinit_size == 0 )
         return NULL;
@@ -784,13 +797,14 @@ acm_hdr_t *copy_sinit(const acm_hdr_t *sinit)
     void *sinit_region_base =
         (void*)(unsigned long)read_pub_config_reg(TXTCR_SINIT_BASE);
     uint32_t sinit_region_size = (uint32_t)read_pub_config_reg(TXTCR_SINIT_SIZE);
+    acm_hdr_t *bios_sinit;
     printf("TXT.SINIT.BASE: %p\n", sinit_region_base);
     printf("TXT.SINIT.SIZE: 0x%x (%u)\n", sinit_region_size, sinit_region_size);
 
     /*
      * check if BIOS already loaded an SINIT module there
      */
-    acm_hdr_t *bios_sinit = get_bios_sinit(sinit_region_base);
+    bios_sinit = get_bios_sinit(sinit_region_base);
     if ( bios_sinit != NULL ) {
         /* no other SINIT was provided so must use one BIOS provided */
         if ( sinit == NULL ) {
@@ -955,6 +969,8 @@ bool verify_acmod(const acm_hdr_t *acm_hdr)
     // XMHF: Remove check of params.acm_max_size in verify_acmod().
     //getsec_parameters_t params;
     uint32_t size;
+    acm_info_table_t *info_table;
+    txt_caps_t caps_mask = { 0 };
 
     /* assumes this already passed is_acmod() test */
 
@@ -1026,7 +1042,7 @@ bool verify_acmod(const acm_hdr_t *acm_hdr)
      * check for compatibility with this MLE
      */
 
-    acm_info_table_t *info_table = get_acmod_info_table(acm_hdr);
+    info_table = get_acmod_info_table(acm_hdr);
     if ( info_table == NULL )
         return false;
 
@@ -1039,7 +1055,6 @@ bool verify_acmod(const acm_hdr_t *acm_hdr)
 
     /* check capabilities */
     /* we need to match one of rlp_wake_{getsec, monitor} */
-    txt_caps_t caps_mask = { 0 };
     caps_mask.rlp_wake_getsec = caps_mask.rlp_wake_monitor = 1;
 
     if ( ( ( MLE_HDR_CAPS & caps_mask._raw ) &
