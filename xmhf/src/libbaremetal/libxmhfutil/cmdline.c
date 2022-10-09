@@ -160,6 +160,12 @@ void cmdline_parse(const char *cmdline, const cmdline_option_t *options,
     /* parse options */
     while ( true )
     {
+        const char *opt_start;
+        const char *opt_end;
+        const char *val_start;
+        unsigned int opt_name_size;
+        unsigned int copy_size;
+
         /* skip whitespace */
         while ( isspace(*p) )
             p++;
@@ -167,20 +173,20 @@ void cmdline_parse(const char *cmdline, const cmdline_option_t *options,
             break;
 
         /* find end of current option */
-        const char *opt_start = p;
-        const char *opt_end = strchr(opt_start, ' ');
+        opt_start = p;
+        opt_end = strchr(opt_start, ' ');
         if ( opt_end == NULL )
             opt_end = opt_start + strlen(opt_start);
         p = opt_end;
 
         /* find value part; if no value found, use default and continue */
-        const char *val_start = strchr(opt_start, '=');
+        val_start = strchr(opt_start, '=');
         if ( val_start == NULL || val_start > opt_end )
             continue;
         val_start++;
 
-        unsigned int opt_name_size = val_start - opt_start - 1;
-        unsigned int copy_size = opt_end - val_start;
+        opt_name_size = val_start - opt_start - 1;
+        copy_size = opt_end - val_start;
         if ( copy_size > MAX_VALUE_LEN - 1 )
             copy_size = MAX_VALUE_LEN - 1;
         if ( opt_name_size == 0 || copy_size == 0 )
