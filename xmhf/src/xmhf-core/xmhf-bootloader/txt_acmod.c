@@ -49,6 +49,7 @@
  *  tboot-1.10.5/tboot/txt/acmod.c
  * Changes made include:
  *  Change return type of __getsec_capabilities() to uint32_t.
+ *  Remove RACM functions.
  *  TODO: Commented verify_IA32_se_svn_status().
  *  Remove check of params.acm_max_size in verify_acmod().
  */
@@ -767,7 +768,7 @@ acm_hdr_t *get_bios_sinit(const void *sinit_region_base)
     return (acm_hdr_t *)sinit_region_base;
 }
 
-// XMHF: remove RACM functions.
+// XMHF: Remove RACM functions.
 //static void *alloc_racm_region(uint32_t size)
 //{
 //    /* TODO: find a real unused memory place through mbi */
@@ -851,7 +852,7 @@ acm_hdr_t *copy_sinit(const acm_hdr_t *sinit)
     return (acm_hdr_t *)sinit_region_base;
 }
 
-// XMHF: remove RACM functions.
+// XMHF: Remove RACM functions.
 //bool verify_racm(const acm_hdr_t *acm_hdr)
 //{
 //    getsec_parameters_t params;
