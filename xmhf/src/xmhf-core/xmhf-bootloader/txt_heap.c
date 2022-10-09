@@ -864,7 +864,7 @@ static void print_sinit_mdrs(const sinit_mdr_t mdrs[], uint32_t num_mdrs)
 
     printf("\t sinit_mdrs:\n");
     for ( unsigned int i = 0; i < num_mdrs; i++ ) {
-        printf("\t\t %016Lx - %016Lx ", mdrs[i].base,
+        printf("\t\t %016llx - %016llx ", mdrs[i].base,
                mdrs[i].base + mdrs[i].length);
         if ( mdrs[i].mem_type < sizeof(mem_types)/sizeof(mem_types[0]) )
             printf("(%s)\n", mem_types[mdrs[i].mem_type]);
