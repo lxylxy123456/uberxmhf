@@ -223,7 +223,7 @@ static bool check_sinit_module(void *base, size_t size)
     printf("chipset production fused: %x\n", ver.prod_fused );
 
     if ( is_sinit_acmod(base, size, false) &&
-         does_acmod_match_chipset((acm_hdr_t *)base) ) {
+         does_acmod_match_platform((acm_hdr_t *)base) ) {
         printf("SINIT matches platform\n");
         return true;
     }
