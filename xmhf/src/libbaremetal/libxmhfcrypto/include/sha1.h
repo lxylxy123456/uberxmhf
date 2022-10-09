@@ -48,10 +48,10 @@
 #define __SHA1_H__
 
 #define SHA1_RESULTLEN (160/8)
-#define SHA_DIGEST_LENGTH	SHA1_RESULTLEN
+#define SHA1_DIGEST_LENGTH	SHA1_RESULTLEN
 
 int sha1_buffer(const unsigned char *buffer, size_t len,
-                unsigned char md[SHA_DIGEST_LENGTH]);
+                unsigned char md[SHA1_DIGEST_LENGTH]);
 
 // utility function to perform a SHA-1 hash and print result
 void hashandprint(const char* prefix, const u8 *bytes, size_t len);
