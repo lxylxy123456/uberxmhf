@@ -147,6 +147,8 @@ void print_event(const tpm12_pcr_event_t *evt)
 
 static void print_evt_log(const event_log_container_t *elog)
 {
+    const tpm12_pcr_event_t *curr, *next;
+
     printf("\t\t\t Event Log Container:\n");
     printf("\t\t\t     Signature: %s\n", elog->signature);
     printf("\t\t\t  ContainerVer: %u.%u\n",
@@ -157,7 +159,6 @@ static void print_evt_log(const event_log_container_t *elog)
     printf("\t\t\t  EventsOffset: [%u,%u]\n",
            elog->pcr_events_offset, elog->next_event_offset);
 
-    const tpm12_pcr_event_t *curr, *next;
     curr = (tpm12_pcr_event_t *)((void*)elog + elog->pcr_events_offset);
     next = (tpm12_pcr_event_t *)((void*)elog + elog->next_event_offset);
 
@@ -331,6 +332,9 @@ static void print_evt_log_ptr_elt_2(const heap_ext_data_element_t *elt)
     printf("\t\t      count: %d\n", elog_elt->count);
 
     for ( unsigned int i=0; i<elog_elt->count; i++ ) {
+        uint32_t hash_size, data_size;
+        void *curr, *next;
+
         log_descr = &elog_elt->event_log_descr[i];
         printf("\t\t\t Log Descrption:\n");
         printf("\t\t\t             Alg: %u\n", log_descr->alg);
@@ -344,12 +348,9 @@ static void print_evt_log_ptr_elt_2(const heap_ext_data_element_t *elt)
             continue;
         }
 
-        uint32_t hash_size, data_size;
         hash_size = get_hash_size(log_descr->alg);
         if ( hash_size == 0 )
             return;
-
-        void *curr, *next;
 
         curr = (void *)(unsigned long)log_descr->phys_addr +
                 log_descr->pcr_events_offset;
@@ -382,6 +383,8 @@ static void print_evt_log_ptr_elt_2(const heap_ext_data_element_t *elt)
 static void print_evt_log_ptr_elt_2_1(const heap_ext_data_element_t *elt)
 {
     const heap_event_log_ptr_elt2_1_t *elog_elt = (const heap_event_log_ptr_elt2_1_t *)elt->data;
+    void *curr, *next;
+    uint32_t event_header_data_size;
 
     printf("\t TCG EVENT_LOG_PTR:\n");
     printf("\t\t       type: %d\n", elt->type);
@@ -395,11 +398,10 @@ static void print_evt_log_ptr_elt_2_1(const heap_ext_data_element_t *elt)
         printf("\t\t\t No Event Log found.\n");
         return;
     }
-    void *curr, *next;
 
     curr = (void *)(unsigned long)elog_elt->phys_addr + elog_elt->first_record_offset;
     next = (void *)(unsigned long)elog_elt->phys_addr + elog_elt->next_record_offset;
-    uint32_t event_header_data_size = print_event_2_1_log_header(curr);
+    event_header_data_size = print_event_2_1_log_header(curr);
 
     curr += sizeof(tcg_pcr_event) + event_header_data_size;
     while ( curr < next ) {
@@ -624,6 +626,9 @@ bool verify_bios_data(const txt_heap_t *txt_heap)
 {
     uint64_t heap_base = read_pub_config_reg(TXTCR_HEAP_BASE);
     uint64_t heap_size = read_pub_config_reg(TXTCR_HEAP_SIZE);
+    uint64_t size;
+    bios_data_t *bios_data;
+
     printf("TXT.HEAP.BASE: 0x%jx\n", heap_base);
     printf("TXT.HEAP.SIZE: 0x%jx (%ju)\n", heap_size, heap_size);
 
@@ -632,7 +637,7 @@ bool verify_bios_data(const txt_heap_t *txt_heap)
         return false;
 
     /* check size */
-    uint64_t size = get_bios_data_size(txt_heap);
+    size = get_bios_data_size(txt_heap);
     if ( size == 0 ) {
         printf("BIOS data size is 0\n");
         return false;
@@ -643,7 +648,7 @@ bool verify_bios_data(const txt_heap_t *txt_heap)
         return false;
     }
 
-    bios_data_t *bios_data = get_bios_data_start(txt_heap);
+    bios_data = get_bios_data_start(txt_heap);
 
     /* check version */
     if ( bios_data->version < 2 ) {
@@ -941,6 +946,11 @@ static bool verify_sinit_mle_data(const txt_heap_t *txt_heap)
 
 bool verify_txt_heap(const txt_heap_t *txt_heap, bool bios_data_only)
 {
+    uint64_t size1;
+    uint64_t size2;
+    uint64_t size3;
+    uint64_t size4;
+
     /* verify BIOS to OS data */
     if ( !verify_bios_data(txt_heap) )
         return false;
@@ -949,10 +959,10 @@ bool verify_txt_heap(const txt_heap_t *txt_heap, bool bios_data_only)
         return true;
 
     /* check that total size is within the heap */
-    uint64_t size1 = get_bios_data_size(txt_heap);
-    uint64_t size2 = get_os_mle_data_size(txt_heap);
-    uint64_t size3 = get_os_sinit_data_size(txt_heap);
-    uint64_t size4 = get_sinit_mle_data_size(txt_heap);
+    size1 = get_bios_data_size(txt_heap);
+    size2 = get_os_mle_data_size(txt_heap);
+    size3 = get_os_sinit_data_size(txt_heap);
+    size4 = get_sinit_mle_data_size(txt_heap);
 
     /* overflow? */
     if ( plus_overflow_u64(size1, size2) ) {
