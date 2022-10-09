@@ -492,6 +492,7 @@ Current ideas:
 * Replace XMHF code with new tboot version code
 * Review XMHF code, check with TXT documentation
 * Manually implement TXT documentation
+* Make tboot < 1.8.3 reproducible to bisect more
 
 ### How XMHF adapts tboot code
 
@@ -510,10 +511,12 @@ Files in XMHF:
 	* Rest of `tboot/common/tpm.c`, looks like not used
 * `xmhf/src/libbaremetal/libxmhfutil/cmdline.c`
 	* `get_option_val()` and `cmdline_parse()` from `tboot/common/cmdline.c`
+* `xmhf/src/libbaremetal/libxmhfutil/include/cmdline.h`
+	* From `tboot/include/cmdline.h`
 * `xmhf/src/xmhf-core/include/arch/x86/_cmdline.h`
 	* From `tboot/include/cmdline.h`
 * `xmhf/src/xmhf-core/include/arch/x86/_com.h`
-	* Not related
+	* From `tboot/include/com.h`
 * `xmhf/src/xmhf-core/include/arch/x86/_error.h`
 	* From `tboot/include/misc.h`
 * `xmhf/src/xmhf-core/include/arch/x86/_msr.h`
@@ -569,11 +572,152 @@ Files in XMHF:
 	* Not related
 
 Modifications to be noticed
-* `printk() -> printf()`
+* Replace the following with `printf(`
+	* tboot-20101005: replace `printk(`
+	* tboot-1.10.5: replace re `printk\(TBOOT_(NONE|ERR|WARN|INFO|DETA|ALL)`
+* Change in symbol names
+	* `wrmsr -> wrmsr64`
+	* `rdmsr -> rdmsr64`
+	* `read_eflags -> get_eflags` (manual, because how to call)
+	* `write_eflags -> set_eflags`
+	* `PAGE_SIZE -> PAGE_SIZE_4K`
+	* `PAGE_SHIFT -> PAGE_SHIFT_4K`
+	* `PAGE_UP -> PAGE_ALIGN_UP_4K` (manual, because type matters)
+	* `tb_strcmp -> strcmp`
+	* `tb_strlen -> strlen`
+	* `tb_strchr -> strchr`
+	* `tb_strncmp -> strncmp`
+	* `tb_strncpy -> strncpy`
+	* `__text -> (dropped)` (manual)
+	* `tb_memcpy -> memcpy`
+	* `tb_memcmp -> memcmp`
+	* `__packed -> __attribute__((packed))` (manual)
+	* `%Lx -> %llx` in printf (manual)
+* Remove spaces at end of line
 * XMHF has "ISO C90 forbids mixed declarations and code", but tboot does not
+	* To workaround, can remove `-Wdeclaration-after-statement` in Makefile
+* Header file names need to be changed
+	* Usually XMHF combines header files to `<xmhf.h>`
 * Check changes to support x64 XMHF
+* Remove ifdefs on `IS_INCLUDED`
+
+```sh
+tboot-sed () {
+
+sed \
+ -e 's/\bprintk(\(TBOOT_\(NONE\|ERR\|WARN\|INFO\|DETA\|ALL\)\b\)\?/printf(/g' \
+ -e 's/\bwrmsr\b/wrmsr64/g' \
+ -e 's/\brdmsr\b/rdmsr64/g' \
+ -e 's/\bPAGE_SIZE\b/PAGE_SIZE_4K/g' \
+ -e 's/\bPAGE_SHIFT\b/PAGE_SHIFT_4K/g' \
+ -e 's/\bread_eflags\b/get_eflags/g' \
+ -e 's/\bwrite_eflags\b/set_eflags/g' \
+ -e 's/[[:blank:]]*$//' \
+ -e 's/\btb_strcmp\b/strcmp/g' \
+ -e 's/\btb_strlen\b/strlen/g' \
+ -e 's/\btb_strchr\b/strchr/g' \
+ -e 's/\btb_strncmp\b/strncmp/g' \
+ -e 's/\btb_strncpy\b/strncpy/g' \
+ -e 's/\btb_memcpy\b/memcpy/g' \
+ -e 's/\btb_memcmp\b/memcmp/g' \
+ "$@"
+
+}
+```
+
+Start a new branch called `xmhf64-tboot10` to perform the change. Based on
+`xmhf64 c426b0e0e`.
+
+Progress:
+* `c426b0e0e..fe67bc73e`
+	* `xmhf/src/xmhf-core/include/arch/x86/_txt_mtrrs.h`
+		* From `tboot/include/txt/mtrrs.h`
+	* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs-bootloader.c`
+		* Some functions in `tboot/txt/mtrrs.c`
+	* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs-common.c`
+		* Other functions in `tboot/txt/mtrrs.c`
+* `fe67bc73e..156acde75`
+	* `xmhf/src/libbaremetal/libxmhfutil/cmdline.c`
+		* `get_option_val()` and `cmdline_parse()` from `tboot/common/cmdline.c`
+	* `xmhf/src/libbaremetal/libxmhfutil/include/cmdline.h`
+		* From `tboot/include/cmdline.h`
+	* `xmhf/src/xmhf-core/include/arch/x86/_cmdline.h`
+		* From `tboot/include/cmdline.h`
+	* `xmhf/src/xmhf-core/include/arch/x86/_com.h`
+		* From `tboot/include/com.h`
+	* `xmhf/src/xmhf-core/xmhf-bootloader/cmdline.c`
+		* From `tboot/common/cmdline.c`
+* `156acde75..eac573336`
+	* `xmhf/src/xmhf-core/include/arch/x86/_error.h`
+		* From `tboot/include/misc.h`
+* `eac573336..c97a02172`
+	* `xmhf/src/xmhf-core/include/arch/x86/_txt_hash.h`
+		* From `include/hash.h`
+	* `xmhf/src/xmhf-core/xmhf-bootloader/txt_hash.c`
+		* From `tboot/common/hash.c`
+* `c97a02172..558ae22df`
+	* `xmhf/src/xmhf-core/include/arch/x86/_txt_mle.h`
+		* From `include/mle.h` and `include/uuid.h` and `include/tb_error.h`
+* `558ae22df..daabfe306`
+	* `xmhf/src/xmhf-core/include/arch/x86/_txt_heap.h`
+		* From `tboot/include/txt/heap.h`
+	* `xmhf/src/xmhf-core/xmhf-bootloader/txt_heap.c`
+		* From `tboot/txt/heap.c`
+* `daabfe306..`
+
+TODO
+
+* `xmhf/src/xmhf-core/include/arch/x86/_txt_config_regs.h`
+	* From `tboot/include/txt/config_regs.h` and `tboot/include/txt/errorcode.h`
+* acmod
+	* Partial work: 5ae921eb0 (384f8b507, xmhf64-tboot10-tmp)
+		* TODO: add "Remove check of params.acm_max_size in verify_acmod()."
+		* Blocked on `_txt_config_regs`
+		* `verify_IA32_se_svn_status` is blocked on `tpm`
+	* `xmhf/src/xmhf-core/include/arch/x86/_txt_acmod.h`
+		* From `tboot/include/txt/acmod.h`
+	* `xmhf/src/xmhf-core/xmhf-bootloader/txt_acmod.c`
+		* From `tboot/txt/acmod.c`
+* `xmhf/src/xmhf-core/include/arch/x86/_txt_smx.h`
+	* From `tboot/include/txt/smx.h`
+* `xmhf/src/xmhf-core/xmhf-bootloader/init.c`
+	* `txt_supports_txt()`: based on `tboot/txt/verify.c` function
+	  `supports_vmx()`, `supports_smx()`, ...
+	* `txt_verify_platform()`: based on `tboot/txt/verify.c`
+	* `txt_status_regs()`: based on `tboot/txt/errors.c`
+* `xmhf/src/xmhf-core/xmhf-bootloader/txt.c`
+	* From `tboot/txt/txt.c`
+* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.c`
+	* Call to `restore_mtrrs()` etc: from `tboot/txt/txt.c` function
+	  `txt_post_launch()`
+* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-smp.c`
+	* `__DRT__`: wake up APs, from `tboot/txt/txt.c` function `txt_wakeup_cpus()`
+* `xmhf/src/xmhf-core/xmhf-secureloader/arch/x86/sl-x86.c`
+	* Call to `restore_mtrrs()` etc: from `tboot/txt/txt.c` function
+	  `txt_post_launch()`
+* tpm: complicated, because a lot of changes in tboot code
+	* tboot has different function pointers for TPM 1.2 and TPM 2.0. See
+	  `tpm_12.c` and `tpm_20.c`
+	* `xmhf/src/libbaremetal/libtpm/include/tpm.h`
+		* line 108 - 330 are from `tboot/include/tpm.h`
+	* `xmhf/src/libbaremetal/libtpm/tpm.c`
+		* Selected functions from `tboot/common/tpm.c`
+	* `xmhf/src/libbaremetal/libtpm/tpm_extra.c`
+		* Rest of `tboot/common/tpm.c`, looks like not used
+* heap: see "TODO: TPM 2.0 not supported yet." (blocked by `tpm.c`)
+
+The bad news is that Wikipedia says "TPM 2.0 is not backward compatible with
+TPM 1.2". In tboot code, TPM 1.2 and TPM 2.0 have different behavior, and are
+managed using function pointers. See `tpm_12.c` and `tpm_20.c` (these files
+are created since tboot 1.8.0)
+* Ref: <https://en.wikipedia.org/wiki/Trusted_Platform_Module>
+
+Also, for example, Dell says Windows 7 supports TPM 1.2, but not TPM 2.0. This
+means XMHF needs to add a lot of code to support TPM 2.0.
+<https://www.dell.com/support/kbdoc/en-us/000131631/tpm-1-2-vs-2-0-features>
 
 TODO: post question on debugging 8000000c on Intel forum
 TODO: update with new version of tboot
+TODO: consider "Current ideas" in line 490
 TODO: TXT.ERRORCODE=8000000c
 
