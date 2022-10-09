@@ -469,7 +469,7 @@ void txt_status_regs(void) {
                        acmod_err.error);
                 /* error = 0x0a, progress = 0x0d => error2 is a TPM error */
                 if ( acmod_err.error == 0x0a && acmod_err.progress == 0x0d )
-                    printf("TPM error code = %x\n", acmod_err.error2);
+                    printf("TPM error code = %x\n", acmod_err.tpm_err);
             }
         }
     }
@@ -484,7 +484,10 @@ void txt_status_regs(void) {
      * display LT.E2STS error
      * - only valid if LT.WAKE-ERROR.STS set in LT.STS reg
      */
-    if ( ests.txt_wake_error_sts ) {
+    // TODO: tboot-1.10.5 removes ests.txt_wake_error_sts, but this function
+    // is not updated yet.
+    //if ( ests.txt_wake_error_sts ) {
+    if (1) {
         e2sts = (txt_e2sts_t)read_pub_config_reg(TXTCR_E2STS);
         printf("LT.E2STS=%llx\n", e2sts._raw);
     }

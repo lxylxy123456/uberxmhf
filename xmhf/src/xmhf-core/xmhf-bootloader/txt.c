@@ -207,7 +207,7 @@ static void *build_mle_pagetable(uint32_t mle_start, uint32_t mle_size)
 static bool check_sinit_module(void *base, size_t size)
 {
     txt_didvid_t didvid;
-    txt_ver_fsbif_emif_t ver;
+    txt_ver_fsbif_qpiif_t ver;
 
     if ( base == NULL )
         return false;
@@ -219,7 +219,7 @@ static bool check_sinit_module(void *base, size_t size)
     ver._raw = read_pub_config_reg(TXTCR_VER_FSBIF);
     if ( (ver._raw & 0xffffffff) == 0xffffffff ||
          (ver._raw & 0xffffffff) == 0x00 )         /* need to use VER.EMIF */
-        ver._raw = read_pub_config_reg(TXTCR_VER_EMIF);
+        ver._raw = read_pub_config_reg(TXTCR_VER_QPIIF);
     printf("chipset production fused: %x\n", ver.prod_fused );
 
     if ( is_sinit_acmod(base, size, false) &&

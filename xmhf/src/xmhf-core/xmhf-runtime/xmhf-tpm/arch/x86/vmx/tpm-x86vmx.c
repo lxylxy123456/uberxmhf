@@ -54,7 +54,7 @@
 //open TPM locality
 int xmhf_tpm_arch_x86vmx_open_locality(int locality){
         txt_didvid_t didvid;
-        txt_ver_fsbif_emif_t ver;
+        txt_ver_fsbif_qpiif_t ver;
 
         // display chipset fuse and device and vendor id info
         didvid._raw = read_pub_config_reg(TXTCR_DIDVID);
@@ -63,7 +63,7 @@ int xmhf_tpm_arch_x86vmx_open_locality(int locality){
         ver._raw = read_pub_config_reg(TXTCR_VER_FSBIF);
         if ( (ver._raw & 0xffffffff) == 0xffffffff ||
              (ver._raw & 0xffffffff) == 0x00 )         /* need to use VER.EMIF */
-            ver._raw = read_pub_config_reg(TXTCR_VER_EMIF);
+            ver._raw = read_pub_config_reg(TXTCR_VER_QPIIF);
         printf("%s: chipset production fused: %x\n", __FUNCTION__, ver.prod_fused);
 
         if(txt_is_launched()) {
