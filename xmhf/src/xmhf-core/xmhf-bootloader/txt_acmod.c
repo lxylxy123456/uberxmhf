@@ -197,6 +197,7 @@ void print_txt_caps(const char *prefix, txt_caps_t caps)
 }
 
 /* UUID helpers from tboot-20101005/include/uuid.h */
+#if 0
 void print_uuid(const uuid_t *uuid)
 {
     printf("{0x%08x, 0x%04x, 0x%04x, 0x%04x,\n"
@@ -212,6 +213,7 @@ static inline bool are_uuids_equal(const uuid_t *uuid1, const uuid_t *uuid2)
 {
     return (memcmp((const char *)uuid1, (const char *)uuid2, sizeof(*uuid1)) == 0);
 }
+#endif
 
 static void print_acm_hdr(acm_hdr_t *hdr, const char *mod_name)
 {
