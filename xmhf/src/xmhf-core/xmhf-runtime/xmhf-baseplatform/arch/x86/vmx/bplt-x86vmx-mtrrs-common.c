@@ -193,7 +193,7 @@ bool validate_mtrrs(const mtrr_state_t *saved_state)
                 break;
         }
         if ( tb != max_pages ) {
-	    printf("var MTRRs with non-contiguous regions: base=0x%Lx, mask=0x%Lx\n",
+	    printf("var MTRRs with non-contiguous regions: base=0x%llx, mask=0x%llx\n",
                    (uint64_t)saved_state->mtrr_physbases[ndx].base
                                   & maxphyaddr_mask,
                    (uint64_t)saved_state->mtrr_physmasks[ndx].mask

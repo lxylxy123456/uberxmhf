@@ -440,8 +440,8 @@ static void print_acm_hdr(const acm_hdr_t *hdr, const char *mod_name)
             proc_id = &(proc_id_list->processor_ids[i]);
             printf("\t\t     fms: 0x%x\n", proc_id->fms);
             printf("\t\t     fms_mask: 0x%x\n", proc_id->fms_mask);
-            printf("\t\t     platform_id: 0x%Lx\n", (unsigned long long)proc_id->platform_id);
-            printf("\t\t     platform_mask: 0x%Lx\n", (unsigned long long)proc_id->platform_mask);
+            printf("\t\t     platform_id: 0x%llx\n", (unsigned long long)proc_id->platform_id);
+            printf("\t\t     platform_mask: 0x%llx\n", (unsigned long long)proc_id->platform_mask);
         }
     }
 
@@ -672,7 +672,7 @@ bool does_acmod_match_platform(const acm_hdr_t* hdr)
     platform_id = rdmsr64(IA32_PLATFORM_ID);
     if ( !printed_host_info ) {
         printf("processor family/model/stepping: 0x%x\n", fms );
-        printf("platform id: 0x%Lx\n", (unsigned long long)platform_id);
+        printf("platform id: 0x%llx\n", (unsigned long long)platform_id);
     }
     printed_host_info = true;
 
@@ -724,8 +724,8 @@ bool does_acmod_match_platform(const acm_hdr_t* hdr)
         printf("\t %x ACM processor id entries:\n", proc_id_list->count);
         for ( i = 0; i < proc_id_list->count; i++ ) {
             acm_processor_id_t *proc_id = &(proc_id_list->processor_ids[i]);
-            printf("\t     fms: 0x%x, fms_mask: 0x%x, platform_id: 0x%Lx, "
-                   "platform_mask: 0x%Lx\n",
+            printf("\t     fms: 0x%x, fms_mask: 0x%x, platform_id: 0x%llx, "
+                   "platform_mask: 0x%llx\n",
                    proc_id->fms, proc_id->fms_mask,
                    (unsigned long long)proc_id->platform_id,
                    (unsigned long long)proc_id->platform_mask);
