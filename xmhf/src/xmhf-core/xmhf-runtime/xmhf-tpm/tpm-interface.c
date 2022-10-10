@@ -90,11 +90,6 @@ void xmhf_tpm_deactivate_all_localities(void){
 	xmhf_tpm_arch_deactivate_all_localities();
 }
 
-//prepare TPM for use
-bool xmhf_tpm_prepare_tpm(void){
-	return xmhf_tpm_arch_prepare_tpm();
-}
-
 
 
 

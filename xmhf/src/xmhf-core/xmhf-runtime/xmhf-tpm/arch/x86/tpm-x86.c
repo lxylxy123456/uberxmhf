@@ -345,16 +345,6 @@ int xmhf_tpm_arch_open_locality(int locality){
     }
 }
 
-//prepare TPM for use
-bool xmhf_tpm_arch_prepare_tpm(void){
-    /*
-     * must ensure TPM_ACCESS_0.activeLocality bit is clear
-     * (: locality is not active)
-     */
-
-    return release_locality(0);
-}
-
 
 
 //======================================================================
