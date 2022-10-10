@@ -717,6 +717,8 @@ extern uint32_t tpm_get_capability(
                   uint32_t sub_cap_size, const uint8_t *sub_cap,
                   uint32_t *resp_size, uint8_t *resp);
 
+extern bool txt_is_launched(void);
+
 #endif // __ASSEMBLY__
 
 
