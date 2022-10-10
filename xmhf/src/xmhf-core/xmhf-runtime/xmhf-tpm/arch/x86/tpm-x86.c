@@ -275,7 +275,7 @@ static bool is_tpm_ready(uint32_t locality)
 }
 
 
-static bool release_locality(uint32_t locality)
+bool release_locality(uint32_t locality)
 {
     uint32_t i;
     tpm_reg_access_t reg_acc;
