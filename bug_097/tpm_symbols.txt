@@ -1,0 +1,121 @@
+symbol                          file                comment
+MAX_SAVESTATE_RETRIES           tpm.h
+TPM_TAG_RQU_COMMAND             tpm.h
+...
+TPM_TAG_STORED_DATA12           tpm.h
+tpm_reg_access_t                xmhf-tpm-arch-x86.h tpm-x86.c
+tpm_reg_sts_t                   xmhf-tpm-arch-x86.h tpm-x86.c
+tpm_reg_data_fifo_t             xmhf-tpm-arch-x86.h tpm-x86.c
+read_tpm_reg                    xmhf-tpm-arch-x86.h tpm-x86.c
+write_tpm_reg                   xmhf-tpm-arch-x86.h tpm-x86.c
+_read_tpm_reg                   tpm-x86.c
+_write_tpm_reg                  tpm-x86.c
+reverse_copy                    tpm.h
+_reverse_copy                   tpm.h
+TPM_VALIDATE_LOCALITY_TIME_OUT  xmhf-tpm-arch-x86.h tpm-x86.c
+tpm_validate_locality           tpm-x86.c
+TIMEOUT_UNIT                    xmhf-tpm-arch-x86.h tpm-x86.c
+TIMEOUT_A                       xmhf-tpm-arch-x86.h tpm-x86.c
+TIMEOUT_B                       xmhf-tpm-arch-x86.h tpm-x86.c
+TIMEOUT_C                       xmhf-tpm-arch-x86.h tpm-x86.c
+TIMEOUT_D                       xmhf-tpm-arch-x86.h tpm-x86.c
+tpm_timeout_t                   xmhf-tpm-arch-x86.h tpm-x86.c
+g_timeout                       tpm-x86.c
+TPM_ACTIVE_LOCALITY_TIME_OUT    xmhf-tpm-arch-x86.h tpm-x86.c
+TPM_CMD_READY_TIME_OUT          xmhf-tpm-arch-x86.h tpm-x86.c
+TPM_CMD_WRITE_TIME_OUT          xmhf-tpm-arch-x86.h tpm-x86.c
+TPM_DATA_AVAIL_TIME_OUT         xmhf-tpm-arch-x86.h tpm-x86.c
+TPM_RSP_READ_TIME_OUT           xmhf-tpm-arch-x86.h tpm-x86.c
+tpm_wait_cmd_ready              tpm-x86.c
+CMD_HEAD_SIZE                   tpm.h
+RSP_HEAD_SIZE                   tpm.h
+CMD_SIZE_OFFSET                 tpm.h               tpm.c
+CMD_ORD_OFFSET                  tpm.h               tpm.c
+RSP_SIZE_OFFSET                 tpm.h               tpm-x86.c
+RSP_RST_OFFSET                  tpm.h               tpm-x86.c
+tpm_write_cmd_fifo              tpm-x86.c
+cmd_buf                         tpm.c
+rsp_buf                         tpm.c
+WRAPPER_IN_BUF                  tpm.h
+WRAPPER_OUT_BUF                 tpm.h
+WRAPPER_IN_MAX_SIZE             tpm.h
+WRAPPER_OUT_MAX_SIZE            tpm.h
+_tpm_submit_cmd                 tpm.c
+tpm_submit_cmd                  tpm.c
+tpm_submit_cmd_auth1            tpm_extra.c
+tpm_submit_cmd_auth2            tpm_extra.c
+tpm_pcr_read                    tpm.c
+tpm_pcr_extend                  tpm.c
+tpm_pcr_selection_t             tpm.h
+tpm_pcr_reset                   tpm_extra.c
+tpm_nv_read_value               tpm_extra.c
+tpm_nv_write_value              tpm_extra.c
+TPM_CAP_VERSION_VAL             tpm.h               tpm.c
+tpm_structure_tag_t             tpm.h
+tpm_version_t                   tpm.h               tpm.c
+tpm_cap_version_info_t          tpm.h               tpm.c
+tpm_get_version                 tpm.c
+HMAC_BLOCK_SIZE                 tpm.h               discarded
+HMAC_OUTPUT_SIZE                tpm.h               discarded
+hmac                            discarded
+tpm_entity_type_t               tpm.h               tpm_extra.c
+tpm_authhandle_t                tpm.h               tpm_extra.c
+tpm_nonce_t                     tpm.h               tpm_extra.c
+TPM_ET_SRK                      tpm.h               tpm_extra.c
+TPM_KH_SRK                      tpm.h               tpm_extra.c
+tpm_key_handle_t                tpm.h               tpm_extra.c
+tpm_composite_hash_t            tpm.h               tpm_extra.c
+tpm_pcr_info_long_t             tpm.h               tpm_extra.c
+tpm_authdata_t                  tpm.h               tpm_extra.c
+tpm_encauth_t                   tpm.h               tpm_extra.c
+tpm_stored_data12_header_t      tpm.h
+tpm_stored_data12_short_t       tpm.h
+tpm_stored_data12_t             tpm.h
+UNLOAD_INTEGER                  tpm.h
+UNLOAD_BLOB                     tpm.h
+UNLOAD_BLOB_TYPE                tpm.h
+UNLOAD_PCR_SELECTION            tpm.h
+UNLOAD_PCR_INFO_LONG            tpm.h
+UNLOAD_STORED_DATA12            tpm.h
+LOAD_INTEGER                    tpm.h
+LOAD_BLOB                       tpm.h
+LOAD_BLOB_TYPE                  tpm.h
+LOAD_PCR_SELECTION              tpm.h
+LOAD_PCR_INFO_LONG              tpm.h
+LOAD_STORED_DATA12              tpm.h
+tpm_oiap                        tpm_extra.c
+tpm_osap                        tpm_extra.c
+_tpm_seal                       tpm_extra.c
+_tpm_unseal                     tpm_extra.c
+srk_authdata                    tpm_extra.c
+blob_authdata                   tpm_extra.c
+_tpm_wrap_seal                  tpm_extra.c
+_tpm_wrap_unseal                tpm_extra.c
+init_pcr_info                   tpm_extra.c
+tpm_seal                        tpm_extra.c
+check_sealed_data               tpm_extra.c
+tpm_unseal                      tpm_extra.c
+calc_pcr_composition            tpm_extra.c
+get_cre_pcr_composite           tpm_extra.c
+tpm_cmp_creation_pcrs           tpm_extra.c
+tpm_capability_area_t           tpm.h
+TPM_CAP_NV_INDEX                tpm.h               tpm_extra.c
+tpm_get_capability              tpm.c
+tpm_pcr_info_short_t            tpm.h
+tpm_nv_attributes_t             tpm.h
+tpm_nv_data_public_t            tpm.h
+tpm_get_nvindex_size            tpm_extra.c
+tpm_permanent_flags_t           tpm.h               tpm-x86.c
+tpm_stclear_flags_t             tpm.h               tpm-x86.c
+TPM_CAP_FLAG                    tpm.h               tpm-x86.c
+TPM_CAP_FLAG_PERMANENT          tpm.h               tpm-x86.c
+TPM_CAP_FLAG_VOLATILE           tpm.h               tpm-x86.c
+tpm_get_flags                   tpm-x86.c
+TPM_CAP_PROPERTY                tpm.h               tpm-x86.c
+TPM_CAP_PROP_TIS_TIMEOUT        tpm.h               tpm-x86.c
+tpm_get_timeout                 tpm-x86.c
+release_locality                tpm-x86.c
+prepare_tpm                     tpm-x86.c           xmhf_tpm_arch_prepare_tpm()
+is_tpm_ready                    tpm-x86.c
+tpm_save_state                  tpm_extra.c
+tpm_get_random                  tpm.c

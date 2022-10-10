@@ -591,8 +591,12 @@ Modifications to be noticed
 	* `__text -> (dropped)` (manual)
 	* `tb_memcpy -> memcpy`
 	* `tb_memcmp -> memcmp`
+	* `tb_memset -> memset`
 	* `__packed -> __attribute__((packed))` (manual)
 	* `%Lx -> %llx` in printf (manual)
+	* `MSR_IA32_PLATFORM_ID -> IA32_PLATFORM_ID`
+	* `COMPILE_TIME_ASSERT -> _Static_assert`
+	* `__data -> (dropped)` (manual)
 * Remove spaces at end of line
 * XMHF has "ISO C90 forbids mixed declarations and code", but tboot does not
 	* To workaround, can remove `-Wdeclaration-after-statement` in Makefile
@@ -600,6 +604,7 @@ Modifications to be noticed
 	* Usually XMHF combines header files to `<xmhf.h>`
 * Check changes to support x64 XMHF
 * Remove ifdefs on `IS_INCLUDED`
+* For header files, add ifdefs on `__ASSEMBLY__`
 
 ```sh
 tboot-sed () {
@@ -620,6 +625,9 @@ sed \
  -e 's/\btb_strncpy\b/strncpy/g' \
  -e 's/\btb_memcpy\b/memcpy/g' \
  -e 's/\btb_memcmp\b/memcmp/g' \
+ -e 's/\btb_memset\b/memset/g' \
+ -e 's/\bMSR_IA32_PLATFORM_ID\b/IA32_PLATFORM_ID/g'
+ -e 's/\bCOMPILE_TIME_ASSERT\b/_Static_assert/g'
  "$@"
 
 }
@@ -663,23 +671,24 @@ Progress:
 		* From `tboot/include/txt/heap.h`
 	* `xmhf/src/xmhf-core/xmhf-bootloader/txt_heap.c`
 		* From `tboot/txt/heap.c`
-* `daabfe306..`
-
-TODO
-
-* `xmhf/src/xmhf-core/include/arch/x86/_txt_config_regs.h`
-	* From `tboot/include/txt/config_regs.h` and `tboot/include/txt/errorcode.h`
-* acmod
-	* Partial work: 5ae921eb0 (384f8b507, xmhf64-tboot10-tmp)
-		* TODO: add "Remove check of params.acm_max_size in verify_acmod()."
-		* Blocked on `_txt_config_regs`
-		* `verify_IA32_se_svn_status` is blocked on `tpm`
+* `daabfe306..61180d550`
+	* `xmhf/src/xmhf-core/include/arch/x86/_txt_config_regs.h`
+		* From `tboot/include/txt/config_regs.h` and `tboot/include/txt/errorcode.h`
+* `61180d550..220a785ae`
+	* `xmhf/src/xmhf-core/include/arch/x86/_txt_smx.h`
+		* From `tboot/include/txt/smx.h`
+* `220a785ae..29124156a`
 	* `xmhf/src/xmhf-core/include/arch/x86/_txt_acmod.h`
 		* From `tboot/include/txt/acmod.h`
 	* `xmhf/src/xmhf-core/xmhf-bootloader/txt_acmod.c`
 		* From `tboot/txt/acmod.c`
-* `xmhf/src/xmhf-core/include/arch/x86/_txt_smx.h`
-	* From `tboot/include/txt/smx.h`
+	* Partial work (cherry-picked): 5ae921eb0 (384f8b507, xmhf64-tboot10-tmp)
+* `29124156a..`
+	* TPM code, see `tpm_symbols.txt` for list of symbols in tboot's `tpm.c`
+	  before change.
+
+TODO
+
 * `xmhf/src/xmhf-core/xmhf-bootloader/init.c`
 	* `txt_supports_txt()`: based on `tboot/txt/verify.c` function
 	  `supports_vmx()`, `supports_smx()`, ...
@@ -705,6 +714,7 @@ TODO
 	* `xmhf/src/libbaremetal/libtpm/tpm_extra.c`
 		* Rest of `tboot/common/tpm.c`, looks like not used
 * heap: see "TODO: TPM 2.0 not supported yet." (blocked by `tpm.c`)
+* acmod: `verify_IA32_se_svn_status` is blocked on `tpm`
 
 The bad news is that Wikipedia says "TPM 2.0 is not backward compatible with
 TPM 1.2". In tboot code, TPM 1.2 and TPM 2.0 have different behavior, and are
