@@ -169,6 +169,7 @@ static bool tpm_send_cmd_ready_status_crb(uint32_t locality)
 {
       tpm_reg_ctrl_request_t reg_ctrl_request;
       tpm_reg_ctrl_sts_t reg_ctrl_sts;
+      uint32_t i;
 
       read_tpm_reg(locality, TPM_CRB_CTRL_STS, &reg_ctrl_sts);
 
@@ -189,7 +190,7 @@ static bool tpm_send_cmd_ready_status_crb(uint32_t locality)
       reg_ctrl_request.goIdle = 1;
       write_tpm_reg(locality, TPM_CRB_CTRL_REQ, &reg_ctrl_request);
 
-      uint32_t i = 0;
+      i = 0;
       do {
           read_tpm_reg(locality, TPM_CRB_CTRL_REQ, &reg_ctrl_request);
           if ( reg_ctrl_request.goIdle == 0)
@@ -741,13 +742,13 @@ RelinquishControl:
 bool release_locality(uint32_t locality)
 {
     uint32_t i;
+    tpm_reg_access_t reg_acc;
 #ifdef TPM_TRACE
     printf("TPM: releasing locality %u\n", locality);
 #endif
 
     if ( !tpm_validate_locality(locality) )   return true;
 
-    tpm_reg_access_t reg_acc;
     read_tpm_reg(locality, TPM_REG_ACCESS, &reg_acc);
     if ( reg_acc.active_locality == 0 )    return true;
 

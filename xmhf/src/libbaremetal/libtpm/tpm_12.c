@@ -2018,8 +2018,9 @@ static bool tpm12_get_random(struct tpm_if *ti, uint32_t locality,
                *data_size);
         /* we're only going to try twice */
         if ( first_attempt ) {
+            uint32_t second_size;
             first_attempt = false;
-            uint32_t second_size = requested_size - *data_size;
+            second_size = requested_size - *data_size;
             printf("trying one more time to get remaining %x bytes\n",
                    second_size);
             if (!tpm12_get_random(ti, locality, random_data + *data_size,
