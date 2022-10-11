@@ -806,7 +806,7 @@ bool svm_prepare_tpm(void) {
     xmhf_tpm_deactivate_all_localities();
     //dump_locality_access_regs();
 
-    if(TPM_SUCCESS == tpm_wait_cmd_ready(locality)) {
+    if(tpm_wait_cmd_ready(locality)) {
         printf("INIT:TPM: successfully opened in Locality %d.\n", locality);
     } else {
         printf("INIT:TPM: ERROR: Locality %d could not be opened.\n", locality);

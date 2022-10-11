@@ -53,18 +53,19 @@
 
 //open TPM locality
 int xmhf_tpm_arch_x86vmx_open_locality(int locality){
-        txt_didvid_t didvid;
-        txt_ver_fsbif_qpiif_t ver;
-
-        // display chipset fuse and device and vendor id info
-        didvid._raw = read_pub_config_reg(TXTCR_DIDVID);
-        printf("%s: chipset ids: vendor: 0x%x, device: 0x%x, revision: 0x%x\n", __FUNCTION__,
-               didvid.vendor_id, didvid.device_id, didvid.revision_id);
-        ver._raw = read_pub_config_reg(TXTCR_VER_FSBIF);
-        if ( (ver._raw & 0xffffffff) == 0xffffffff ||
-             (ver._raw & 0xffffffff) == 0x00 )         /* need to use VER.EMIF */
-            ver._raw = read_pub_config_reg(TXTCR_VER_QPIIF);
-        printf("%s: chipset production fused: %x\n", __FUNCTION__, ver.prod_fused);
+        // Code to display chipset fuse and device and vendor id info removed
+        //txt_didvid_t didvid;
+        //txt_ver_fsbif_qpiif_t ver;
+        //
+        //// display chipset fuse and device and vendor id info
+        //didvid._raw = read_pub_config_reg(TXTCR_DIDVID);
+        //printf("%s: chipset ids: vendor: 0x%x, device: 0x%x, revision: 0x%x\n", __FUNCTION__,
+        //       didvid.vendor_id, didvid.device_id, didvid.revision_id);
+        //ver._raw = read_pub_config_reg(TXTCR_VER_FSBIF);
+        //if ( (ver._raw & 0xffffffff) == 0xffffffff ||
+        //     (ver._raw & 0xffffffff) == 0x00 )         /* need to use VER.EMIF */
+        //    ver._raw = read_pub_config_reg(TXTCR_VER_QPIIF);
+        //printf("%s: chipset production fused: %x\n", __FUNCTION__, ver.prod_fused);
 
         if(txt_is_launched()) {
             write_priv_config_reg(locality == 1 ? TXTCR_CMD_OPEN_LOCALITY1
