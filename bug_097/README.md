@@ -716,6 +716,19 @@ TODO
 * heap: see "TODO: TPM 2.0 not supported yet." (blocked by `tpm.c`)
 * acmod: `verify_IA32_se_svn_status` is blocked on `tpm`
 
+TrustVisor uses 2 interfaces provided by XMHF.
+	* These should require `__DRT__`
+	* `xmhf_tpm_open_locality`
+		* `xmhf_tpm_arch_open_locality`
+			* `xmhf_tpm_arch_x86vmx_open_locality`
+				* Similar to tboot `find_platform_sinit_module()` + 
+				  `write_priv_config_reg(TXTCR_CMD_OPEN_LOCALITY1, 0x01);`
+		* `xmhf_tpm_is_tpm_ready`
+			* Tboot `is_tpm_ready()`
+	* `xmhf_tpm_deactivate_all_localities`
+		* Not a function in tboot, but see 4 occorrences of
+		  `write_tpm_reg(locality, TPM_REG_ACCESS, &reg_acc);`
+
 The bad news is that Wikipedia says "TPM 2.0 is not backward compatible with
 TPM 1.2". In tboot code, TPM 1.2 and TPM 2.0 have different behavior, and are
 managed using function pointers. See `tpm_12.c` and `tpm_20.c` (these files
