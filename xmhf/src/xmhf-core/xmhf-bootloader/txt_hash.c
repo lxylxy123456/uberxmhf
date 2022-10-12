@@ -221,22 +221,7 @@ void print_hash(const tb_hash_t *hash, uint16_t hash_alg)
     }
 }
 
-void copy_hash(tb_hash_t *dest_hash, const tb_hash_t *src_hash,
-               uint16_t hash_alg)
-{
-    unsigned int len;
-
-    if ( dest_hash == NULL || src_hash == NULL ) {
-        printf("hashes are NULL\n");
-        return;
-    }
-
-    len = get_hash_size(hash_alg);
-    if ( len > 0 )
-        memcpy(dest_hash, src_hash, len);
-    else
-        printf("unsupported hash alg (%u)\n", hash_alg);
-}
+// XMHF: TODO: copy_hash() moved out.
 
 
 

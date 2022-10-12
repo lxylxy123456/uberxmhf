@@ -967,9 +967,7 @@ const struct tpm_if_fp *get_tpm_fp(void)
     if ( g_tpm_ver == TPM_VER_12 )
         return &tpm_12_if_fp;
     else if ( g_tpm_ver == TPM_VER_20)
-        // XMHF: TODO: tpm_20 not implemented.
-        while (1) { printf("tpm_20 not implemented\n"); };
-        //return &tpm_20_if_fp;
+        return &tpm_20_if_fp;
 
     return NULL;
 
