@@ -597,6 +597,10 @@ Modifications to be noticed
 	* `MSR_IA32_PLATFORM_ID -> IA32_PLATFORM_ID`
 	* `COMPILE_TIME_ASSERT -> _Static_assert`
 	* `__data -> (dropped)` (manual)
+	* `PAGE_MASK -> PAGE_MASK_4K`
+* Functions not defined in XMHF
+	* `ARRAY_SIZE`
+	* `cpu_relax`
 * Remove spaces at end of line
 * XMHF has "ISO C90 forbids mixed declarations and code", but tboot does not
 	* To workaround, can remove `-Wdeclaration-after-statement` in Makefile
@@ -626,8 +630,9 @@ sed \
  -e 's/\btb_memcpy\b/memcpy/g' \
  -e 's/\btb_memcmp\b/memcmp/g' \
  -e 's/\btb_memset\b/memset/g' \
- -e 's/\bMSR_IA32_PLATFORM_ID\b/IA32_PLATFORM_ID/g'
- -e 's/\bCOMPILE_TIME_ASSERT\b/_Static_assert/g'
+ -e 's/\bMSR_IA32_PLATFORM_ID\b/IA32_PLATFORM_ID/g' \
+ -e 's/\bCOMPILE_TIME_ASSERT\b/_Static_assert/g' \
+ -e 's/\bPAGE_MASK\b/PAGE_MASK_4K/g' \
  "$@"
 
 }
@@ -677,25 +682,67 @@ Progress:
 * `61180d550..220a785ae`
 	* `xmhf/src/xmhf-core/include/arch/x86/_txt_smx.h`
 		* From `tboot/include/txt/smx.h`
-* `220a785ae..29124156a`
+* `220a785ae..c136fc6a1`
 	* `xmhf/src/xmhf-core/include/arch/x86/_txt_acmod.h`
 		* From `tboot/include/txt/acmod.h`
 	* `xmhf/src/xmhf-core/xmhf-bootloader/txt_acmod.c`
 		* From `tboot/txt/acmod.c`
 	* Partial work (cherry-picked): 5ae921eb0 (384f8b507, xmhf64-tboot10-tmp)
-* `29124156a..`
+* `c136fc6a1..9cf234895`
 	* TPM code, see `tpm_symbols.txt` for list of symbols in tboot's `tpm.c`
 	  before change.
+	* tboot has different function pointers for TPM 1.2 and TPM 2.0. See
+	  `tpm_12.c` and `tpm_20.c`. This time only support TPM 1.2.
+	* `xmhf/src/libbaremetal/libtpm/include/tpm.h`
+		* line 108 - 330 are from `tboot/include/tpm.h`
+	* `xmhf/src/libbaremetal/libtpm/tpm.c`
+		* Selected functions from `tboot/common/tpm.c`
+	* `xmhf/src/libbaremetal/libtpm/tpm_extra.c`
+		* Rest of `tboot/common/tpm.c`, looks like not used
+	* TrustVisor uses 2 tpm interfaces provided by XMHF.
+		* These should require `__DRT__`
+		* `xmhf_tpm_open_locality`
+			* `xmhf_tpm_arch_open_locality`
+				* `xmhf_tpm_arch_x86vmx_open_locality`
+					* Similar to tboot `find_platform_sinit_module()` + 
+					  `write_priv_config_reg(TXTCR_CMD_OPEN_LOCALITY1, 0x01);`
+						* `find_platform_sinit_module()` is probably unneeded
+			* `xmhf_tpm_is_tpm_ready`
+				* Tboot `is_tpm_ready()`
+					* Probably not needed, or only `tpm_validate_locality()`
+					  needed
+		* `xmhf_tpm_deactivate_all_localities`
+			* Not a function in tboot, but see 4 occorrences of
+			  `write_tpm_reg(locality, TPM_REG_ACCESS, &reg_acc);`
+	* Start seeing secureloader bloat reported by GitHub Actions
+* `9cf234895..19e0c15ce`
+	* Added TPM 2.0 code (`tpm_20.c`), secureloader bloat is severe, used
+	  insecure workaround.
+	* Increased SL low memory from 64 KiB to 128 KiB
+* `19e0c15ce..f7a816cb4`
+	* `xmhf/src/xmhf-core/xmhf-bootloader/init.c`
+		* `txt_supports_txt()`: based on `tboot/txt/verify.c` function
+		  `supports_vmx()`, `supports_smx()`, ...
+		* `txt_verify_platform()`: based on `tboot/txt/verify.c`
+		* `txt_status_regs()`: based on `tboot/txt/errors.c`,
+		  original name `txt_display_errors()`
+* `f7a816cb4..`
 
 TODO
 
-* `xmhf/src/xmhf-core/xmhf-bootloader/init.c`
-	* `txt_supports_txt()`: based on `tboot/txt/verify.c` function
-	  `supports_vmx()`, `supports_smx()`, ...
-	* `txt_verify_platform()`: based on `tboot/txt/verify.c`
-	* `txt_status_regs()`: based on `tboot/txt/errors.c`
 * `xmhf/src/xmhf-core/xmhf-bootloader/txt.c`
 	* From `tboot/txt/txt.c`
+	* Change content of `g_mle_hdr`, `print_file_info`
+	* `find_platform_sinit_module() -> check_sinit_module()`
+	* `find_lcp_module() -> dropped`
+	* `txt_wakeup_cpus() -> dropped`
+	* `txt_is_launched() -> moved`
+	* `txt_s3_launch_environment() -> dropped`
+	* `txt_post_launch() -> dropped`
+	* `txt_cpu_wakeup() -> dropped`
+	* `txt_protect_mem_regions() -> dropped`
+	* `txt_shutdown() -> dropped`
+	* `txt_is_powercycle_required() -> dropped`
 * `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.c`
 	* Call to `restore_mtrrs()` etc: from `tboot/txt/txt.c` function
 	  `txt_post_launch()`
@@ -704,30 +751,8 @@ TODO
 * `xmhf/src/xmhf-core/xmhf-secureloader/arch/x86/sl-x86.c`
 	* Call to `restore_mtrrs()` etc: from `tboot/txt/txt.c` function
 	  `txt_post_launch()`
-* tpm: complicated, because a lot of changes in tboot code
-	* tboot has different function pointers for TPM 1.2 and TPM 2.0. See
-	  `tpm_12.c` and `tpm_20.c`
-	* `xmhf/src/libbaremetal/libtpm/include/tpm.h`
-		* line 108 - 330 are from `tboot/include/tpm.h`
-	* `xmhf/src/libbaremetal/libtpm/tpm.c`
-		* Selected functions from `tboot/common/tpm.c`
-	* `xmhf/src/libbaremetal/libtpm/tpm_extra.c`
-		* Rest of `tboot/common/tpm.c`, looks like not used
 * heap: see "TODO: TPM 2.0 not supported yet." (blocked by `tpm.c`)
 * acmod: `verify_IA32_se_svn_status` is blocked on `tpm`
-
-TrustVisor uses 2 interfaces provided by XMHF.
-	* These should require `__DRT__`
-	* `xmhf_tpm_open_locality`
-		* `xmhf_tpm_arch_open_locality`
-			* `xmhf_tpm_arch_x86vmx_open_locality`
-				* Similar to tboot `find_platform_sinit_module()` + 
-				  `write_priv_config_reg(TXTCR_CMD_OPEN_LOCALITY1, 0x01);`
-		* `xmhf_tpm_is_tpm_ready`
-			* Tboot `is_tpm_ready()`
-	* `xmhf_tpm_deactivate_all_localities`
-		* Not a function in tboot, but see 4 occorrences of
-		  `write_tpm_reg(locality, TPM_REG_ACCESS, &reg_acc);`
 
 The bad news is that Wikipedia says "TPM 2.0 is not backward compatible with
 TPM 1.2". In tboot code, TPM 1.2 and TPM 2.0 have different behavior, and are
@@ -738,6 +763,8 @@ are created since tboot 1.8.0)
 Also, for example, Dell says Windows 7 supports TPM 1.2, but not TPM 2.0. This
 means XMHF needs to add a lot of code to support TPM 2.0.
 <https://www.dell.com/support/kbdoc/en-us/000131631/tpm-1-2-vs-2-0-features>
+
+TODO: secure loader bloat since `9cf234895`
 
 TODO: post question on debugging 8000000c on Intel forum
 TODO: update with new version of tboot
