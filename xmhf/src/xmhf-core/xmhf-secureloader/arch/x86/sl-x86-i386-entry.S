@@ -283,7 +283,7 @@ sl_startnew:
     movw %bx, %gs
 
     /* Setup ESP to top of 64K (it will already be there on AMD)*/
-    movl $0x10000, %esp /* XXX TODO Get rid of magic number*/
+    movl $0x20000, %esp /* XXX TODO Get rid of magic number*/
 
 /*#ifdef __INIT_LATE__
     //setup 115200,8n1 on ttyS0
@@ -341,6 +341,6 @@ sl_startnew:
 ----------------------------------------------------------------------*/
 
 /* sl stack, this is just a placeholder and ensures that the linker
- actually "allocates" the stack up until 0x10000*/
+ actually "allocates" the stack up until 0x20000*/
 .section .sl_stack
     .fill 2048, 1, 0

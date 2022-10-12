@@ -77,8 +77,8 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 #endif /* !defined(__I386__) */
 
 	//linker relocates sl image starting from 0, so
-    //parameter block must be at offset 0x10000
-	HALT_ON_ERRORCOND( (sla_t)&slpb == 0x10000 );
+    //parameter block must be at offset 0x20000
+	HALT_ON_ERRORCOND( (sla_t)&slpb == 0x20000 );
 
 	//do we have the required MAGIC?
 	HALT_ON_ERRORCOND( slpb.magic == SL_PARAMETER_BLOCK_MAGIC);
