@@ -2466,6 +2466,8 @@ static bool tpm20_seal(struct tpm_if *ti, uint32_t locality,
     tpm_create_in create_in;
     tpm_create_out create_out;
     u32 ret;
+    _Static_assert( sizeof(auth_str) - 1 <=
+            sizeof(create_in.sensitive.t.sensitive.user_auth.t.buffer) );
 
     create_in.parent_handle = handle2048;
     create_in.sessions.num_sessions = 1;
@@ -2483,8 +2485,6 @@ static bool tpm20_seal(struct tpm_if *ti, uint32_t locality,
     create_in.public.t.public_area.param.keyed_hash.scheme.scheme = TPM_ALG_NULL;
     create_in.public.t.public_area.unique.keyed_hash.t.size = 0;
 
-    _Static_assert( sizeof(auth_str) - 1 <=
-            sizeof(create_in.sensitive.t.sensitive.user_auth.t.buffer) );
     create_in.sensitive.t.sensitive.user_auth.t.size = sizeof(auth_str) - 1;
     memcpy(&(create_in.sensitive.t.sensitive.user_auth.t.buffer[0]),
             auth_str, sizeof(auth_str)-1);
@@ -2608,8 +2608,9 @@ static bool tpm20_get_random(struct tpm_if *ti, uint32_t locality,
         printf("requested 0x%x random bytes but only got 0x%x\n", requested_size, out_size);
         /* we're only going to try twice */
         if ( first_attempt ) {
+            uint32_t second_size;
             first_attempt = false;
-            uint32_t second_size = requested_size - out_size;
+            second_size = requested_size - out_size;
             printf("trying one more time to get remaining 0x%x bytes\n", second_size);
             random_in.bytes_req = second_size;
 
@@ -2774,6 +2775,10 @@ static bool tpm20_init(struct tpm_if *ti)
     unsigned int i;
     // XMHF: TODO: Assume info_list->capabilities.tpm_nv_index_set == 0.
     //tpm_info_list_t *info_list = get_tpm_info_list(g_sinit);
+    tpm_pcr_event_in event_in;
+    tpm_pcr_event_out event_out;
+    tpm_create_primary_in primary_in;
+    tpm_create_primary_out primary_out;
 
     // XMHF: TODO: Assume info_list->capabilities.tpm_nv_index_set == 0.
     //if ( ti == NULL || info_list == NULL )
@@ -2819,8 +2824,6 @@ static bool tpm20_init(struct tpm_if *ti)
     create_pw_session(&pw_session);
 
     /* init supported alg list for banks */
-    tpm_pcr_event_in event_in;
-    tpm_pcr_event_out event_out;
     event_in.pcr_handle = 16;
     event_in.sessions.num_sessions = 1;
     event_in.sessions.sessions[0] = pw_session;
@@ -2864,8 +2867,6 @@ static bool tpm20_init(struct tpm_if *ti)
         goto out;
 
     /* create primary object as parent obj for seal */
-    tpm_create_primary_in primary_in;
-    tpm_create_primary_out primary_out;
     primary_in.primary_handle = TPM_RH_NULL;
     primary_in.sessions.num_sessions = 1;
     primary_in.sessions.sessions[0].session_handle = TPM_RS_PW;
