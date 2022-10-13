@@ -571,7 +571,7 @@ tb_error_t txt_verify_platform(void)
     /* check is TXT_RESET.STS is set, since if it is SENTER will fail */
     ests = (txt_ests_t)read_pub_config_reg(TXTCR_ESTS);
     if ( ests.txt_reset_sts ) {
-        printf("TXT_RESET.STS is set and SENTER is disabled (0x%02Lx)\n",
+        printf("TXT_RESET.STS is set and SENTER is disabled (0x%02llx)\n",
                ests._raw);
         return TB_ERR_SMX_NOT_SUPPORTED;
     }
@@ -611,9 +611,9 @@ void txt_display_errors(void)
      */
     err = (txt_errorcode_t)read_pub_config_reg(TXTCR_ERRORCODE);
     if (txt_has_error() == false)
-        printf("TXT.ERRORCODE: 0x%Lx\n", err._raw);
+        printf("TXT.ERRORCODE: 0x%llx\n", err._raw);
     else
-        printf("TXT.ERRORCODE: 0x%Lx\n", err._raw);
+        printf("TXT.ERRORCODE: 0x%llx\n", err._raw);
 
     /* AC module error (don't know how to parse other errors) */
     if ( err.valid ) {
@@ -650,18 +650,18 @@ void txt_display_errors(void)
      */
     ests = (txt_ests_t)read_pub_config_reg(TXTCR_ESTS);
     if (ests._raw == 0)
-        printf("TXT.ESTS: 0x%Lx\n", ests._raw);
+        printf("TXT.ESTS: 0x%llx\n", ests._raw);
     else
-        printf("TXT.ESTS: 0x%Lx\n", ests._raw);
+        printf("TXT.ESTS: 0x%llx\n", ests._raw);
 
     /*
      * display TXT.E2STS error
      */
     e2sts = (txt_e2sts_t)read_pub_config_reg(TXTCR_E2STS);
     if (e2sts._raw == 0 || e2sts._raw == 0x200000000)
-        printf("TXT.E2STS: 0x%Lx\n", e2sts._raw);
+        printf("TXT.E2STS: 0x%llx\n", e2sts._raw);
     else
-        printf("TXT.E2STS: 0x%Lx\n", e2sts._raw);
+        printf("TXT.E2STS: 0x%llx\n", e2sts._raw);
 }
 
 /* Transfer control to the SL using GETSEC[SENTER] */

@@ -322,7 +322,7 @@ static void init_evtlog_desc_1(heap_event_log_ptr_elt2_1_t *evt_log)
     evt_log->first_record_offset = 0;
     evt_log->next_record_offset = 0;
     printf("TCG compliant TPM 2.0 event log descriptor:\n");
-    printf("\t phys_addr = 0x%LX\n",  evt_log->phys_addr);
+    printf("\t phys_addr = 0x%llX\n",  evt_log->phys_addr);
     printf("\t allcoated_event_container_size = 0x%x \n", evt_log->allcoated_event_container_size);
     printf("\t first_record_offset = 0x%x \n", evt_log->first_record_offset);
     printf("\t next_record_offset = 0x%x \n", evt_log->next_record_offset);
@@ -1240,7 +1240,7 @@ bool txt_prepare_cpu(void)
     for ( unsigned int i = 0; i < (mcg_cap & 0xff); i++ ) {
         mcg_stat = rdmsr64(MSR_MC0_STATUS + 4*i);
         if ( mcg_stat & (1ULL << 63) ) {
-            printf("MCG[%u] = %Lx ERROR\n", i, mcg_stat);
+            printf("MCG[%u] = %llx ERROR\n", i, mcg_stat);
             if ( !params.preserve_mce )
                 return false;
         }
@@ -1417,7 +1417,7 @@ tb_error_t txt_protect_mem_regions(void)
     /* TXT heap */
     base = read_pub_config_reg(TXTCR_HEAP_BASE);
     size = read_pub_config_reg(TXTCR_HEAP_SIZE);
-    printf("protecting TXT heap (%Lx - %Lx) in e820 table\n", base,
+    printf("protecting TXT heap (%llx - %llx) in e820 table\n", base,
            (base + size - 1));
     if ( !e820_protect_region(base, size, E820_RESERVED) )
         return TB_ERR_FATAL;
@@ -1428,7 +1428,7 @@ tb_error_t txt_protect_mem_regions(void)
     /* SINIT */
     base = read_pub_config_reg(TXTCR_SINIT_BASE);
     size = read_pub_config_reg(TXTCR_SINIT_SIZE);
-    printf("protecting SINIT (%Lx - %Lx) in e820 table\n", base,
+    printf("protecting SINIT (%llx - %llx) in e820 table\n", base,
            (base + size - 1));
     if ( !e820_protect_region(base, size, E820_RESERVED) )
         return TB_ERR_FATAL;
@@ -1440,7 +1440,7 @@ tb_error_t txt_protect_mem_regions(void)
     base = TXT_PRIV_CONFIG_REGS_BASE;
     size = TXT_CONFIG_REGS_SIZE;
     printf(
-           "protecting TXT Private Space (%Lx - %Lx) in e820 table\n",
+           "protecting TXT Private Space (%llx - %llx) in e820 table\n",
            base, (base + size - 1));
     if ( !e820_protect_region(base, size, E820_RESERVED) )
         return TB_ERR_FATAL;
