@@ -598,6 +598,7 @@ Modifications to be noticed
 	* `COMPILE_TIME_ASSERT -> _Static_assert`
 	* `__data -> (dropped)` (manual)
 	* `PAGE_MASK -> PAGE_MASK_4K`
+	* `X86_EFLAGS_VM -> EFLAGS_VM`
 * Functions not defined in XMHF
 	* `ARRAY_SIZE`
 	* `cpu_relax`
@@ -633,6 +634,7 @@ sed \
  -e 's/\bMSR_IA32_PLATFORM_ID\b/IA32_PLATFORM_ID/g' \
  -e 's/\bCOMPILE_TIME_ASSERT\b/_Static_assert/g' \
  -e 's/\bPAGE_MASK\b/PAGE_MASK_4K/g' \
+ -e 's/\bX86_EFLAGS_VM\b/EFLAGS_VM/g' \
  "$@"
 
 }
