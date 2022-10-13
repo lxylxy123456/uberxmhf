@@ -444,11 +444,12 @@ static void init_os_sinit_ext_data(heap_ext_data_element_t* elts, acm_hdr_t *sin
 
 bool evtlog_append_tpm12(uint8_t pcr, tb_hash_t *hash, uint32_t type)
 {
+    tpm12_pcr_event_t *next;
+
     if ( g_elog == NULL )
         return true;
 
-    tpm12_pcr_event_t *next = (tpm12_pcr_event_t *)
-                              ((void*)g_elog + g_elog->next_event_offset);
+    next = (tpm12_pcr_event_t *)((void*)g_elog + g_elog->next_event_offset);
 
     if ( g_elog->next_event_offset + sizeof(*next) > g_elog->size )
         return false;
@@ -469,6 +470,8 @@ void dump_event_2(void)
     heap_event_log_descr_t *log_descr;
 
     for ( unsigned int i=0; i<g_elog_2->count; i++ ) {
+        uint32_t hash_size, data_size;
+        void *curr, *next;
         log_descr = &g_elog_2->event_log_descr[i];
         printf("\t\t\t Log Descrption:\n");
         printf("\t\t\t             Alg: %u\n", log_descr->alg);
@@ -477,12 +480,10 @@ void dump_event_2(void)
                 log_descr->pcr_events_offset,
                 log_descr->next_event_offset);
 
-        uint32_t hash_size, data_size;
         hash_size = get_hash_size(log_descr->alg);
         if ( hash_size == 0 )
             return;
 
-        void *curr, *next;
         *((u64 *)(&curr)) = log_descr->phys_addr +
                 log_descr->pcr_events_offset;
         *((u64 *)(&next)) = log_descr->phys_addr +
@@ -671,6 +672,11 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     txt_heap_t *txt_heap;
     uint64_t *size;
     struct tpm_if *tpm = get_tpm();
+    os_mle_data_t *os_mle_data;
+    uint32_t version;
+    os_sinit_data_t *os_sinit_data;
+    txt_caps_t sinit_caps;
+    txt_caps_t caps_mask = { 0 };
 
     txt_heap = get_txt_heap();
 
@@ -683,7 +689,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     /*
      * OS/loader to MLE data
      */
-    os_mle_data_t *os_mle_data = get_os_mle_data_start(txt_heap);
+    os_mle_data = get_os_mle_data_start(txt_heap);
     size = (uint64_t *)((uint32_t)os_mle_data - sizeof(uint64_t));
     *size = sizeof(*os_mle_data) + sizeof(uint64_t);
     memset(os_mle_data, 0, sizeof(*os_mle_data));
@@ -697,7 +703,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
      * OS/loader to SINIT data
      */
     /* check sinit supported os_sinit_data version */
-    uint32_t version = get_supported_os_sinit_data_ver(sinit);
+    version = get_supported_os_sinit_data_ver(sinit);
     if ( version < MIN_OS_SINIT_DATA_VER ) {
         printf("unsupported OS to SINIT data version(%u) in sinit\n",
                version);
@@ -706,7 +712,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     if ( version > MAX_OS_SINIT_DATA_VER )
         version = MAX_OS_SINIT_DATA_VER;
 
-    os_sinit_data_t *os_sinit_data = get_os_sinit_data_start(txt_heap);
+    os_sinit_data = get_os_sinit_data_start(txt_heap);
     size = (uint64_t *)((uint32_t)os_sinit_data - sizeof(uint64_t));
     *size = calc_os_sinit_data_size(version);
     memset(os_sinit_data, 0, *size);
@@ -760,9 +766,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     // XMHF: Change return type of get_sinit_capabilities() to uint32_t.
     // XMHF: Replace g_sinit with sinit.
     //txt_caps_t sinit_caps = get_sinit_capabilities(g_sinit);
-    txt_caps_t sinit_caps;
     sinit_caps._raw = get_sinit_capabilities(sinit);
-    txt_caps_t caps_mask = { 0 };
     caps_mask.rlp_wake_getsec = 1;
     caps_mask.rlp_wake_monitor = 1;
     caps_mask.pcr_map_da = 1;
@@ -1165,6 +1169,7 @@ bool txt_prepare_cpu(void)
 {
     unsigned long eflags, cr0;
     uint64_t mcg_cap, mcg_stat;
+    getsec_parameters_t params;
 
     /* must be running at CPL 0 => this is implicit in even getting this far */
     /* since our bootstrap code loads a GDT, etc. */
@@ -1225,7 +1230,6 @@ bool txt_prepare_cpu(void)
         return false;
     }
 
-    getsec_parameters_t params;
     if ( !get_parameters(&params) ) {
         printf("get_parameters() failed\n");
         return false;
