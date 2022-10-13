@@ -55,7 +55,7 @@
  *  Adapted find_platform_sinit_module() to check_sinit_module().
  *  Assume force_tpm2_legacy_log=false on command line.
  *  Replace g_sinit with sinit.
- *  TODO: Need to get sinit, then uncomment following code.
+ *  Add argument sinit for get_evtlog_type().
  *  Change return type of get_sinit_capabilities() to uint32_t.
  *  TODO: configure_vtd() removed.
  *  Change arguments of init_txt_heap() from loader_ctx *lctx.
@@ -367,7 +367,8 @@ static void init_evtlog_desc(heap_event_log_ptr_elt2_t *evt_log)
     }
 }
 
-int get_evtlog_type(void)
+// XMHF: Add argument sinit for get_evtlog_type().
+int get_evtlog_type(acm_hdr_t *sinit)
 {
     struct tpm_if *tpm = get_tpm();
 
@@ -383,18 +384,16 @@ int get_evtlog_type(void)
         //    return EVTLOG_TPM2_LEGACY;
         //}
         // XMHF: Replace g_sinit with sinit.
-        // XMHF: TODO: Need to get sinit, then uncomment following code.
-        HALT_ON_ERRORCOND(0);
-        //if (sinit) {
-        //    // XMHF: Change return type of get_sinit_capabilities() to uint32_t.
-        //    // XMHF: Replace g_sinit with sinit.
-        //    //txt_caps_t sinit_caps = get_sinit_capabilities(g_sinit);
-        //    txt_caps_t sinit_caps;
-        //    sinit_caps._raw = get_sinit_capabilities(sinit);
-        //    return sinit_caps.tcg_event_log_format ? EVTLOG_TPM2_TCG : EVTLOG_TPM2_LEGACY;
-        //} else {
-        //    printf("SINIT not found\n");
-        //}
+        if (sinit) {
+            // XMHF: Change return type of get_sinit_capabilities() to uint32_t.
+            // XMHF: Replace g_sinit with sinit.
+            //txt_caps_t sinit_caps = get_sinit_capabilities(g_sinit);
+            txt_caps_t sinit_caps;
+            sinit_caps._raw = get_sinit_capabilities(sinit);
+            return sinit_caps.tcg_event_log_format ? EVTLOG_TPM2_TCG : EVTLOG_TPM2_LEGACY;
+        } else {
+            printf("SINIT not found\n");
+        }
     } else {
         printf("Unknown TPM major version: %d\n", tpm->major);
     }
@@ -402,13 +401,14 @@ int get_evtlog_type(void)
     return EVTLOG_UNKNOWN;
 }
 
-static void init_os_sinit_ext_data(heap_ext_data_element_t* elts)
+// XMHF: Add argument sinit for get_evtlog_type().
+static void init_os_sinit_ext_data(heap_ext_data_element_t* elts, acm_hdr_t *sinit)
 {
     heap_ext_data_element_t* elt = elts;
     heap_event_log_ptr_elt_t* evt_log;
     struct tpm_if *tpm = get_tpm();
 
-    int log_type = get_evtlog_type();
+    int log_type = get_evtlog_type(sinit);
     if ( log_type == EVTLOG_TPM12 ) {
         evt_log = (heap_event_log_ptr_elt_t *)elt->data;
         evt_log->event_log_phys_addr = (uint64_t)(unsigned long)init_event_log();
@@ -591,9 +591,10 @@ bool evtlog_append_tpm2_tcg(uint8_t pcr, uint32_t type, hash_list_t *hl)
     return true;
 }
 
-bool evtlog_append(uint8_t pcr, hash_list_t *hl, uint32_t type)
+// XMHF: Add argument sinit for get_evtlog_type().
+bool evtlog_append(uint8_t pcr, hash_list_t *hl, uint32_t type, acm_hdr_t *sinit)
 {
-    int log_type = get_evtlog_type();
+    int log_type = get_evtlog_type(sinit);
     switch (log_type) {
     case EVTLOG_TPM12:
         if ( !evtlog_append_tpm12(pcr, &hl->entries[0].hash, type) )
@@ -776,7 +777,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
         printf("SINIT capabilities are incompatible (0x%x)\n", sinit_caps._raw);
         return NULL;
     }
-    if ( get_evtlog_type() == EVTLOG_TPM2_TCG ) {
+    if ( get_evtlog_type(sinit) == EVTLOG_TPM2_TCG ) {
         printf("SINIT ACM supports TCG compliant TPM 2.0 event log format, tcg_event_log_format = %d \n",
               sinit_caps.tcg_event_log_format);
         os_sinit_data->capabilities.tcg_event_log_format = 1;
@@ -838,7 +839,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
 
     /* Event log initialization */
     if ( os_sinit_data->version >= 6 )
-        init_os_sinit_ext_data(os_sinit_data->ext_data_elts);
+        init_os_sinit_ext_data(os_sinit_data->ext_data_elts, sinit);
 
     print_os_sinit_data(os_sinit_data);
 
