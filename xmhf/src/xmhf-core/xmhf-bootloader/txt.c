@@ -700,7 +700,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     size = (uint64_t *)((uint32_t)os_mle_data - sizeof(uint64_t));
     *size = sizeof(*os_mle_data) + sizeof(uint64_t);
     memset(os_mle_data, 0, sizeof(*os_mle_data));
-    os_mle_data->version = 0x02;
+    os_mle_data->version = 3;
     // XMHF: Change arguments of init_txt_heap() from loader_ctx *lctx.
     //os_mle_data->lctx_addr = lctx->addr;
     os_mle_data->lctx_addr = 0;
@@ -773,15 +773,18 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     // XMHF: Replace g_sinit with sinit.
     //txt_caps_t sinit_caps = get_sinit_capabilities(g_sinit);
     sinit_caps._raw = get_sinit_capabilities(sinit);
-    caps_mask._raw = 0;
-    caps_mask.rlp_wake_getsec = caps_mask.rlp_wake_monitor = 1;
+    caps_mask.rlp_wake_getsec = 1;
+    caps_mask.rlp_wake_monitor = 1;
+    caps_mask.pcr_map_da = 1;
+    caps_mask.tcg_event_log_format = 1;
+    caps_mask.tcg_event_log_format = 1;
     os_sinit_data->capabilities._raw = MLE_HDR_CAPS & ~caps_mask._raw;
     if ( sinit_caps.rlp_wake_monitor )
         os_sinit_data->capabilities.rlp_wake_monitor = 1;
     else if ( sinit_caps.rlp_wake_getsec )
         os_sinit_data->capabilities.rlp_wake_getsec = 1;
     else {     /* should have been detected in verify_acmod() */
-        printf("SINIT capabilities are icompatible (0x%x)\n", sinit_caps._raw);
+        printf("SINIT capabilities are incompatible (0x%x)\n", sinit_caps._raw);
         return NULL;
     }
     /* capabilities : require MLE pagetable in ECX on launch */
