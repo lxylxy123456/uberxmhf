@@ -676,16 +676,18 @@ void lxy(void) {
 /*
  * sets up TXT heap
  */
+// XMHF: Change arguments of init_txt_heap() from loader_ctx *lctx.
 static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
                                  void *phys_mle_start, size_t mle_size)
 {
     txt_heap_t *txt_heap;
     uint64_t *size;
+//    struct tpm_if *tpm = get_tpm();
     os_mle_data_t *os_mle_data;
+    uint32_t version;
     os_sinit_data_t *os_sinit_data;
-    /* uint64_t min_lo_ram, max_lo_ram, min_hi_ram, max_hi_ram; */
     txt_caps_t sinit_caps;
-    txt_caps_t caps_mask;
+    txt_caps_t caps_mask = { 0 };
 
     txt_heap = get_txt_heap();
 
@@ -703,12 +705,24 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     *size = sizeof(*os_mle_data) + sizeof(uint64_t);
     memset(os_mle_data, 0, sizeof(*os_mle_data));
     os_mle_data->version = 0x02;
+    // XMHF: Change arguments of init_txt_heap() from loader_ctx *lctx.
+    //os_mle_data->lctx_addr = lctx->addr;
     os_mle_data->lctx_addr = 0;
     os_mle_data->saved_misc_enable_msr = rdmsr64(MSR_IA32_MISC_ENABLE);
 
     /*
      * OS/loader to SINIT data
      */
+    /* check sinit supported os_sinit_data version */
+    version = get_supported_os_sinit_data_ver(sinit);
+    if ( version < MIN_OS_SINIT_DATA_VER ) {
+        printf("unsupported OS to SINIT data version(%u) in sinit\n",
+               version);
+        return NULL;
+    }
+    if ( version > MAX_OS_SINIT_DATA_VER )
+        version = MAX_OS_SINIT_DATA_VER;
+
     os_sinit_data = get_os_sinit_data_start(txt_heap);
     size = (uint64_t *)((uint32_t)os_sinit_data - sizeof(uint64_t));
     *size = sizeof(*os_sinit_data) + sizeof(uint64_t);
@@ -717,33 +731,51 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     /* this is phys addr */
     os_sinit_data->mle_ptab = (uint64_t)(unsigned long)ptab_base;
     os_sinit_data->mle_size = g_mle_hdr.mle_end_off - g_mle_hdr.mle_start_off;
-    /* Copy populated MLE header into SL */
+    // XMHF: Copy populated MLE header into SL
     HALT_ON_ERRORCOND(sizeof(mle_hdr_t) < TEMPORARY_MAX_MLE_HEADER_SIZE);
     memcpy(phys_mle_start, &g_mle_hdr, sizeof(mle_hdr_t));
     printf("Copied mle_hdr (0x%08x, 0x%x bytes) into SL (0x%08x)\n",
            (u32)&g_mle_hdr, sizeof(mle_hdr_t), (u32)phys_mle_start);
-    /* this is linear addr (offset from MLE base) of mle header, in MLE page tables */
+    /* this is linear addr (offset from MLE base) of mle header */
+    // XMHF: Remove unused symbols.
+    //os_sinit_data->mle_hdr_base = (uint64_t)(unsigned long)&g_mle_hdr -
+    //    (uint64_t)(unsigned long)&_mle_start;
     os_sinit_data->mle_hdr_base = 0;
-    //- (uint64_t)(unsigned long)&_mle_start;
     /* VT-d PMRs */
-    /* Must protect MLE, o/w get: TXT.ERRORCODE=c0002871
-       AC module error : acm_type=1, progress=07, error=a
-       "page is not covered by DPR nor PMR regions" */
+    // XMHF: semi-hardcode VT-d PMRs
+    //uint64_t min_lo_ram, max_lo_ram, min_hi_ram, max_hi_ram;
+    //
+    //if ( !get_ram_ranges(&min_lo_ram, &max_lo_ram, &min_hi_ram, &max_hi_ram) )
+    //    return NULL;
+    //
+    //set_vtd_pmrs(os_sinit_data, min_lo_ram, max_lo_ram, min_hi_ram,
+    //             max_hi_ram);
     {
 		extern u32 sl_rt_size;	//XXX: Ugly hack to bring in SL + runtime size; ideally this should be passed in as another parameter
 		(void)mle_size;
 		os_sinit_data->vtd_pmr_lo_base = (u64)__TARGET_BASE_SL;
 		os_sinit_data->vtd_pmr_lo_size = (u64)PAGE_ALIGN_UP_2M(sl_rt_size);
 	}
-
-    /* hi range is >4GB; unused for us */
-    os_sinit_data->vtd_pmr_hi_base = 0;
-    os_sinit_data->vtd_pmr_hi_size = 0;
-
-    /* LCP owner policy data -- DELETED */
-
+    /* LCP owner policy data */
+	// XMHF: Assume no LCP module exists.
+    //void *lcp_base = NULL;
+    //uint32_t lcp_size = 0;
+    //
+    //if ( find_lcp_module(lctx, &lcp_base, &lcp_size) && lcp_size > 0 ) {
+    //    /* copy to heap */
+    //    if ( lcp_size > sizeof(os_mle_data->lcp_po_data) ) {
+    //        printf("LCP owner policy data file is too large (%u)\n",
+    //               lcp_size);
+    //        return NULL;
+    //    }
+    //    memcpy(os_mle_data->lcp_po_data, lcp_base, lcp_size);
+    //    os_sinit_data->lcp_po_base = (unsigned long)&os_mle_data->lcp_po_data;
+    //    os_sinit_data->lcp_po_size = lcp_size;
+    //}
     /* capabilities : choose monitor wake mechanism first */
-    ///XXX I don't really understand this
+    // XMHF: Change return type of get_sinit_capabilities() to uint32_t.
+    // XMHF: Replace g_sinit with sinit.
+    //txt_caps_t sinit_caps = get_sinit_capabilities(g_sinit);
     sinit_caps._raw = get_sinit_capabilities(sinit);
     caps_mask._raw = 0;
     caps_mask.rlp_wake_getsec = caps_mask.rlp_wake_monitor = 1;
@@ -761,7 +793,27 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
      * os_sinit_data->capabilities.ecx_pgtbl = 1;
      */
     os_sinit_data->capabilities.ecx_pgtbl = 0;
-    /* TODO: when tboot supports EFI then set efi_rsdt_ptr */
+    // XMHF: Assume is_loader_launch_efi() returns false.
+    //if (is_loader_launch_efi(lctx)){
+    //    /* we were launched EFI, set efi_rsdt_ptr */
+    //    struct acpi_rsdp *rsdp = get_rsdp(lctx);
+    //    if (rsdp != NULL){
+    //        if (version < 6){
+    //            /* rsdt */
+    //            /* NOTE: Winston Wang says this doesn't work for v5 */
+    //            os_sinit_data->efi_rsdt_ptr = (uint64_t) rsdp->rsdp1.rsdt;
+    //        } else {
+    //            /* rsdp */
+    //            memcpy((void *)&g_rsdp, rsdp, sizeof(struct acpi_rsdp));
+    //            os_sinit_data->efi_rsdt_ptr = (uint64_t)((uint32_t)&g_rsdp);
+    //        }
+    //    } else {
+    //        /* per discussions--if we don't have an ACPI pointer, die */
+    //        printf("Failed to find RSDP for EFI launch\n");
+    //        return NULL;
+    //    }
+    //}
+
 
     print_os_sinit_data(os_sinit_data);
 
@@ -772,6 +824,103 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     return txt_heap;
 }
 
+// XMHF: Remove unused symbols.
+#if 0
+static void txt_wakeup_cpus(void)
+{
+    uint16_t cs;
+    mle_join_t mle_join;
+    unsigned int ap_wakeup_count;
+
+    if ( !verify_stm(get_apicid()) )
+        apply_policy(TB_ERR_POST_LAUNCH_VERIFICATION);
+
+    /* enable SMIs on BSP before waking APs (which will enable them on APs)
+       because some SMM may take immediate SMI and hang if AP gets in first */
+    printf("enabling SMIs and NMI on BSP\n");
+    __getsec_smctrl();
+    __enable_nmi();
+
+    atomic_set(&ap_wfs_count, 0);
+
+    /* RLPs will use our GDT and CS */
+    extern char gdt_table[], gdt_table_end[];
+    __asm__ __volatile__ ("mov %%cs, %0\n" : "=r"(cs));
+
+    mle_join.entry_point = (uint32_t)(unsigned long)&_txt_wakeup;
+    mle_join.seg_sel = cs;
+    mle_join.gdt_base = (uint32_t)gdt_table;
+    mle_join.gdt_limit = gdt_table_end - gdt_table - 1;
+
+    printf("mle_join.entry_point = %x\n", mle_join.entry_point);
+    printf("mle_join.seg_sel = %x\n", mle_join.seg_sel);
+    printf("mle_join.gdt_base = %x\n", mle_join.gdt_base);
+    printf("mle_join.gdt_limit = %x\n", mle_join.gdt_limit);
+
+    write_priv_config_reg(TXTCR_MLE_JOIN, (uint64_t)(unsigned long)&mle_join);
+
+    mtx_init(&ap_lock);
+
+    txt_heap_t *txt_heap = get_txt_heap();
+    sinit_mle_data_t *sinit_mle_data = get_sinit_mle_data_start(txt_heap);
+    os_sinit_data_t *os_sinit_data = get_os_sinit_data_start(txt_heap);
+
+    /* choose wakeup mechanism based on capabilities used */
+    if ( os_sinit_data->capabilities.rlp_wake_monitor ) {
+        printf("joining RLPs to MLE with MONITOR wakeup\n");
+        printf("rlp_wakeup_addr = 0x%x\n", sinit_mle_data->rlp_wakeup_addr);
+        *((uint32_t *)(unsigned long)(sinit_mle_data->rlp_wakeup_addr)) = 0x01;
+    }
+    else {
+        printf("joining RLPs to MLE with GETSEC[WAKEUP]\n");
+        __getsec_wakeup();
+        printf("GETSEC[WAKEUP] completed\n");
+    }
+
+    /* assume BIOS isn't lying to us about # CPUs, else some CPUS may not */
+    /* have entered wait-for-sipi before we launch *or* we have to wait */
+    /* for timeout before launching */
+    /* (all TXT-capable CPUs have at least 2 cores) */
+    bios_data_t *bios_data = get_bios_data_start(txt_heap);
+    ap_wakeup_count = bios_data->num_logical_procs - 1;
+    if ( ap_wakeup_count >= NR_CPUS ) {
+        printf("there are too many CPUs (%u)\n", ap_wakeup_count);
+        ap_wakeup_count = NR_CPUS - 1;
+    }
+
+    printf("waiting for all APs (%d) to enter wait-for-sipi...\n",
+           ap_wakeup_count);
+    /* wait for all APs that woke up to have entered wait-for-sipi */
+    uint32_t timeout = AP_WFS_TIMEOUT;
+    do {
+        if ( timeout % 0x8000 == 0 )
+            printf(".");
+        else
+            cpu_relax();
+        if ( timeout % 0x200000 == 0 )
+            printf("\n");
+        timeout--;
+    } while ( ( atomic_read(&ap_wfs_count) < ap_wakeup_count ) &&
+              timeout > 0 );
+    printf("\n");
+    if ( timeout == 0 )
+        printf("wait-for-sipi loop timed-out\n");
+    else
+        printf("all APs in wait-for-sipi\n");
+}
+#endif
+
+// XMHF: Move txt_is_launched() out.
+//bool txt_is_launched(void)
+//{
+//    txt_sts_t sts;
+//
+//    sts._raw = read_pub_config_reg(TXTCR_STS);
+//
+//    return sts.senter_done_sts;
+//}
+
+// XMHF: Change delay implementation.
 void delay(u64 cycles)
 {
     uint64_t start = rdtsc64();
@@ -779,7 +928,7 @@ void delay(u64 cycles)
     while ( rdtsc64()-start < cycles ) ;
 }
 
-
+// XMHF: Change arguments of txt_launch_environment() from loader_ctx *lctx.
 tb_error_t txt_launch_environment(void *sinit_ptr, size_t sinit_size,
                                   void *phys_mle_start, size_t mle_size)
 {
@@ -804,26 +953,65 @@ tb_error_t txt_launch_environment(void *sinit_ptr, size_t sinit_size,
     if ( !verify_acmod(sinit) )
         return TB_ERR_ACMOD_VERIFY_FAILED;
 
+    /*
+     * find correct SINIT AC module in modules list
+     */
+    // find_platform_sinit_module(lctx, (void **)&g_sinit, NULL);
+    /* if it is newer than BIOS-provided version, then copy it to */
+    /* BIOS reserved region */
+    // g_sinit = copy_sinit(g_sinit);
+    // if ( g_sinit == NULL )
+    //    return TB_ERR_SINIT_NOT_PRESENT;
+    /* do some checks on it */
+    // if ( !verify_acmod(g_sinit) )
+     //   return TB_ERR_ACMOD_VERIFY_FAILED;
+
     /* print some debug info */
     print_file_info();
     print_mle_hdr(&g_mle_hdr);
 
     /* create MLE page table */
+    // XMHF: Change arguments of txt_launch_environment() from loader_ctx *lctx.
+    //mle_ptab_base = build_mle_pagetable(
+    //                         g_mle_hdr.mle_start_off + TBOOT_BASE_ADDR,
+    //                         g_mle_hdr.mle_end_off - g_mle_hdr.mle_start_off);
     mle_ptab_base = build_mle_pagetable((u32)phys_mle_start, mle_size);
     if ( mle_ptab_base == NULL )
         return TB_ERR_FATAL;
 
+    // XMHF: TODO: configure_vtd() removed.
+    //configure_vtd();
+
     /* initialize TXT heap */
-    txt_heap = init_txt_heap(mle_ptab_base, sinit,
-                             phys_mle_start, mle_size);
+    // XMHF: Change arguments of init_txt_heap() from loader_ctx *lctx.
+    // XMHF: Use sinit = sinit_ptr instead of g_sinit.
+    txt_heap = init_txt_heap(mle_ptab_base, sinit, phys_mle_start, mle_size);
     if ( txt_heap == NULL )
-        return TB_ERR_FATAL;
+        return TB_ERR_TXT_NOT_SUPPORTED;
+
+    /*
+     * Disable VGA logging when using framebuffer. Writing to it will be
+     * extreme slow when memory is set to UC.
+     */
+    // XMHF: Skip disabling VGA logging.
+    //if (get_framebuffer_info(g_ldr_ctx) != NULL) {
+    //    printf("Disabling VGA logging before GETSEC[SENTER]\n");
+    //    printk_disable_vga();
+    //}
+
+    /*
+    * If memlog decide to compress logs after setting MTRRs,
+    * it will take very much time. Better do it now.
+    */
+    // XMHF: Skip printk_flush().
+    //printk_flush();
 
     /* save MTRRs before we alter them for SINIT launch */
     os_mle_data = get_os_mle_data_start(txt_heap);
     save_mtrrs(&(os_mle_data->saved_mtrr_state));
 
     /* set MTRRs properly for AC module (SINIT) */
+    // XMHF: Use sinit = sinit_ptr instead of g_sinit.
     if ( !set_mtrrs_for_acmod(sinit) )
         return TB_ERR_FATAL;
 
@@ -842,7 +1030,7 @@ bool txt_prepare_cpu(void)
     unsigned long eflags, cr0;
     uint64_t mcg_cap, mcg_stat;
     getsec_parameters_t params;
-    unsigned int i;
+//    unsigned int i;
 
     /* must be running at CPL 0 => this is implicit in even getting this far */
     /* since our bootstrap code loads a GDT, etc. */
@@ -909,7 +1097,7 @@ bool txt_prepare_cpu(void)
 
     /* check if all machine check regs are clear */
     mcg_cap = rdmsr64(MSR_MCG_CAP);
-    for ( i = 0; i < (mcg_cap & 0xff); i++ ) {
+    for ( unsigned int i = 0; i < (mcg_cap & 0xff); i++ ) {
         mcg_stat = rdmsr64(MSR_MC0_STATUS + 4*i);
         if ( mcg_stat & (1ULL << 63) ) {
             printf("MCG[%u] = %llx ERROR\n", i, mcg_stat);
@@ -932,7 +1120,266 @@ bool txt_prepare_cpu(void)
     return true;
 }
 
+// XMHF: Remove unused symbols.
+#if 0
+void txt_post_launch(void)
+{
+    txt_heap_t *txt_heap;
+    os_mle_data_t *os_mle_data;
+    tb_error_t err;
 
+    /* verify MTRRs, VT-d settings, TXT heap, etc. */
+    err = txt_post_launch_verify_platform();
+    /* don't return the error yet, because we need to restore settings */
+    if ( err != TB_ERR_NONE )
+        printf("failed to verify platform\n");
+
+    /* get saved OS state (os_mvmm_data_t) from LT heap */
+    txt_heap = get_txt_heap();
+    os_mle_data = get_os_mle_data_start(txt_heap);
+
+    /* clear error registers so that we start fresh */
+    write_priv_config_reg(TXTCR_ERRORCODE, 0x00000000);
+    write_priv_config_reg(TXTCR_ESTS, 0xffffffff);  /* write 1's to clear */
+
+    /* bring RLPs into environment (do this before restoring MTRRs to ensure */
+    /* SINIT area is mapped WB for MONITOR-based RLP wakeup) */
+    txt_wakeup_cpus();
+
+    /* restore pre-SENTER IA32_MISC_ENABLE_MSR (no verification needed)
+       (do after AP wakeup so that if restored MSR has MWAIT clear it won't
+       prevent wakeup) */
+    printf("saved IA32_MISC_ENABLE = 0x%08x\n", os_mle_data->saved_misc_enable_msr);
+    wrmsr64(MSR_IA32_MISC_ENABLE, os_mle_data->saved_misc_enable_msr);
+    if ( use_mwait() ) {
+        /* set MONITOR/MWAIT support */
+        uint64_t misc;
+        misc = rdmsr64(MSR_IA32_MISC_ENABLE);
+        misc |= MSR_IA32_MISC_ENABLE_MONITOR_FSM;
+        wrmsr64(MSR_IA32_MISC_ENABLE, misc);
+    }
+
+    /* restore pre-SENTER MTRRs that were overwritten for SINIT launch */
+    restore_mtrrs(&(os_mle_data->saved_mtrr_state));
+
+    /* now, if there was an error, apply policy */
+    apply_policy(err);
+
+    /* always set the TXT.CMD.SECRETS flag */
+    write_priv_config_reg(TXTCR_CMD_SECRETS, 0x01);
+    read_priv_config_reg(TXTCR_E2STS);   /* just a fence, so ignore return */
+    printf("set TXT.CMD.SECRETS flag\n");
+
+    /* open TPM locality 1 */
+    write_priv_config_reg(TXTCR_CMD_OPEN_LOCALITY1, 0x01);
+    read_priv_config_reg(TXTCR_E2STS);   /* just a fence, so ignore return */
+    printf("opened TPM locality 1\n");
+}
+
+void ap_wait(unsigned int cpuid)
+{
+    if ( cpuid >= NR_CPUS ) {
+        printf("cpuid (%u) exceeds # supported CPUs\n", cpuid);
+        apply_policy(TB_ERR_FATAL);
+        mtx_leave(&ap_lock);
+        return;
+    }
+
+    /* ensure MONITOR/MWAIT support is set */
+    uint64_t misc;
+    misc = rdmsr64(MSR_IA32_MISC_ENABLE);
+    misc |= MSR_IA32_MISC_ENABLE_MONITOR_FSM;
+    wrmsr64(MSR_IA32_MISC_ENABLE, misc);
+
+    /* this is close enough to entering monitor/mwait loop, so inc counter */
+    atomic_inc((atomic_t *)&_tboot_shared.num_in_wfs);
+    mtx_leave(&ap_lock);
+
+    printf("cpu %u mwait'ing\n", cpuid);
+    while ( _tboot_shared.ap_wake_trigger != cpuid ) {
+        cpu_monitor(&_tboot_shared.ap_wake_trigger, 0, 0);
+        mb();
+        if ( _tboot_shared.ap_wake_trigger == cpuid )
+            break;
+        cpu_mwait(0, 0);
+    }
+
+    uint32_t sipi_vec = (uint32_t)_tboot_shared.ap_wake_addr;
+    atomic_dec(&ap_wfs_count);
+    atomic_dec((atomic_t *)&_tboot_shared.num_in_wfs);
+    cpu_wakeup(cpuid, sipi_vec);
+}
+
+void txt_cpu_wakeup(void)
+{
+    txt_heap_t *txt_heap;
+    os_mle_data_t *os_mle_data;
+    uint64_t madt_apicbase, msr_apicbase;
+    unsigned int cpuid = get_apicid();
+
+    if ( cpuid >= NR_CPUS ) {
+        printf("cpuid (%u) exceeds # supported CPUs\n", cpuid);
+        apply_policy(TB_ERR_FATAL);
+        return;
+    }
+
+    mtx_enter(&ap_lock);
+
+    printf("cpu %u waking up from TXT sleep\n", cpuid);
+
+    /* restore LAPIC base address for AP */
+    madt_apicbase = (uint64_t)get_madt_apic_base();
+    if ( madt_apicbase == 0 ) {
+        printf("not able to get apci base from MADT\n");
+        apply_policy(TB_ERR_FATAL);
+        return;
+    }
+    msr_apicbase = rdmsr64(MSR_APICBASE);
+    if ( madt_apicbase != (msr_apicbase & ~0xFFFULL) ) {
+        printf("cpu %u restore apic base to %llx\n", cpuid, madt_apicbase);
+        wrmsr64(MSR_APICBASE, (msr_apicbase & 0xFFFULL) | madt_apicbase);
+    }
+
+    txt_heap = get_txt_heap();
+    os_mle_data = get_os_mle_data_start(txt_heap);
+
+    /* apply (validated) (pre-SENTER) MTRRs from BSP to each AP */
+    restore_mtrrs(&(os_mle_data->saved_mtrr_state));
+
+    /* restore pre-SENTER IA32_MISC_ENABLE_MSR */
+    wrmsr64(MSR_IA32_MISC_ENABLE, os_mle_data->saved_misc_enable_msr);
+
+    if ( !verify_stm(cpuid) )
+        apply_policy(TB_ERR_POST_LAUNCH_VERIFICATION);
+
+    /* enable SMIs and NMI */
+    printf("enabling SMIs and NMI on cpu %u\n", cpuid);
+    __getsec_smctrl();
+    __enable_nmi();
+
+    atomic_inc(&ap_wfs_count);
+    if ( use_mwait() )
+        ap_wait(cpuid);
+    else
+        handle_init_sipi_sipi(cpuid);
+}
+
+tb_error_t txt_protect_mem_regions(void)
+{
+    uint64_t base, size;
+
+    /*
+     * TXT has 2 regions of RAM that need to be reserved for use by only the
+     * hypervisor; not even dom0 should have access:
+     *   TXT heap, SINIT AC module
+     */
+
+    /* TXT heap */
+    base = read_pub_config_reg(TXTCR_HEAP_BASE);
+    size = read_pub_config_reg(TXTCR_HEAP_SIZE);
+    printf("protecting TXT heap (%llx - %llx) in e820 table\n", base,
+           (base + size - 1));
+    if ( !e820_protect_region(base, size, E820_RESERVED) )
+        return TB_ERR_FATAL;
+    if (!efi_memmap_reserve(base, size)) {
+        return TB_ERR_FATAL;
+    }
+
+    /* SINIT */
+    base = read_pub_config_reg(TXTCR_SINIT_BASE);
+    size = read_pub_config_reg(TXTCR_SINIT_SIZE);
+    printf("protecting SINIT (%llx - %llx) in e820 table\n", base,
+           (base + size - 1));
+    if ( !e820_protect_region(base, size, E820_RESERVED) )
+        return TB_ERR_FATAL;
+    if (!efi_memmap_reserve(base, size)) {
+        return TB_ERR_FATAL;
+    }
+
+    /* TXT private space */
+    base = TXT_PRIV_CONFIG_REGS_BASE;
+    size = TXT_CONFIG_REGS_SIZE;
+    printf(
+           "protecting TXT Private Space (%llx - %llx) in e820 table\n",
+           base, (base + size - 1));
+    if ( !e820_protect_region(base, size, E820_RESERVED) )
+        return TB_ERR_FATAL;
+    if (!efi_memmap_reserve(base, size)) {
+        return TB_ERR_FATAL;
+    }
+
+    /* ensure that memory not marked as good RAM by the MDRs is RESERVED in
+       the e820 table */
+    txt_heap_t* txt_heap = get_txt_heap();
+    sinit_mle_data_t *sinit_mle_data = get_sinit_mle_data_start(txt_heap);
+    uint32_t num_mdrs = sinit_mle_data->num_mdrs;
+    sinit_mdr_t *mdrs_base = (sinit_mdr_t *)(((void *)sinit_mle_data
+                                              - sizeof(uint64_t)) +
+                                             sinit_mle_data->mdrs_off);
+    printf("verifying e820 table against SINIT MDRs: ");
+    if ( !verify_e820_map(mdrs_base, num_mdrs) ) {
+        printf("verification failed.\n");
+        return TB_ERR_POST_LAUNCH_VERIFICATION;
+    }
+    printf("verification succeeded.\n");
+
+    return TB_ERR_NONE;
+}
+
+void txt_shutdown(void)
+{
+    unsigned long apicbase;
+
+    /* shutdown shouldn't be called on APs, but if it is then just hlt */
+    apicbase = rdmsr64(MSR_APICBASE);
+    if ( !(apicbase & APICBASE_BSP) ) {
+        printf("calling txt_shutdown on AP\n");
+        while ( true )
+            halt();
+    }
+
+    /* set TXT.CMD.NO-SECRETS flag (i.e. clear SECRETS flag) */
+    write_priv_config_reg(TXTCR_CMD_NO_SECRETS, 0x01);
+    read_priv_config_reg(TXTCR_E2STS);   /* fence */
+    printf("secrets flag cleared\n");
+
+    /* unlock memory configuration */
+    write_priv_config_reg(TXTCR_CMD_UNLOCK_MEM_CONFIG, 0x01);
+    read_pub_config_reg(TXTCR_E2STS);    /* fence */
+    printf("memory configuration unlocked\n");
+
+    /* if some APs are still in wait-for-sipi then SEXIT will hang */
+    /* so TXT reset the platform instead, expect mwait case */
+    if ( (!use_mwait()) && atomic_read(&ap_wfs_count) > 0 ) {
+        printf(
+               "exiting with some APs still in wait-for-sipi state (%u)\n",
+               atomic_read(&ap_wfs_count));
+        write_priv_config_reg(TXTCR_CMD_RESET, 0x01);
+    }
+
+    /* close TXT private config space */
+    /* implicitly closes TPM localities 1 + 2 */
+    read_priv_config_reg(TXTCR_E2STS);   /* fence */
+    write_priv_config_reg(TXTCR_CMD_CLOSE_PRIVATE, 0x01);
+    read_pub_config_reg(TXTCR_E2STS);    /* fence */
+    printf("private config space closed\n");
+
+    /* SMXE may not be enabled any more, so set it to make sure */
+    write_cr4(read_cr4() | CR4_SMXE);
+
+    /* call GETSEC[SEXIT] */
+    printf("executing GETSEC[SEXIT]...\n");
+    __getsec_sexit();
+    printf("measured environment torn down\n");
+}
+#endif
+
+bool txt_is_powercycle_required(void)
+{
+    /* a powercycle is required to clear the TXT_RESET.STS flag */
+    txt_ests_t ests = (txt_ests_t)read_pub_config_reg(TXTCR_ESTS);
+    return ests.txt_reset_sts;
+}
 
 #define ACM_MEM_TYPE_UC                 0x0100
 #define ACM_MEM_TYPE_WC                 0x0200
@@ -1001,7 +1448,8 @@ bool get_parameters(getsec_parameters_t *params)
             params->preserve_mce = (eax & 0x00000040) ? true : false;
         }
         else {
-            printf("unknown GETSEC[PARAMETERS] type: %d\n", param_type);
+            printf("unknown GETSEC[PARAMETERS] type: %d\n",
+                   param_type);
             param_type = 0;    /* set so that we break out of the loop */
         }
     } while ( param_type != 0 );
