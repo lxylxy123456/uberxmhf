@@ -689,7 +689,8 @@ Progress:
 		* From `tboot/include/txt/acmod.h`
 	* `xmhf/src/xmhf-core/xmhf-bootloader/txt_acmod.c`
 		* From `tboot/txt/acmod.c`
-	* Partial work (cherry-picked): 5ae921eb0 (384f8b507, xmhf64-tboot10-tmp)
+	* Partial work (cherry-picked): 5ae921eb0 (384f8b507, 
+	  <del>xmhf64-tboot10-tmp</del>)
 * `c136fc6a1..9cf234895`
 	* TPM code, see `tpm_symbols.txt` for list of symbols in tboot's `tpm.c`
 	  before change.
@@ -728,33 +729,46 @@ Progress:
 		* `txt_verify_platform()`: based on `tboot/txt/verify.c`
 		* `txt_status_regs()`: based on `tboot/txt/errors.c`,
 		  original name `txt_display_errors()`
-* `f7a816cb4..`
+* `f7a816cb4..e564f2510`
+	* `xmhf/src/xmhf-core/xmhf-bootloader/txt.c`
+		* From `tboot/txt/txt.c`
+		* Change content of `g_mle_hdr`, `print_file_info`
+		* `find_platform_sinit_module() -> check_sinit_module()`
+		* `find_lcp_module() -> dropped`
+		* `txt_wakeup_cpus() -> dropped`
+		* `txt_is_launched() -> moved`
+		* `txt_s3_launch_environment() -> dropped`
+		* `txt_post_launch() -> dropped`
+		* `txt_cpu_wakeup() -> dropped`
+		* `txt_protect_mem_regions() -> dropped`
+		* `txt_shutdown() -> dropped`
+		* `txt_is_powercycle_required() -> dropped`
+* (no commit)
+	* Not a lot of changes across tboot versions, also happens after SENTER
+	* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.c`
+		* Call to `restore_mtrrs()` etc: from `tboot/txt/txt.c` function
+		  `txt_post_launch()`
+	* `xmhf/src/xmhf-core/xmhf-secureloader/arch/x86/sl-x86.c`
+		* Call to `restore_mtrrs()` etc: from `tboot/txt/txt.c` function
+		  `txt_post_launch()`
+	* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-smp.c`
+		* `__DRT__`: wake up APs, from `tboot/txt/txt.c` function `txt_wakeup_cpus()`
+* `e564f2510..26666e75a`
+	* See TXT.ERRORCODE = 0xc00c0491, from `Skl_Errors_201505.xlsx` the erorr
+	  is "Computed heap data table size mismatches value in header". Looks like
+	  need to fix some unimplemented code in `txt_heap.c`.
+	* At this point, hp DRT works well. Now we try to bisect and find out the
+	  change. I think it is impractical to port all tboot updates to XMHF at
+	  this point.
 
-TODO
+Future work
+* Use branch `xmhf64-tboot10`
+* Secure loader bloat since `9cf234895`
+* `txt_heap.c`: `TODO: Hardcoding get_evtlog_type() to EVTLOG_TPM2_TCG.`
+* acmod: `verify_IA32_se_svn_status` was blocked on `tpm`
 
-* `xmhf/src/xmhf-core/xmhf-bootloader/txt.c`
-	* From `tboot/txt/txt.c`
-	* Change content of `g_mle_hdr`, `print_file_info`
-	* `find_platform_sinit_module() -> check_sinit_module()`
-	* `find_lcp_module() -> dropped`
-	* `txt_wakeup_cpus() -> dropped`
-	* `txt_is_launched() -> moved`
-	* `txt_s3_launch_environment() -> dropped`
-	* `txt_post_launch() -> dropped`
-	* `txt_cpu_wakeup() -> dropped`
-	* `txt_protect_mem_regions() -> dropped`
-	* `txt_shutdown() -> dropped`
-	* `txt_is_powercycle_required() -> dropped`
-* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.c`
-	* Call to `restore_mtrrs()` etc: from `tboot/txt/txt.c` function
-	  `txt_post_launch()`
-* `xmhf/src/xmhf-core/xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-smp.c`
-	* `__DRT__`: wake up APs, from `tboot/txt/txt.c` function `txt_wakeup_cpus()`
-* `xmhf/src/xmhf-core/xmhf-secureloader/arch/x86/sl-x86.c`
-	* Call to `restore_mtrrs()` etc: from `tboot/txt/txt.c` function
-	  `txt_post_launch()`
-* heap: see "TODO: TPM 2.0 not supported yet." (blocked by `tpm.c`)
-* acmod: `verify_IA32_se_svn_status` is blocked on `tpm`
+
+### Long term considerations
 
 The bad news is that Wikipedia says "TPM 2.0 is not backward compatible with
 TPM 1.2". In tboot code, TPM 1.2 and TPM 2.0 have different behavior, and are
@@ -766,7 +780,66 @@ Also, for example, Dell says Windows 7 supports TPM 1.2, but not TPM 2.0. This
 means XMHF needs to add a lot of code to support TPM 2.0.
 <https://www.dell.com/support/kbdoc/en-us/000131631/tpm-1-2-vs-2-0-features>
 
-TODO: secure loader bloat since `9cf234895`
+Also, tboot updates reflect bugs in tboot that also show up in XMHF. First is
+the MTRR problem discovered in this bug. There is also the NMI bug fixed in
+`txt_wakeup_cpus()`: (manual diff)
+```diff
+<399      /* enable SMIs on BSP before waking APs (which will enable them on APs)
+<400         because some SMM may take immediate SMI and hang if AP gets in first */
+<401      printk("enabling SMIs on BSP\n");
+<402      __getsec_smctrl();
+>742      /* enable SMIs on BSP before waking APs (which will enable them on APs)
+>743         because some SMM may take immediate SMI and hang if AP gets in first */
+>744      printk(TBOOT_DETA"enabling SMIs and NMI on BSP\n");
+>745      __getsec_smctrl();
+<746      __enable_nmi();
+```
+
+### Bisecting tboot update
+
+We bisect the changes made in `xmhf64-tboot10 c426b0e0e..26666e75a` to find out
+what fixes the TXT.ERRORCODE 0x8000000c bug. List of commits is:
+* 26666e75a `Workaround txt_heap.c by assuming EVTLOG_TPM2_TCG`
+	* Good, serial `20221013231549`
+* e564f2510 `Replace %Lx with %llx in printf`
+* e25add70b `Move declarations before statements in txt.c`
+* b1e3801ba `Add argument sinit for get_evtlog_type().`
+* f36c8840d `Copy txt.c from tboot to XMHF`
+* f7a816cb4 `Update tboot functions in init.c`
+	* Apply patch: `%Lx -> %llx` in `init.c`
+	* Bad `TXT.ERRORCODE: 0x8000000c`, serial `20221013232637` (two times)
+* 19e0c15ce `Fix constants for secureloader sizes`
+* 54c53c8f7 `Move declarations before statements in tpm_20.c`
+* 274569141 `Copy tpm_20.c from tboot to XMHF (insecure)`
+* 9cf234895 `Move declarations before statements in tpm.c and tpm_12.c`
+* cf036dd28 `Copy tpm.c, tpm_12.c, and tpm.h from tboot to XMHF`
+* 38e516db5 `Fix bug in 848b04a98d0ce7bab5bc6268601ac60836b883ed`
+* 848b04a98 `Remove xmhf_tpm_prepare_tpm() (unused function)`
+* 21bad9397 `Make txt_is_launched non-static`
+* c136fc6a1 `Replace %Lx with %llx in printf`
+* 688f2c29e `Update comments for txt_acmod.c`
+* d59c059a9 `Move declarations before statements in txt_acmod.c`
+* 29124156a `Copy txt_acmod.c and txt_acmod.h from tboot to XMHF`
+* 220a785ae `Copy smx.h and txt.h from tboot to XMHF (file _txt_smx.h)`
+* 61180d550 `Copy config_regs.h and errorcode.h from tboot to XMHF (file _txt_config_regs.h)`
+* daabfe306 `Replace %Lx with %llx in printf`
+* 95c4a5dd8 `Move declarations before statements in txt_heap.c`
+* 83e301fe1 `Copy heap.c and heap.h from tboot to XMHF`
+* 558ae22df `Copy mle.h, uuid.h, and tb_error.h from tboot to XMHF (file _txt_mle.h)`
+* c97a02172 `Rename SHA_DIGEST_LENGTH to SHA1_DIGEST_LENGTH`
+* 33db641d4 `Copy hash.c and hash.h from tboot to XMHF`
+* eac573336 `Add comment about functions taken from tboot-1.10.5/include/misc.h`
+* 156acde75 `Move declarations before statements in cmdline.c`
+* 50fe6bde2 `Copy com.h, cmdline.c, and cmdline.h from tboot to XMHF`
+* fe67bc73e `Add comments about how mtrrs.c is splitted`
+* 2b1007465 `Move declarations before statements`
+* 79d673295 `Copy mtrrs.c and mtrrs.h from tboot to XMHF`
+* c426b0e0e
+
+Between `f7a816cb4..26666e75a`, most of the changes happen in `txt.c`. So we
+start a new branch from `f7a816cb4` and try to approach `26666e75a`.
+
+TODO: check version info about `os_sinit_data->version`
 
 TODO: post question on debugging 8000000c on Intel forum
 TODO: update with new version of tboot
