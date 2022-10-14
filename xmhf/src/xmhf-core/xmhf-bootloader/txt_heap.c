@@ -50,7 +50,7 @@
  * Changes made include:
  *  Define NR_CPUS.
  *  Change type of lctx_addr from void * to uint32_t.
- *  TODO: TPM 2.0 not supported yet.
+ *  TODO: Hardcoding get_evtlog_type() to EVTLOG_TPM2_TCG.
  */
 
 /*
@@ -753,10 +753,10 @@ uint64_t calc_os_sinit_data_size(uint32_t version)
             2 * sizeof(heap_ext_data_element_t) +
             sizeof(heap_event_log_ptr_elt_t)
     };
-// XMHF: TODO: TPM 2.0 not supported yet.
-#if 0
     struct tpm_if *tpm = get_tpm();
-    int log_type = get_evtlog_type();
+    // TODO: Hardcoding get_evtlog_type() to EVTLOG_TPM2_TCG.
+    //int log_type = get_evtlog_type();
+    int log_type = EVTLOG_TPM2_TCG;
 
     if ( log_type == EVTLOG_TPM2_TCG ) {
         size[2] = sizeof(os_sinit_data_t) + sizeof(uint64_t) +
@@ -775,7 +775,6 @@ uint64_t calc_os_sinit_data_size(uint32_t version)
             2 * sizeof(heap_ext_data_element_t) + 4 +
             count*sizeof(heap_event_log_descr_t);
     }
-#endif
 
     if ( version >= 6 )
         return size[2];

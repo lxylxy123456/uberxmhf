@@ -390,6 +390,13 @@ int get_evtlog_type(acm_hdr_t *sinit)
             //txt_caps_t sinit_caps = get_sinit_capabilities(g_sinit);
             txt_caps_t sinit_caps;
             sinit_caps._raw = get_sinit_capabilities(sinit);
+            if (sinit_caps.tcg_event_log_format) {
+                printf("get_evtlog_type(): returning EVTLOG_TPM2_TCG\n");
+            } else {
+                printf("get_evtlog_type(): returning EVTLOG_TPM2_LEGACY\n");
+                // TODO: Workaround: txt_heap.c assumes EVTLOG_TPM2_TCG.
+                HALT_ON_ERRORCOND(0);
+            }
             return sinit_caps.tcg_event_log_format ? EVTLOG_TPM2_TCG : EVTLOG_TPM2_LEGACY;
         } else {
             printf("SINIT not found\n");
