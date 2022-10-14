@@ -669,10 +669,6 @@ static void configure_vtd(void)
 }
 #endif
 
-void lxy(void) {
-    init_os_sinit_ext_data(NULL, NULL);
-}
-
 /*
  * sets up TXT heap
  */
@@ -682,7 +678,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
 {
     txt_heap_t *txt_heap;
     uint64_t *size;
-//    struct tpm_if *tpm = get_tpm();
+    struct tpm_if *tpm = get_tpm();
     os_mle_data_t *os_mle_data;
     uint32_t version;
     os_sinit_data_t *os_sinit_data;
@@ -815,6 +811,21 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     //}
 
 
+    /* PCR mapping selection MUST be zero in TPM2.0 mode
+     * since D/A mapping is the only supported by TPM2.0 */
+    if ( tpm->major >= TPM20_VER_MAJOR ) {
+        os_sinit_data->flags = (tpm->extpol == TB_EXTPOL_AGILE) ? 0 : 1;
+        os_sinit_data->capabilities.pcr_map_no_legacy = 0;
+        os_sinit_data->capabilities.pcr_map_da = 0;
+        g_using_da = 1;
+    }
+
+    /* Event log initialization */
+    if ( os_sinit_data->version >= 6 ) {
+        init_os_sinit_ext_data(os_sinit_data->ext_data_elts, sinit);
+        printf("LXY Trace: os_sinit_data->version >= 6\n");
+    }
+
     print_os_sinit_data(os_sinit_data);
 
     /*
@@ -932,14 +943,16 @@ void delay(u64 cycles)
 tb_error_t txt_launch_environment(void *sinit_ptr, size_t sinit_size,
                                   void *phys_mle_start, size_t mle_size)
 {
-    acm_hdr_t *sinit;
     void *mle_ptab_base;
     os_mle_data_t *os_mle_data;
     txt_heap_t *txt_heap;
 
+    // XMHF: Use sinit = sinit_ptr instead of g_sinit.
+    acm_hdr_t *sinit;
     if(NULL == sinit_ptr) return TB_ERR_SINIT_NOT_PRESENT;
     else sinit = (acm_hdr_t*)sinit_ptr;
 
+    // XMHF: TODO: Added copy_sinit() call here.
     if(!check_sinit_module((void *)sinit, sinit_size)) {
         printf("check_sinit_module failed\n");
         return TB_ERR_SINIT_NOT_PRESENT;
