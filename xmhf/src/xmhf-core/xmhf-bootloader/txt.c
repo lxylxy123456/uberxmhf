@@ -820,6 +820,25 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     //    }
     //}
 
+    /* capabilities : choose DA/LG */
+    os_sinit_data->capabilities.pcr_map_no_legacy = 1;
+    // XMHF: Assume get_tboot_prefer_da() returns false.
+    //if ( sinit_caps.pcr_map_da && (get_tboot_prefer_da() || sinit_caps.cbnt_supported) )
+    if ( sinit_caps.pcr_map_da && sinit_caps.cbnt_supported )
+        os_sinit_data->capabilities.pcr_map_da = 1;
+    else if ( !sinit_caps.pcr_map_no_legacy )
+        os_sinit_data->capabilities.pcr_map_no_legacy = 0;
+    else if ( sinit_caps.pcr_map_da ) {
+        printf(
+               "DA is the only supported PCR mapping by SINIT, use it\n");
+        os_sinit_data->capabilities.pcr_map_da = 1;
+    }
+    else {
+        printf("SINIT capabilities are incompatible (0x%x)\n",
+               sinit_caps._raw);
+        return NULL;
+    }
+    g_using_da = os_sinit_data->capabilities.pcr_map_da;
 
     /* PCR mapping selection MUST be zero in TPM2.0 mode
      * since D/A mapping is the only supported by TPM2.0 */
