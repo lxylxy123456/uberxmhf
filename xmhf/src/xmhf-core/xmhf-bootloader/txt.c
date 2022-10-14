@@ -989,6 +989,10 @@ tb_error_t txt_launch_environment(void *sinit_ptr, size_t sinit_size,
     if ( txt_heap == NULL )
         return TB_ERR_TXT_NOT_SUPPORTED;
 
+    /* save MTRRs before we alter them for SINIT launch */
+    os_mle_data = get_os_mle_data_start(txt_heap);
+    save_mtrrs(&(os_mle_data->saved_mtrr_state));
+
     /*
      * Disable VGA logging when using framebuffer. Writing to it will be
      * extreme slow when memory is set to UC.
@@ -1006,34 +1010,138 @@ tb_error_t txt_launch_environment(void *sinit_ptr, size_t sinit_size,
     // XMHF: Skip printk_flush().
     //printk_flush();
 
-    /* save MTRRs before we alter them for SINIT launch */
-    os_mle_data = get_os_mle_data_start(txt_heap);
-    save_mtrrs(&(os_mle_data->saved_mtrr_state));
-
     /* set MTRRs properly for AC module (SINIT) */
     // XMHF: Use sinit = sinit_ptr instead of g_sinit.
     if ( !set_mtrrs_for_acmod(sinit) )
         return TB_ERR_FATAL;
 
-    printf("executing GETSEC[SENTER]...\n");
-    /* pause before executing GETSEC[SENTER] */
-    delay(0x80000000);
+   /*{
+   tpm_reg_loc_ctrl_t    reg_loc_ctrl;
+   tpm_reg_loc_state_t  reg_loc_state;
 
+   reg_loc_ctrl._raw[0] = 0;
+   reg_loc_ctrl.relinquish = 1;
+   write_tpm_reg(0, TPM_REG_LOC_CTRL, &reg_loc_ctrl);
+   printf("Relinquish CRB localility 0 before executing GETSEC[SENTER]...\n");
+   read_tpm_reg(0, TPM_REG_LOC_STATE, &reg_loc_state);
+   printf("CRB reg_loc_state.active_locality is 0x%x \n", reg_loc_state.active_locality);
+   printf("CRB reg_loc_state.loc_assigned is 0x%x \n", reg_loc_state.loc_assigned);
+   }*/
+
+   printf("executing GETSEC[SENTER]...\n");
+    /* (optionally) pause before executing GETSEC[SENTER] */
+    // XMHF: Change delay implementation.
+    //if ( g_vga_delay > 0 )
+    //    delay(g_vga_delay * 1000);
+    delay(0x80000000);
+    // XMHF: Use sinit = sinit_ptr instead of g_sinit.
     __getsec_senter((uint32_t)sinit, (sinit->size)*4);
     printf("ERROR--we should not get here!\n");
     return TB_ERR_FATAL;
 }
 
+// XMHF: Remove unused symbols.
+#if 0
+bool txt_s3_launch_environment(void)
+{
+    /* initial launch's TXT heap data is still in place and assumed valid */
+    /* so don't re-create; this is OK because it was untrusted initially */
+    /* and would be untrusted now */
+    int log_type = get_evtlog_type();
+    /* get sinit binary loaded */
+    g_sinit = (acm_hdr_t *)(uint32_t)read_pub_config_reg(TXTCR_SINIT_BASE);
+    if ( g_sinit == NULL ){
+        return false;
+    }
+	/* initialize event log in os_sinit_data, so that events will not */
+	/* repeat when s3 */
+	if ( log_type == EVTLOG_TPM12 && g_elog ) {
+		g_elog = (event_log_container_t *)init_event_log();
+    } else if ( log_type == EVTLOG_TPM2_TCG && g_elog_2_1)  {
+        init_evtlog_desc_1(g_elog_2_1);
+    } else if ( log_type == EVTLOG_TPM2_LEGACY && g_elog_2)  {
+        init_evtlog_desc(g_elog_2);
+    }
+
+    /*
+    * If memlog decide to compress logs after setting MTRRs,
+    * it will take very much time. Better do it now.
+    */
+    printk_flush();
+
+    /* set MTRRs properly for AC module (SINIT) */
+    set_mtrrs_for_acmod(g_sinit);
+
+    printf("executing GETSEC[SENTER]...\n");
+    /* (optionally) pause before executing GETSEC[SENTER] */
+    if ( g_vga_delay > 0 )
+        delay(g_vga_delay * 1000);
+    __getsec_senter((uint32_t)g_sinit, (g_sinit->size)*4);
+    printf("ERROR--we should not get here!\n");
+    return false;
+}
+
+tb_error_t txt_launch_racm(loader_ctx *lctx)
+{
+    acm_hdr_t *racm = NULL;
+
+    /*
+     * find correct revocation AC module in modules list
+     */
+    find_platform_racm(lctx, (void **)&racm, NULL);
+    if ( racm == NULL )
+        return TB_ERR_SINIT_NOT_PRESENT;
+    /* copy it to a 32KB aligned memory address */
+    racm = copy_racm(racm);
+    if ( racm == NULL )
+        return TB_ERR_SINIT_NOT_PRESENT;
+    /* do some checks on it */
+    if ( !verify_racm(racm) )
+        return TB_ERR_ACMOD_VERIFY_FAILED;
+
+    /* save MTRRs before we alter them for RACM launch */
+    /*  - not needed by far since always reboot after RACM launch */
+    //save_mtrrs(...);
+
+    /*
+    * If memlog decide to compress logs after setting MTRRs,
+    * it will take very much time. Better do it now.
+    */
+    printk_flush();
+
+    /* set MTRRs properly for AC module (RACM) */
+    if ( !set_mtrrs_for_acmod(racm) )
+        return TB_ERR_FATAL;
+
+    /* clear MSEG_BASE/SIZE registers */
+    write_pub_config_reg(TXTCR_MSEG_BASE, 0);
+    write_pub_config_reg(TXTCR_MSEG_SIZE, 0);
+
+    printf("executing GETSEC[ENTERACCS]...\n");
+    /* (optionally) pause before executing GETSEC[ENTERACCS] */
+    if ( g_vga_delay > 0 )
+        delay(g_vga_delay * 1000);
+    __getsec_enteraccs((uint32_t)racm, (racm->size)*4, 0xF0);
+    /* powercycle by writing 0x0a+0x0e to port 0xcf9, */
+    /* warm reset by write 0x06 to port 0xcf9 */
+    //outb(0xcf9, 0x0a);
+    //outb(0xcf9, 0x0e);
+    outb(0xcf9, 0x06);
+
+    printf("ERROR--we should not get here!\n");
+    return TB_ERR_FATAL;
+}
+#endif
 
 bool txt_prepare_cpu(void)
 {
     unsigned long eflags, cr0;
     uint64_t mcg_cap, mcg_stat;
     getsec_parameters_t params;
-//    unsigned int i;
 
     /* must be running at CPL 0 => this is implicit in even getting this far */
     /* since our bootstrap code loads a GDT, etc. */
+
     cr0 = read_cr0();
 
     /* must be in protected mode */
@@ -1044,18 +1152,18 @@ bool txt_prepare_cpu(void)
 
     /* cache must be enabled (CR0.CD = CR0.NW = 0) */
     if ( cr0 & CR0_CD ) {
-        printf("CR0.CD set; clearing it.\n");
+        printf("CR0.CD set\n");
         cr0 &= ~CR0_CD;
     }
     if ( cr0 & CR0_NW ) {
-        printf("CR0.NW set; clearing it.\n");
+        printf("CR0.NW set\n");
         cr0 &= ~CR0_NW;
     }
 
     /* native FPU error reporting must be enabled for proper */
     /* interaction behavior */
     if ( !(cr0 & CR0_NE) ) {
-        printf("CR0.NE not set; setting it.\n");
+        printf("CR0.NE not set\n");
         cr0 |= CR0_NE;
     }
 
@@ -1064,7 +1172,7 @@ bool txt_prepare_cpu(void)
     /* cannot be in virtual-8086 mode (EFLAGS.VM=1) */
     get_eflags(eflags);
     if ( eflags & EFLAGS_VM ) {
-        printf("EFLAGS.VM set; clearing it.\n");
+        printf("EFLAGS.VM set\n");
         set_eflags(eflags | ~EFLAGS_VM);
     }
 
