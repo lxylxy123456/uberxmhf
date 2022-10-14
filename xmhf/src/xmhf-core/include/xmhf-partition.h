@@ -84,6 +84,12 @@ void xmhf_partition_start(VCPU *vcpu);
 //set legacy I/O protection for the partition
 void xmhf_partition_legacyIO_setprot(VCPU *vcpu, u32 port, u32 size, u32 prottype);
 
+//set legacy I/O protection for the partition
+void xmhf_partition_legacyIO_setprot_bitmap(hva_t iobitmap, u32 port, u32 size, u32 prottype);
+
+// Create the 2nd PIO access control bitmap.
+// Some hypapps may need a 2nd bitmap.
+hva_t xmhf_partition_legacyIO_bitmap_create_2nd(void);
 
 //----------------------------------------------------------------------
 //ARCH. BACKENDS
@@ -99,6 +105,9 @@ void xmhf_partition_arch_start(VCPU *vcpu);
 
 //set legacy I/O protection for the partition
 void xmhf_partition_arch_legacyIO_setprot(VCPU *vcpu, u32 port, u32 size, u32 prottype);
+
+//set legacy I/O protection for the partition
+void xmhf_partition_arch_legacyIO_setprot_bitmap(hva_t iobitmap, u32 port, u32 size, u32 prottype);
 
 //----------------------------------------------------------------------
 //x86 ARCH. INTERFACES
