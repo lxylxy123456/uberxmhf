@@ -45,10 +45,39 @@
  */
 
 /*
+ * XMHF: The following file is taken from:
+ *  tboot-1.10.5/tboot/txt/txt.c
+ * Changes made include:
+ *  TODO: Added extra function declarations.
+ *  Remove unused symbols.
+ *  Update g_mle_hdr.
+ *  Remove g_mle_pt.
+ *  Adapted find_platform_sinit_module() to check_sinit_module().
+ *  Assume force_tpm2_legacy_log=false on command line.
+ *  Replace g_sinit with sinit.
+ *  Add argument sinit for get_evtlog_type().
+ *  Change return type of get_sinit_capabilities() to uint32_t.
+ *  TODO: configure_vtd() removed.
+ *  Change arguments of init_txt_heap() from loader_ctx *lctx.
+ *  Copy populated MLE header into SL
+ *  semi-hardcode VT-d PMRs
+ *  Assume no LCP module exists.
+ *  Assume is_loader_launch_efi() returns false.
+ *  Assume get_tboot_prefer_da() returns false.
+ *  Move txt_is_launched() out.
+ *  Change delay implementation.
+ *  Change arguments of txt_launch_environment() from loader_ctx *lctx.
+ *  Use sinit = sinit_ptr instead of g_sinit.
+ *  TODO: Added copy_sinit() call here.
+ *  Skip disabling VGA logging.
+ *  Skip printk_flush().
+ */
+
+/*
  * txt.c: Intel(r) TXT support functions, including initiating measured
  *        launch, post-launch, AP wakeup, etc.
  *
- * Copyright (c) 2003-2010, Intel Corporation
+ * Copyright (c) 2003-2011, Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,52 +109,93 @@
  *
  */
 
-/*
- * Modified for XMHF by jonmccune@cmu.edu, 2011.01.05
- */
-
-/*
- * NOTE: (TODO?) Stripped a lot of LCP, sleep, and MP code out of
- * tboot's version of this file.  Likely some of these are features
- * that we would like to have.  Look there instead of reinventing the
- * wheel when the time comes.
- */
-
 #include <xmhf.h>
 
-extern SL_PARAMETER_BLOCK *slpb; /* Ugh; ugly global from init.c */
-
+// XMHF: TODO: Added extra function declarations.
 bool get_parameters(getsec_parameters_t *params);
+
+// XMHF: Remove unused symbols.
+///* counter timeout for waiting for all APs to enter wait-for-sipi */
+//#define AP_WFS_TIMEOUT     0x10000000
+
+// XMHF: Remove unused symbols.
+//struct acpi_rsdp g_rsdp;
+//extern char _start[];             /* start of module */
+//extern char _end[];               /* end of module */
+//extern char _mle_start[];         /* start of text section */
+//extern char _mle_end[];           /* end of text section */
+//extern char _post_launch_entry[]; /* entry point post SENTER, in boot.S */
+//extern char _txt_wakeup[];        /* RLP join address for GETSEC[WAKEUP] */
+
+// XMHF: Remove unused symbols.
+//extern long s3_flag;
+
+// XMHF: Remove unused symbols.
+//extern struct mutex ap_lock;
+
+// XMHF: Remove unused symbols.
+/* MLE/kernel shared data page (in boot.S) */
+//extern tboot_shared_t _tboot_shared;
+extern void apply_policy(tb_error_t error);
+extern void cpu_wakeup(uint32_t cpuid, uint32_t sipi_vec);
+extern void print_event(const tpm12_pcr_event_t *evt);
+extern void print_event_2(void *evt, uint16_t alg);
+extern uint32_t print_event_2_1(void *evt);
+
+// XMHF: Remove unused symbols.
+//extern void __enable_nmi(void);
 
 /*
  * this is the structure whose addr we'll put in TXT heap
  * it needs to be within the MLE pages, so force it to the .text section
  */
-static mle_hdr_t g_mle_hdr = {
+static const mle_hdr_t g_mle_hdr = {
     uuid              :  MLE_HDR_UUID,
     length            :  sizeof(mle_hdr_t),
     version           :  MLE_HDR_VER,
-    entry_point       :  TEMPORARY_HARDCODED_MLE_ENTRYPOINT, // XXX TODO remove magic number
+    // XMHF: Update g_mle_hdr.
+    //entry_point       :  (uint32_t)&_post_launch_entry - TBOOT_START,
+    entry_point       :  TEMPORARY_HARDCODED_MLE_ENTRYPOINT,
     first_valid_page  :  0,
-    ///XXX I thnk these should be phys addres
-    mle_start_off     :  0, /* In MLE address space as accessed via MLE page tables */
-    mle_end_off       :  TEMPORARY_HARDCODED_MLE_SIZE, // XXX TODO remove magic number
+    // XMHF: Update g_mle_hdr.
+    //mle_start_off     :  (uint32_t)&_mle_start - TBOOT_BASE_ADDR,
+    //mle_end_off       :  (uint32_t)&_mle_end - TBOOT_BASE_ADDR,
+    mle_start_off     :  0,
+    mle_end_off       :  TEMPORARY_HARDCODED_MLE_SIZE,
     capabilities      :  { MLE_HDR_CAPS },
+    // XMHF: Update g_mle_hdr.
+    //cmdline_start_off :  (uint32_t)g_cmdline - TBOOT_BASE_ADDR,
+    //cmdline_end_off   :  (uint32_t)g_cmdline + CMDLINE_SIZE - 1 -
+    //                                                   TBOOT_BASE_ADDR,
     cmdline_start_off :  0,
     cmdline_end_off   :  0,
 };
 
-///XXX
+/*
+ * counts of APs going into wait-for-sipi
+ */
+/* count of APs in WAIT-FOR-SIPI */
+// XMHF: Remove unused symbols.
+//atomic_t ap_wfs_count;
+
 static void print_file_info(void)
 {
     printf("file addresses:\n");
+    // XMHF: Remove unused symbols.
+    //printf("\t &_start=%p\n", &_start);
+    //printf("\t &_end=%p\n", &_end);
+    //printf("\t &_mle_start=%p\n", &_mle_start);
+    //printf("\t &_mle_end=%p\n", &_mle_end);
+    //printf("\t &_post_launch_entry=%p\n", &_post_launch_entry);
+    //printf("\t &_txt_wakeup=%p\n", &_txt_wakeup);
     printf("\t &g_mle_hdr=%p\n", &g_mle_hdr);
 }
 
 static void print_mle_hdr(const mle_hdr_t *mle_hdr)
 {
     printf("MLE header:\n");
-    printf("\t uuid="); print_uuid(&mle_hdr->uuid); printf("\n");
+    printf("\t uuid="); print_uuid(&mle_hdr->uuid);
+    printf("\n");
     printf("\t length=%x\n", mle_hdr->length);
     printf("\t version=%08x\n", mle_hdr->version);
     printf("\t entry_point=%08x\n", mle_hdr->entry_point);
@@ -135,7 +205,12 @@ static void print_mle_hdr(const mle_hdr_t *mle_hdr)
     print_txt_caps("\t ", mle_hdr->capabilities);
 }
 
-#define MAKE_PDTE(addr)  (PAGE_ALIGN_4K((u32)addr) | 0x01)
+/*
+ * build_mle_pagetable()
+ */
+
+/* page dir/table entry is phys addr + P + R/W + PWT */
+#define MAKE_PDTE(addr)  (((uint64_t)(unsigned long)(addr) & PAGE_MASK_4K) | 0x01)
 
 /* we assume/know that our image is <2MB and thus fits w/in a single */
 /* PT (512*4KB = 2MB) and thus fixed to 1 pg dir ptr and 1 pgdir and */
@@ -390,12 +465,6 @@ tb_error_t txt_launch_environment(void *sinit_ptr, size_t sinit_size,
     printf("executing GETSEC[SENTER]...\n");
     /* pause before executing GETSEC[SENTER] */
     delay(0x80000000);
-
-#ifndef PERF_CRIT
-    if(NULL != slpb) {
-        slpb->rdtsc_before_drtm = rdtsc64();
-    }
-#endif
 
     __getsec_senter((uint32_t)sinit, (sinit->size)*4);
     printf("ERROR--we should not get here!\n");
