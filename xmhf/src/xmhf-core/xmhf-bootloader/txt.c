@@ -711,6 +711,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
      */
     /* check sinit supported os_sinit_data version */
     version = get_supported_os_sinit_data_ver(sinit);
+    printf("LXY: version: %d\n", version);
     if ( version < MIN_OS_SINIT_DATA_VER ) {
         printf("unsupported OS to SINIT data version(%u) in sinit\n",
                version);
@@ -721,9 +722,10 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
 
     os_sinit_data = get_os_sinit_data_start(txt_heap);
     size = (uint64_t *)((uint32_t)os_sinit_data - sizeof(uint64_t));
-    *size = sizeof(*os_sinit_data) + sizeof(uint64_t);
-    memset(os_sinit_data, 0, sizeof(*os_sinit_data));
-    os_sinit_data->version = 5; // XXX too magical
+    *size = calc_os_sinit_data_size(version);
+    memset(os_sinit_data, 0, *size);
+    os_sinit_data->version = version;
+
     /* this is phys addr */
     os_sinit_data->mle_ptab = (uint64_t)(unsigned long)ptab_base;
     os_sinit_data->mle_size = g_mle_hdr.mle_end_off - g_mle_hdr.mle_start_off;
