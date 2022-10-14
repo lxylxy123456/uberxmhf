@@ -711,7 +711,6 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
      */
     /* check sinit supported os_sinit_data version */
     version = get_supported_os_sinit_data_ver(sinit);
-    printf("LXY: version: %d\n", version);
     if ( version < MIN_OS_SINIT_DATA_VER ) {
         printf("unsupported OS to SINIT data version(%u) in sinit\n",
                version);
@@ -850,10 +849,8 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     }
 
     /* Event log initialization */
-    if ( os_sinit_data->version >= 6 ) {
+    if ( os_sinit_data->version >= 6 )
         init_os_sinit_ext_data(os_sinit_data->ext_data_elts, sinit);
-        printf("LXY Trace: os_sinit_data->version >= 6\n");
-    }
 
     print_os_sinit_data(os_sinit_data);
 
