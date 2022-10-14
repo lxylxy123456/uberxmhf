@@ -217,6 +217,10 @@ static inline void __getsec_enteraccs(uint32_t acm_base, uint32_t acm_size,
  * XMHF: The following function declarations are taken from:
  *  tboot-1.10.5/tboot/include/txt/txt.h
  * List of functions:
+ *  EVTLOG_UNKNOWN
+ *  EVTLOG_TPM12
+ *  EVTLOG_TPM2_LEGACY
+ *  EVTLOG_TPM2_TCG
  *  txt_prepare_cpu()
  *  txt_launch_environment()
  * Changes made include:
@@ -257,6 +261,12 @@ static inline void __getsec_enteraccs(uint32_t acm_base, uint32_t acm_size,
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+
+/* TPM event log types */
+#define EVTLOG_UNKNOWN       0
+#define EVTLOG_TPM12         1
+#define EVTLOG_TPM2_LEGACY   2
+#define EVTLOG_TPM2_TCG      3
 
 extern bool txt_prepare_cpu(void);
 

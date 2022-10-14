@@ -672,7 +672,7 @@ bool tpm_submit_cmd_crb(u32 locality, u8 *in, u32 in_size,  u8 *out, u32 *out_si
        printf("CmdAddr.cmdhaddr is 0x%x\n",CmdAddr.cmdhaddr);
 
 	printf("CmdSize.cmdsize is 0x%x\n",CmdSize.cmdsize);
-	printf("RspAddr.rspaddr is 0x%Lx\n",RspAddr.rspaddr);
+	printf("RspAddr.rspaddr is 0x%llx\n",RspAddr.rspaddr);
 	printf("RspSize.rspsize is 0x%x\n",RspSize.rspsize);
 
 #endif
