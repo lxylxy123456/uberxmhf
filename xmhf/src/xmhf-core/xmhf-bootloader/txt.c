@@ -787,6 +787,11 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
         printf("SINIT capabilities are incompatible (0x%x)\n", sinit_caps._raw);
         return NULL;
     }
+    if ( get_evtlog_type(sinit) == EVTLOG_TPM2_TCG ) {
+        printf("SINIT ACM supports TCG compliant TPM 2.0 event log format, tcg_event_log_format = %d \n",
+              sinit_caps.tcg_event_log_format);
+        os_sinit_data->capabilities.tcg_event_log_format = 1;
+    }
     /* capabilities : require MLE pagetable in ECX on launch */
     /* TODO: when SINIT ready
      * os_sinit_data->capabilities.ecx_pgtbl = 1;
