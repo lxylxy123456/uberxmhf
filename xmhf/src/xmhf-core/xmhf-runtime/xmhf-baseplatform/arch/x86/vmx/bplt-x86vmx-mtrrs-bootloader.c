@@ -152,13 +152,6 @@ bool set_mtrrs_for_acmod(acm_hdr_t *hdr)
     /* enable interrupts */
     set_eflags(eflags);
 
-	printf("LXY: print MTRR begin\n");
-	{
-		mtrr_state_t saved_state;
-		save_mtrrs(&saved_state);
-	}
-	printf("LXY: print MTRR end\n");
-
 
     return true;
 }
@@ -211,10 +204,6 @@ bool set_mem_type(void *base, uint32_t size, uint32_t mem_type)
     mtrr_cap_t mtrr_cap;
     mtrr_physmask_t mtrr_physmask;
     mtrr_physbase_t mtrr_physbase;
-
-	printf("LXY: base=0x%08llx\n", (u64) (uintptr_t) base);
-	printf("LXY: size=0x%08x\n", size);
-	printf("LXY: mem_type=0x%08x\n", mem_type);
 
     /*
      * disable all fixed MTRRs

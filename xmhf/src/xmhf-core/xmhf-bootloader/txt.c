@@ -339,25 +339,6 @@ void delay(u64 cycles)
     while ( rdtsc64()-start < cycles ) ;
 }
 
-static void xxd(u32 start, u32 end) {
-	if ((start & 0xf) != 0 || (end & 0xf) != 0) {
-		printf("xxd assertion failed");
-		while (1) {
-			asm volatile ("hlt");
-		}
-	}
-	for (u32 i = start; i < end; i += 0x10) {
-		printf("XXD: %08x: ", i);
-		for (u32 j = 0; j < 0x10; j++) {
-			if (j & 1) {
-				printf("%02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
-			} else {
-				printf(" %02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
-			}
-		}
-		printf("\n");
-	}
-}
 
 tb_error_t txt_launch_environment(void *sinit_ptr, size_t sinit_size,
                                   void *phys_mle_start, size_t mle_size)
@@ -405,17 +386,6 @@ tb_error_t txt_launch_environment(void *sinit_ptr, size_t sinit_size,
     /* set MTRRs properly for AC module (SINIT) */
     if ( !set_mtrrs_for_acmod(sinit) )
         return TB_ERR_FATAL;
-
-    printf("txt_heap = %p\n", txt_heap);
-    xxd((uint32_t) txt_heap, (uint32_t) txt_heap + 0x200);
-    printf("heap_size = %p\n", read_pub_config_reg(TXTCR_HEAP_SIZE));
-    {
-        uint64_t osmle_size = *(uint64_t*)((uint32_t) txt_heap + 0x56);
-        uint32_t addr = ((uint32_t) txt_heap + osmle_size + 0x56);
-        addr /= 16;
-        addr *= 16;
-        xxd(addr, addr + 0x200);
-    }
 
     printf("executing GETSEC[SENTER]...\n");
     /* pause before executing GETSEC[SENTER] */

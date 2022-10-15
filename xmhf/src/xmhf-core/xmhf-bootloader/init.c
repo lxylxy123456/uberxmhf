@@ -855,48 +855,6 @@ void cstartup(multiboot_info_t *mbi){
     #error "Unsupported Arch"
 #endif /* !defined(__XMHF_I386__) && !defined(__XMHF_AMD64__) */
 
-	// Print MC registers
-	{
-#define P(x) printf("%s = 0x%016llx\n", #x, x);
-		u64 mcg_cap;
-		u8 i, count;
-		{
-			u64 mcg_cap____;
-			mcg_cap____ = mcg_cap = rdmsr64(MSR_MCG_CAP);
-			P(mcg_cap____);
-			count = (u8) mcg_cap;
-		}
-		{
-			u64 mcg_stat___ = rdmsr64(MSR_MCG_STATUS);
-			P(mcg_stat___);
-		}
-		if (mcg_cap & (1ULL << 8)) {	/* CTL_P */
-			u64 mcg_ctl____ = rdmsr64(0x17b);
-			P(mcg_ctl____);
-		}
-		if (mcg_cap & (1ULL << 27)) {	/* LMCE_P */
-			u64 mcg_ext_ctl = rdmsr64(0x4d0);
-			P(mcg_ext_ctl);
-		}
-#undef P
-#define IA32_MC0_CTL 0x400
-#define IA32_MC0_STATUS 0x401
-#define IA32_MC0_ADDR 0x402
-#define IA32_MC0_MISC 0x403
-#define IA32_MC0_CTL2 0x280
-#define P(x) printf("[%d] %s (0x%x) = 0x%016llx\n", i, #x, (x), rdmsr64(x));
-		for (i = 0; i < count; i++) {
-			P(IA32_MC0_CTL + 4 * i);
-			P(IA32_MC0_STATUS +4*i);
-			P(IA32_MC0_ADDR + 4* i);
-			P(IA32_MC0_MISC + 4* i);
-			if (mcg_cap & (1ULL << 10)) {
-				P(IA32_MC0_CTL2 + 1* i);
-			}
-		}
-#undef P
-	}
-
     printf("INIT(early): initializing, total modules=%u\n", mods_count);
 
     //check CPU type (Intel vs AMD)
