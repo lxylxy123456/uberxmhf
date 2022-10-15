@@ -89,6 +89,8 @@ void xmhf_partition_legacyIO_setprot_bitmap(hva_t iobitmap, u32 port, u32 size, 
 
 // Create the 2nd PIO access control bitmap.
 // Some hypapps may need a 2nd bitmap.
+// [TODO][Issue 94] Check all XMHF APIs and hypapps' manipulations of VCPU struct. Hypapps should not directly access 
+// VCPU struct and must use XMHF APIs instead
 hva_t xmhf_partition_legacyIO_bitmap_create_2nd(void);
 
 //----------------------------------------------------------------------
