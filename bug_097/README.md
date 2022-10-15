@@ -767,7 +767,6 @@ Future work
 * `txt_heap.c`: `TODO: Hardcoding get_evtlog_type() to EVTLOG_TPM2_TCG.`
 * acmod: `verify_IA32_se_svn_status` was blocked on `tpm`
 
-
 ### Long term considerations
 
 The bad news is that Wikipedia says "TPM 2.0 is not backward compatible with
@@ -839,7 +838,137 @@ what fixes the TXT.ERRORCODE 0x8000000c bug. List of commits is:
 Between `f7a816cb4..26666e75a`, most of the changes happen in `txt.c`. So we
 start a new branch from `f7a816cb4` and try to approach `26666e75a`.
 
-TODO: check version info about `os_sinit_data->version`
+The changes are between git versions `f7a816cb4..f2fff7342`. `f2fff7342` has
+the same content as `26666e75a`. The commit `23ac4a5a4` in between fixes the
+bug. I realize that the OS to SINIT Data Table version is 7, but on old tboot /
+XMHF the version is 5. Updating the version fixes the TXT.ERRORCODE 0x8000000c
+bug.
+
+The version is detected with the following call stack
+```
+init_txt_heap()
+	get_supported_os_sinit_data_ver()
+		get_acmod_info_table()
+			Return acm_info_table_t type
+			See 315168-017 Table 10. Chipset AC Module Information Table
+		Return info_table->os_sinit_data_ver (OsSinitDataVer, offset 24)
+	Get version = 7
+```
+
+The Intel documentation says that OsSinitDataVer is
+> Indicates the maximum version number of the OS
+> to SINIT data structure that this module supports.
+> It is assumed that the module is backward
+> compatible with previous versions.
+
+So ideally this bug should not happen, since it should be backward compatible.
+
+### Bisecting OS to SINIT Data Table
+
+Conveniently, `print_os_sinit_data()` already dumps the OS to SINIT data in
+serial output. Compare `20221013232637` (bad) and `20221013231549` (good) shows
+
+```diff
+--- /tmp/bad	2022-10-14 13:47:30.747965869 -0400
++++ /tmp/good	2022-10-14 13:47:39.310127219 -0400
+@@ -1,24 +1,32 @@
+-os_sinit_data (@0xccf3517e, 64):
+-	 version: 5
+-	 flags: 0
++os_sinit_data (@0xccf3517e, 88):
++	 version: 7
++	 flags: 1
+ 	 mle_ptab: 0x10000000
+ 	 mle_size: 0x10000 (%Lu)
+ 	 mle_hdr_base: 0x0
+ 	 vtd_pmr_lo_base: 0x10000000
+ 	 vtd_pmr_lo_size: 0xd200000
+ 	 vtd_pmr_hi_base: 0x0
+ 	 vtd_pmr_hi_size: 0x0
+ 	 lcp_po_base: 0x0
+ 	 lcp_po_size: 0x0 (%Lu)
+-	 capabilities: 0x00000622
++	 capabilities: 0x00000602
+ 	     rlp_wake_getsec: 0
+ 	     rlp_wake_monitor: 1
+ 	     ecx_pgtbl: 0
+ 	     stm: 0
+ 	     pcr_map_no_legacy: 0
+-	     pcr_map_da: 1
++	     pcr_map_da: 0
+ 	     platform_type: 0
+ 	     max_phy_addr: 0
+ 	     tcg_event_log_format: 1
+ 	     cbnt_supported: 1
+ 	 efi_rsdt_ptr: 0x0
++	 ext_data_elts[]:
++	 TCG EVENT_LOG_PTR:
++		       type: 8
++		       size: 28
++	 TCG Event Log Descrption:
++	     allcoated_event_container_size: 8192
++	                       EventsOffset: [0,0]
++			 No Event Log found.
+```
+
+Now we modify good to try to approach bad.
+1. Change `flag` from 1 to 0: still good
+2. Also change `pcr_map_da` from 0 to 1: still good
+3. Also change version from 7 to 5: bad, 0x8000000c
+	* Need to force `*size = 0x64` after calling `calc_os_sinit_data_size()`
+4. Perform 1 and 2, then change version from 7 to 6: bad, 0x8000000c
+
+Looks like the problem is the `os_sinit_data` version. The version field
+description says:
+> Version number of the OsSinitData table.
+> Current values are 6 for TPM 1.2 family and 7
+> for TPM 2.0 family. No other values are
+> supported. This value is incremented for any
+> change to the definition of this table. Future
+> versions will always be backwards compatible
+> with previous versions (new fields will be
+> added at the end).
+
+So I gues the machine check error happens because SINIT is expecting TPM 1.2,
+but TPM 2.0 is present. It is very hard to debug, though. We should remove the
+hard-coded the version in XMHF code to solve this problem.
+
+Further experiment (set `*size` to `0x68`, remove call to
+`init_os_sinit_ext_data()`) shows that when TPM event logs are not present in
+ExtDataElements, `GETSEC[SENTER]` will error with TXT.ERRORCODE 0xc00c0491.
+Looks like TPM event logs are required for newer SINIT versions:
+* C.4.1 `HEAP_TPM_EVENT_LOG_ELEMENT`:
+  "SINIT in TPM 1.2 mode will require HEAP_TPM_EVENT_LOG_ELEMENT to be present
+  since event log is required for attestation."
+* C.4.2 `HEAP_EVENT_LOG_POINTER_ELEMENT2_1`:
+  "SINIT in TPM2.0 mode will require HEAP_EVENT_LOG_POINTER_ELEMENT2_1 to be
+  present since event log is required for attestation and many of the
+  SinitMleData table fields carrying similar data are removed in TPM2.0 mode -
+  see Table 30"
+
+So the changes we need to make to XMHF are:
+* Add version detection, force version to be within 5 - 7
+* Update the `flags` field if needed
+* Update the `pcr_map_da` field if needed
+* Add TPM event log support (probably just allocate some memory, ignore content)
+
+### Typo in SDM
+
+Found two typos in SDM 315168-017
+* Intel(R) Trusted Execution Technology (Intel(R) TXT)
+* Software Development Guide
+* Measured Launch Environment Developer's Guide
+* March 2022
+* Revision 017.3
+* Document number: 315168-017
+
+Problems
+1. Document Number for page 2 and beyond is "Document Number: 315168-170"
+2. In "Table 29. OS to SINIT Data Table", it says "EFI RSDP Pointer" exists
+   when "Versions >= 6". Should be "Versions >= 5". (see old tboot versions
+   and old SDM (315168-006))
+
+TODO: report SDM typos
 
 TODO: post question on debugging 8000000c on Intel forum
 TODO: update with new version of tboot
