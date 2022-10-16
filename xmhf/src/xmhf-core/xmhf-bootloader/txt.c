@@ -669,27 +669,6 @@ static void configure_vtd(void)
 }
 #endif
 
-static void xxd(u32 start, u32 end) {
-	if ((start & 0xf) != 0 || (end & 0xf) != 0) {
-		HALT_ON_ERRORCOND(0);
-		//printf("xxd assertion failed");
-		//while (1) {
-		//	asm volatile ("hlt");
-		//}
-	}
-	for (u32 i = start; i < end; i += 0x10) {
-		printf("XXD: %08x: ", i);
-		for (u32 j = 0; j < 0x10; j++) {
-			if (j & 1) {
-				printf("%02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
-			} else {
-				printf(" %02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
-			}
-		}
-		printf("\n");
-	}
-}
-
 /*
  * sets up TXT heap
  */
@@ -873,15 +852,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     if ( os_sinit_data->version >= 6 )
         init_os_sinit_ext_data(os_sinit_data->ext_data_elts, sinit);
 
-    os_sinit_data->flags = 0;
-    os_sinit_data->capabilities.pcr_map_da = 1;
-
     print_os_sinit_data(os_sinit_data);
-
-    {
-        u32 addr = ((u32)os_sinit_data) & ~0xfU;
-        xxd(addr, addr + 16 * 7);
-    }
 
     /*
      * SINIT to MLE data will be setup by SINIT
