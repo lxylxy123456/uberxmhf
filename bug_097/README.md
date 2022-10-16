@@ -952,6 +952,11 @@ So the changes we need to make to XMHF are:
 * Update the `pcr_map_da` field if needed
 * Add TPM event log support (probably just allocate some memory, ignore content)
 
+The changes are carried out in `xmhf64-dev 0982aec11..a4891901d`. Committed to
+`xmhf64 c426b0e0e..8e7dd1c8c`. Now `GETSEC[SENTER]` works on Dell and
+TrustVisor halts due to access to TPM 2.0 failure. HP 2540p is also good (no
+regression).
+
 ### Typo in SDM
 
 Found two typos in SDM 315168-017
@@ -968,10 +973,11 @@ Problems
    when "Versions >= 6". Should be "Versions >= 5". (see old tboot versions
    and old SDM (315168-006))
 
-TODO: report SDM typos
+Reported in
+<https://community.intel.com/t5/Intel-Trusted-Execution/Typos-in-TXT-development-guide-315168-017/m-p/1422314#M16>
 
-TODO: post question on debugging 8000000c on Intel forum
-TODO: update with new version of tboot
-TODO: consider "Current ideas" in line 490
-TODO: TXT.ERRORCODE=8000000c
+### TrustVisor access TPM problem
+
+TODO
+TODO: document the update with new version of tboot
 
