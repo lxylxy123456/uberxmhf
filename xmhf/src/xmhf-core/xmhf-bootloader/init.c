@@ -1127,8 +1127,8 @@ void cstartup(multiboot_info_t *mbi){
 
     //fill in "sl" parameter block
     {
-        //"sl" parameter block is at hypervisor_image_baseaddress + 0x20000
-        slpb = (SL_PARAMETER_BLOCK *)((u32)hypervisor_image_baseaddress + 0x20000);
+        //"sl" parameter block is at hypervisor_image_baseaddress + 0x10000
+        slpb = (SL_PARAMETER_BLOCK *)((u32)hypervisor_image_baseaddress + 0x10000);
         HALT_ON_ERRORCOND(slpb->magic == SL_PARAMETER_BLOCK_MAGIC);
         slpb->errorHandler = 0;
         slpb->isEarlyInit = 1;    //this is an "early" init

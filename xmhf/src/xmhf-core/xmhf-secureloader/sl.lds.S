@@ -74,8 +74,8 @@ ENTRY(_sl_start)
 MEMORY
 {
   // XMHF: TODO: workaround software bloating, very insecure
-  low  (rwxai) : ORIGIN = 0,   LENGTH = 128K
-  high (rwxai) : ORIGIN = 128K, LENGTH = 1984K /* balance of 2M total */
+  low  (rwxai) : ORIGIN = 0,   LENGTH = 164K
+  high (rwxai) : ORIGIN = 164K, LENGTH = 1984K /* balance of 2M total */
   debug (rwxai) : ORIGIN = 0, LENGTH = 1024M
   unaccounted (rwxai) : ORIGIN = 0, LENGTH = 0 /* see section .unaccounted at end */
 }
@@ -126,7 +126,7 @@ SECTIONS
 
   .sl_stack : {
     *(.sl_stack)
-    . = ALIGN(0x20000);
+    . = ALIGN(0x10000);
   } >low
 
   /* Content below is UNTRUSTED.
