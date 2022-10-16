@@ -797,12 +797,12 @@ void print_os_sinit_data(const os_sinit_data_t *os_sinit_data)
     printf("\t version: %u\n", os_sinit_data->version);
     printf("\t flags: %u\n", os_sinit_data->flags);
     printf("\t mle_ptab: 0x%llx\n", os_sinit_data->mle_ptab);
-    printf("\t mle_size: 0x%llx (%Lu)\n", os_sinit_data->mle_size,
+    printf("\t mle_size: 0x%llx (%llu)\n", os_sinit_data->mle_size,
            os_sinit_data->mle_size);
     printf("\t mle_hdr_base: 0x%llx\n", os_sinit_data->mle_hdr_base);
     print_os_sinit_data_vtdpmr(os_sinit_data);
     printf("\t lcp_po_base: 0x%llx\n", os_sinit_data->lcp_po_base);
-    printf("\t lcp_po_size: 0x%llx (%Lu)\n", os_sinit_data->lcp_po_size, os_sinit_data->lcp_po_size);
+    printf("\t lcp_po_size: 0x%llx (%llu)\n", os_sinit_data->lcp_po_size, os_sinit_data->lcp_po_size);
     print_txt_caps("\t ", os_sinit_data->capabilities);
     if ( os_sinit_data->version >= 5 )
         printf("\t efi_rsdt_ptr: 0x%llx\n", os_sinit_data->efi_rsdt_ptr);
