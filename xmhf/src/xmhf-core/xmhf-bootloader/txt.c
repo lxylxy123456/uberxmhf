@@ -384,8 +384,6 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
             HALT_ON_ERRORCOND(0 && "EVTLOG_TPM2_LEGACY not implemented");
             /* Note: after implementing, also update init_os_sinit_ext_data() */
         }
-        // XMHF: TODO: hack to let runtime know version of TPM
-        slpb->runtime_is_tpm_20 = 1;
         break;
     default:
         HALT_ON_ERRORCOND(0 && "Unsupported version");

@@ -273,10 +273,6 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
     appParamBlock.optionalmodule_size = rpb->runtime_appmodule_size;
     appParamBlock.runtimephysmembase = rpb->XtVmmRuntimePhysBase;
     appParamBlock.boot_drive = rpb->XtGuestOSBootDrive;
-    {
-        extern bool g_is_tpm_20;
-        g_is_tpm_20 = rpb->XtTpm20;
-    }
     COMPILE_TIME_ASSERT(sizeof(appParamBlock.cmdline) >= sizeof(rpb->cmdline));
     #ifndef __XMHF_VERIFICATION__
     strncpy(appParamBlock.cmdline, rpb->cmdline, sizeof(appParamBlock.cmdline));

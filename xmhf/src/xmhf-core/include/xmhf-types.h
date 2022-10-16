@@ -134,7 +134,6 @@ typedef struct {
     hva_t   runtime_appmodule_base;
     hva_t   runtime_appmodule_size;
     u8      XtGuestOSBootDrive;         /* drive used to boot (can be passed to INT 13h) */
-    u8      XtTpm20;                    /* whether the platform uses TPM 2.0 */
     hva_t   XtVmmStackBase;
     hva_t   XtVmmStackSize;
     hva_t   XtVmmGdt;
@@ -172,8 +171,6 @@ typedef struct _sl_parameter_block {
     u64     rdtsc_before_drtm;          // Performance measurements related to DRTM
     u64     rdtsc_after_drtm;
     u8      runtime_osbootdrive;        // Boot drive number (usually 0x80)
-    u8      runtime_is_tpm_20;          // whether the platform uses TPM 2.0
-
 
     /* runtime options parsed in init and passed forward */
     uart_config_t uart_config;

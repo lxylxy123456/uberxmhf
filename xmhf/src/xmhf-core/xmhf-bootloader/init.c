@@ -950,7 +950,6 @@ void cstartup(multiboot_info_t *mbi){
         slpb->runtime_osbootmodule_base = mod_array[1].mod_start;
         slpb->runtime_osbootmodule_size = (mod_array[1].mod_end - mod_array[1].mod_start);
         slpb->runtime_osbootdrive = get_tboot_boot_drive();
-        slpb->runtime_is_tpm_20 = 0; // will be updated in init_txt_heap()
 
 		//check if we have an optional app module and if so populate relevant SLPB
 		//fields
