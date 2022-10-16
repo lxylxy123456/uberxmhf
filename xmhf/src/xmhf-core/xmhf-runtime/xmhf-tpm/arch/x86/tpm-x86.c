@@ -216,6 +216,17 @@ static bool is_tpm_ready(uint32_t locality)
         return false;
     }
 
+    /*
+     * XMHF: TODO: the rest of code is for TPM 1.2. Whether TPM 2.0 needs
+     * something similar is unknown.
+     */
+    {
+        extern bool g_is_tpm_20;
+        if (g_is_tpm_20) {
+            return true;
+        }
+    }
+
     /* make sure tpm is not disabled/deactivated */
     memset(&pflags, 0, sizeof(pflags));
     ret = tpm_get_flags(locality, TPM_CAP_FLAG_PERMANENT,

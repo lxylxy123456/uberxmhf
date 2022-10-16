@@ -187,6 +187,7 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 		rpb->runtime_appmodule_size = (hva_t)(slpb.runtime_appmodule_size);
 
 		rpb->XtGuestOSBootDrive = slpb.runtime_osbootdrive;
+		rpb->XtTpm20 = slpb.runtime_is_tpm_20;
 
 	#if defined (__DEBUG_SERIAL__)
 		//pass along UART config for serial debug output

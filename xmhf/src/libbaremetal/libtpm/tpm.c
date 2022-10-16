@@ -96,6 +96,11 @@
 #include <print_hex.h>
 #include <tpm.h>
 
+/*
+ * XMHF: TODO: workaround to indicate whether the machine is using TPM 2.0.
+ * Only used in XMHF runtime.
+ */
+bool g_is_tpm_20 = false;
 
 /*
  * The _tpm_submit_cmd function comes with 2 global buffers: cmd_buf & rsp_buf.
@@ -255,6 +260,11 @@ uint32_t tpm_pcr_extend(uint32_t locality, uint32_t pcr,
 {
     uint32_t ret, in_size = 0, out_size;
 
+    if (g_is_tpm_20) {
+        printf("Vulnerability: tpm_pcr_extend() skipped (not implemented)\n");
+        return TPM_SUCCESS;
+    }
+
     if ( in == NULL )
         return TPM_BAD_PARAMETER;
     if ( pcr >= TPM_NR_PCRS )
@@ -391,6 +401,11 @@ uint32_t tpm_get_random(uint32_t locality, uint8_t *random_data,
     uint32_t ret, in_size = 0, out_size, requested_size;
     static bool first_attempt;
     uint32_t second_size;
+
+    if (g_is_tpm_20) {
+        printf("Vulnerability: tpm_get_random() skipped (not implemented)\n");
+        return TPM_SUCCESS;
+    }
 
     if ( random_data == NULL || data_size == NULL )
         return TPM_BAD_PARAMETER;
