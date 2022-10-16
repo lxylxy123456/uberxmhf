@@ -75,14 +75,21 @@ SECTIONS
   .text : {
     *(.s_rpb)
     *(.text)
-    *(.text.unlikely)
+    *(.text.*)
+    *(.rel.text)
+    *(.rel.text.*)
     . = ALIGN(4096);
   } =0x9090
 
   .data : {
     *(.data)
+    *(.data.*)
+    *(.rel.data)
+    *(.rel.data.*)
     *(.rodata)
-    *(.rodata.str1.*)
+    *(.rodata.*)
+    *(.rel.rodata)
+    *(.rel.rodata.*)
     *(.comment)
     *(.eh_frame) /* exception-metadata. might be able to discard */
     . = ALIGN(4);
@@ -97,6 +104,9 @@ SECTIONS
     _begin_rt_bss = .;
 #endif /* __SKIP_RUNTIME_BSS__ */
     *(.bss)
+    *(.bss.*)
+    *(.rel.bss)
+    *(.rel.bss.*)
     . = ALIGN(4096);
   }
 
@@ -132,6 +142,9 @@ SECTIONS
   .debug_ranges : { *(.debug_ranges) } >debug
   .debug_rnglists : { *(.debug_rnglists) } >debug
   .debug_str : { *(.debug_str) } >debug
+  .rel.debug_info : { *(.rel.debug_info) } >debug
+  .rel.debug_aranges : { *(.rel.debug_aranges) } >debug
+  .rel.debug_line : { *(.rel.debug_line) } >debug
 
   /DISCARD/ : {
     *(.note.gnu.property)
