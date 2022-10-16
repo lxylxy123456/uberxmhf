@@ -178,7 +178,7 @@ typedef struct {
  *   - private to tboot (so can be any format we need)
  */
 #define MAX_LCP_PO_DATA_SIZE     64*1024  /* 64k */
-#define MAX_EVENT_LOG_SIZE       4*1024   /* 4k */
+#define MAX_EVENT_LOG_SIZE       5*4*1024   /* 4k*5 */
 
 /* This struct is manually aligned */
 typedef struct {
