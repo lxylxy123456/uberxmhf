@@ -311,11 +311,16 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     os_sinit_data_t *os_sinit_data;
     /* uint64_t min_lo_ram, max_lo_ram, min_hi_ram, max_hi_ram; */
     txt_caps_t sinit_caps;
-    txt_caps_t caps_mask;
+    txt_caps_t caps_mask = { 0 };
     u32 version;
 
     txt_heap = get_txt_heap();
     sinit_caps._raw = get_sinit_capabilities(sinit);
+    /* TODO: tboot-1.10.5 sets those bits for no reason. Why? */
+    caps_mask.rlp_wake_getsec = 1;
+    caps_mask.rlp_wake_monitor = 1;
+    caps_mask.pcr_map_da = 1;
+    caps_mask.tcg_event_log_format = 1;
 
     /*
      * BIOS data already setup by BIOS
@@ -357,6 +362,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     }
     printf("Actual OS to SINIT data version using: %u\n", version);
     os_sinit_data = get_os_sinit_data_start(txt_heap);
+    os_sinit_data->capabilities._raw = MLE_HDR_CAPS & ~caps_mask._raw;
     size = (uint64_t *)((uint32_t)os_sinit_data - sizeof(uint64_t));
     /* Refer to tboot 1.10.5 function calc_os_sinit_data_size() */
     switch (version) {
@@ -369,6 +375,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
                 sizeof(heap_event_log_ptr_elt_t);
         break;
     case 7:
+        os_sinit_data->capabilities.tcg_event_log_format = 1;
         if (sinit_caps.tcg_event_log_format) {
             *size = sizeof(os_sinit_data_t) + sizeof(uint64_t) +
                     2 * sizeof(heap_ext_data_element_t) +

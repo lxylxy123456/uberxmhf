@@ -145,8 +145,9 @@ typedef struct {
  * values supported by current version of tboot
  */
 #define MLE_HDR_VER       0x00020001     /* 2.1 */
-#define MLE_HDR_CAPS      0x00000007     /* rlp_wake_{getsec, monitor} = 1,
-                                            ecx_pgtbl = 1 */
+#define MLE_HDR_CAPS      0x000000627     /* rlp_wake_{getsec, monitor} = 1,
+                                            ecx_pgtbl = 1, nolg = 0, da = 1
+                                            tcg_event_log_format = 1, cbnt_supported = 1 */
 
 /* from tboot-20101005/include/tb_error.h */
 typedef enum {
