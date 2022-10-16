@@ -218,7 +218,7 @@ u32 xmhf_sl_arch_x86_setup_runtime_paging(RPB *rpb, u32 runtime_spa, u32 runtime
     tpm_pcr_value_t pcr17, pcr18;
 	(void)g_sl_gold;
 
-    print_hex("SL: Golden Runtime SHA-1: ", g_sl_gold.sha_runtime, SHA1_DIGEST_LENGTH);
+    print_hex("SL: Golden Runtime SHA-1: ", g_sl_gold.sha_runtime, SHA_DIGEST_LENGTH);
 
     printf("SL: CR0 %08lx, CD bit %ld\n", read_cr0(), read_cr0() & CR0_CD);
     hashandprint("SL: Computed Runtime SHA-1: ",

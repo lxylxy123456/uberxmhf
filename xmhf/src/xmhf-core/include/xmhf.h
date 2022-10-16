@@ -74,9 +74,6 @@
 #ifndef __ASSEMBLY__
 	#include <tomcrypt.h>
 	#include <sha1.h>
-	#include <sha256.h>
-	#include <sha384.h>
-	#include <sha512.h>
 #endif /* __ASSEMBLY__ */
 
 

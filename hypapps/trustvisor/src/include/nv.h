@@ -51,8 +51,6 @@
  * (for tpm_nv_index_t).  Given that there are also such dependencies
  * for uint32_t, VCPU, etc., I choose to do nothing in here. */
 
-typedef uint32_t tpm_nv_index_t;
-
 /* TODO: Make the index a boot-time parameter with a sane default */
 #define HW_TPM_MASTER_SEALING_SECRET_INDEX 0x00015213
 #define HW_TPM_MASTER_SEALING_SECRET_SIZE 20

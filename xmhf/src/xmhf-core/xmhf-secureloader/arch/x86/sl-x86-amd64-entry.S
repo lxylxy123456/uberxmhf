@@ -262,7 +262,7 @@ our C main*/
     xorq %rdx, %rdx
 
     /* Setup ESP to top of 64K (it will already be there on AMD)*/
-    movl $0x20000, %esp /* XXX TODO Get rid of magic number*/
+    movl $0x10000, %esp /* XXX TODO Get rid of magic number*/
 
 #ifndef PERF_CRIT
     /*get cycle count using rdtsc; useful to evaluate how long DRTM
@@ -372,7 +372,7 @@ sl_cpu_common:
 ----------------------------------------------------------------------*/
 
 /* sl stack, this is just a placeholder and ensures that the linker
- actually "allocates" the stack up until 0x20000*/
+ actually "allocates" the stack up until 0x10000*/
 .section .sl_stack
     .fill 2048, 1, 0
 

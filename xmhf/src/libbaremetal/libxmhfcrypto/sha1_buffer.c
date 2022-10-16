@@ -50,7 +50,7 @@
 #include <euchk.h>
 
 int sha1_buffer(const unsigned char *buffer, size_t len,
-                unsigned char md[SHA1_DIGEST_LENGTH])
+                unsigned char md[SHA_DIGEST_LENGTH])
 {
   int rv=0;
   hash_state hs;

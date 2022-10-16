@@ -347,231 +347,88 @@ u32 dealwithE820(multiboot_info_t *mbi, u32 runtimesize __attribute__((unused)))
 }
 
 #ifdef __DRT__
+/* Run tests to determine if platform supports TXT.  Note that this
+ * enables SMX on the platform, but is safe to run more than once. */
+/* Based primarily on tboot-20101005's txt/verify.c */
+bool txt_supports_txt(void) {
 
-/*
- * XMHF: The following symbols are taken from tboot-1.10.5
- * List of major symbols:
- *  read_processor_info
- *  supports_vmx
- *  supports_smx
- *  use_mwait
- *  supports_txt
- *  txt_verify_platform
- *  txt_has_error
- *  txt_display_errors
- *  txt_do_senter
- */
+    u32 cpuid_ext_feat_info, dummy;
+    u64 feat_ctrl_msr;
+    capabilities_t cap;
 
-#define X86_EFLAGS_ID EFLAGS_ID
-#define do_cpuid(a, p) cpuid(a, &p[0], &p[1], &p[2], &p[3])
-#define get_tboot_mwait() (false)
-#define CPUID_X86_FEATURE_XMM3   (1<<0)
-#define MSR_IA32_MISC_ENABLE_MONITOR_FSM       (1<<18)
-#define __getsec_capabilities(index) \
-({ \
-    uint32_t cap; \
-    __asm__ __volatile__ (IA32_GETSEC_OPCODE "\n" \
-              : "=a"(cap) \
-              : "a"(IA32_GETSEC_CAPABILITIES), "b"(index)); \
-    cap; \
-})
+    cpuid(1, &dummy, &dummy, &cpuid_ext_feat_info, &dummy);
+    feat_ctrl_msr = rdmsr64(MSR_EFCR);
 
-/*
- * CPUID extended feature info
- */
-static unsigned int g_cpuid_ext_feat_info;
-
-/*
- * IA32_FEATURE_CONTROL_MSR
- */
-static unsigned long g_feat_ctrl_msr;
-
-
-static bool read_processor_info(void)
-{
-    unsigned long f1, f2;
-     /* eax: regs[0], ebx: regs[1], ecx: regs[2], edx: regs[3] */
-    uint32_t regs[4];
-
-    /* is CPUID supported? */
-    /* (it's supported if ID flag in EFLAGS can be set and cleared) */
-    asm("pushf\n\t"
-        "pushf\n\t"
-        "pop %0\n\t"
-        "mov %0,%1\n\t"
-        "xor %2,%0\n\t"
-        "push %0\n\t"
-        "popf\n\t"
-        "pushf\n\t"
-        "pop %0\n\t"
-        "popf\n\t"
-        : "=&r" (f1), "=&r" (f2)
-        : "ir" (X86_EFLAGS_ID));
-    if ( ((f1^f2) & X86_EFLAGS_ID) == 0 ) {
-        g_cpuid_ext_feat_info = 0;
-        printf("CPUID instruction is not supported.\n");
-        return false;
-    }
-
-    do_cpuid(0, regs);
-    if ( regs[1] != 0x756e6547        /* "Genu" */
-         || regs[2] != 0x6c65746e     /* "ntel" */
-         || regs[3] != 0x49656e69 ) { /* "ineI" */
-        g_cpuid_ext_feat_info = 0;
-        printf("Non-Intel CPU detected.\n");
-        return false;
-    }
-    g_cpuid_ext_feat_info = cpuid_ecx(1);
-
-    /* read feature control msr only if processor supports VMX or SMX instructions */
-    if ( (g_cpuid_ext_feat_info & CPUID_X86_FEATURE_VMX) ||
-         (g_cpuid_ext_feat_info & CPUID_X86_FEATURE_SMX) ) {
-        g_feat_ctrl_msr = rdmsr64(MSR_IA32_FEATURE_CONTROL);
-        printf("IA32_FEATURE_CONTROL_MSR: %08lx\n", g_feat_ctrl_msr);
-    }
-
-    return true;
-}
-
-static bool supports_vmx(void)
-{
-    /* check that processor supports VMX instructions */
-    if ( !(g_cpuid_ext_feat_info & CPUID_X86_FEATURE_VMX) ) {
+    /* Check for VMX support */
+    if ( !(cpuid_ext_feat_info & CPUID_X86_FEATURE_VMX) ) {
         printf("ERR: CPU does not support VMX\n");
         return false;
     }
     printf("CPU is VMX-capable\n");
-
     /* and that VMX is enabled in the feature control MSR */
-    if ( !(g_feat_ctrl_msr & IA32_FEATURE_CONTROL_MSR_ENABLE_VMX_IN_SMX) ) {
-        printf("ERR: VMXON disabled by feature control MSR (%lx)\n",
-               g_feat_ctrl_msr);
+    if ( !(feat_ctrl_msr & IA32_FEATURE_CONTROL_MSR_ENABLE_VMX_IN_SMX) ) {
+        printf("ERR: VMXON disabled by feature control MSR (%llx)\n",
+               feat_ctrl_msr);
         return false;
     }
 
-    return true;
-}
 
-static bool supports_smx(void)
-{
-    /* check that processor supports SMX instructions */
-    if ( !(g_cpuid_ext_feat_info & CPUID_X86_FEATURE_SMX) ) {
+    /* Check that processor supports SMX instructions */
+    if ( !(cpuid_ext_feat_info & CPUID_X86_FEATURE_SMX) ) {
         printf("ERR: CPU does not support SMX\n");
         return false;
     }
     printf("CPU is SMX-capable\n");
 
-    /*
-     * and that SMX is enabled in the feature control MSR
-     */
-
-    /* check that the MSR is locked -- BIOS should always lock it */
-    if ( !(g_feat_ctrl_msr & IA32_FEATURE_CONTROL_MSR_LOCK) ) {
-        printf("ERR: IA32_FEATURE_CONTROL_MSR_LOCK is not locked\n");
-        /* this should not happen, as BIOS is required to lock the MSR */
-#ifdef PERMISSIVE_BOOT
-        /* we enable VMX outside of SMX as well so that if there was some */
-        /* error in the TXT boot, VMX will continue to work */
-        g_feat_ctrl_msr |= IA32_FEATURE_CONTROL_MSR_ENABLE_VMX_IN_SMX |
-                           IA32_FEATURE_CONTROL_MSR_ENABLE_VMX_OUT_SMX |
-                           IA32_FEATURE_CONTROL_MSR_ENABLE_SENTER |
-                           IA32_FEATURE_CONTROL_MSR_SENTER_PARAM_CTL |
-                           IA32_FEATURE_CONTROL_MSR_LOCK;
-        wrmsrl(MSR_IA32_FEATURE_CONTROL, g_feat_ctrl_msr);
-        return true;
-#else
-        return false;
-#endif
-    }
-
-    /* check that SENTER (w/ full params) is enabled */
-    if ( !(g_feat_ctrl_msr & (IA32_FEATURE_CONTROL_MSR_ENABLE_SENTER |
-                              IA32_FEATURE_CONTROL_MSR_SENTER_PARAM_CTL)) ) {
-        printf("ERR: SENTER disabled by feature control MSR (%lx)\n",
-               g_feat_ctrl_msr);
+    /* and that SENTER (w/ full params) is enabled */
+    if ( !(feat_ctrl_msr & (IA32_FEATURE_CONTROL_MSR_ENABLE_SENTER |
+                            IA32_FEATURE_CONTROL_MSR_SENTER_PARAM_CTL)) ) {
+        printf("ERR: SENTER disabled by feature control MSR (%llx)\n",
+               feat_ctrl_msr);
         return false;
     }
+    printf("SENTER should work.\n");
+
+    /* testing for chipset support requires enabling SMX on the processor */
+    write_cr4(read_cr4() | CR4_SMXE);
+    printf("SMX enabled in CR4\n");
+
+    /* Verify that an TXT-capable chipset is present and check that
+     * all needed SMX capabilities are supported. */
+
+    cap = (capabilities_t)__getsec_capabilities(0);
+    if(!cap.chipset_present) {
+        printf("ERR: TXT-capable chipset not present\n");
+        return false;
+    }
+    if (!(cap.senter && cap.sexit && cap.parameters && cap.smctrl &&
+          cap.wakeup)) {
+        printf("ERR: insufficient SMX capabilities (0x%08x)\n", cap._raw);
+        return false;
+    }
+    printf("TXT chipset and all needed capabilities (0x%08x) present\n", cap._raw);
 
     return true;
 }
 
-bool use_mwait(void)
-{
-    return get_tboot_mwait() && (g_cpuid_ext_feat_info & CPUID_X86_FEATURE_XMM3);
-}
-
-tb_error_t supports_txt(void)
-{
-    capabilities_t cap;
-
-    /* processor must support cpuid and must be Intel CPU */
-    if ( !read_processor_info() )
-        return TB_ERR_SMX_NOT_SUPPORTED;
-
-    /* processor must support SMX */
-    if ( !supports_smx() )
-        return TB_ERR_SMX_NOT_SUPPORTED;
-
-    if ( use_mwait() ) {
-        /* set MONITOR/MWAIT support (SENTER will clear, so always set) */
-        uint64_t misc;
-        misc = rdmsr64(MSR_IA32_MISC_ENABLE);
-        misc |= MSR_IA32_MISC_ENABLE_MONITOR_FSM;
-        wrmsr64(MSR_IA32_MISC_ENABLE, misc);
-    }
-    else if ( !supports_vmx() ) {
-        return TB_ERR_VMX_NOT_SUPPORTED;
-    }
-
-    /* testing for chipset support requires enabling SMX on the processor */
-    write_cr4(read_cr4() | CR4_SMXE);
-    printf("SMX is enabled\n");
-
-    /*
-     * verify that an TXT-capable chipset is present and
-     * check that all needed SMX capabilities are supported
-     */
-
-    // XMHF: Change return type of __getsec_capabilities() to uint32_t.
-    cap = (capabilities_t)__getsec_capabilities(0);
-    if ( cap.chipset_present ) {
-        if ( cap.senter && cap.sexit && cap.parameters && cap.smctrl &&
-             cap.wakeup ) {
-            printf("TXT chipset and all needed capabilities present\n");
-            return TB_ERR_NONE;
-        }
-        else
-            printf("ERR: insufficient SMX capabilities (%x)\n", cap._raw);
-    }
-    else
-        printf("ERR: TXT-capable chipset not present\n");
-
-    /* since we are failing, we should clear the SMX flag */
-    write_cr4(read_cr4() & ~CR4_SMXE);
-
-    return TB_ERR_TXT_NOT_SUPPORTED;
-}
-
+/* Inspired by tboot-20101005/tboot/txt/verify.c */
 tb_error_t txt_verify_platform(void)
 {
     txt_heap_t *txt_heap;
-    tb_error_t err;
     txt_ests_t ests;
 
-    /* check TXT supported */
-    err = supports_txt();
-    if ( err != TB_ERR_NONE )
-        return err;
+    printf("txt_verify_platform\n");
 
-    // XMHF: TODO: assuming vtd_bios_enabled() is true
-    //if ( !vtd_bios_enabled() ) {
-    //    return TB_ERR_VTD_NOT_SUPPORTED;
-    //}
+    /* check TXT supported */
+    if(!txt_supports_txt()) {
+        printf("FATAL ERROR: TXT not supported\n");
+        HALT();
+    }
 
     /* check is TXT_RESET.STS is set, since if it is SENTER will fail */
     ests = (txt_ests_t)read_pub_config_reg(TXTCR_ESTS);
     if ( ests.txt_reset_sts ) {
-        printf("TXT_RESET.STS is set and SENTER is disabled (0x%02llx)\n",
+        printf("TXT_RESET.STS is set and SENTER is disabled (%llx)\n",
                ests._raw);
         return TB_ERR_SMX_NOT_SUPPORTED;
     }
@@ -579,89 +436,58 @@ tb_error_t txt_verify_platform(void)
     /* verify BIOS to OS data */
     txt_heap = get_txt_heap();
     if ( !verify_bios_data(txt_heap) )
-        return TB_ERR_TXT_NOT_SUPPORTED;
+        return TB_ERR_FATAL;
 
     return TB_ERR_NONE;
 }
 
-bool txt_has_error(void)
-{
-    txt_errorcode_t err;
-
-    err = (txt_errorcode_t)read_pub_config_reg(TXTCR_ERRORCODE);
-    if (err._raw == 0 || err._raw == 0xc0000001 || err._raw == 0xc0000009) {
-        return false;
-    }
-    else {
-        return true;
-    }
-}
 
 /* Read values in TXT status registers */
-void txt_display_errors(void)
-{
+/* Some tboot-20101005 code from tboot/txt/errors.c */
+void txt_status_regs(void) {
     txt_errorcode_t err;
     txt_ests_t ests;
     txt_e2sts_t e2sts;
     txt_errorcode_sw_t sw_err;
     acmod_error_t acmod_err;
 
-    /*
-     * display TXT.ERRORODE error
-     */
     err = (txt_errorcode_t)read_pub_config_reg(TXTCR_ERRORCODE);
-    if (txt_has_error() == false)
-        printf("TXT.ERRORCODE: 0x%llx\n", err._raw);
-    else
-        printf("TXT.ERRORCODE: 0x%llx\n", err._raw);
+    printf("TXT.ERRORCODE=%llx\n", err._raw);
 
     /* AC module error (don't know how to parse other errors) */
     if ( err.valid ) {
         if ( err.external == 0 )       /* processor error */
-            printf("\t processor error 0x%x\n", (uint32_t)err.type);
+            printf("\t processor error %x\n", (uint32_t)err.type);
         else {                         /* external SW error */
             sw_err._raw = err.type;
             if ( sw_err.src == 1 )     /* unknown SW error */
-                printf("unknown SW error 0x%x:0x%x\n", sw_err.err1, sw_err.err2);
+                printf("unknown SW error %x:%x\n", sw_err.err1, sw_err.err2);
             else {                     /* ACM error */
                 acmod_err._raw = sw_err._raw;
-                if ( acmod_err._raw == 0x0 || acmod_err._raw == 0x1 ||
-                     acmod_err._raw == 0x9 )
-                    printf("AC module error : acm_type=0x%x, progress=0x%02x, "
-                           "error=0x%x\n", acmod_err.acm_type, acmod_err.progress,
-                           acmod_err.error);
-                else
-                    printf("AC module error : acm_type=0x%x, progress=0x%02x, "
-                           "error=0x%x\n", acmod_err.acm_type, acmod_err.progress,
-                           acmod_err.error);
-                /* error = 0x0a, progress = 0x0d => TPM error */
+                printf("AC module error : acm_type=%x, progress=%02x, "
+                       "error=%x\n", acmod_err.acm_type, acmod_err.progress,
+                       acmod_err.error);
+                /* error = 0x0a, progress = 0x0d => error2 is a TPM error */
                 if ( acmod_err.error == 0x0a && acmod_err.progress == 0x0d )
-                    printf("TPM error code = 0x%x\n", acmod_err.tpm_err);
-                /* progress = 0x10 => LCP2 error */
-                else if ( acmod_err.progress == 0x10 && acmod_err.lcp_minor != 0 )
-                    printf("LCP2 error:  minor error = 0x%x, index = %u\n",
-                           acmod_err.lcp_minor, acmod_err.lcp_index);
+                    printf("TPM error code = %x\n", acmod_err.error2);
             }
         }
     }
 
     /*
-     * display TXT.ESTS error
+     * display LT.ESTS error
      */
     ests = (txt_ests_t)read_pub_config_reg(TXTCR_ESTS);
-    if (ests._raw == 0)
-        printf("TXT.ESTS: 0x%llx\n", ests._raw);
-    else
-        printf("TXT.ESTS: 0x%llx\n", ests._raw);
+    printf("LT.ESTS=%llx\n", ests._raw);
 
     /*
-     * display TXT.E2STS error
+     * display LT.E2STS error
+     * - only valid if LT.WAKE-ERROR.STS set in LT.STS reg
      */
-    e2sts = (txt_e2sts_t)read_pub_config_reg(TXTCR_E2STS);
-    if (e2sts._raw == 0 || e2sts._raw == 0x200000000)
-        printf("TXT.E2STS: 0x%llx\n", e2sts._raw);
-    else
-        printf("TXT.E2STS: 0x%llx\n", e2sts._raw);
+    if ( ests.txt_wake_error_sts ) {
+        e2sts = (txt_e2sts_t)read_pub_config_reg(TXTCR_E2STS);
+        printf("LT.E2STS=%llx\n", e2sts._raw);
+    }
 }
 
 /* Transfer control to the SL using GETSEC[SENTER] */
@@ -678,20 +504,7 @@ txt_launch_environment(mbi);*/
 bool txt_do_senter(void *phys_mle_start, size_t mle_size) {
     tb_error_t err;
 
-    if (!tpm_detect()) {
-        printf("ERROR: tpm_detect() failed\n");
-        return false;
-    }
-
-    // XMHF: TODO: verify_IA32_se_svn_status() skipped
-    // XMHF: TODO: get_tboot_call_racm() skipped
-    
-    if (supports_txt() != TB_ERR_NONE) {
-        printf("ERROR: supports_txt() failed\n");
-        return false;
-    }
-
-    txt_display_errors();
+    txt_status_regs();
 
     if((err = txt_verify_platform()) != TB_ERR_NONE) {
         printf("ERROR: txt_verify_platform returned 0x%08x\n", (u32)err);
@@ -699,11 +512,6 @@ bool txt_do_senter(void *phys_mle_start, size_t mle_size) {
     }
     if(!txt_prepare_cpu()) {
         printf("ERROR: txt_prepare_cpu failed.\n");
-        return false;
-    }
-
-    if (!prepare_tpm()) {
-        printf("ERROR: prepare_tpm() failed.\n");
         return false;
     }
 
@@ -995,7 +803,7 @@ bool svm_prepare_tpm(void) {
     xmhf_tpm_deactivate_all_localities();
     //dump_locality_access_regs();
 
-    if(tpm_wait_cmd_ready(locality)) {
+    if(TPM_SUCCESS == tpm_wait_cmd_ready(locality)) {
         printf("INIT:TPM: successfully opened in Locality %d.\n", locality);
     } else {
         printf("INIT:TPM: ERROR: Locality %d could not be opened.\n", locality);
@@ -1105,17 +913,17 @@ void cstartup(multiboot_info_t *mbi){
 #ifndef __SKIP_BOOTLOADER_HASH__
     /* runtime */
     print_hex("    INIT(early): *UNTRUSTED* gold runtime: ",
-              g_init_gold.sha_runtime, SHA1_DIGEST_LENGTH);
+              g_init_gold.sha_runtime, SHA_DIGEST_LENGTH);
     hashandprint("    INIT(early): *UNTRUSTED* comp runtime: ",
                  (u8*)hypervisor_image_baseaddress+0x200000, sl_rt_size-0x200000);
     /* SL low 64K */
     print_hex("    INIT(early): *UNTRUSTED* gold SL low 64K: ",
-              g_init_gold.sha_slbelow64K, SHA1_DIGEST_LENGTH);
+              g_init_gold.sha_slbelow64K, SHA_DIGEST_LENGTH);
     hashandprint("    INIT(early): *UNTRUSTED* comp SL low 64K: ",
                  (u8*)hypervisor_image_baseaddress, 0x10000);
     /* SL above 64K */
     print_hex("    INIT(early): *UNTRUSTED* gold SL above 64K: ",
-              g_init_gold.sha_slabove64K, SHA1_DIGEST_LENGTH);
+              g_init_gold.sha_slabove64K, SHA_DIGEST_LENGTH);
     hashandprint("    INIT(early): *UNTRUSTED* comp SL above 64K): ",
                  (u8*)hypervisor_image_baseaddress+0x10000, 0x200000-0x10000);
 #endif /* !__SKIP_BOOTLOADER_HASH__ */
@@ -1127,8 +935,8 @@ void cstartup(multiboot_info_t *mbi){
 
     //fill in "sl" parameter block
     {
-        //"sl" parameter block is at hypervisor_image_baseaddress + 0x20000
-        slpb = (SL_PARAMETER_BLOCK *)((u32)hypervisor_image_baseaddress + 0x20000);
+        //"sl" parameter block is at hypervisor_image_baseaddress + 0x10000
+        slpb = (SL_PARAMETER_BLOCK *)((u32)hypervisor_image_baseaddress + 0x10000);
         HALT_ON_ERRORCOND(slpb->magic == SL_PARAMETER_BLOCK_MAGIC);
         slpb->errorHandler = 0;
         slpb->isEarlyInit = 1;    //this is an "early" init

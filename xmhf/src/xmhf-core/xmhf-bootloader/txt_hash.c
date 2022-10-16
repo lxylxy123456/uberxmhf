@@ -45,11 +45,6 @@
  */
 
 /*
- * XMHF: The following file is taken from:
- *  tboot-1.10.5/tboot/common/hash.c
- */
-
-/*
  * hash.c: support functions for tb_hash_t type
  *
  * Copyright (c) 2006-2010, Intel Corporation
@@ -84,6 +79,10 @@
  *
  */
 
+/*
+ * Modified for XMHF by jonmccune@cmu.edu, 2011.01.04
+ */
+
 #include <xmhf.h>
 
 /*
@@ -93,18 +92,15 @@
  *
  */
 bool are_hashes_equal(const tb_hash_t *hash1, const tb_hash_t *hash2,
-                      uint16_t hash_alg)
+                      uint8_t hash_alg)
 {
-    unsigned int len;
-
     if ( ( hash1 == NULL ) || ( hash2 == NULL ) ) {
         printf("Error: hash pointer is zero.\n");
         return false;
     }
 
-    len = get_hash_size(hash_alg);
-    if ( len > 0 )
-        return (memcmp(hash1, hash2, len) == 0);
+    if ( hash_alg == TB_HALG_SHA1 )
+        return (memcmp((const char*)hash1, (const char*)hash2, SHA1_LENGTH) == 0);
     else {
         printf("unsupported hash alg (%u)\n", hash_alg);
         return false;
@@ -118,7 +114,7 @@ bool are_hashes_equal(const tb_hash_t *hash1, const tb_hash_t *hash2,
  *
  */
 bool hash_buffer(const unsigned char* buf, size_t size, tb_hash_t *hash,
-                 uint16_t hash_alg)
+                 uint8_t hash_alg)
 {
     if ( hash == NULL ) {
         printf("Error: There is no space for output hash.\n");
@@ -128,22 +124,6 @@ bool hash_buffer(const unsigned char* buf, size_t size, tb_hash_t *hash,
     if ( hash_alg == TB_HALG_SHA1 ) {
         sha1_buffer(buf, size, hash->sha1);
         return true;
-    }
-    else if ( hash_alg == TB_HALG_SHA256 ) {
-        sha256_buffer(buf, size, hash->sha256);
-        return true;
-    }
-    else if ( hash_alg == TB_HALG_SHA384 ) {
-        sha384_buffer(buf, size, hash->sha384);
-        return true;
-    }
-    else if ( hash_alg == TB_HALG_SHA512 ) {
-        sha512_buffer(buf, size, hash->sha512);
-        return true;
-    }
-    else if ( hash_alg == TB_HALG_SM3 ) {
-        printf("unsupported hash alg (%u)\n", hash_alg);
-        return false;
     }
     else {
         printf("unsupported hash alg (%u)\n", hash_alg);
@@ -157,7 +137,7 @@ bool hash_buffer(const unsigned char* buf, size_t size, tb_hash_t *hash,
  * perform "extend" of two hashes (i.e. hash1 = SHA(hash1 || hash2)
  *
  */
-bool extend_hash(tb_hash_t *hash1, const tb_hash_t *hash2, uint16_t hash_alg)
+bool extend_hash(tb_hash_t *hash1, const tb_hash_t *hash2, uint8_t hash_alg)
 {
     uint8_t buf[2*get_hash_size(hash_alg)];
 
@@ -172,35 +152,13 @@ bool extend_hash(tb_hash_t *hash1, const tb_hash_t *hash2, uint16_t hash_alg)
         sha1_buffer(buf, 2*sizeof(hash1->sha1), hash1->sha1);
         return true;
     }
-    else if ( hash_alg == TB_HALG_SHA256 ) {
-        memcpy(buf, &(hash1->sha256), sizeof(hash1->sha256));
-        memcpy(buf + sizeof(hash1->sha256), &(hash2->sha256), sizeof(hash1->sha256));
-        sha256_buffer(buf, 2*sizeof(hash1->sha256), hash1->sha256);
-        return true;
-    }
-    else if ( hash_alg == TB_HALG_SHA384 ) {
-        memcpy(buf, &(hash1->sha384), sizeof(hash1->sha384));
-        memcpy(buf + sizeof(hash1->sha384), &(hash2->sha384), sizeof(hash1->sha384));
-        sha384_buffer(buf, 2*sizeof(hash1->sha384), hash1->sha384);
-        return true;
-    }
-    else if ( hash_alg == TB_HALG_SHA512 ) {
-        memcpy(buf, &(hash1->sha512), sizeof(hash1->sha512));
-        memcpy(buf + sizeof(hash1->sha512), &(hash2->sha512), sizeof(hash1->sha512));
-        sha512_buffer(buf, 2*sizeof(hash1->sha512), hash1->sha512);
-        return true;
-    }
-    else if ( hash_alg == TB_HALG_SM3 ) {
-        printf("unsupported hash alg (%u)\n", hash_alg);
-        return false;
-    }
     else {
         printf("unsupported hash alg (%u)\n", hash_alg);
         return false;
     }
 }
 
-void print_hash(const tb_hash_t *hash, uint16_t hash_alg)
+void print_hash(const tb_hash_t *hash, uint8_t hash_alg)
 {
     if ( hash == NULL ) {
         printf("NULL");
@@ -208,20 +166,26 @@ void print_hash(const tb_hash_t *hash, uint16_t hash_alg)
     }
 
     if ( hash_alg == TB_HALG_SHA1 )
-        print_hex(NULL, (uint8_t *)hash->sha1, sizeof(hash->sha1));
-    else if ( hash_alg == TB_HALG_SHA256 )
-        print_hex(NULL, (uint8_t *)hash->sha256, sizeof(hash->sha256));
-    else if ( hash_alg == TB_HALG_SM3 )
-        print_hex(NULL, (uint8_t *)hash->sm3, sizeof(hash->sm3));
-    else if ( hash_alg == TB_HALG_SHA384 )
-        print_hex(NULL, (uint8_t *)hash->sha384, sizeof(hash->sha384));
+        print_hex(NULL, (const uint8_t *)hash->sha1, sizeof(hash->sha1));
     else {
         printf("unsupported hash alg (%u)\n", hash_alg);
         return;
     }
 }
 
-// XMHF: TODO: copy_hash() moved out.
+void copy_hash(tb_hash_t *dest_hash, const tb_hash_t *src_hash,
+               uint8_t hash_alg)
+{
+    if ( dest_hash == NULL || dest_hash == NULL ) {
+        printf("hashes are NULL\n");
+        return;
+    }
+
+    if ( hash_alg == TB_HALG_SHA1 )
+        memcpy(dest_hash, src_hash, SHA1_LENGTH);
+    else
+        printf("unsupported hash alg (%u)\n", hash_alg);
+}
 
 
 
