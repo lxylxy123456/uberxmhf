@@ -69,8 +69,6 @@
 #define COMPILE_TIME_ASSERT(pred)               \
   switch(0){case 0:case pred:;}
 
-/* Overflow functions from tboot-20101005/tboot/include/misc.h */
-
 /*
  * XMHF: The following functions are taken from:
  *  tboot-1.10.5/include/misc.h
