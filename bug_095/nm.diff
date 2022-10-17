@@ -1,0 +1,136 @@
+2,5d1
+< R bcd2bin_data
+< R bin2bcd_data
+< t clflush_ins
+< B cmd_buf
+7,8d2
+< t cpuid_ebx
+< t cpu_relax
+12,13d5
+< T dbg_x86_uart_putstr
+< T dvprintf
+20d11
+< b first_attempt.0
+24,28d14
+< r __FUNCTION__.0
+< r __FUNCTION__.0
+< r __FUNCTION__.0
+< r __FUNCTION__.0
+< r __FUNCTION__.1
+30,31d15
+< t get_bios_data_size
+< t get_cpu_vendor_or_die
+35d18
+< t get_os_mle_data_start
+37,42d19
+< t get_txt_heap
+< B g_log_level
+< B g_log_targets
+< D g_sl_intel_dmap_buffer
+< D g_sl_protected_dmabuffer
+< d g_timeout
+50d26
+< t inb
+52,53d27
+< t inw
+< t is_tpm_ready
+56d29
+< T memcmp
+58,59d30
+< T memmove
+< T memset
+61,63d31
+< D _mle_page_table_end
+< D _mle_page_table_start
+< t outb
+66d33
+< t outw
+69d35
+< d printf_lock
+72,75d37
+< t rdtsc64
+< t rdtsc64
+< t readb
+< t read_config_reg
+77,78d38
+< t read_config_reg
+< t read_cr0
+80,83d39
+< t read_cr4
+< t read_priv_config_reg
+< t read_pub_config_reg
+< t read_pub_config_reg
+85,86d40
+< t _read_tpm_reg
+< t release_locality
+88,89d41
+< t _reverse_copy
+< t _reverse_copy
+91d42
+< B rsp_buf
+106d56
+< D _sl_header
+120,121d69
+< T snprintf
+< t snprintf_func
+126d73
+< T sprintf
+129,142d75
+< T strnlen
+< T tpm_get_capability
+< t tpm_get_flags
+< T tpm_get_random
+< t tpm_get_timeout
+< T tpm_get_version
+< T tpm_pcr_extend
+< T tpm_pcr_read
+< T _tpm_submit_cmd
+< T tpm_submit_cmd
+< t tpm_validate_locality
+< T tpm_wait_cmd_ready
+< T tpm_write_cmd_fifo
+< t txt_is_launched
+145,150d77
+< T vsnprintf
+< T vsnrprintf
+< T vsprintf
+< t writeb
+< t write_config_reg
+< t write_cr0
+152,154d78
+< t write_cr4
+< t write_priv_config_reg
+< t _write_tpm_reg
+156d79
+< T xmhf_baseplatform_arch_cpuinitialize
+159,160d81
+< T xmhf_baseplatform_arch_flat_readu32
+< T xmhf_baseplatform_arch_flat_readu64
+163,165d83
+< T xmhf_baseplatform_arch_flat_writeu32
+< T xmhf_baseplatform_arch_flat_writeu64
+< T xmhf_baseplatform_arch_getcpuvendor
+168d85
+< T xmhf_baseplatform_arch_x86_cpuhasxsavefeature
+170,174d86
+< T xmhf_baseplatform_arch_x86_pci_type1_read
+< T xmhf_baseplatform_arch_x86_pci_type1_write
+< T xmhf_baseplatform_arch_x86vmx_cpuinitialize
+< T xmhf_baseplatform_cpuinitialize
+< T xmhf_baseplatform_getcpuvendor
+176,177d87
+< T xmhf_cpu_delay_us
+< T xmhf_cpu_flush_cache_range
+181d90
+< T xmhf_debug_arch_putstr
+189,198d97
+< T xmhf_tpm_arch_deactivate_all_localities
+< T xmhf_tpm_arch_is_tpm_ready
+< T xmhf_tpm_arch_open_locality
+< T xmhf_tpm_arch_prepare_tpm
+< T xmhf_tpm_arch_x86svm_open_locality
+< T xmhf_tpm_arch_x86vmx_open_locality
+< T xmhf_tpm_deactivate_all_localities
+< T xmhf_tpm_is_tpm_ready
+< T xmhf_tpm_open_locality
+< T xmhf_tpm_prepare_tpm

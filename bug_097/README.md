@@ -957,6 +957,22 @@ The changes are carried out in `xmhf64-dev 0982aec11..a4891901d`. Committed to
 TrustVisor halts due to access to TPM 2.0 failure. HP 2540p is also good (no
 regression).
 
+The commits in `xmhf64-tboot10` and `xmhf64-tboot10-tmp` are accessible in
+`xmhf64-dev` under commit `10cc26a85`.
+Commit shas are:
+* `xmhf64-tboot10 c426b0e0e..2c9536465`
+* `xmhf64-tboot10-tmp c426b0e0e..4f84aa3a4`
+
+The commit tree looks like:
+```
+digraph {
+	"old xmhf64-dev" -> _c9e62655d -> _c5fb5dc1e -> _10cc26a85 -> "xmhf64-dev";
+	_c426b0e0e -> _c9e62655d -> xmhf64;
+	_c426b0e0e -> _79d673295 -> "..." -> _2c9536465 -> "xmhf64-tboot10";
+	_2c9536465 -> _4f84aa3a4 -> _54bf54718 -> _10cc26a85;
+}
+```
+
 ### Typo in SDM
 
 Found two typos in SDM 315168-017
@@ -975,9 +991,53 @@ Problems
 
 Reported in
 <https://community.intel.com/t5/Intel-Trusted-Execution/Typos-in-TXT-development-guide-315168-017/m-p/1422314#M16>
+* 14 hours after posting: blocked by Intel website (marked as spam). See
+  <https://drive.google.com/file/d/1n0mXmpzgyIG_J5__U0eNp3ipg_84FkyY/view?usp=sharing>
 
 ### TrustVisor access TPM problem
 
-TODO
-TODO: document the update with new version of tboot
+Now git versions are `xmhf64 19439297d`, `xmhf64-dev c5fb5dc1e`. Serial on Dell
+looks like `20221016132520`. Can see that the problem happens because of the
+TPM 2.0 problem
+
+From the serial output, we can construct the call stack:
+```
+TrustVisor
+	xmhf_tpm_open_locality()
+		xmhf_tpm_arch_open_locality()
+			(TXT interface, no need to worry about)
+		xmhf_tpm_is_tpm_ready()
+			xmhf_tpm_arch_is_tpm_ready()
+				is_tpm_ready()
+					tpm_get_flags(locality, TPM_CAP_FLAG_PERMANENT, ...)
+					...
+```
+
+Note that in `is_tpm_ready()`, the call to `tpm_get_flags()` is specific to TPM
+1.2. In `xmhf64-tboot10`, I removed those calls. Only a call to
+`tpm_validate_locality()` is preserved.
+
+Things need to change
+* `is_tpm_ready()`: only performe `tpm_validate_locality()`
+* `tpm_get_random()`: called by `get_hw_tpm_entropy()`
+* `tpm_pcr_extend()`: called by `trustvisor_measure_qnd_bridge_signing_pubkey()`
+
+If we remove the above function calls, TrustVisor can work well. See a demo in
+`xmhf64-dev eed31ec75`. However, there are too much work to really implement
+`tpm_get_random()` and `tpm_pcr_extend()` for TPM 2.0. So not implmeneted here.
+
+In the long term, should cleanly port tboot's TPM 1.2 and TPM 2.0 code. Use
+`xmhf64-tboot10` branch.
+
+For the future of `xmhf64-tboot10` and `xmhf64-tboot10-tmp` branchs, see
+`bug_095`.
+
+## Fix
+
+`xmhf64 1b9d60b57..8e7dd1c8c`
+* Fix MTRR bugs (port tboot fix)
+* Update OS to SINIT Data version to 5 - 7
+
+`xmhf64-tboot10 c426b0e0e..ac6ff784a`
+* Port tboot 1.10.5 to XMHF
 

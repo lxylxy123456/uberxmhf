@@ -68,3 +68,73 @@ causes the bloat.
 If I modify `IOMMU_WAIT_OP` to remove waiting logic, the problem is solved. See
 <https://github.com/superymk/uberxmhf/pull/8>.
 
+Note: later, worked around this problem using something else.
+
+### Remove unused symbols
+
+<https://stackoverflow.com/a/6770305> shows a way to remove unused symbols
+using gcc and ld. To apply to XMHF:
+* Add `-fdata-sections -ffunction-sections` to CFLAGS
+* Add `--gc-sections` to ld's flags (there is no LDFLAGS as of now)
+* Update ld scripts
+
+This is implemented in `xmhf64-dev 8e0f97a87`. Using `./build.sh i386 --drt`,
+SL size does not decrease a lot.
+
+```sh
+readelf -SW ./xmhf/src/xmhf-core/xmhf-secureloader/sl.exe | grep .sl_stack | cut -b 41-58
+```
+
+See `Makefile`, `ld_gc_demo.c`, and `ld_gc_demo.lds`. If I add `-m32` to gcc
+and change to `OUTPUT_ARCH(i386)` in ld script, the gc-sections will fail.
+Looks like 64-bit is fine.
+
+Using `./build.sh amd64 --drt`, SL size decreases from 0xae70 to 0x4820. This
+is significant savings. See `nm.diff` for list of symbols removed.
+
+Tested this on `xmhf64-tboot10 ac6ff784a`. See `xmhf64-tboot10-tmp d2bad1a22`.
+Using `./build.sh amd64 --drt --mem 0x230000000`. The result looks good. Most
+of the `tpm12_*()` and `tpm20_*()` functions are stripped because not used, so
+the SL size is well below 64K.
+
+After some experiments, I realized that `-m elf_i386` on the command line is
+needed (use `ld -m -v` for a list of supported values). Another way to solve
+this problem is to add `OUTPUT_FORMAT(elf32-i386)`. (Currently there is only
+`OUTPUT_ARCH(i386)`, but
+<https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_mono/ld.html> says that
+`OUTPUT_ARCH` is often unnecessary).
+
+A possible related stackoverflow question:
+<https://stackoverflow.com/questions/41930865/>
+
+Also need to add `KEEP` command in ld scripts to prevent remove of necessary
+symbols:
+* bootloader: `.multiboot_header`
+* secureloader: `.sl_header`
+* runtime: `.s_rpb`
+* runtime: `.xcph_table`
+
+In `xmhf64-tboot10-tmp 5e9102d6c`, able to boot on Dell with the following
+configurations:
+```sh
+./build.sh i386 --drt --dmap && gr
+./build.sh amd64 --drt --dmap --mem 0x230000000 && gr
+```
+
+`xmhf64-tboot10-tmp` changes related to ld gc are ported to `xmhf64`. The
+changes are ported to xmhf64:
+* `xmhf64 fb0da8247`
+	* `xmhf64-tboot10-tmp e3fdba0fe`
+	* `xmhf64-tboot10-tmp 5e9102d6c`
+* `xmhf64 7070d04ea`
+	* `xmhf64-tboot10-tmp 3d839366e`
+* `xmhf64 eb482ee2c`
+	* `xmhf64-tboot10-tmp bfe759b26`
+* `xmhf64 5185f1e6a`
+	* `xmhf64-tboot10-tmp f2e4b6b31`
+	* `xmhf64-tboot10-tmp b9065673d`
+	* `xmhf64-tboot10-tmp 98ee51844`
+
+TODO: (in `bug_097`) `TPM:CreatePrimary creating hierarchy handle = 40000007` takes a long time
+TODO: fix TODOs in `tpm-x86.c`, also `xmhf-tpm-arch-x86.h`
+
