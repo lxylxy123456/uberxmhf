@@ -66,26 +66,16 @@ SECTIONS
 
   .text : {
     *(.text)
-    *(.text.*)
-    *(.rel.text)
-    *(.rel.text.*)
+    *(.text.unlikely)
     . = ALIGN(4096);
   } =0x9090
 
   .data : {
     *(.data)
-    *(.data.*)
-    *(.rel.data)
-    *(.rel.data.*)
     *(.rodata)
-    *(.rodata.*)
-    *(.rel.rodata)
-    *(.rel.rodata.*)
+    *(.rodata.str1.*)
     *(.eh_frame)
     *(.bss)
-    *(.bss.*)
-    *(.rel.bss)
-    *(.rel.bss.*)
     . = ALIGN(4096);
   } =0x9090
 
@@ -111,9 +101,6 @@ SECTIONS
   .debug_ranges : { *(.debug_ranges) } >debug
   .debug_rnglists : { *(.debug_rnglists) } >debug
   .debug_str : { *(.debug_str) } >debug
-  .rel.debug_info : { *(.rel.debug_info) } >debug
-  .rel.debug_aranges : { *(.rel.debug_aranges) } >debug
-  .rel.debug_line : { *(.rel.debug_line) } >debug
 
   /* this is to cause the link to fail if there is
    * anything we didn't explicitly place.
