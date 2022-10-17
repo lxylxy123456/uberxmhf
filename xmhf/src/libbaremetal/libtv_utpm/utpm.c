@@ -914,7 +914,7 @@ TPM_RESULT utpm_quote(TPM_NONCE* externalnonce, TPM_PCR_SELECTION* tpmsel, /* hy
 
     {
       unsigned long outlen_long = *outlen;
-      uint8_t md[SHA1_DIGEST_LENGTH];
+      uint8_t md[SHA_DIGEST_LENGTH];
 
       sha1_buffer( (uint8_t*)&quote_info, sizeof(TPM_QUOTE_INFO), md);
 

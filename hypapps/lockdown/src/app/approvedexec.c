@@ -162,7 +162,7 @@ void approvedexec_setup(VCPU *vcpu, APP_PARAM_BLOCK *apb){
 //pagebase_paddr (assumed to be page-aligned).
 //return: 1 if there is a matching hash for this page else 0
 u32 approvedexec_checkhashes(u32 pagebase_paddr, u32 *index, u32 *fullhash){
-  u8 sha1sum[SHA1_DIGEST_LENGTH];
+  u8 sha1sum[SHA_DIGEST_LENGTH];
 
 	u32 i;
 
@@ -177,7 +177,7 @@ u32 approvedexec_checkhashes(u32 pagebase_paddr, u32 *index, u32 *fullhash){
 
 	//first scan the full hashlist to find a match
 	for(i=0; i <hashlist_full_totalelements; i++){
-		if (memcmp(hashlist_full[i].shanum, sha1sum, SHA1_DIGEST_LENGTH) == 0){
+		if (memcmp(hashlist_full[i].shanum, sha1sum, SHA_DIGEST_LENGTH) == 0){
      	*index = i;
      	*fullhash = 1;
 			 //AX_DEBUG(("\nSUCCESS(Full Hash List) for %s", hashlist_full[i].name));
@@ -191,7 +191,7 @@ u32 approvedexec_checkhashes(u32 pagebase_paddr, u32 *index, u32 *fullhash){
 		sha1_buffer((const u8 *)hashlist_partial[i].pageoffset+pagebase_paddr, hashlist_partial[i].size,
                 sha1sum);
 
-		if (memcmp(hashlist_partial[i].shanum, sha1sum, SHA1_DIGEST_LENGTH) == 0){
+		if (memcmp(hashlist_partial[i].shanum, sha1sum, SHA_DIGEST_LENGTH) == 0){
      	 *index = i;
      	 *fullhash=0;
 			 //AX_DEBUG(("\nSUCCESS(Part Hash List) for %s", hashlist_partial[i].name));

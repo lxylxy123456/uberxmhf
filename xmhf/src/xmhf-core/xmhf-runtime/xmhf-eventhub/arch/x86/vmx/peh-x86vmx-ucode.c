@@ -52,7 +52,7 @@
 #include <hptw.h>
 #include <hpt_emhf.h>
 
-extern unsigned char ucode_recognized_sha1s[][SHA1_DIGEST_LENGTH];
+extern unsigned char ucode_recognized_sha1s[][SHA_DIGEST_LENGTH];
 extern u32 ucode_recognized_sha1s_len;
 
 /*
@@ -99,11 +99,11 @@ typedef struct __attribute__ ((packed)) {
 static int ucode_check_sha1(intel_ucode_update_t *header)
 {
 	const unsigned char *buffer = (const unsigned char *) header;
-	unsigned char md[SHA1_DIGEST_LENGTH];
+	unsigned char md[SHA_DIGEST_LENGTH];
 	HALT_ON_ERRORCOND(sha1_buffer(buffer, header->total_size, md) == 0);
-	print_hex("SHA1(update) = ", md, SHA1_DIGEST_LENGTH);
+	print_hex("SHA1(update) = ", md, SHA_DIGEST_LENGTH);
 	for (u32 i = 0; i < ucode_recognized_sha1s_len; i++) {
-		if (memcmp(md, ucode_recognized_sha1s[i], SHA1_DIGEST_LENGTH) == 0) {
+		if (memcmp(md, ucode_recognized_sha1s[i], SHA_DIGEST_LENGTH) == 0) {
 			return 1;
 		}
 	}
