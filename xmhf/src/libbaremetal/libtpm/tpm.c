@@ -50,7 +50,6 @@
  * Changes made include:
  *  TODO: Hard coded ARRAY_SIZE macro.
  *  TODO: Hard coded cpu_relax() function.
- *  TODO: tpm_20 not implemented.
  */
 
 /*

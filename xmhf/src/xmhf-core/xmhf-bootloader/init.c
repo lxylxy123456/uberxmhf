@@ -350,6 +350,11 @@ u32 dealwithE820(multiboot_info_t *mbi, u32 runtimesize __attribute__((unused)))
 
 /*
  * XMHF: The following symbols are taken from tboot-1.10.5
+ * Changes made include:
+ *  Change return type of __getsec_capabilities() to uint32_t.
+ *  TODO: assuming vtd_bios_enabled() is true
+ *  TODO: verify_IA32_se_svn_status() skipped
+ *  TODO: get_tboot_call_racm() skipped
  * List of major symbols:
  *  read_processor_info
  *  supports_vmx

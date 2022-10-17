@@ -48,8 +48,11 @@
  * XMHF: The following file is taken from:
  *  tboot-1.10.5/tboot/common/tpm_20.c
  * Changes made include:
- *  TODO
+ *  TODO: Workaround declarations
+ *  Remove unused external variable.
  *  Disabled unused functions.
+ *  TODO: Assume info_list->capabilities.tpm_nv_index_set == 0.
+ *  TODO: Assume extpol not specified on commandline.
  */
 
 /*

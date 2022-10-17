@@ -70,7 +70,6 @@ void xmhf_tpm_arch_deactivate_all_localities(void);
 //----------------------------------------------------------------------
 //x86 ARCH. INTERFACES
 //----------------------------------------------------------------------
-// TODO: a lot of things removed
 
 bool tpm_get_random(uint32_t locality, uint8_t *random_data,
                     uint32_t *data_size);

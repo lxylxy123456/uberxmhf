@@ -47,8 +47,6 @@
 /*
  * XMHF: The following file is taken from:
  *  tboot-1.10.5/tboot/include/tpm_20.h
- * Changes made include:
- *  TODO
  */
 
 /*
