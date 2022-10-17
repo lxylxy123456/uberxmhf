@@ -75,6 +75,7 @@ SECTIONS
   . = __TARGET_BASE;
 
   .text : {
+    KEEP(*(.s_rpb))
     *(.s_rpb)
     *(.text)
     *(.text.*)

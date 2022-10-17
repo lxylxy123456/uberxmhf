@@ -61,6 +61,7 @@ SECTIONS
 {
   . = 0x1E00000;
   .multiboot_header : {
+    KEEP(*(.multiboot_header))
     *(.multiboot_header)
     . = ALIGN(4096);
   } = 0x9090
