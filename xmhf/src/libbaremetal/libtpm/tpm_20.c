@@ -53,6 +53,7 @@
  *  Disabled unused functions.
  *  TODO: Assume info_list->capabilities.tpm_nv_index_set == 0.
  *  TODO: Assume extpol not specified on commandline.
+ *  Skip CreatePrimary() to be faster (cannot tpm_seal / unseal).
  */
 
 /*
@@ -2472,6 +2473,11 @@ static bool tpm20_seal(struct tpm_if *ti, uint32_t locality,
     _Static_assert( sizeof(auth_str) - 1 <=
             sizeof(create_in.sensitive.t.sensitive.user_auth.t.buffer) );
 
+    // XMHF: Skip CreatePrimary() to be faster (cannot tpm_seal / unseal).
+    while (1) {
+        printf("Panic: CreatePrimary() need to be called for tpm20_seal()\n");
+    }
+
     create_in.parent_handle = handle2048;
     create_in.sessions.num_sessions = 1;
     create_in.sessions.sessions[0] = pw_session;
@@ -2532,6 +2538,11 @@ static bool tpm20_unseal(struct tpm_if *ti, uint32_t locality,
     if ( ti == NULL || locality >= TPM_NR_LOCALITIES
          || sealed_data_size == 0 || sealed_data == NULL )
         return false;
+
+    // XMHF: Skip CreatePrimary() to be faster (cannot tpm_seal / unseal).
+    while (1) {
+        printf("Panic: CreatePrimary() need to be called for tpm20_unseal()\n");
+    }
 
     /* For TPM 2.0, the object will need to be loaded before it may be used.*/
     load_in.parent_handle = handle2048;
@@ -2864,6 +2875,11 @@ static bool tpm20_init(struct tpm_if *ti)
     if (!tpm20_pcr_reset(ti, ti->cur_loc, 16)){
         printf("TPM: tpm20_pcr_reset failed...\n");
 	return false;
+    }
+
+    // XMHF: Skip CreatePrimary() to be faster (cannot tpm_seal / unseal).
+    if (1) {
+        goto out;
     }
 
     if (handle2048 != 0)
