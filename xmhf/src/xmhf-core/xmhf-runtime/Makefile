@@ -137,8 +137,7 @@ RUNTIME_COMPONENTS += xmhf-startup
 
 OBJCOPY_FLAGS = --output-format=binary
 ifneq ($(SKIP_RUNTIME_BSS), y)
-OBJCOPY_FLAGS += --set-section-flags .palign_data=alloc,load,contents
-OBJCOPY_FLAGS += --set-section-flags .stack=alloc,load,contents
+OBJCOPY_FLAGS += --set-section-flags .bss=alloc,load,contents
 endif
 
 # targets
@@ -157,7 +156,7 @@ $(OBJECTS_PRECOMPILED): %: runtimecomponents
 $(OBJECTS_PRECOMPILED_LIBBACKENDS): %: runtimecomponents
 
 runtime.bin: runtimecomponents $(APP_ARCHIVE) runtime.lds
-	$(LD) -T runtime.lds -o runtime.exe $(OBJECTS_PRECOMPILED) $(APP_ARCHIVE) $(ADDL_LIBS) $(OBJECTS_PRECOMPILED_LIBBACKENDS) -L$(CCLIB) -lgcc
+	$(LD) $(LDFLAGS) -T runtime.lds -o runtime.exe $(OBJECTS_PRECOMPILED) $(APP_ARCHIVE) $(ADDL_LIBS) $(OBJECTS_PRECOMPILED_LIBBACKENDS) -L$(CCLIB) -lgcc
 	# .palign_data and .stack are NOBITS in the ELF file (similar to .bss), but
 	# we need them in runtime.bin. So use the --set-section-flags option to
 	# force objcopy to zero them and add to runtime.bin. See OBJCOPY_FLAGS
