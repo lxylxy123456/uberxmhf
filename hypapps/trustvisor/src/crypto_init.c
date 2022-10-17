@@ -97,11 +97,15 @@ void zeroize(uint8_t* _p, unsigned int len) {
 int get_hw_tpm_entropy(uint8_t* buf, unsigned int requested_len /* bytes */) {
   uint32_t rv=1;
   unsigned int actual_len;
+  struct tpm_if *tpm;
+  const struct tpm_if_fp *tpm_fp;
 
   EU_CHK( buf);
+  EU_CHK( tpm = get_tpm());
+  EU_CHK( tpm_fp = get_tpm_fp());
 
   actual_len = requested_len;
-  EU_CHK( tpm_get_random(CRYPTO_INIT_LOCALITY, buf, &actual_len));
+  EU_CHK( tpm_fp->get_random(tpm, CRYPTO_INIT_LOCALITY, buf, &actual_len) );
 
   /* TODO: Try a few more times before giving up. */
   EU_CHK( actual_len == requested_len,
@@ -159,6 +163,11 @@ static int trustvisor_measure_qnd_bridge_signing_pubkey( void ) {
   uint32_t serial_pubkey_len=0;
   uint8_t *serial_pubkey = NULL;
   hash_list_t hl;
+  struct tpm_if *tpm;
+  const struct tpm_if_fp *tpm_fp;
+
+  EU_CHK( tpm = get_tpm());
+  EU_CHK( tpm_fp = get_tpm_fp());
 
   /**
    * 1. Serialize RSA key into byte blob for purposes of measurement.
@@ -178,7 +187,7 @@ static int trustvisor_measure_qnd_bridge_signing_pubkey( void ) {
   /**
    * 3. Extend PCR with hash.
    */
-  EU_CHK( tpm_pcr_extend(CRYPTO_INIT_LOCALITY, QND_BRIDGE_PUBKEY_PCR, &hl),
+  EU_CHK( tpm_fp->pcr_extend(tpm, CRYPTO_INIT_LOCALITY, QND_BRIDGE_PUBKEY_PCR, &hl),
            eu_err_e("FATAL ERROR: Could not extend HW TPM PCR %d.", QND_BRIDGE_PUBKEY_PCR));
 
   eu_trace( "Successfully extended HW TPM PCR %d.", QND_BRIDGE_PUBKEY_PCR);

@@ -115,55 +115,6 @@ void _write_tpm_reg(int locality, u32 reg, u8 *_raw, size_t size)
         writeb((TPM_LOCALITY_BASE_N(locality) | reg) + i, _raw[i]);
 }
 
-// XMHF: TODO: have initialization function for TPM
-#define GET_TPM_TPMFP \
-    struct tpm_if *tpm = get_tpm(); \
-    const struct tpm_if_fp *tpm_fp = get_tpm_fp(); \
-    if (tpm_fp == NULL) { \
-        HALT_ON_ERRORCOND(tpm_detect()); \
-        tpm_fp = get_tpm_fp(); \
-    } \
-    do {} while (0)
-
-
-// XMHF: TODO: modify callers to get rid of this function
-bool tpm_get_random(uint32_t locality, uint8_t *random_data,
-                    uint32_t *data_size)
-{
-    GET_TPM_TPMFP;
-    return tpm_fp->get_random(tpm, locality, random_data, data_size);
-}
-
-// XMHF: TODO: modify callers to get rid of this function
-bool tpm_pcr_extend(uint32_t locality, uint32_t pcr, const hash_list_t *in)
-{
-    GET_TPM_TPMFP;
-    return tpm_fp->pcr_extend(tpm, locality, pcr, in);
-}
-
-// XMHF: TODO: modify callers to get rid of this function
-bool tpm_get_nvindex_size(uint32_t locality, uint32_t index, uint32_t *size)
-{
-    GET_TPM_TPMFP;
-    return tpm_fp->get_nvindex_size(tpm, locality, index, size);
-}
-
-// XMHF: TODO: modify callers to get rid of this function
-bool tpm_nv_read_value(uint32_t locality, uint32_t index, uint32_t offset,
-                       uint8_t *data, uint32_t *data_size)
-{
-    GET_TPM_TPMFP;
-    return tpm_fp->nv_read(tpm, locality, index, offset, data, data_size);
-}
-
-// XMHF: TODO: modify callers to get rid of this function
-bool tpm_nv_write_value(uint32_t locality, uint32_t index, uint32_t offset,
-                        const uint8_t *data, uint32_t data_size)
-{
-    GET_TPM_TPMFP;
-    return tpm_fp->nv_write(tpm, locality, index, offset, data, data_size);
-}
-
 void copy_hash(tb_hash_t *dest_hash, const tb_hash_t *src_hash,
                uint16_t hash_alg)
 {

@@ -71,14 +71,6 @@ void xmhf_tpm_arch_deactivate_all_localities(void);
 //x86 ARCH. INTERFACES
 //----------------------------------------------------------------------
 
-bool tpm_get_random(uint32_t locality, uint8_t *random_data,
-                    uint32_t *data_size);
-bool tpm_pcr_extend(uint32_t locality, uint32_t pcr, const hash_list_t *in);
-bool tpm_get_nvindex_size(uint32_t locality, uint32_t index, uint32_t *size);
-bool tpm_nv_read_value(uint32_t locality, uint32_t index, uint32_t offset,
-                       uint8_t *data, uint32_t *data_size);
-bool tpm_nv_write_value(uint32_t locality, uint32_t index, uint32_t offset,
-                        const uint8_t *data, uint32_t data_size);
 
 //----------------------------------------------------------------------
 //x86vmx SUBARCH. INTERFACES
