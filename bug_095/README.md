@@ -135,6 +135,16 @@ changes are ported to xmhf64:
 	* `xmhf64-tboot10-tmp b9065673d`
 	* `xmhf64-tboot10-tmp 98ee51844`
 
-TODO: (in `bug_097`) `TPM:CreatePrimary creating hierarchy handle = 40000007` takes a long time
-TODO: fix TODOs in `tpm-x86.c`, also `xmhf-tpm-arch-x86.h`
+In `xmhf64-tboot10-tmp 1ebf53d70..77b875fc0`, wrap up changes and prepare for
+PR
+* Revert "Rename `SHA_DIGEST_LENGTH` to `SHA1_DIGEST_LENGTH`"
+* Remove temporary wrapper functions in `tpm-x86.c` and `xmhf-tpm-arch-x86.h`
+* Tboot is slow because of call to TPM 2.0 CreatePrimary (see
+  "TPM:CreatePrimary creating hierarchy handle = 40000007" in serial). Remove
+  the call because it is not needed by XMHF.
+
+Created <https://github.com/lxylxy123456/uberxmhf/pull/18>
+
+TODO: wait for PR review
+TODO: merge `xmhf64-tboot10-tmp` to `xmhf64-dev`
 

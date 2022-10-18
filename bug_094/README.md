@@ -250,5 +250,24 @@ Fixing in `xmhf64-nest 0bd29bc66`. However, the problem now becomes an
 assertion error. This is because VMPTRLD is called with no active VMCS pointer.
 Fixed in `xmhf64-nest 3ca7e20f5` by checking for this special case.
 
-TODO: test Windows
+### Testing Windows
+
+At `xmhf64-nest-dev c91401f26` (`xmhf64-nest 4bfe710ab`), using
+`./build.sh amd64 --dmap --mem 0x230000000 --event-logger` to build XMHF.
+
+After some time, realized that I should use O3 instead. Also currently Dell
+does not support DRT (`bug_097`), HP does not support DMAP (`bug_098`). So
+`./build.sh amd64 O3 --mem 0x230000000 --event-logger`.
+
+* HP 2540p, amd64 XMHF, Virtual Box, Win7 x86: good (install and run)
+* Dell 7050, amd64 XMHF, VMware, WinXP x86:
+* Dell 7050, amd64 XMHF, VMware, WinXP x64: good (install and run)
+* Dell 7050, amd64 XMHF, VMware, Win10 x64: good (install and run)
+* HP 2540p, amd64 XMHF, Virtual Box, Win7 x64: good (install and run)
+* HP 2540p, amd64 XMHF, Virtual Box, Win10 x86:
+
+TODO: test XMHF, Debian, VB/VMW, Windows
+TODO: test XMHF, Windows on Dell
+TODO: use O3
+TODO: see why there are a lot of ept02 miss (due to vmware vmxon / vmxoff?)
 
