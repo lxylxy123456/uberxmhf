@@ -260,14 +260,41 @@ does not support DRT (`bug_097`), HP does not support DMAP (`bug_098`). So
 `./build.sh amd64 O3 --mem 0x230000000 --event-logger`.
 
 * HP 2540p, amd64 XMHF, Virtual Box, Win7 x86: good (install and run)
-* Dell 7050, amd64 XMHF, VMware, WinXP x86:
+* Dell 7050, amd64 XMHF, VMware, WinXP x86: good (install and run)
 * Dell 7050, amd64 XMHF, VMware, WinXP x64: good (install and run)
 * Dell 7050, amd64 XMHF, VMware, Win10 x64: good (install and run)
 * HP 2540p, amd64 XMHF, Virtual Box, Win7 x64: good (install and run)
-* HP 2540p, amd64 XMHF, Virtual Box, Win10 x86:
+* HP 2540p, amd64 XMHF, Virtual Box, Win10 x86: unknown (too slow to install)
+* Dell 7050, amd64 XMHF, Virtual Box, Win10 x86: good (run)
+* Dell 7050, amd64 XMHF, Virtual Box, Win10 x64: good (run)
+* Dell 7050, amd64 XMHF, KVM UP, Win10 x86: good (run)
+* Dell 7050, amd64 XMHF, KVM UP, Win10 x64: good (run)
+* Dell 7050, amd64 XMHF, KVM SMP, Win10 x86: good (run)
+* Dell 7050, amd64 XMHF, KVM SMP, Win10 x64: good (run)
 
-TODO: test XMHF, Debian, VB/VMW, Windows
-TODO: test XMHF, Windows on Dell
-TODO: use O3
-TODO: see why there are a lot of ept02 miss (due to vmware vmxon / vmxoff?)
+TODO: test XMHF, Windows, VB/VMW
+TODO: use circleci to speed up nested virtualization
+
+During testing, I noticed that there are a lot of `ept02_miss` events. It is
+probably because L1 is executing the INVEPT instruction. Currently XMHF simply
+drops the entire EPT02. To improve efficiency, we may need to mark entries in
+EPT12 as read only and only invalidate part of EPT02. We need to study shadow
+paging. Sample references:
+* <https://www.kernel.org/doc/Documentation/virtual/kvm/mmu.txt>
+* <https://stackoverflow.com/questions/14176904/>
+
+## Fix
+
+`xmhf64 710e9a847..427b6d6b7`
+* Remove unneeded INVEPT in MOV CR4
+
+`xmhf64 153a61f99..8b972c159`
+* Remove unneeded INVEPT in MOV CR0
+
+`xmhf64-nest c44296487..3ca7e20f5`
+* Indicate support for 2M and 1G EPT pages for L1
+* Support load / store `IA32_PAT` / `IA32_EFER`
+* Do not resolve I/O bitmap address when not using
+* Ignore value of `control_Executive_VMCS_pointer`
+* Correctly handle VMXON twice problem
 

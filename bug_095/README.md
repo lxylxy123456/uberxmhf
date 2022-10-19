@@ -145,6 +145,24 @@ PR
 
 Created <https://github.com/lxylxy123456/uberxmhf/pull/18>
 
-TODO: wait for PR review
-TODO: merge `xmhf64-tboot10-tmp` to `xmhf64-dev`
+In the mean time, tested Windows on Dell 7050 a little bit. Using
+`xmhf64-tboot10-tmp 77b875fc0`
+* amd64 XMHF DRT DMAP, Windows 8.1 x64, `pal_demo` x86 / x64: good
+* amd64 XMHF DRT DMAP, Windows 10 x86, `pal_demo` x86: good
+* amd64 XMHF DRT DMAP, Windows 10 x64, `pal_demo` x86 / x64: good
+* amd64 XMHF DRT DMAP, Windows 7 x86, `pal_demo` x86: reset during Windows boot
+* amd64 XMHF DRT DMAP, Windows 7 x64, `pal_demo` x86 / x64: same as x86 Win 7
+
+Will handle Windows 7 problem in `bug_099`.
+
+Merged PR in `xmhf64 5185f1e6a..f8029f6e8`. Immediately before the merge,
+branchs are `xmhf64-tboot10-tmp c426b0e0e..77b875fc0` and
+`xmhf64-tboot10 c426b0e0e..d4507447b`. After the merge these 2 branchs are
+merged to `xmhf64-dev` branch (`7afffd9ad`).
+
+## Fix
+
+`19439297d..f8029f6e8`
+* Use `ld --gc-sections` to save space in secureloader.
+* Update from tboot-20101005 to tboot-1.10.5 (solves `bug_097`)
 

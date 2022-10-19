@@ -49,3 +49,9 @@ More tests
 Now my guess is that PR 15 fixes something broken by PR 13, but it breaks DMAP,
 even when without DRT.
 
+## Result
+
+Discussed with superymk, not going to fix at this point. Xen has documented bug
+on 2540p firmware / hardware. PR 15 is supposed to fix something, so maybe this
+is not a regression.
+
