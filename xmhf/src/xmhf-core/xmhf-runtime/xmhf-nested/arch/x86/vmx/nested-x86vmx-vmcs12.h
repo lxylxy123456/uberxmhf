@@ -85,7 +85,10 @@
  */
 #define VMX_NESTED_MAX_MSR_COUNT 8
 
-/* Maximum number of active VMCS per CPU */
+/*
+ * Maximum number of active VMCS per CPU. If this number is exceeded, XMHF will
+ * halt.
+ */
 #define VMX_NESTED_MAX_ACTIVE_VMCS 8
 
 enum vmcs_nested_encoding {

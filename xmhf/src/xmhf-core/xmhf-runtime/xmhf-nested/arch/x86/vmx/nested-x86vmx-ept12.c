@@ -396,10 +396,13 @@ spa_t xmhf_nested_arch_x86vmx_get_ept02(VCPU * vcpu, gpa_t ept12,
 		 * Prevent EPT violations on REP INS instructions. Here we hardcode
 		 * some known physical addresses to prevent EPT violations.
 		 */
-		if (0) {
-			u64 i;
-			for (i = 0x68000ULL; i < 0x80000ULL; i += PA_PAGE_SIZE_4K) {
-				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
+		{
+			extern bool is_in_kvm;
+			if (is_in_kvm) {
+				u64 i;
+				for (i = 0x68000ULL; i < 0x80000ULL; i += PA_PAGE_SIZE_4K) {
+					xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, line, i);
+				}
 			}
 		}
 #endif							/* !__DEBUG_QEMU__ */
@@ -589,9 +592,10 @@ static void xmhf_nested_arch_x86vmx_flush_ept02_effect(VCPU * vcpu)
 			 * xmhf_nested_arch_x86vmx_handle_ept02_exit() with guest2_paddr =
 			 * CR3.
 			 */
-			if (0) {
+			{
+				extern bool is_in_kvm;
 				struct nested_vmcs12 *vmcs12 = &vmcs12_info->vmcs12_value;
-				if (vmcs12->guest_CR3 != 0) {
+				if (is_in_kvm && vmcs12->guest_CR3 != 0) {
 					xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, cache_line,
 														 vmcs12->guest_CR3);
 				}
