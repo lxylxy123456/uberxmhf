@@ -455,6 +455,270 @@ static u32 _vmcs12_get_ctls(VCPU * vcpu, struct nested_vmcs12 *vmcs12,
 	return VM_INST_SUCCESS;
 }
 
+#define FIELD_CTLS_ARG (ctls)
+
+#define DECLARE_FIELD_16_RW(encoding, name, prop, exist, trans_suf, ...) \
+DECLARE_FIELD_16_RO(encoding, name, prop, exist, trans_suf, ...) \
+static u32 _vmcs12_to_vmcs02_##name##trans_suf( \
+	VCPU *vcpu, vmcs12_info_t * vmcs12_info, vmx_ctls_t *ctls, \
+	guestmem_hptw_ctx_pair_t *ctx_pair) \
+{ \
+	(void) vcpu; \
+	(void) ctls; \
+	(void) ctx_pair; \
+	if (prop & FIELD_PROP_ID_GUEST) { \
+		if (exist) { \
+			__vmx_vmwrite16(encoding, vmcs12_info->vmcs12_value.name); \
+		} \
+		return VM_INST_SUCCESS; \
+	} else { \
+		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+		return VM_INST_SUCCESS; /* TODO: remove this return */ \
+	} \
+}
+#define DECLARE_FIELD_16_RO(encoding, name, prop, exist, trans_suf, ...) \
+static void _vmcs02_to_vmcs12_##name##trans_suf(VCPU *vcpu, \
+												vmcs12_info_t * vmcs12_info, \
+												vmx_ctls_t *ctls) \
+{ \
+	(void) vcpu; \
+	(void) ctls; \
+	if (prop & FIELD_PROP_ID_GUEST) { \
+		if (exist) { \
+			if (prop & FIELD_PROP_SWWRONLY) { \
+				HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.name == \
+								  __vmx_vmread16(encoding)); \
+			} else { \
+				vmcs12_info->vmcs12_value.name = __vmx_vmread16(encoding); \
+			} \
+		} \
+	} else { \
+		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+	} \
+}
+
+#define DECLARE_FIELD_64_RW(encoding, name, prop, exist, trans_suf, ...) \
+DECLARE_FIELD_64_RO(encoding, name, prop, exist, trans_suf, ...) \
+static u32 _vmcs12_to_vmcs02_##name##trans_suf( \
+	VCPU *vcpu, vmcs12_info_t * vmcs12_info, vmx_ctls_t *ctls, \
+	guestmem_hptw_ctx_pair_t *ctx_pair) \
+{ \
+	(void) vcpu; \
+	(void) ctls; \
+	if (prop & FIELD_PROP_ID_GUEST) { \
+		if (exist) { \
+			__vmx_vmwrite64(encoding, vmcs12_info->vmcs12_value.name); \
+		} \
+		return VM_INST_SUCCESS; \
+	} else if (prop & FIELD_PROP_GPADDR) { \
+		if (exist) { \
+			gpa_t addr = vmcs12_info->vmcs12_value.name; \
+			__vmx_vmwrite64(encoding, guestmem_gpa2spa_page(ctx_pair, addr)); \
+		} \
+		return VM_INST_SUCCESS; \
+	} else { \
+		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+		return VM_INST_SUCCESS; /* TODO: remove this return */ \
+	} \
+}
+#define DECLARE_FIELD_64_RO(encoding, name, prop, exist, trans_suf, ...) \
+static void _vmcs02_to_vmcs12_##name##trans_suf(VCPU *vcpu, \
+												vmcs12_info_t * vmcs12_info, \
+												vmx_ctls_t *ctls) \
+{ \
+	(void) vcpu; \
+	(void) ctls; \
+	if ((prop & FIELD_PROP_ID_GUEST) || (prop & FIELD_PROP_GPADDR)) { \
+		if (exist) { \
+			if (prop & FIELD_PROP_SWWRONLY) { \
+				/* Note: currently for FIELD_PROP_GPADDR, assuming spa=gpa */ \
+				HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.name == \
+								  __vmx_vmread64(encoding)); \
+			} else { \
+				vmcs12_info->vmcs12_value.name = __vmx_vmread64(encoding); \
+			} \
+		} \
+	} else { \
+		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+	} \
+}
+
+#define DECLARE_FIELD_32_RW(encoding, name, prop, exist, trans_suf, ...) \
+DECLARE_FIELD_32_RO(encoding, name, prop, exist, trans_suf, ...) \
+static u32 _vmcs12_to_vmcs02_##name##trans_suf( \
+	VCPU *vcpu, vmcs12_info_t * vmcs12_info, vmx_ctls_t *ctls, \
+	guestmem_hptw_ctx_pair_t *ctx_pair) \
+{ \
+	(void) vcpu; \
+	(void) ctls; \
+	(void) ctx_pair; \
+	if (prop & FIELD_PROP_ID_GUEST) { \
+		if (exist) { \
+			__vmx_vmwrite32(encoding, vmcs12_info->vmcs12_value.name); \
+		} \
+		return VM_INST_SUCCESS; \
+	} else { \
+		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+		return VM_INST_SUCCESS; /* TODO: remove this return */ \
+	} \
+}
+#define DECLARE_FIELD_32_RO(encoding, name, prop, exist, trans_suf, ...) \
+static void _vmcs02_to_vmcs12_##name##trans_suf(VCPU *vcpu, \
+												vmcs12_info_t * vmcs12_info, \
+												vmx_ctls_t *ctls) \
+{ \
+	(void) vcpu; \
+	(void) ctls; \
+	if (prop & FIELD_PROP_ID_GUEST) { \
+		if (exist) { \
+			if (prop & FIELD_PROP_SWWRONLY) { \
+				HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.name == \
+								  __vmx_vmread32(encoding)); \
+			} else { \
+				vmcs12_info->vmcs12_value.name = __vmx_vmread32(encoding); \
+			} \
+		} \
+	} else { \
+		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+	} \
+}
+
+#define DECLARE_FIELD_NW_RW(encoding, name, prop, exist, trans_suf, ...) \
+DECLARE_FIELD_NW_RO(encoding, name, prop, exist, trans_suf, ...) \
+static u32 _vmcs12_to_vmcs02_##name##trans_suf( \
+	VCPU *vcpu, vmcs12_info_t * vmcs12_info, vmx_ctls_t *ctls, \
+	guestmem_hptw_ctx_pair_t *ctx_pair) \
+{ \
+	(void) vcpu; \
+	(void) ctls; \
+	(void) ctx_pair; \
+	if (prop & FIELD_PROP_ID_GUEST) { \
+		if (exist) { \
+			__vmx_vmwriteNW(encoding, vmcs12_info->vmcs12_value.name); \
+		} \
+		return VM_INST_SUCCESS; \
+	} else { \
+		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+		return VM_INST_SUCCESS; /* TODO: remove this return */ \
+	} \
+}
+#define DECLARE_FIELD_NW_RO(encoding, name, prop, exist, trans_suf, ...) \
+static void _vmcs02_to_vmcs12_##name##trans_suf(VCPU *vcpu, \
+												vmcs12_info_t * vmcs12_info, \
+												vmx_ctls_t *ctls) \
+{ \
+	(void) vcpu; \
+	(void) ctls; \
+	if (prop & FIELD_PROP_ID_GUEST) { \
+		if (exist) { \
+			if (prop & FIELD_PROP_SWWRONLY) { \
+				HALT_ON_ERRORCOND(vmcs12_info->vmcs12_value.name == \
+								  __vmx_vmreadNW(encoding)); \
+			} else { \
+				vmcs12_info->vmcs12_value.name = __vmx_vmreadNW(encoding); \
+			} \
+		} \
+	} else { \
+		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+	} \
+}
+
+#include "nested-x86vmx-vmcs12-fields.h"
+
+#define DECLARE_FIELDPAIR_16(guest_encoding, host_encoding, name) \
+static u32 _vmcs12_to_vmcs02_host_##name( \
+	VCPU *vcpu, vmcs12_info_t * vmcs12_info, vmx_ctls_t *ctls, \
+	guestmem_hptw_ctx_pair_t *ctx_pair) \
+{ \
+	(void) vmcs12_info; \
+	(void) ctls; \
+	(void) ctx_pair; \
+	(void) _vmcs12_to_vmcs02_host_##name##_unused; \
+	__vmx_vmwrite16(host_encoding, vcpu->vmcs.host_##name); \
+	return VM_INST_SUCCESS; \
+} \
+static void _vmcs02_to_vmcs12_host_##name(VCPU *vcpu, \
+										  vmcs12_info_t * vmcs12_info, \
+										  vmx_ctls_t *ctls) \
+{ \
+	(void) ctls; \
+	(void) _vmcs02_to_vmcs12_host_##name##_unused; \
+	HALT_ON_ERRORCOND(__vmx_vmread16(host_encoding) == \
+					  vcpu->vmcs.host_##name); \
+	vcpu->vmcs.guest_##name = vmcs12_info->vmcs12_value.host_##name; \
+}
+
+#define DECLARE_FIELDPAIR_64(guest_encoding, host_encoding, name) \
+static u32 _vmcs12_to_vmcs02_host_##name( \
+	VCPU *vcpu, vmcs12_info_t * vmcs12_info, vmx_ctls_t *ctls, \
+	guestmem_hptw_ctx_pair_t *ctx_pair) \
+{ \
+	(void) vmcs12_info; \
+	(void) ctls; \
+	(void) ctx_pair; \
+	(void) _vmcs12_to_vmcs02_host_##name##_unused; \
+	__vmx_vmwrite64(host_encoding, vcpu->vmcs.host_##name); \
+	return VM_INST_SUCCESS; \
+} \
+static void _vmcs02_to_vmcs12_host_##name(VCPU *vcpu, \
+										  vmcs12_info_t * vmcs12_info, \
+										  vmx_ctls_t *ctls) \
+{ \
+	(void) ctls; \
+	(void) _vmcs02_to_vmcs12_host_##name##_unused; \
+	HALT_ON_ERRORCOND(__vmx_vmread64(host_encoding) == \
+					  vcpu->vmcs.host_##name); \
+	vcpu->vmcs.guest_##name = vmcs12_info->vmcs12_value.host_##name; \
+}
+
+#define DECLARE_FIELDPAIR_32(guest_encoding, host_encoding, name) \
+static u32 _vmcs12_to_vmcs02_host_##name( \
+	VCPU *vcpu, vmcs12_info_t * vmcs12_info, vmx_ctls_t *ctls, \
+	guestmem_hptw_ctx_pair_t *ctx_pair) \
+{ \
+	(void) vmcs12_info; \
+	(void) ctls; \
+	(void) ctx_pair; \
+	(void) _vmcs12_to_vmcs02_host_##name##_unused; \
+	__vmx_vmwrite32(host_encoding, vcpu->vmcs.host_##name); \
+	return VM_INST_SUCCESS; \
+} \
+static void _vmcs02_to_vmcs12_host_##name(VCPU *vcpu, \
+										  vmcs12_info_t * vmcs12_info, \
+										  vmx_ctls_t *ctls) \
+{ \
+	(void) ctls; \
+	(void) _vmcs02_to_vmcs12_host_##name##_unused; \
+	HALT_ON_ERRORCOND(__vmx_vmread32(host_encoding) == \
+					  vcpu->vmcs.host_##name); \
+	vcpu->vmcs.guest_##name = vmcs12_info->vmcs12_value.host_##name; \
+}
+
+#define DECLARE_FIELDPAIR_NW(guest_encoding, host_encoding, name) \
+static u32 _vmcs12_to_vmcs02_host_##name( \
+	VCPU *vcpu, vmcs12_info_t * vmcs12_info, vmx_ctls_t *ctls, \
+	guestmem_hptw_ctx_pair_t *ctx_pair) \
+{ \
+	(void) vmcs12_info; \
+	(void) ctls; \
+	(void) ctx_pair; \
+	(void) _vmcs12_to_vmcs02_host_##name##_unused; \
+	__vmx_vmwriteNW(host_encoding, vcpu->vmcs.host_##name); \
+	return VM_INST_SUCCESS; \
+} \
+static void _vmcs02_to_vmcs12_host_##name(VCPU *vcpu, \
+										  vmcs12_info_t * vmcs12_info, \
+										  vmx_ctls_t *ctls) \
+{ \
+	(void) ctls; \
+	(void) _vmcs02_to_vmcs12_host_##name##_unused; \
+	HALT_ON_ERRORCOND(__vmx_vmreadNW(host_encoding) == \
+					  vcpu->vmcs.host_##name); \
+	vcpu->vmcs.guest_##name = vmcs12_info->vmcs12_value.host_##name; \
+}
+
+#include "nested-x86vmx-vmcs12-guesthost.h"
+
 /*
  * Translate VMCS12 (vmcs12) to VMCS02 (already loaded as current VMCS).
  * Return an error code following VM instruction error number, or 0 when
@@ -486,52 +750,18 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 	/* TODO: Check settings of VMX controls and host-state area */
 
 #define FIELD_CTLS_ARG (&ctls)
-#define DECLARE_FIELD_16_RW(encoding, name, prop, exist, ...) \
-	if (exist) { \
-		if (prop & FIELD_PROP_ID_GUEST) { \
-			__vmx_vmwrite16(encoding, vmcs12->name); \
+#define DECLARE_FIELD_16_RW(encoding, name, ...) \
+	{ \
+		u32 status = _vmcs12_to_vmcs02_##name(vcpu, vmcs12_info, &ctls, \
+											  &ctx_pair); \
+		if (status != 0) { \
+			return status; \
 		} \
 	}
-#define DECLARE_FIELD_64_RW(encoding, name, prop, exist, ...) \
-	if (exist) { \
-		if (prop & FIELD_PROP_ID_GUEST) { \
-			__vmx_vmwrite64(encoding, vmcs12->name); \
-		} else if (prop & FIELD_PROP_GPADDR) { \
-			gpa_t addr = vmcs12->name; \
-			__vmx_vmwrite64(encoding, guestmem_gpa2spa_page(&ctx_pair, addr)); \
-		} \
-	}
-#define DECLARE_FIELD_32_RW(encoding, name, prop, exist, ...) \
-	if (exist) { \
-		if (prop & FIELD_PROP_ID_GUEST) { \
-			__vmx_vmwrite32(encoding, vmcs12->name); \
-		} \
-	}
-#define DECLARE_FIELD_NW_RW(encoding, name, prop, exist, ...) \
-	if (exist) { \
-		if (prop & FIELD_PROP_ID_GUEST) { \
-			__vmx_vmwriteNW(encoding, vmcs12->name); \
-		} \
-	}
+#define DECLARE_FIELD_64_RW(...) DECLARE_FIELD_16_RW(__VA_ARGS__)
+#define DECLARE_FIELD_32_RW(...) DECLARE_FIELD_16_RW(__VA_ARGS__)
+#define DECLARE_FIELD_NW_RW(...) DECLARE_FIELD_16_RW(__VA_ARGS__)
 #include "nested-x86vmx-vmcs12-fields.h"
-
-#define DECLARE_FIELDPAIR_16(guest_encoding, host_encoding, name) \
-	{ \
-		__vmx_vmwrite16(host_encoding, vcpu->vmcs.host_##name); \
-	}
-#define DECLARE_FIELDPAIR_64(guest_encoding, host_encoding, name) \
-	{ \
-		__vmx_vmwrite64(host_encoding, vcpu->vmcs.host_##name); \
-	}
-#define DECLARE_FIELDPAIR_32(guest_encoding, host_encoding, name) \
-	{ \
-		__vmx_vmwrite32(host_encoding, vcpu->vmcs.host_##name); \
-	}
-#define DECLARE_FIELDPAIR_NW(guest_encoding, host_encoding, name) \
-	{ \
-		__vmx_vmwriteNW(host_encoding, vcpu->vmcs.host_##name); \
-	}
-#include "nested-x86vmx-vmcs12-guesthost.h"
 
 	/* 16-Bit Control Fields */
 	{
@@ -786,11 +1016,12 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 	}
 	{
 		u32 val = vmcs12->control_VM_exit_controls;
+		u32 g64 = VCPU_g64(vcpu);
 		/* Check the "IA-32e mode guest" bit of the guest hypervisor */
 		if (val & (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE)) {
-			HALT_ON_ERRORCOND(VCPU_g64(vcpu));
+			HALT_ON_ERRORCOND(g64);
 		} else {
-			HALT_ON_ERRORCOND(!VCPU_g64(vcpu));
+			HALT_ON_ERRORCOND(!g64);
 		}
 		/*
 		 * The "IA-32e mode guest" bit need to match XMHF. A mismatch can only
@@ -954,70 +1185,12 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 	}
 
 #define FIELD_CTLS_ARG (&ctls)
-#define DECLARE_FIELD_16(encoding, name, prop, exist, ...) \
-	if (exist) { \
-		if (prop & FIELD_PROP_ID_GUEST) { \
-			if (prop & FIELD_PROP_SWWRONLY) { \
-				HALT_ON_ERRORCOND(vmcs12->name == __vmx_vmread16(encoding)); \
-			} else { \
-				vmcs12->name = __vmx_vmread16(encoding); \
-			} \
-		} \
-	}
-#define DECLARE_FIELD_64(encoding, name, prop, exist, ...) \
-	if (exist) { \
-		if ((prop & FIELD_PROP_ID_GUEST) || (prop & FIELD_PROP_GPADDR)) { \
-			if (prop & FIELD_PROP_SWWRONLY) { \
-				/* Note: currently for FIELD_PROP_GPADDR, assuming spa=gpa */ \
-				HALT_ON_ERRORCOND(vmcs12->name == __vmx_vmread64(encoding)); \
-			} else { \
-				vmcs12->name = __vmx_vmread64(encoding); \
-			} \
-		} \
-	}
-#define DECLARE_FIELD_32(encoding, name, prop, exist, ...) \
-	if (exist) { \
-		if (prop & FIELD_PROP_ID_GUEST) { \
-			if (prop & FIELD_PROP_SWWRONLY) { \
-				HALT_ON_ERRORCOND(vmcs12->name == __vmx_vmread32(encoding)); \
-			} else { \
-				vmcs12->name = __vmx_vmread32(encoding); \
-			} \
-		} \
-	}
-#define DECLARE_FIELD_NW(encoding, name, prop, exist, ...) \
-	if (exist) { \
-		if (prop & FIELD_PROP_ID_GUEST) { \
-			if (prop & FIELD_PROP_SWWRONLY) { \
-				HALT_ON_ERRORCOND(vmcs12->name == __vmx_vmreadNW(encoding)); \
-			} else { \
-				vmcs12->name = __vmx_vmreadNW(encoding); \
-			} \
-		} \
-	}
+#define DECLARE_FIELD_16(encoding, name, ...) \
+	_vmcs02_to_vmcs12_##name(vcpu, vmcs12_info, &ctls);
+#define DECLARE_FIELD_64(...) DECLARE_FIELD_16(__VA_ARGS__)
+#define DECLARE_FIELD_32(...) DECLARE_FIELD_16(__VA_ARGS__)
+#define DECLARE_FIELD_NW(...) DECLARE_FIELD_16(__VA_ARGS__)
 #include "nested-x86vmx-vmcs12-fields.h"
-
-#define DECLARE_FIELDPAIR_16(guest_encoding, host_encoding, name) \
-	{ \
-		HALT_ON_ERRORCOND(__vmx_vmread16(host_encoding) == vcpu->vmcs.host_##name); \
-		vcpu->vmcs.guest_##name = vmcs12->host_##name; \
-	}
-#define DECLARE_FIELDPAIR_64(guest_encoding, host_encoding, name) \
-	{ \
-		HALT_ON_ERRORCOND(__vmx_vmread64(host_encoding) == vcpu->vmcs.host_##name); \
-		vcpu->vmcs.guest_##name = vmcs12->host_##name; \
-	}
-#define DECLARE_FIELDPAIR_32(guest_encoding, host_encoding, name) \
-	{ \
-		HALT_ON_ERRORCOND(__vmx_vmread32(host_encoding) == vcpu->vmcs.host_##name); \
-		vcpu->vmcs.guest_##name = vmcs12->host_##name; \
-	}
-#define DECLARE_FIELDPAIR_NW(guest_encoding, host_encoding, name) \
-	{ \
-		HALT_ON_ERRORCOND(__vmx_vmreadNW(host_encoding) == vcpu->vmcs.host_##name); \
-		vcpu->vmcs.guest_##name = vmcs12->host_##name; \
-	}
-#include "nested-x86vmx-vmcs12-guesthost.h"
 
 	/* 16-Bit Control Fields */
 	{
