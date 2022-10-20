@@ -738,6 +738,33 @@ static void _vmcs02_to_vmcs12_control_vpid(ARG01 *arg)
  * XMHF is not in SMM. Also see IA32_VMX_BASIC bit 49.
  */
 
+/* Posted-interrupt descriptor address */
+static u32 _vmcs12_to_vmcs02_control_posted_interrupt_desc_address(ARG10 *arg)
+{
+	(void) _vmcs12_to_vmcs02_control_posted_interrupt_desc_address_unused;
+	if (_vmx_hasctl_process_posted_interrupts(arg->ctls)) {
+		gpa_t addr = arg->vmcs12->control_posted_interrupt_desc_address;
+		if (addr & (64 - 1)) {
+			return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
+		}
+		__vmx_vmwrite64(VMCSENC_control_posted_interrupt_desc_address,
+						guestmem_gpa2spa_size(arg->ctx_pair, addr, 64));
+	}
+	return VM_INST_SUCCESS;
+}
+static void _vmcs02_to_vmcs12_control_posted_interrupt_desc_address(ARG01 *arg)
+{
+	(void) _vmcs02_to_vmcs12_control_posted_interrupt_desc_address_unused;
+	if (_vmx_hasctl_process_posted_interrupts(arg->ctls)) {
+		u16 encoding = VMCSENC_control_posted_interrupt_desc_address;
+		/* Note: currently assuming spa=gpa */
+		HALT_ON_ERRORCOND(arg->vmcs12->control_posted_interrupt_desc_address ==
+						  __vmx_vmread64(encoding));
+	}
+}
+
+
+
 // LXY TODO
 
 /*
@@ -793,14 +820,6 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 // LXY TODO
 
 	/* 64-Bit Control Fields */
-	if (_vmx_hasctl_process_posted_interrupts(&ctls)) {
-		gpa_t addr = vmcs12->control_posted_interrupt_desc_address;
-		if (addr & (64 - 1)) {
-			return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
-		}
-		__vmx_vmwrite64(VMCSENC_control_posted_interrupt_desc_address,
-						guestmem_gpa2spa_size(&ctx_pair, addr, 64));
-	}
 	{
 		/* XMHF always needs EPT, so this block is unconditional */
 		spa_t ept02;
@@ -1203,12 +1222,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 // LXY TODO
 
 	/* 64-Bit Control Fields */
-	if (_vmx_hasctl_process_posted_interrupts(&ctls)) {
-		u16 encoding = VMCSENC_control_posted_interrupt_desc_address;
-		/* Note: currently assuming spa=gpa */
-		HALT_ON_ERRORCOND(vmcs12->control_posted_interrupt_desc_address ==
-						  __vmx_vmread64(encoding));
-	}
 	{
 		/* XMHF always needs EPT, so this block is unconditional */
 		spa_t ept02;
