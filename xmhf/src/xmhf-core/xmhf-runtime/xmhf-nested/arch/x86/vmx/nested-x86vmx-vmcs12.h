@@ -56,12 +56,12 @@
 /*
  * Rules:
  * * Exactly one bit should be set in mask 0xf
- * * At most one bit should be set in mask 0x70
+ * * At most one bit should be set in mask 0xf0
  * * FIELD_PROP_GPADDR (0x20) can only be set for 64-bit fields
- * * FIELD_PROP_SWWRONLY (0x80) can only be set when 0x10 or 0x20 is set
+ * * FIELD_PROP_SWWRONLY (0x100) can only be set when 0x10 or 0x20 is set
  * Notes:
- * * FIELD_PROP_ID_HOST is ignored. nested-x86vmx-vmcs12-guesthost.h is used
- *   instead.
+ * * FIELD_PROP_ID_HOST is implicitly ignored. nested-x86vmx-vmcs12-guesthost.h
+ *   is used instead.
  */
 #define FIELD_PROP_GUEST	0x00000001	/* Guest field */
 #define FIELD_PROP_HOST		0x00000002	/* Host field */
@@ -70,7 +70,8 @@
 #define FIELD_PROP_ID_GUEST	0x00000010	/* VMCS12 value = VMCS02 value = any */
 #define FIELD_PROP_GPADDR	0x00000020	/* VMCS12 value = VMCS02 value = gpa */
 #define FIELD_PROP_ID_HOST	0x00000040	/* VMCS12 value = VMCS01 value */
-#define FIELD_PROP_SWWRONLY	0x00000080	/* Read-only by hardware */
+#define FIELD_PROP_IGNORE	0x00000080	/* VMCS12 value is ignored */
+#define FIELD_PROP_SWWRONLY	0x00000100	/* Read-only by hardware */
 
 /*
  * Control whether XMHF (L0) uses shadow VMCS if provided by hardware.

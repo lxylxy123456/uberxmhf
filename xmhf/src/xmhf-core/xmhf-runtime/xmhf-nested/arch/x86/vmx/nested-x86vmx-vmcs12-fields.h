@@ -122,7 +122,7 @@
 DECLARE_FIELD_16_RW(0x0000, control_vpid,
 					(FIELD_PROP_CTRL),
 					(_vmx_hasctl_enable_vpid(FIELD_CTLS_ARG)),
-					,
+					_unused,
 					UNDEFINED)
 DECLARE_FIELD_16_RW(0x0002, control_post_interrupt_notification_vec,
 					(FIELD_PROP_CTRL | FIELD_PROP_ID_GUEST | FIELD_PROP_SWWRONLY),
@@ -241,22 +241,22 @@ DECLARE_FIELD_64_RW(0x2004, control_MSR_Bitmaps_address,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2006, control_VM_exit_MSR_store_address,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2008, control_VM_exit_MSR_load_address,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x200A, control_VM_entry_MSR_load_address,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x200C, control_Executive_VMCS_pointer,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE),
 					(!VMCS12_FIELDS_QEMU),
 					,
 					UNDEFINED)
@@ -281,7 +281,7 @@ DECLARE_FIELD_64_RW(0x2014, control_APIC_access_address,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2016, control_posted_interrupt_desc_address,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_process_posted_interrupts(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
@@ -291,7 +291,7 @@ DECLARE_FIELD_64_RW(0x2018, control_VM_function_controls,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x201A, control_EPT_pointer,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_enable_ept(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
@@ -316,7 +316,7 @@ DECLARE_FIELD_64_RW(0x2022, control_EOI_exit_bitmap_3,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2024, control_EPTP_list_address,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(0 /* TODO: Not able to detect "EPTP switching" */),
 					,
 					UNDEFINED)
@@ -346,7 +346,7 @@ DECLARE_FIELD_64_RW(0x202E, control_ENCLS_exiting_bitmap,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2030, control_subpage_permission_table_pointer,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_sub_page_write_permissions_for_ept(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
@@ -356,7 +356,7 @@ DECLARE_FIELD_64_RW(0x2032, control_TSC_multiplier,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2034, control_tertiary_proc_based_VMexec_ctls,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_activate_tertiary_controls(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
@@ -385,12 +385,12 @@ DECLARE_FIELD_64_RW(0x2802, guest_IA32_DEBUGCTL,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2804, guest_IA32_PAT,
-					(FIELD_PROP_GUEST),
+					(FIELD_PROP_GUEST | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_vmexit_save_ia32_pat(FIELD_CTLS_ARG) || _vmx_hasctl_vmentry_load_ia32_pat(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2806, guest_IA32_EFER,
-					(FIELD_PROP_GUEST),
+					(FIELD_PROP_GUEST | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_vmexit_save_ia32_efer(FIELD_CTLS_ARG) || _vmx_hasctl_vmentry_load_ia32_efer(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
@@ -437,39 +437,39 @@ DECLARE_FIELD_64_RW(0x2818, guest_IA32_PKRS,
 
 /* 64-Bit Host-State Fields */
 DECLARE_FIELD_64_RW(0x2C00, host_IA32_PAT,
-					(FIELD_PROP_HOST),
+					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_vmexit_load_ia32_pat(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2C02, host_IA32_EFER,
-					(FIELD_PROP_HOST),
+					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_vmexit_load_ia32_efer(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2C04, host_IA32_PERF_GLOBAL_CTRL,
-					(FIELD_PROP_HOST),
+					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_vmexit_load_ia32_perf_global_ctrl(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2C06, host_IA32_PKRS,
-					(FIELD_PROP_HOST),
+					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_vmexit_load_pkrs(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
 
 /* 32-Bit Control Fields */
 DECLARE_FIELD_32_RW(0x4000, control_VMX_pin_based,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4002, control_VMX_cpu_based,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4004, control_exception_bitmap,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
@@ -489,42 +489,42 @@ DECLARE_FIELD_32_RW(0x400A, control_CR3_target_count,
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x400C, control_VM_exit_controls,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x400E, control_VM_exit_MSR_store_count,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4010, control_VM_exit_MSR_load_count,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4012, control_VM_entry_controls,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4014, control_VM_entry_MSR_load_count,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4016, control_VM_entry_interruption_information,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4018, control_VM_entry_exception_errorcode,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x401A, control_VM_entry_instruction_length,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
@@ -534,7 +534,7 @@ DECLARE_FIELD_32_RW(0x401C, control_Task_PRivilege_Threshold,
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x401E, control_VMX_seccpu_based,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_activate_secondary_controls(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
@@ -683,7 +683,7 @@ DECLARE_FIELD_32_RW(0x4822, guest_TR_access_rights,
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4824, guest_interruptibility,
-					(FIELD_PROP_GUEST),
+					(FIELD_PROP_GUEST | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					,
 					UNDEFINED)
@@ -710,7 +710,7 @@ DECLARE_FIELD_32_RW(0x482E, guest_VMX_preemption_timer_value,
 
 /* 32-Bit Host-State Field */
 DECLARE_FIELD_32_RW(0x4C00, host_SYSENTER_CS,
-					(FIELD_PROP_HOST),
+					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
 					(1),
 					_unused,
 					UNDEFINED)
@@ -968,17 +968,17 @@ DECLARE_FIELD_NW_RW(0x6C16, host_RIP,
 					_unused,
 					UNDEFINED)
 DECLARE_FIELD_NW_RW(0x6C18, host_IA32_S_CET,
-					(FIELD_PROP_HOST),
+					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_vmexit_load_cet_state(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
 DECLARE_FIELD_NW_RW(0x6C1A, host_SSP,
-					(FIELD_PROP_HOST),
+					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_vmexit_load_cet_state(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
 DECLARE_FIELD_NW_RW(0x6C1C, host_IA32_INTERRUPT_SSP_TABLE_ADDR,
-					(FIELD_PROP_HOST),
+					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
 					(_vmx_hasctl_vmexit_load_cet_state(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)

@@ -471,9 +471,10 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf( \
 			__vmx_vmwrite16(encoding, vmcs12_info->vmcs12_value.name); \
 		} \
 		return VM_INST_SUCCESS; \
+	} else if (prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST)) { \
+		return VM_INST_SUCCESS; \
 	} else { \
-		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
-		return VM_INST_SUCCESS; /* TODO: remove this return */ \
+		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
 }
 #define DECLARE_FIELD_16_RO(encoding, name, prop, exist, trans_suf, ...) \
@@ -492,8 +493,8 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(VCPU *vcpu, \
 				vmcs12_info->vmcs12_value.name = __vmx_vmread16(encoding); \
 			} \
 		} \
-	} else { \
-		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+	} else if (!(prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST))) { \
+		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
 }
 
@@ -516,9 +517,10 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf( \
 			__vmx_vmwrite64(encoding, guestmem_gpa2spa_page(ctx_pair, addr)); \
 		} \
 		return VM_INST_SUCCESS; \
+	} else if (prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST)) { \
+		return VM_INST_SUCCESS; \
 	} else { \
-		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
-		return VM_INST_SUCCESS; /* TODO: remove this return */ \
+		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
 }
 #define DECLARE_FIELD_64_RO(encoding, name, prop, exist, trans_suf, ...) \
@@ -538,8 +540,8 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(VCPU *vcpu, \
 				vmcs12_info->vmcs12_value.name = __vmx_vmread64(encoding); \
 			} \
 		} \
-	} else { \
-		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+	} else if (!(prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST))) { \
+		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
 }
 
@@ -557,9 +559,10 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf( \
 			__vmx_vmwrite32(encoding, vmcs12_info->vmcs12_value.name); \
 		} \
 		return VM_INST_SUCCESS; \
+	} else if (prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST)) { \
+		return VM_INST_SUCCESS; \
 	} else { \
-		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
-		return VM_INST_SUCCESS; /* TODO: remove this return */ \
+		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
 }
 #define DECLARE_FIELD_32_RO(encoding, name, prop, exist, trans_suf, ...) \
@@ -578,8 +581,8 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(VCPU *vcpu, \
 				vmcs12_info->vmcs12_value.name = __vmx_vmread32(encoding); \
 			} \
 		} \
-	} else { \
-		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+	} else if (!(prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST))) { \
+		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
 }
 
@@ -597,9 +600,10 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf( \
 			__vmx_vmwriteNW(encoding, vmcs12_info->vmcs12_value.name); \
 		} \
 		return VM_INST_SUCCESS; \
+	} else if (prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST)) { \
+		return VM_INST_SUCCESS; \
 	} else { \
-		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
-		return VM_INST_SUCCESS; /* TODO: remove this return */ \
+		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
 }
 #define DECLARE_FIELD_NW_RO(encoding, name, prop, exist, trans_suf, ...) \
@@ -618,8 +622,8 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(VCPU *vcpu, \
 				vmcs12_info->vmcs12_value.name = __vmx_vmreadNW(encoding); \
 			} \
 		} \
-	} else { \
-		/* TODO: HALT_ON_ERRORCOND(0 && "Not implemented"); */ \
+	} else if (!(prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST))) { \
+		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
 }
 
@@ -719,6 +723,80 @@ static void _vmcs02_to_vmcs12_host_##name(VCPU *vcpu, \
 
 #include "nested-x86vmx-vmcs12-guesthost.h"
 
+/* 16-Bit Control Fields */
+
+/* Virtual-processor identifier (VPID) */
+static u32 _vmcs12_to_vmcs02_control_vpid(
+	VCPU *vcpu, vmcs12_info_t * vmcs12_info, vmx_ctls_t *ctls,
+	guestmem_hptw_ctx_pair_t *ctx_pair)
+{
+	u16 vpid02;
+	(void) vmcs12_info;
+	(void) ctx_pair;
+	(void) _vmcs12_to_vmcs02_control_vpid_unused;
+	if (_vmx_hasctl_enable_vpid(ctls)) {
+		bool cache_hit;
+		u16 vpid12 = vmcs12_info->vmcs12_value.control_vpid;
+		if (vpid12 == 0) {
+			return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
+		}
+		vpid02 = xmhf_nested_arch_x86vmx_get_vpid02(vcpu, vpid12, &cache_hit);
+	} else {
+		/*
+		 * When VPID is not enabled, VMENTRY and VMEXIT in L1 should result in
+		 * flushing linear and combination TLB. We simulate this effect here by
+		 * setting VPID of L2 guest to the same as L1 guest (VPID = 1) and
+		 * manually executing INVVPID for every VNENTRY and VMEXIT.
+		 */
+		vpid02 = 1;
+		HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT, 1, 0));
+	}
+	__vmx_vmwrite16(VMCSENC_control_vpid, vpid02);
+	return VM_INST_SUCCESS;
+}
+static void _vmcs02_to_vmcs12_control_vpid(VCPU *vcpu,
+										   vmcs12_info_t * vmcs12_info,
+										   vmx_ctls_t *ctls)
+{
+	u16 vpid02;
+	(void) vmcs12_info;
+	(void) _vmcs02_to_vmcs12_control_vpid_unused;
+	if (_vmx_hasctl_enable_vpid(ctls)) {
+		bool cache_hit;
+		u16 vpid12 = vmcs12_info->vmcs12_value.control_vpid;
+		HALT_ON_ERRORCOND(vpid12 != 0);
+		vpid02 = xmhf_nested_arch_x86vmx_get_vpid02(vcpu, vpid12,
+													&cache_hit);
+		HALT_ON_ERRORCOND(cache_hit);
+	} else {
+		/*
+		 * When VPID is not enabled, VMENTRY and VMEXIT in L1 should result in
+		 * flushing linear and combination TLB. We simulate this effect here by
+		 * setting VPID of L2 guest to the same as L1 guest (VPID = 1) and
+		 * manually executing INVVPID for every VNENTRY and VMEXIT.
+		 */
+		vpid02 = 1;
+		HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT, 1, 0));
+	}
+	HALT_ON_ERRORCOND(__vmx_vmread16(VMCSENC_control_vpid) == vpid02);
+}
+
+/* 16-Bit Guest-State Fields */
+
+/* 16-Bit Host-State Fields */
+
+/* 64-Bit Control Fields */
+
+/*
+ * control_VM_exit_MSR_store_address: see control_VM_exit_MSR_store_count
+ * control_VM_exit_MSR_load_address: see control_VM_exit_MSR_load_count
+ * control_VM_entry_MSR_load_address: see control_VM_entry_MSR_load_count
+ * control_Executive_VMCS_pointer: ignored (0 in VMCS02), because we assume
+ * XMHF is not in SMM. Also see IA32_VMX_BASIC bit 49.
+ */
+
+// LXY TODO
+
 /*
  * Translate VMCS12 (vmcs12) to VMCS02 (already loaded as current VMCS).
  * Return an error code following VM instruction error number, or 0 when
@@ -763,43 +841,9 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 #define DECLARE_FIELD_NW_RW(...) DECLARE_FIELD_16_RW(__VA_ARGS__)
 #include "nested-x86vmx-vmcs12-fields.h"
 
-	/* 16-Bit Control Fields */
-	{
-		u16 vpid02;
-		if (_vmx_hasctl_enable_vpid(&ctls)) {
-			bool cache_hit;
-			u16 vpid12 = vmcs12->control_vpid;
-			if (vpid12 == 0) {
-				return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
-			}
-			vpid02 = xmhf_nested_arch_x86vmx_get_vpid02(vcpu, vpid12,
-														&cache_hit);
-		} else {
-			/*
-			 * When VPID is not enabled, VMENTRY and VMEXIT in L1 should result
-			 * in flushing linear and combination TLB. We simulate this effect
-			 * here by setting VPID of L2 guest to the same as L1 guest
-			 * (VPID = 1) and manually executing INVVPID for every VNENTRY and
-			 * VMEXIT.
-			 */
-			vpid02 = 1;
-			HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT, 1, 0));
-		}
-		__vmx_vmwrite16(VMCSENC_control_vpid, vpid02);
-	}
-
-	/* 16-Bit Guest-State Fields */
-
-	/* 16-Bit Host-State Fields */
+// LXY TODO
 
 	/* 64-Bit Control Fields */
-	/*
-	 * control_VM_exit_MSR_store_address: see control_VM_exit_MSR_store_count
-	 * control_VM_exit_MSR_load_address: see control_VM_exit_MSR_load_count
-	 * control_VM_entry_MSR_load_address: see control_VM_entry_MSR_load_count
-	 * control_Executive_VMCS_pointer: ignored (0 in VMCS02), because we assume
-	 * XMHF is not in SMM. Also see IA32_VMX_BASIC bit 49.
-	 */
 	if (_vmx_hasctl_process_posted_interrupts(&ctls)) {
 		gpa_t addr = vmcs12->control_posted_interrupt_desc_address;
 		if (addr & (64 - 1)) {
@@ -1192,34 +1236,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 #define DECLARE_FIELD_NW(...) DECLARE_FIELD_16(__VA_ARGS__)
 #include "nested-x86vmx-vmcs12-fields.h"
 
-	/* 16-Bit Control Fields */
-	{
-		u16 vpid02;
-		if (_vmx_hasctl_enable_vpid(&ctls)) {
-			bool cache_hit;
-			u16 vpid12 = vmcs12->control_vpid;
-			HALT_ON_ERRORCOND(vpid12 != 0);
-			vpid02 = xmhf_nested_arch_x86vmx_get_vpid02(vcpu, vpid12,
-														&cache_hit);
-			HALT_ON_ERRORCOND(cache_hit);
-		} else {
-			/*
-			 * When VPID is not enabled, VMENTRY and VMEXIT in L1 should result
-			 * in flushing linear and combination TLB. We simulate this effect
-			 * here by setting VPID of L2 guest to the same as L1 guest
-			 * (VPID = 1) and manually executing INVVPID for every VNENTRY and
-			 * VMEXIT.
-			 */
-			vpid02 = 1;
-			HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT, 1, 0));
-		}
-		HALT_ON_ERRORCOND(__vmx_vmread16(VMCSENC_control_vpid) == vpid02);
-	}
-
-	/* 16-Bit Guest-State Fields */
-
-	/* 16-Bit Host-State Fields */
-
 	/* 16-Bit fields: VMCS12 host -> VMCS01 guest */
 	{
 		/*
@@ -1229,14 +1245,9 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		vcpu->vmcs.guest_LDTR_selector = 0x0000U;
 	}
 
+// LXY TODO
+
 	/* 64-Bit Control Fields */
-	/*
-	 * control_VM_exit_MSR_store_address: see control_VM_exit_MSR_store_count
-	 * control_VM_exit_MSR_load_address: see control_VM_exit_MSR_load_count
-	 * control_VM_entry_MSR_load_address: see control_VM_entry_MSR_load_count
-	 * control_Executive_VMCS_pointer: ignored (0 in VMCS02), because we assume
-	 * XMHF is not in SMM. Also see IA32_VMX_BASIC bit 49.
-	 */
 	if (_vmx_hasctl_process_posted_interrupts(&ctls)) {
 		u16 encoding = VMCSENC_control_posted_interrupt_desc_address;
 		/* Note: currently assuming spa=gpa */
