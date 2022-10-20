@@ -483,6 +483,9 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
 		return VM_INST_SUCCESS; \
 	} else if (prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST)) { \
 		return VM_INST_SUCCESS; \
+	} else if (prop & FIELD_PROP_UNSUPP) { \
+		HALT_ON_ERRORCOND(!exist); \
+		return VM_INST_SUCCESS; \
 	} else { \
 		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
@@ -499,6 +502,8 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
 				arg->vmcs12->name = __vmx_vmread16(encoding); \
 			} \
 		} \
+	} else if (prop & FIELD_PROP_UNSUPP) { \
+		HALT_ON_ERRORCOND(!exist); \
 	} else if (!(prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST))) { \
 		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
@@ -522,6 +527,9 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
 		return VM_INST_SUCCESS; \
 	} else if (prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST)) { \
 		return VM_INST_SUCCESS; \
+	} else if (prop & FIELD_PROP_UNSUPP) { \
+		HALT_ON_ERRORCOND(!exist); \
+		return VM_INST_SUCCESS; \
 	} else { \
 		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
@@ -539,6 +547,8 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
 				arg->vmcs12->name = __vmx_vmread64(encoding); \
 			} \
 		} \
+	} else if (prop & FIELD_PROP_UNSUPP) { \
+		HALT_ON_ERRORCOND(!exist); \
 	} else if (!(prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST))) { \
 		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
@@ -554,6 +564,9 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
 		} \
 		return VM_INST_SUCCESS; \
 	} else if (prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST)) { \
+		return VM_INST_SUCCESS; \
+	} else if (prop & FIELD_PROP_UNSUPP) { \
+		HALT_ON_ERRORCOND(!exist); \
 		return VM_INST_SUCCESS; \
 	} else { \
 		HALT_ON_ERRORCOND(0 && "Not implemented"); \
@@ -571,6 +584,8 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
 				arg->vmcs12->name = __vmx_vmread32(encoding); \
 			} \
 		} \
+	} else if (prop & FIELD_PROP_UNSUPP) { \
+		HALT_ON_ERRORCOND(!exist); \
 	} else if (!(prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST))) { \
 		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
@@ -586,6 +601,9 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
 		} \
 		return VM_INST_SUCCESS; \
 	} else if (prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST)) { \
+		return VM_INST_SUCCESS; \
+	} else if (prop & FIELD_PROP_UNSUPP) { \
+		HALT_ON_ERRORCOND(!exist); \
 		return VM_INST_SUCCESS; \
 	} else { \
 		HALT_ON_ERRORCOND(0 && "Not implemented"); \
@@ -603,6 +621,8 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
 				arg->vmcs12->name = __vmx_vmreadNW(encoding); \
 			} \
 		} \
+	} else if (prop & FIELD_PROP_UNSUPP) { \
+		HALT_ON_ERRORCOND(!exist); \
 	} else if (!(prop & (FIELD_PROP_IGNORE | FIELD_PROP_ID_HOST))) { \
 		HALT_ON_ERRORCOND(0 && "Not implemented"); \
 	} \
@@ -832,6 +852,9 @@ static void _vmcs02_to_vmcs12_control_EPT_pointer(ARG01 *arg)
 	/* vmcs12->control_EPT_pointer is ignored here */
 }
 
+/* 64-Bit Read-Only Data Field */
+
+/* 64-Bit Guest-State Fields */
 
 // LXY TODO
 
@@ -887,35 +910,6 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 
 // LXY TODO
 
-	/* 64-Bit Control Fields */
-	
-	if (0) {
-		// Note: EPTP Switching not supported
-		gpa_t addr = vmcs12->control_EPTP_list_address;
-		// Note: likely need to sanitize input
-		HALT_ON_ERRORCOND(addr == 0);
-		__vmx_vmwrite64(VMCSENC_control_EPTP_list_address,
-						guestmem_gpa2spa_page(&ctx_pair, addr));
-	}
-	if (_vmx_hasctl_sub_page_write_permissions_for_ept(&ctls)) {
-		// Note: Sub-page write permissions for EPT not supported
-		gpa_t addr = vmcs12->control_subpage_permission_table_pointer;
-		// Note: likely need to sanitize input
-		HALT_ON_ERRORCOND(addr == 0);
-		__vmx_vmwrite64(VMCSENC_control_subpage_permission_table_pointer,
-						guestmem_gpa2spa_page(&ctx_pair, addr));
-	}
-	if (_vmx_hasctl_activate_tertiary_controls(&ctls)) {
-		// Note: Activate tertiary controls not supported
-		u64 val = vmcs12->control_tertiary_proc_based_VMexec_ctls;
-		// Note: likely need to sanitize input
-		HALT_ON_ERRORCOND(val == 0);
-		__vmx_vmwrite64(VMCSENC_control_tertiary_proc_based_VMexec_ctls, val);
-	}
-
-	/* 64-Bit Read-Only Data Field: skipped */
-
-	/* 64-Bit Guest-State Fields */
 	if (_vmx_hasctl_vmentry_load_ia32_pat(&ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
 		guest_ia32_pat = vmcs12->guest_IA32_PAT;
@@ -1245,32 +1239,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 
 // LXY TODO
 
-	/* 64-Bit Control Fields */
-	if (0) {
-		// Note: EPTP Switching not supported
-		// Note: likely need to sanitize input
-		u16 encoding = VMCSENC_control_EPTP_list_address;
-		HALT_ON_ERRORCOND(__vmx_vmread64(encoding) == 0);
-		// vmcs12->control_EPTP_list_address = ...
-	}
-	if (_vmx_hasctl_sub_page_write_permissions_for_ept(&ctls)) {
-		// Note: Sub-page write permissions for EPT not supported
-		// Note: likely need to sanitize input
-		u16 encoding = VMCSENC_control_subpage_permission_table_pointer;
-		HALT_ON_ERRORCOND(__vmx_vmread64(encoding) == 0);
-		// vmcs12->control_subpage_permission_table_pointer = ...
-	}
-	if (_vmx_hasctl_activate_tertiary_controls(&ctls)) {
-		// Note: Activate tertiary controls not supported
-		// Note: likely need to sanitize input
-		u16 encoding = VMCSENC_control_tertiary_proc_based_VMexec_ctls;
-		HALT_ON_ERRORCOND(__vmx_vmread64(encoding) == 0);
-		// vmcs12->control_tertiary_proc_based_VMexec_ctls = ...
-	}
-
-	/* 64-Bit Read-Only Data Field */
-
-	/* 64-Bit Guest-State Fields */
 	if (_vmx_hasctl_vmexit_save_ia32_pat(&ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
 		vmcs12->guest_IA32_PAT = msr02[ia32_pat_index].data;
@@ -1782,20 +1750,6 @@ void xmhf_nested_arch_x86vmx_rewalk_ept01(VCPU * vcpu,
 		}
 #endif							/* !__DEBUG_QEMU__ */
 		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
-	}
-	if (0) {
-		// Note: EPTP Switching not supported
-		// Note: likely need to sanitize input
-		u16 encoding = VMCSENC_control_EPTP_list_address;
-		HALT_ON_ERRORCOND(__vmx_vmread64(encoding) == 0);
-		// vmcs12->control_EPTP_list_address = ...
-	}
-	if (_vmx_hasctl_sub_page_write_permissions_for_ept(&ctls)) {
-		// Note: Sub-page write permissions for EPT not supported
-		// Note: likely need to sanitize input
-		u16 encoding = VMCSENC_control_subpage_permission_table_pointer;
-		HALT_ON_ERRORCOND(__vmx_vmread64(encoding) == 0);
-		// vmcs12->control_subpage_permission_table_pointer = ...
 	}
 }
 

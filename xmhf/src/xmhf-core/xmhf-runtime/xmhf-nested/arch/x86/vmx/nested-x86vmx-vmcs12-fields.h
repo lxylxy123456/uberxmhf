@@ -316,7 +316,7 @@ DECLARE_FIELD_64_RW(0x2022, control_EOI_exit_bitmap_3,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2024, control_EPTP_list_address,
-					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_CTRL | FIELD_PROP_UNSUPP),
 					(0 /* TODO: Not able to detect "EPTP switching" */),
 					,
 					UNDEFINED)
@@ -346,7 +346,7 @@ DECLARE_FIELD_64_RW(0x202E, control_ENCLS_exiting_bitmap,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2030, control_subpage_permission_table_pointer,
-					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_CTRL | FIELD_PROP_UNSUPP),
 					(_vmx_hasctl_sub_page_write_permissions_for_ept(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
@@ -356,7 +356,7 @@ DECLARE_FIELD_64_RW(0x2032, control_TSC_multiplier,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2034, control_tertiary_proc_based_VMexec_ctls,
-					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_CTRL | FIELD_PROP_UNSUPP),
 					(_vmx_hasctl_activate_tertiary_controls(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
