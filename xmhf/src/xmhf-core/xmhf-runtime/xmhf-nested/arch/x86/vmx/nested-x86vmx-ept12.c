@@ -58,6 +58,8 @@
  */
 #define EPT02_PAGE_POOL_SIZE (__VMX_NESTED_EPT02_PAGE_POOL_SIZE__)
 
+extern bool lxy_verbose;
+
 /*
  * For each CPU, information about all EPT12 -> EPT02 it caches.
  *
