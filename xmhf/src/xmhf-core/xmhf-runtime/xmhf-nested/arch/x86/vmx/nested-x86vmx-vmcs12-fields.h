@@ -291,9 +291,9 @@ DECLARE_FIELD_64_RW(0x2018, control_VM_function_controls,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x201A, control_EPT_pointer,
-					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_CTRL),
 					(_vmx_hasctl_enable_ept(FIELD_CTLS_ARG)),
-					,
+					_unused,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x201C, control_EOI_exit_bitmap_0,
 					(FIELD_PROP_CTRL | FIELD_PROP_ID_GUEST | FIELD_PROP_SWWRONLY),

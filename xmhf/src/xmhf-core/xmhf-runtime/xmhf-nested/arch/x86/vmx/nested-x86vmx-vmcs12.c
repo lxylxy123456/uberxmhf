@@ -763,6 +763,74 @@ static void _vmcs02_to_vmcs12_control_posted_interrupt_desc_address(ARG01 *arg)
 	}
 }
 
+/* EPT pointer */
+static u32 _vmcs12_to_vmcs02_control_EPT_pointer(ARG10 *arg)
+{
+	spa_t ept02;
+	(void) _vmcs12_to_vmcs02_control_EPT_pointer_unused;
+	HALT_ON_ERRORCOND(_vmx_hasctl_enable_ept(&arg->vcpu->vmx_caps));
+	if (_vmx_hasctl_enable_ept(arg->ctls)) {
+		/* Construct shadow EPT */
+		u64 eptp12 = arg->vmcs12->control_EPT_pointer;
+		gpa_t ept12;
+		ept02_cache_line_t *cache_line;
+		bool cache_hit;
+		arg->vmcs12_info->guest_ept_enable = 1;
+		if (!xmhf_nested_arch_x86vmx_check_ept_lower_bits(eptp12, &ept12)) {
+			return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
+		}
+		ept02 = xmhf_nested_arch_x86vmx_get_ept02(arg->vcpu, ept12, &cache_hit,
+												  &cache_line);
+		arg->vmcs12_info->guest_ept_cache_line = cache_line;
+		arg->vmcs12_info->guest_ept_root = ept12;
+#ifdef __DEBUG_QEMU__
+		/*
+		 * Workaround a KVM bug:
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=216212
+		 *
+		 * Looks like KVM has a problem setting CR0.PG when nested guest's
+		 * PDPTEs are not in guest hypervisor's EPT. So we always make sure
+		 * the EPT entry for PDPTEs is available. To achieve this effect,
+		 * simulating a EPT violation by calling
+		 * xmhf_nested_arch_x86vmx_handle_ept02_exit() with guest2_paddr =
+		 * CR3.
+		 */
+		{
+			extern bool is_in_kvm;
+			if (is_in_kvm && arg->vmcs12->guest_CR3 != 0) {
+				xmhf_nested_arch_x86vmx_hardcode_ept(arg->vcpu, cache_line,
+													 arg->vmcs12->guest_CR3);
+			}
+		}
+#endif							/* !__DEBUG_QEMU__ */
+	} else {
+		/* Guest does not use EPT, just use XMHF's EPT */
+		arg->vmcs12_info->guest_ept_enable = 0;
+		ept02 = arg->vcpu->vmcs.control_EPT_pointer;
+	}
+	__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
+
+	return VM_INST_SUCCESS;
+}
+static void _vmcs02_to_vmcs12_control_EPT_pointer(ARG01 *arg)
+{
+	spa_t ept02;
+	u16 encoding = VMCSENC_control_EPT_pointer;
+	(void) _vmcs02_to_vmcs12_control_EPT_pointer_unused;
+	HALT_ON_ERRORCOND(_vmx_hasctl_enable_ept(&arg->vcpu->vmx_caps));
+	if (_vmx_hasctl_enable_ept(arg->ctls)) {
+		gpa_t ept12 = arg->vmcs12_info->guest_ept_root;
+		ept02_cache_line_t *cache_line;
+		bool cache_hit;
+		ept02 = xmhf_nested_arch_x86vmx_get_ept02(arg->vcpu, ept12, &cache_hit,
+												  &cache_line);
+		HALT_ON_ERRORCOND(cache_hit);
+	} else {
+		ept02 = arg->vcpu->vmcs.control_EPT_pointer;
+	}
+	HALT_ON_ERRORCOND(__vmx_vmread64(encoding) == ept02);
+	/* vmcs12->control_EPT_pointer is ignored here */
+}
 
 
 // LXY TODO
@@ -820,51 +888,7 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 // LXY TODO
 
 	/* 64-Bit Control Fields */
-	{
-		/* XMHF always needs EPT, so this block is unconditional */
-		spa_t ept02;
-		HALT_ON_ERRORCOND(_vmx_hasctl_enable_ept(&vcpu->vmx_caps));
-		if (_vmx_hasctl_enable_ept(&ctls)) {
-			/* Construct shadow EPT */
-			u64 eptp12 = vmcs12->control_EPT_pointer;
-			gpa_t ept12;
-			ept02_cache_line_t *cache_line;
-			bool cache_hit;
-			vmcs12_info->guest_ept_enable = 1;
-			if (!xmhf_nested_arch_x86vmx_check_ept_lower_bits(eptp12, &ept12)) {
-				return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
-			}
-			ept02 = xmhf_nested_arch_x86vmx_get_ept02(vcpu, ept12, &cache_hit,
-													  &cache_line);
-			vmcs12_info->guest_ept_cache_line = cache_line;
-			vmcs12_info->guest_ept_root = ept12;
-#ifdef __DEBUG_QEMU__
-			/*
-			 * Workaround a KVM bug:
-			 * https://bugzilla.kernel.org/show_bug.cgi?id=216212
-			 *
-			 * Looks like KVM has a problem setting CR0.PG when nested guest's
-			 * PDPTEs are not in guest hypervisor's EPT. So we always make sure
-			 * the EPT entry for PDPTEs is available. To achieve this effect,
-			 * simulating a EPT violation by calling
-			 * xmhf_nested_arch_x86vmx_handle_ept02_exit() with guest2_paddr =
-			 * CR3.
-			 */
-			{
-				extern bool is_in_kvm;
-				if (is_in_kvm && vmcs12->guest_CR3 != 0) {
-					xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, cache_line,
-														 vmcs12->guest_CR3);
-				}
-			}
-#endif							/* !__DEBUG_QEMU__ */
-		} else {
-			/* Guest does not use EPT, just use XMHF's EPT */
-			vmcs12_info->guest_ept_enable = 0;
-			ept02 = vcpu->vmcs.control_EPT_pointer;
-		}
-		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
-	}
+	
 	if (0) {
 		// Note: EPTP Switching not supported
 		gpa_t addr = vmcs12->control_EPTP_list_address;
@@ -1222,24 +1246,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 // LXY TODO
 
 	/* 64-Bit Control Fields */
-	{
-		/* XMHF always needs EPT, so this block is unconditional */
-		spa_t ept02;
-		u16 encoding = VMCSENC_control_EPT_pointer;
-		HALT_ON_ERRORCOND(_vmx_hasctl_enable_ept(&vcpu->vmx_caps));
-		if (_vmx_hasctl_enable_ept(&ctls)) {
-			gpa_t ept12 = vmcs12_info->guest_ept_root;
-			ept02_cache_line_t *cache_line;
-			bool cache_hit;
-			ept02 = xmhf_nested_arch_x86vmx_get_ept02(vcpu, ept12, &cache_hit,
-													  &cache_line);
-			HALT_ON_ERRORCOND(cache_hit);
-		} else {
-			ept02 = vcpu->vmcs.control_EPT_pointer;
-		}
-		HALT_ON_ERRORCOND(__vmx_vmread64(encoding) == ept02);
-		/* vmcs12->control_EPT_pointer is ignored here */
-	}
 	if (0) {
 		// Note: EPTP Switching not supported
 		// Note: likely need to sanitize input
