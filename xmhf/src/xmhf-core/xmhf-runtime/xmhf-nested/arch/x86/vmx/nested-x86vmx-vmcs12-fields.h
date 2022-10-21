@@ -385,14 +385,14 @@ DECLARE_FIELD_64_RW(0x2802, guest_IA32_DEBUGCTL,
 					,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2804, guest_IA32_PAT,
-					(FIELD_PROP_GUEST | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_GUEST),
 					(_vmx_hasctl_vmexit_save_ia32_pat(FIELD_CTLS_ARG) || _vmx_hasctl_vmentry_load_ia32_pat(FIELD_CTLS_ARG)),
-					,
+					_unused,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2806, guest_IA32_EFER,
-					(FIELD_PROP_GUEST | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_GUEST),
 					(_vmx_hasctl_vmexit_save_ia32_efer(FIELD_CTLS_ARG) || _vmx_hasctl_vmentry_load_ia32_efer(FIELD_CTLS_ARG)),
-					,
+					_unused,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2808, guest_IA32_PERF_GLOBAL_CTRL,
 					(FIELD_PROP_GUEST | FIELD_PROP_ID_GUEST),
@@ -437,14 +437,14 @@ DECLARE_FIELD_64_RW(0x2818, guest_IA32_PKRS,
 
 /* 64-Bit Host-State Fields */
 DECLARE_FIELD_64_RW(0x2C00, host_IA32_PAT,
-					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_HOST),
 					(_vmx_hasctl_vmexit_load_ia32_pat(FIELD_CTLS_ARG)),
-					,
+					_unused,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2C02, host_IA32_EFER,
-					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_HOST),
 					(_vmx_hasctl_vmexit_load_ia32_efer(FIELD_CTLS_ARG)),
-					,
+					_unused,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2C04, host_IA32_PERF_GLOBAL_CTRL,
 					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
