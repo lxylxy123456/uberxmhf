@@ -564,6 +564,9 @@ static void xmhf_nested_arch_x86vmx_flush_ept02_effect(VCPU * vcpu)
 	xmhf_nested_arch_x86vmx_clear_all_vmcs12_ept02(vcpu);
 
 	/*
+	 * If L2 (nested guest) is running, the VMCS02 fields that depend on EPT01
+	 * need to be recomputed (e.g. fields with flag FIELD_PROP_GPADDR).
+	 *
 	 * If the guest is using EPT02, the flushing above would make
 	 * vmcs12_info->guest_ept_cache_line invalid. We need to create new EPT02
 	 * to make it valid. This also applies to the EPT pointer in VMCS02.
@@ -573,38 +576,8 @@ static void xmhf_nested_arch_x86vmx_flush_ept02_effect(VCPU * vcpu)
 		/* Find vmcs12_info similar to calling find_current_vmcs12() */
 		vmcs12_info_t *vmcs12_info;
 		vmcs12_info = xmhf_nested_arch_x86vmx_find_current_vmcs12(vcpu);
-		if (vmcs12_info->guest_ept_enable) {
-			ept02_cache_line_t *cache_line;
-			bool cache_hit;
-			gpa_t ept12 = vmcs12_info->guest_ept_root;
-			spa_t ept02 = xmhf_nested_arch_x86vmx_get_ept02(vcpu, ept12,
-															&cache_hit,
-															&cache_line);
-			vmcs12_info->guest_ept_cache_line = cache_line;
-			HALT_ON_ERRORCOND(!cache_hit);
-			__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
-#ifdef __DEBUG_QEMU__
-			/*
-			 * Workaround a KVM bug:
-			 * https://bugzilla.kernel.org/show_bug.cgi?id=216212
-			 *
-			 * Looks like KVM has a problem setting CR0.PG when nested guest's
-			 * PDPTEs are not in guest hypervisor's EPT. So we always make sure
-			 * the EPT entry for PDPTEs is available. To achieve this effect,
-			 * simulating a EPT violation by calling
-			 * xmhf_nested_arch_x86vmx_handle_ept02_exit() with guest2_paddr =
-			 * CR3.
-			 */
-			{
-				extern bool is_in_kvm;
-				struct nested_vmcs12 *vmcs12 = &vmcs12_info->vmcs12_value;
-				if (is_in_kvm && vmcs12->guest_CR3 != 0) {
-					xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, cache_line,
-														 vmcs12->guest_CR3);
-				}
-			}
-#endif							/* !__DEBUG_QEMU__ */
-		}
+		/* Re-compute VMCS fields that depend on EPT01 */
+		xmhf_nested_arch_x86vmx_rewalk_ept01(vcpu, vmcs12_info);
 	}
 }
 
