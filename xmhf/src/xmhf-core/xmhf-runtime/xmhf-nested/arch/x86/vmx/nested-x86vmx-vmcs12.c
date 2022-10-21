@@ -869,6 +869,25 @@ static void _update_pae_pdpte(ARG10 *arg)
 		__vmx_vmwrite64(VMCSENC_guest_PDPTE3, pdptes[3]);
 	}
 }
+#ifdef __DEBUG_QEMU__
+static void _workaround_kvm_bug_216212(ARG10 *arg)
+{
+	/*
+	 * Workaround a KVM bug: https://bugzilla.kernel.org/show_bug.cgi?id=216212
+	 *
+	 * Looks like KVM has a problem setting CR0.PG when nested guest's PDPTEs
+	 * are not in guest hypervisor's EPT. So we always make sure the EPT entry
+	 * for PDPTEs is available. To achieve this effect, simulating a EPT
+	 * violation by calling xmhf_nested_arch_x86vmx_handle_ept02_exit() with
+	 * guest2_paddr = CR3.
+	 */
+	extern bool is_in_kvm;
+	if (is_in_kvm && arg->vmcs12->guest_CR3 != 0) {
+		xmhf_nested_arch_x86vmx_hardcode_ept(arg->vcpu, cache_line,
+											 arg->vmcs12->guest_CR3);
+	}
+}
+#endif							/* !__DEBUG_QEMU__ */
 static u32 _vmcs12_to_vmcs02_control_EPT_pointer(ARG10 *arg)
 {
 	/* Note: VMX_SECPROCBASED_ENABLE_EPT is always enabled */
@@ -889,24 +908,7 @@ static u32 _vmcs12_to_vmcs02_control_EPT_pointer(ARG10 *arg)
 		arg->vmcs12_info->guest_ept_cache_line = cache_line;
 		arg->vmcs12_info->guest_ept_root = ept12;
 #ifdef __DEBUG_QEMU__
-		/*
-		 * Workaround a KVM bug:
-		 * https://bugzilla.kernel.org/show_bug.cgi?id=216212
-		 *
-		 * Looks like KVM has a problem setting CR0.PG when nested guest's
-		 * PDPTEs are not in guest hypervisor's EPT. So we always make sure
-		 * the EPT entry for PDPTEs is available. To achieve this effect,
-		 * simulating a EPT violation by calling
-		 * xmhf_nested_arch_x86vmx_handle_ept02_exit() with guest2_paddr =
-		 * CR3.
-		 */
-		{
-			extern bool is_in_kvm;
-			if (is_in_kvm && arg->vmcs12->guest_CR3 != 0) {
-				xmhf_nested_arch_x86vmx_hardcode_ept(arg->vcpu, cache_line,
-													 arg->vmcs12->guest_CR3);
-			}
-		}
+		_workaround_kvm_bug_216212(arg);
 #endif							/* !__DEBUG_QEMU__ */
 	} else {
 		/* Guest does not use EPT, just use XMHF's EPT */
@@ -1849,7 +1851,9 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 /*
  * Perform operations in xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02() that depend
  * on walking EPT01. This is intended to be called when XMHF or hypapp decides
- * to flush EPT.
+ * to flush EPT. As a rule of thumb, functions called by
+ * xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02() that uses arg->ctx_pair should
+ * also be called by this function.
  */
 void xmhf_nested_arch_x86vmx_rewalk_ept01(VCPU * vcpu,
 										  vmcs12_info_t * vmcs12_info)
@@ -1880,6 +1884,7 @@ void xmhf_nested_arch_x86vmx_rewalk_ept01(VCPU * vcpu,
 	}
 #include "nested-x86vmx-vmcs12-fields.h"
 
+	/* Special handling for EPT02 */
 	if (vmcs12_info->guest_ept_enable) {
 		ept02_cache_line_t *cache_line;
 		bool cache_hit;
@@ -1890,24 +1895,7 @@ void xmhf_nested_arch_x86vmx_rewalk_ept01(VCPU * vcpu,
 		vmcs12_info->guest_ept_cache_line = cache_line;
 		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
 #ifdef __DEBUG_QEMU__
-		/*
-		 * Workaround a KVM bug:
-		 * https://bugzilla.kernel.org/show_bug.cgi?id=216212
-		 *
-		 * Looks like KVM has a problem setting CR0.PG when nested guest's
-		 * PDPTEs are not in guest hypervisor's EPT. So we always make sure
-		 * the EPT entry for PDPTEs is available. To achieve this effect,
-		 * simulating a EPT violation by calling
-		 * xmhf_nested_arch_x86vmx_handle_ept02_exit() with guest2_paddr =
-		 * CR3.
-		 */
-		{
-			extern bool is_in_kvm;
-			if (is_in_kvm && vmcs12->guest_CR3 != 0) {
-				xmhf_nested_arch_x86vmx_hardcode_ept(vcpu, cache_line,
-													 vmcs12->guest_CR3);
-			}
-		}
+		_workaround_kvm_bug_216212(&arg);
 #endif							/* !__DEBUG_QEMU__ */
 		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
 	} else {
