@@ -447,14 +447,14 @@ DECLARE_FIELD_64_RW(0x2C02, host_IA32_EFER,
 					_unused,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2C04, host_IA32_PERF_GLOBAL_CTRL,
-					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_HOST),
 					(_vmx_hasctl_vmexit_load_ia32_perf_global_ctrl(FIELD_CTLS_ARG)),
-					,
+					_unused,
 					UNDEFINED)
 DECLARE_FIELD_64_RW(0x2C06, host_IA32_PKRS,
-					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_HOST),
 					(_vmx_hasctl_vmexit_load_pkrs(FIELD_CTLS_ARG)),
-					,
+					_unused,
 					UNDEFINED)
 
 /* 32-Bit Control Fields */

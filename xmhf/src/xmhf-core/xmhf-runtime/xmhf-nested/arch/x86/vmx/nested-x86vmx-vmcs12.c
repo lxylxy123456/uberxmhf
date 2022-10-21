@@ -970,8 +970,13 @@ static u32 _vmcs12_to_vmcs02_host_IA32_PAT(ARG10 *arg)
 }
 static void _vmcs02_to_vmcs12_host_IA32_PAT(ARG01 *arg)
 {
-	(void) arg;
 	(void) _vmcs02_to_vmcs12_host_IA32_PAT_unused;
+	if (_vmx_hasctl_vmexit_load_ia32_pat(arg->ctls)) {
+		/* XMHF never uses this feature. Instead, uses MSR load / save area */
+		arg->host_ia32_pat = vmcs12->host_IA32_PAT;
+	} else {
+		arg->host_ia32_pat = arg->msr02[arg->ia32_pat_index].data;
+	}
 }
 
 /* Host IA32_EFER */
@@ -989,8 +994,82 @@ static u32 _vmcs12_to_vmcs02_host_IA32_EFER(ARG10 *arg)
 }
 static void _vmcs02_to_vmcs12_host_IA32_EFER(ARG01 *arg)
 {
-	(void) arg;
 	(void) _vmcs02_to_vmcs12_host_IA32_EFER_unused;
+	if (_vmx_hasctl_vmexit_load_ia32_efer(arg->ctls)) {
+		/* XMHF never uses this feature. Instead, uses MSR load / save area */
+		arg->host_ia32_efer = vmcs12->host_IA32_EFER;
+	} else {
+		/*
+		 * When not loading IA32_EFER, IA32_EFER is changed as following:
+		 * * IA32_EFER.LMA = "host address-space size"
+		 * * IA32_EFER.LME = "host address-space size"
+		 */
+		u64 mask = (1ULL << EFER_LMA) | (1ULL << EFER_LME);
+		if (_vmx_hasctl_vmexit_host_address_space_size(arg->ctls)) {
+			arg->host_ia32_efer = arg->msr02[arg->ia32_efer_index].data | mask;
+		} else {
+			arg->host_ia32_efer = arg->msr02[arg->ia32_efer_index].data & mask;
+		}
+	}
+}
+
+/* Host IA32_PERF_GLOBAL_CTRL */
+static u32 _vmcs12_to_vmcs02_host_IA32_PERF_GLOBAL_CTRL(ARG10 *arg)
+{
+	(void) _vmcs12_to_vmcs02_host_IA32_PERF_GLOBAL_CTRL_unused;
+	if (_vmx_hasctl_vmexit_load_ia32_perf_global_ctrl(arg->ctls)) {
+		u32 eax, ebx, ecx, edx;
+		cpuid(0x0, &eax, &ebx, &ecx, &edx);
+		if (eax >= 0xA) {
+			cpuid(0xA, &eax, &ebx, &ecx, &edx);
+			if (eax & 0xffU) {
+				__vmx_vmwrite64(VMCSENC_host_IA32_PERF_GLOBAL_CTRL,
+								rdmsr64(IA32_PERF_GLOBAL_CTRL));
+			}
+		}
+	}
+	return VM_INST_SUCCESS;
+}
+static void _vmcs02_to_vmcs12_host_IA32_PERF_GLOBAL_CTRL(ARG01 *arg)
+{
+	(void) _vmcs02_to_vmcs12_host_IA32_PERF_GLOBAL_CTRL_unused;
+	if (_vmx_hasctl_vmexit_load_ia32_perf_global_ctrl(arg->ctls)) {
+		u32 eax, ebx, ecx, edx;
+		cpuid(0x0, &eax, &ebx, &ecx, &edx);
+		if (eax >= 0xA) {
+			cpuid(0xA, &eax, &ebx, &ecx, &edx);
+			if (eax & 0xffU) {
+				/* Check L1 */
+				u16 encoding = VMCSENC_host_IA32_PERF_GLOBAL_CTRL;
+				HALT_ON_ERRORCOND(__vmx_vmread64(encoding) ==
+								  rdmsr64(IA32_PERF_GLOBAL_CTRL));
+				/* Update L0 */
+				wrmsr64(IA32_PERF_GLOBAL_CTRL,
+						__vmx_vmread64(VMCSENC_host_IA32_PERF_GLOBAL_CTRL));
+			}
+		}
+	}
+}
+
+/* Host IA32_PKRS */
+static u32 _vmcs12_to_vmcs02_host_IA32_PKRS(ARG10 *arg)
+{
+	(void) _vmcs12_to_vmcs02_host_IA32_PKRS_unused;
+	if (_vmx_hasctl_vmexit_load_pkrs(arg->ctls)) {
+		__vmx_vmwrite64(VMCSENC_host_IA32_PKRS, rdmsr64(IA32_PKRS));
+	}
+	return VM_INST_SUCCESS;
+}
+static void _vmcs02_to_vmcs12_host_IA32_PKRS(ARG01 *arg)
+{
+	(void) _vmcs02_to_vmcs12_host_IA32_PKRS_unused;
+	if (_vmx_hasctl_vmexit_load_pkrs(arg->ctls)) {
+		/* Check L1 */
+		HALT_ON_ERRORCOND(__vmx_vmread64(VMCSENC_host_IA32_PKRS) ==
+						  rdmsr64(IA32_PKRS));
+		/* Update L0 */
+		wrmsr64(IA32_PKRS, __vmx_vmread64(VMCSENC_host_IA32_PKRS));
+	}
 }
 
 // LXY TODO
@@ -1051,22 +1130,6 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 #include "nested-x86vmx-vmcs12-fields.h"
 
 // LXY TODO
-
-	/* 64-Bit Host-State Fields */
-	if (_vmx_hasctl_vmexit_load_ia32_perf_global_ctrl(&ctls)) {
-		u32 eax, ebx, ecx, edx;
-		cpuid(0x0, &eax, &ebx, &ecx, &edx);
-		if (eax >= 0xA) {
-			cpuid(0xA, &eax, &ebx, &ecx, &edx);
-			if (eax & 0xffU) {
-				__vmx_vmwrite64(VMCSENC_host_IA32_PERF_GLOBAL_CTRL,
-								rdmsr64(IA32_PERF_GLOBAL_CTRL));
-			}
-		}
-	}
-	if (_vmx_hasctl_vmexit_load_pkrs(&ctls)) {
-		__vmx_vmwrite64(VMCSENC_host_IA32_PKRS, rdmsr64(IA32_PKRS));
-	}
 
 	/* 32-Bit Control Fields */
 	{
@@ -1271,8 +1334,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 	guestmem_hptw_ctx_pair_t ctx_pair;
 	msr_entry_t *msr01 = (msr_entry_t *) vcpu->vmx_vaddr_msr_area_guest;
 	msr_entry_t *msr02 = vmcs12_info->vmcs02_vmentry_msr_load_area;
-	u64 host_ia32_pat;
-	u64 host_ia32_efer;
 	u32 ia32_pat_index;
 	u32 ia32_efer_index;
 	ARG01 arg = {
@@ -1315,66 +1376,13 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 		vcpu->vmcs.guest_LDTR_selector = 0x0000U;
 	}
 
-// LXY TODO
-
-	if (_vmx_hasctl_vmexit_load_ia32_perf_global_ctrl(&ctls)) {
-		u32 eax, ebx, ecx, edx;
-		cpuid(0x0, &eax, &ebx, &ecx, &edx);
-		if (eax >= 0xA) {
-			cpuid(0xA, &eax, &ebx, &ecx, &edx);
-			if (eax & 0xffU) {
-				u16 encoding = VMCSENC_host_IA32_PERF_GLOBAL_CTRL;
-				HALT_ON_ERRORCOND(__vmx_vmread64(encoding) ==
-								  rdmsr64(IA32_PERF_GLOBAL_CTRL));
-			}
-		}
-	}
-	if (_vmx_hasctl_vmexit_load_pkrs(&ctls)) {
-		HALT_ON_ERRORCOND(__vmx_vmread64(VMCSENC_host_IA32_PKRS) ==
-						  rdmsr64(IA32_PKRS));
-	}
-
 	/* 64-Bit fields: VMCS12 host -> VMCS01 guest */
 	{
 		/* The IA32_DEBUGCTL MSR is cleared to 00000000_00000000H */
 		vcpu->vmcs.guest_IA32_DEBUGCTL = 0ULL;
 	}
-	if (_vmx_hasctl_vmexit_load_ia32_pat(&ctls)) {
-		/* XMHF never uses this feature. Instead, uses MSR load / save area */
-		host_ia32_pat = vmcs12->host_IA32_PAT;
-	} else {
-		host_ia32_pat = msr02[ia32_pat_index].data;
-	}
-	if (_vmx_hasctl_vmexit_load_ia32_efer(&ctls)) {
-		/* XMHF never uses this feature. Instead, uses MSR load / save area */
-		host_ia32_efer = vmcs12->host_IA32_EFER;
-	} else {
-		/*
-		 * When not loading IA32_EFER, IA32_EFER is changed as following:
-		 * * IA32_EFER.LMA = "host address-space size"
-		 * * IA32_EFER.LME = "host address-space size"
-		 */
-		u64 mask = (1ULL << EFER_LMA) | (1ULL << EFER_LME);
-		if (_vmx_hasctl_vmexit_host_address_space_size(&ctls)) {
-			host_ia32_efer = msr02[ia32_efer_index].data | mask;
-		} else {
-			host_ia32_efer = msr02[ia32_efer_index].data & mask;
-		}
-	}
-	if (_vmx_hasctl_vmexit_load_ia32_perf_global_ctrl(&ctls)) {
-		u32 eax, ebx, ecx, edx;
-		cpuid(0x0, &eax, &ebx, &ecx, &edx);
-		if (eax >= 0xA) {
-			cpuid(0xA, &eax, &ebx, &ecx, &edx);
-			if (eax & 0xffU) {
-				wrmsr64(IA32_PERF_GLOBAL_CTRL,
-						__vmx_vmread64(VMCSENC_host_IA32_PERF_GLOBAL_CTRL));
-			}
-		}
-	}
-	if (_vmx_hasctl_vmexit_load_pkrs(&ctls)) {
-		wrmsr64(IA32_PKRS, __vmx_vmread64(VMCSENC_host_IA32_PKRS));
-	}
+
+// LXY TODO
 
 	/* 32-Bit Control Fields */
 	{
@@ -1469,8 +1477,8 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 						  __vmx_vmread64(encoding));
 
 		/* Set IA32_PAT and IA32_EFER in VMCS01 guest */
-		msr01[ia32_pat_index].data = host_ia32_pat;
-		msr01[ia32_efer_index].data = host_ia32_efer;
+		msr01[ia32_pat_index].data = arg->host_ia32_pat;
+		msr01[ia32_efer_index].data = arg->host_ia32_efer;
 
 		/* Write MSRs as requested by guest */
 		for (i = 0; i < vmcs12->control_VM_exit_MSR_load_count; i++) {
