@@ -1694,8 +1694,8 @@ void xmhf_nested_arch_x86vmx_rewalk_ept01(VCPU * vcpu,
 	guestmem_init(vcpu, &ctx_pair);
 
 #define FIELD_CTLS_ARG (&ctls)
-#define DECLARE_FIELD_64_RW(encoding, name, ...) \
-	{ \
+#define DECLARE_FIELD_64_RW(encoding, name, prop, ...) \
+	if (prop & FIELD_PROP_GPADDR) { \
 		HALT_ON_ERRORCOND(_vmcs12_to_vmcs02_##name(&arg) == VM_INST_SUCCESS); \
 	}
 #include "nested-x86vmx-vmcs12-fields.h"
