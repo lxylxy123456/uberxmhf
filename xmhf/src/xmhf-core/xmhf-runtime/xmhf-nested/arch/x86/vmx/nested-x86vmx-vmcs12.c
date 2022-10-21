@@ -834,9 +834,34 @@ static u32 _vmcs12_to_vmcs02_control_EPT_pointer(ARG10 *arg)
 		}
 #endif							/* !__DEBUG_QEMU__ */
 	} else {
+		bool pae;
 		/* Guest does not use EPT, just use XMHF's EPT */
 		arg->vmcs12_info->guest_ept_enable = 0;
 		ept02 = arg->vcpu->vmcs.control_EPT_pointer;
+		/*
+		 * When the guest is running in PAE mode, the guest PDPTEs need to be
+		 * computed by XMHF in software. Otherwise the nested guest may triple
+		 * fault.
+		 */
+		pae = ((arg->vmcs12->guest_CR0 & CR0_PG) &&
+			   (arg->vmcs12->guest_CR4 & CR4_PAE));
+#ifdef __AMD64__
+		if (_vmx_hasctl_vmentry_ia_32e_mode_guest(arg->ctls)) {
+			pae = false;
+		}
+#elif !defined(__I386__)
+#error "Unsupported Arch"
+#endif							/* !defined(__I386__) */
+		if (pae) {
+			/* Walk EPT and retrieve values for guest_PDPTE* */
+			u64 pdptes[4];
+			u64 addr = arg->vmcs12->guest_CR3 & ~0x1FUL;
+			guestmem_copy_gp2h(arg->ctx_pair, 0, pdptes, addr, sizeof(pdptes));
+			__vmx_vmwrite64(VMCSENC_guest_PDPTE0, pdptes[0]);
+			__vmx_vmwrite64(VMCSENC_guest_PDPTE1, pdptes[1]);
+			__vmx_vmwrite64(VMCSENC_guest_PDPTE2, pdptes[2]);
+			__vmx_vmwrite64(VMCSENC_guest_PDPTE3, pdptes[3]);
+		}
 	}
 	__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
 
@@ -929,8 +954,6 @@ static void _vmcs02_to_vmcs12_guest_IA32_EFER(ARG01 *arg)
 		arg->vmcs12->guest_IA32_EFER = arg->msr02[arg->ia32_efer_index].data;
 	}
 }
-
-// LXY TODO
 
 /* 64-Bit Host-State Fields */
 
@@ -1028,32 +1051,6 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 #include "nested-x86vmx-vmcs12-fields.h"
 
 // LXY TODO
-
-	if (!_vmx_hasctl_enable_ept(&ctls)) {
-		/*
-		 * Guest does not use EPT, but XMHF uses EPT. When the guest is running
-		 * in PAE mode, the guest PDPTEs need to be computed by XMHF in
-		 * software. Otherwise the nested guest may triple fault.
-		 */
-		u32 pae = (vmcs12->guest_CR0 & CR0_PG) && (vmcs12->guest_CR4 & CR4_PAE);
-#ifdef __AMD64__
-		if (_vmx_hasctl_vmentry_ia_32e_mode_guest(&ctls)) {
-			pae = 0;
-		}
-#elif !defined(__I386__)
-#error "Unsupported Arch"
-#endif							/* !defined(__I386__) */
-		if (pae) {
-			/* Walk EPT and retrieve values for guest_PDPTE* */
-			u64 pdptes[4];
-			u64 addr = vmcs12->guest_CR3 & ~0x1FUL;
-			guestmem_copy_gp2h(&ctx_pair, 0, pdptes, addr, sizeof(pdptes));
-			__vmx_vmwrite64(VMCSENC_guest_PDPTE0, pdptes[0]);
-			__vmx_vmwrite64(VMCSENC_guest_PDPTE1, pdptes[1]);
-			__vmx_vmwrite64(VMCSENC_guest_PDPTE2, pdptes[2]);
-			__vmx_vmwrite64(VMCSENC_guest_PDPTE3, pdptes[3]);
-		}
-	}
 
 	/* 64-Bit Host-State Fields */
 	if (_vmx_hasctl_vmexit_load_ia32_perf_global_ctrl(&ctls)) {
@@ -1319,7 +1316,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 	}
 
 // LXY TODO
-
 
 	if (_vmx_hasctl_vmexit_load_ia32_perf_global_ctrl(&ctls)) {
 		u32 eax, ebx, ecx, edx;
