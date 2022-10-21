@@ -1175,7 +1175,7 @@ static void _vmcs02_to_vmcs12_control_VMX_pin_based(ARG01 *arg)
 static u32 _vmcs12_to_vmcs02_control_VMX_cpu_based(ARG10 *arg)
 {
 	/*
-	 * Note: this function needs to be called after 
+	 * Note: this function needs to be called after
 	 * _vmcs12_to_vmcs02_control_VMX_pin_based().
 	 */
 	u32 val = arg->vmcs12->control_VMX_cpu_based;
