@@ -1,0 +1,156 @@
+Fatal: Halting! Condition 'cpu_has_current_vmcs12(vcpu)' failed, line 372, file arch/x86/vmx/nested-x86vmx-handler1.c
+[04]: unhandled exception 6 (0x6), halting!
+[04]: state dump follows...
+[04] CS:RIP 0x0008:0x0000000010207d68 with RFLAGS=0x0000000000010006
+[04]: VCPU at 0x0000000010244550
+[04] RAX=0x0000000000000077 RBX=0x00000000003706e0
+[04] RCX=0x0000000010242ab6 RDX=0x000000001024b9aa
+[04] RSI=0x000000000000f0a0 RDI=0x000000001024936c
+[04] RBP=0x0000000028fa0be8 RSP=0x0000000028fa0ba8
+[04] R8 =0x0000000000000000 R9 =0x0000000028fa0e18
+[04] R10=0x00000000102067ce R11=0x0000000000000001
+[04] R12=0xffff8881044e2a00 R13=0x0000000000000001
+[04] R14=0xffffc900002e3000 R15=0xffff88822630b000
+[04] CS=0x0008, DS=0x0018, ES=0x0018, SS=0x0018
+[04] FS=0x0018, GS=0x0018
+[04] TR=0x0020
+[04]-----stack dump-----
+[04]  Stack(0x0000000028fa0ba8) -> 0x0000000010207d68 RIP #0	<xmhf_nested_arch_x86vmx_find_current_vmcs12+58>
+[04]  Stack(0x0000000028fa0bb0) -> 0x0000000000000008 CS	???
+[04]  Stack(0x0000000028fa0bb8) -> 0x0000000000010006 RFLAGS	???
+[04]  Stack(0x0000000028fa0bc0) -> 0x0000000028fa0bd8 RSP	<g_cpustacks+195544>
+[04]  Stack(0x0000000028fa0bc8) -> 0x0000000000000018 SS	???
+[04]  Stack(0x0000000028fa0bd0) -> 0x0000000010207d68		<xmhf_nested_arch_x86vmx_find_current_vmcs12+58>
+[04]  Stack(0x0000000028fa0bd8) -> 0x0000000028fa0c08		<g_cpustacks+195592>
+[04]  Stack(0x0000000028fa0be0) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0be8) -> 0x0000000028fa0c28 RBP #0	<g_cpustacks+195624>
+[04]  Stack(0x0000000028fa0bf0) -> 0x000000001022765c RIP #1	<xmhf_nested_arch_x86vmx_flush_ept02_effect+132>
+[04]  Stack(0x0000000028fa0bf8) -> 0x0000000100000003		???
+[04]  Stack(0x0000000028fa0c00) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0c08) -> 0x0000000000000fff		???
+[04]  Stack(0x0000000028fa0c10) -> 0x0000000028fa0c28		<g_cpustacks+195624>
+[04]  Stack(0x0000000028fa0c18) -> 0x0000000029084200		<ept02_cache+7680>
+[04]  Stack(0x0000000028fa0c20) -> 0x000000084d213000		???
+[04]  Stack(0x0000000028fa0c28) -> 0x0000000028fa0c48 RBP #1	<g_cpustacks+195656>
+[04]  Stack(0x0000000028fa0c30) -> 0x00000000102276ac RIP #2	<xmhf_nested_arch_x86vmx_flush_ept02+54>
+[04]  Stack(0x0000000028fa0c38) -> 0x0000000028fa0e18		<g_cpustacks+196120>
+[04]  Stack(0x0000000028fa0c40) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0c48) -> 0x0000000028fa0c68 RBP #2	<g_cpustacks+195688>
+[04]  Stack(0x0000000028fa0c50) -> 0x0000000010202d86 RIP #3	<xmhf_memprot_arch_x86vmx_flushmappings_localtlb+24>
+[04]  Stack(0x0000000028fa0c58) -> 0x000000014d213000		???
+[04]  Stack(0x0000000028fa0c60) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0c68) -> 0x0000000028fa0c88 RBP #3	<g_cpustacks+195720>
+[04]  Stack(0x0000000028fa0c70) -> 0x0000000010201b29 RIP #4	<xmhf_memprot_arch_flushmappings_localtlb+115>
+[04]  Stack(0x0000000028fa0c78) -> 0x0000000028fa0e18		<g_cpustacks+196120>
+[04]  Stack(0x0000000028fa0c80) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0c88) -> 0x0000000028fa0ca8 RBP #4	<g_cpustacks+195752>
+[04]  Stack(0x0000000028fa0c90) -> 0x00000000102019e8 RIP #5	<xmhf_memprot_flushmappings_localtlb+24>
+[04]  Stack(0x0000000028fa0c98) -> 0x0000000000000001		???
+[04]  Stack(0x0000000028fa0ca0) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0ca8) -> 0x0000000028fa0cc8 RBP #5	<g_cpustacks+195784>
+[04]  Stack(0x0000000028fa0cb0) -> 0x0000000010229725 RIP #6	<xmhf_smpguest_arch_x86vmx_nmi_check_quiesce+125>
+[04]  Stack(0x0000000028fa0cb8) -> 0x0000000028fa0ce8		<g_cpustacks+195816>
+[04]  Stack(0x0000000028fa0cc0) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0cc8) -> 0x0000000028fa0cf8 RBP #6	<g_cpustacks+195832>
+[04]  Stack(0x0000000028fa0cd0) -> 0x000000001022994c RIP #7	<xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception+31>
+[04]  Stack(0x0000000028fa0cd8) -> 0x0000000028fa0dd8		<g_cpustacks+196056>
+[04]  Stack(0x0000000028fa0ce0) -> 0x0000000000000000		???
+[04]  Stack(0x0000000028fa0ce8) -> 0x0000000028fa0de8		<g_cpustacks+196072>
+[04]  Stack(0x0000000028fa0cf0) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0cf8) -> 0x0000000028fa0d28 RBP #7	<g_cpustacks+195880>
+[04]  Stack(0x0000000028fa0d00) -> 0x0000000010227bfa RIP #8	<xmhf_smpguest_arch_x86_eventhandler_nmiexception+139>
+[04]  Stack(0x0000000028fa0d08) -> 0x0000000028fa0ce4		<g_cpustacks+195812>
+[04]  Stack(0x0000000028fa0d10) -> 0x0000000010229747		<xmhf_smpguest_arch_x86vmx_nmi_check_quiesce+159>
+[04]  Stack(0x0000000028fa0d18) -> 0x0000000028fa0de8		<g_cpustacks+196072>
+[04]  Stack(0x0000000028fa0d20) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0d28) -> 0x0000000028fa0db8 RBP #8	<g_cpustacks+196024>
+[04]  Stack(0x0000000028fa0d30) -> 0x000000001022a22d RIP #9	<xmhf_xcphandler_arch_hub+61>
+[04]  Stack(0x0000000028fa0d38) -> 0x0000000028fa0de8		<g_cpustacks+196072>
+[04]  Stack(0x0000000028fa0d40) -> 0x0000000000000002		???
+[04]  Stack(0x0000000028fa0d48) -> 0x0000000028fa0e48		<g_cpustacks+196168>
+[04]  Stack(0x0000000028fa0d50) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0d58) -> 0x0000000028fa0d88		<g_cpustacks+195976>
+[04]  Stack(0x0000000028fa0d60) -> 0x0000000010227bfa		<xmhf_smpguest_arch_x86_eventhandler_nmiexception+139>
+[04]  Stack(0x0000000028fa0d68) -> 0x0000000028fa0d44		<g_cpustacks+195908>
+[04]  Stack(0x0000000028fa0d70) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0d78) -> 0x0000000028fa0e48		<g_cpustacks+196168>
+[04]  Stack(0x0000000028fa0d80) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0d88) -> 0x0000000028fa0e18		<g_cpustacks+196120>
+[04]  Stack(0x0000000028fa0d90) -> 0x000000001022a22d		<xmhf_xcphandler_arch_hub+61>
+[04]  Stack(0x0000000028fa0d98) -> 0x0000000028fa0e48		<g_cpustacks+196168>
+[04]  Stack(0x0000000028fa0da0) -> 0x00000000003706e0		???
+[04]  Stack(0x0000000028fa0da8) -> 0xffff8881044e2a00		???
+[04]  Stack(0x0000000028fa0db0) -> 0x0000000000000001		???
+[04]  Stack(0x0000000028fa0db8) -> 0x0000000028fa0dd8 RBP #9	<g_cpustacks+196056>
+[04]  Stack(0x0000000028fa0dc0) -> 0x0000000010229f45 RIP #10	<xmhf_xcphandler_hub+35>
+[04]  Stack(0x0000000028fa0dc8) -> 0x0000000028fa0de8		<g_cpustacks+196072>
+[04]  Stack(0x0000000028fa0dd0) -> 0x0000000000000002		???
+[04]  Stack(0x0000000028fa0dd8) -> 0x0000000028fa0f28 RBP #10	<g_cpustacks+196392>
+[04]  Stack(0x0000000028fa0de0) -> 0x00000000102005f4 RIP #11	<XtRtmIdtStub2+45>
+[04]  Stack(0x0000000028fa0de8) -> 0xffff88822630b000		???
+[04]  Stack(0x0000000028fa0df0) -> 0xffffc900002e3000		???
+[04]  Stack(0x0000000028fa0df8) -> 0x0000000000000001		???
+[04]  Stack(0x0000000028fa0e00) -> 0xffff8881044e2a00		???
+[04]  Stack(0x0000000028fa0e08) -> 0x0000000000000001		???
+[04]  Stack(0x0000000028fa0e10) -> 0x00000000102067ce		<guestmem_host_ctx_pa2ptr+0>
+[04]  Stack(0x0000000028fa0e18) -> 0x0000000028fa0e18		<g_cpustacks+196120>
+[04]  Stack(0x0000000028fa0e20) -> 0x0000000000000000		???
+[04]  Stack(0x0000000028fa0e28) -> 0x0000000028fa0efc		<g_cpustacks+196348>
+[04]  Stack(0x0000000028fa0e30) -> 0x000000014d213000		???
+[04]  Stack(0x0000000028fa0e38) -> 0x0000000028fa0f28		<g_cpustacks+196392>
+[04]  Stack(0x0000000028fa0e40) -> 0x0000000028fa0e68		<g_cpustacks+196200>
+[04]  Stack(0x0000000028fa0e48) -> 0x00000000003706e0		???
+[04]  Stack(0x0000000028fa0e50) -> 0x000000014d213000		???
+[04]  Stack(0x0000000028fa0e58) -> 0x0000000028fa0efc		<g_cpustacks+196348>
+[04]  Stack(0x0000000028fa0e60) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0e68) -> 0x0000000010209d3c		<xmhf_nested_arch_x86vmx_handle_vmxon+631>
+[04]  Stack(0x0000000028fa0e70) -> 0x0000000000000008		???
+[04]  Stack(0x0000000028fa0e78) -> 0x0000000000000046		???
+[04]  Stack(0x0000000028fa0e80) -> 0x0000000028fa0e98		<g_cpustacks+196248>
+[04]  Stack(0x0000000028fa0e88) -> 0x0000000000000018		???
+[04]  Stack(0x0000000028fa0e90) -> 0x0000000010209cf3		<xmhf_nested_arch_x86vmx_handle_vmxon+558>
+[04]  Stack(0x0000000028fa0e98) -> 0x0000000028fa0f78		<g_cpustacks+196472>
+[04]  Stack(0x0000000028fa0ea0) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0ea8) -> 0x0000000010206878		<guestmem_ctx_unimplemented+0>
+[04]  Stack(0x0000000028fa0eb0) -> 0x0000000010206825		<guestmem_guest_ctx_pa2ptr+0>
+[04]  Stack(0x0000000028fa0eb8) -> 0x0000000010206807		<guestmem_guest_ctx_ptr2pa+0>
+[04]  Stack(0x0000000028fa0ec0) -> 0x0000000138206000		???
+[04]  Stack(0x0000000028fa0ec8) -> 0x0000000000000002		???
+[04]  Stack(0x0000000028fa0ed0) -> 0x0000000010206878		<guestmem_ctx_unimplemented+0>
+[04]  Stack(0x0000000028fa0ed8) -> 0x00000000102067ce		<guestmem_host_ctx_pa2ptr+0>
+[04]  Stack(0x0000000028fa0ee0) -> 0x00000000102067b0		<guestmem_host_ctx_ptr2pa+0>
+[04]  Stack(0x0000000028fa0ee8) -> 0x0000000014268000		<g_vmx_ept_pml4_table_buffers+8192>
+[04]  Stack(0x0000000028fa0ef0) -> 0x0000000800000003		???
+[04]  Stack(0x0000000028fa0ef8) -> 0x0000000410244a48		???
+[04]  Stack(0x0000000028fa0f00) -> 0x000000014d213000		???
+[04]  Stack(0x0000000028fa0f08) -> 0x00da040000000004		???
+[04]  Stack(0x0000000028fa0f10) -> 0xffffc90003cd3ca0		???
+[04]  Stack(0x0000000028fa0f18) -> 0x0000000000162668		???
+[04]  Stack(0x0000000028fa0f20) -> 0x0000000080010031		???
+[04]  Stack(0x0000000028fa0f28) -> 0x0000000028fa0f68 RBP #11	<g_cpustacks+196456>
+[04]  Stack(0x0000000028fa0f30) -> 0x0000000010205f8b RIP #12	<xmhf_parteventhub_arch_x86vmx_intercept_handler+1222>
+[04]  Stack(0x0000000028fa0f38) -> 0x0000000028fa0f78		<g_cpustacks+196472>
+[04]  Stack(0x0000000028fa0f40) -> 0x0000000010244550		<g_vcpubuffers+3152>
+[04]  Stack(0x0000000028fa0f48) -> 0x0000020000000000		???
+[04]  Stack(0x0000000028fa0f50) -> 0x0000000000000001		???
+[04]  Stack(0x0000000028fa0f58) -> 0x0000000004000000		???
+[04]  Stack(0x0000000028fa0f60) -> 0x0000000400000000		???
+[04]  Stack(0x0000000028fa0f68) -> 0xffffc900002e36f0 RBP #12	???
+[04]  Stack(0x0000000028fa0f70) -> 0x0000000010200526 RIP #13	<xmhf_parteventhub_arch_x86vmx_entry+46>
+[04]  Stack(0x0000000028fa0f78) -> 0xffff88822630b000		???
+[04]  Stack(0x0000000028fa0f80) -> 0xffffc900002e3000		???
+[04]  Stack(0x0000000028fa0f88) -> 0x0000000000000001		???
+[04]  Stack(0x0000000028fa0f90) -> 0xffff8881044e2a00		???
+[04]  Stack(0x0000000028fa0f98) -> 0x0000000000000001		???
+[04]  Stack(0x0000000028fa0fa0) -> 0x0000000000000000		???
+[04]  Stack(0x0000000028fa0fa8) -> 0x0000000000000000		???
+[04]  Stack(0x0000000028fa0fb0) -> 0x0000000080050033		???
+[04]  Stack(0x0000000028fa0fb8) -> 0x0000001207e5737a		???
+[04]  Stack(0x0000000028fa0fc0) -> 0x0000000000000000		???
+[04]  Stack(0x0000000028fa0fc8) -> 0xffffc900002e36f0		???
+[04]  Stack(0x0000000028fa0fd0) -> 0x0000000028fa0ff8		<g_cpustacks+196600>
+[04]  Stack(0x0000000028fa0fd8) -> 0x00000000003706e0		???
+[04]  Stack(0x0000000028fa0fe0) -> 0x00000000fffe0ff0		???
+[04]  Stack(0x0000000028fa0fe8) -> 0x0000000000000000		???
+[04]  Stack(0x0000000028fa0ff0) -> 0x000000014d213000		???
+[04]-----end------------
