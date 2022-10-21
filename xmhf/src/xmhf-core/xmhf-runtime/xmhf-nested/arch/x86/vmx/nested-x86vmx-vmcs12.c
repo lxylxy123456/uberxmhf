@@ -457,7 +457,7 @@ static u32 _vmcs12_get_ctls(VCPU * vcpu, struct nested_vmcs12 *vmcs12,
 
 typedef struct _vmcs12_to_vmcs02_arg {
 	VCPU *vcpu;
-	vmcs12_info_t * vmcs12_info;
+	vmcs12_info_t *vmcs12_info;
 	struct nested_vmcs12 *vmcs12;
 	vmx_ctls_t *ctls;
 	guestmem_hptw_ctx_pair_t *ctx_pair;
@@ -470,7 +470,7 @@ typedef struct _vmcs12_to_vmcs02_arg {
 
 typedef struct _vmcs02_to_vmcs12_arg {
 	VCPU *vcpu;
-	vmcs12_info_t * vmcs12_info;
+	vmcs12_info_t *vmcs12_info;
 	struct nested_vmcs12 *vmcs12;
 	vmx_ctls_t *ctls;
 	u64 host_ia32_pat;
@@ -484,7 +484,7 @@ typedef struct _vmcs02_to_vmcs12_arg {
 
 #define DECLARE_FIELD_16_RW(encoding, name, prop, exist, trans_suf, ...) \
 DECLARE_FIELD_16_RO(encoding, name, prop, exist, trans_suf, ...) \
-static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
+static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 * arg) \
 { \
 	if (prop & FIELD_PROP_ID_GUEST) { \
 		if (exist) { \
@@ -501,7 +501,7 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
 	} \
 }
 #define DECLARE_FIELD_16_RO(encoding, name, prop, exist, trans_suf, ...) \
-static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
+static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 * arg) \
 { \
 	if (prop & FIELD_PROP_ID_GUEST) { \
 		if (exist) { \
@@ -521,7 +521,7 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
 
 #define DECLARE_FIELD_64_RW(encoding, name, prop, exist, trans_suf, ...) \
 DECLARE_FIELD_64_RO(encoding, name, prop, exist, trans_suf, ...) \
-static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
+static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 * arg) \
 { \
 	if (prop & FIELD_PROP_ID_GUEST) { \
 		if (exist) { \
@@ -545,7 +545,7 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
 	} \
 }
 #define DECLARE_FIELD_64_RO(encoding, name, prop, exist, trans_suf, ...) \
-static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
+static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 * arg) \
 { \
 	if ((prop & FIELD_PROP_ID_GUEST) || (prop & FIELD_PROP_GPADDR)) { \
 		if (exist) { \
@@ -566,7 +566,7 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
 
 #define DECLARE_FIELD_32_RW(encoding, name, prop, exist, trans_suf, ...) \
 DECLARE_FIELD_32_RO(encoding, name, prop, exist, trans_suf, ...) \
-static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
+static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 * arg) \
 { \
 	if (prop & FIELD_PROP_ID_GUEST) { \
 		if (exist) { \
@@ -583,7 +583,7 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
 	} \
 }
 #define DECLARE_FIELD_32_RO(encoding, name, prop, exist, trans_suf, ...) \
-static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
+static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 * arg) \
 { \
 	if (prop & FIELD_PROP_ID_GUEST) { \
 		if (exist) { \
@@ -603,7 +603,7 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
 
 #define DECLARE_FIELD_NW_RW(encoding, name, prop, exist, trans_suf, ...) \
 DECLARE_FIELD_NW_RO(encoding, name, prop, exist, trans_suf, ...) \
-static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
+static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 * arg) \
 { \
 	if (prop & FIELD_PROP_ID_GUEST) { \
 		if (exist) { \
@@ -620,7 +620,7 @@ static u32 _vmcs12_to_vmcs02_##name##trans_suf(ARG10 *arg) \
 	} \
 }
 #define DECLARE_FIELD_NW_RO(encoding, name, prop, exist, trans_suf, ...) \
-static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
+static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 * arg) \
 { \
 	if (prop & FIELD_PROP_ID_GUEST) { \
 		if (exist) { \
@@ -641,13 +641,13 @@ static void _vmcs02_to_vmcs12_##name##trans_suf(ARG01 *arg) \
 #include "nested-x86vmx-vmcs12-fields.h"
 
 #define DECLARE_FIELDPAIR_16(guest_encoding, host_encoding, name) \
-static u32 _vmcs12_to_vmcs02_host_##name(ARG10 *arg) \
+static u32 _vmcs12_to_vmcs02_host_##name(ARG10 * arg) \
 { \
 	__vmx_vmwrite16(host_encoding, arg->vcpu->vmcs.host_##name); \
 	return VM_INST_SUCCESS; \
 	(void) _vmcs12_to_vmcs02_host_##name##_unused; \
 } \
-static void _vmcs02_to_vmcs12_host_##name(ARG01 *arg) \
+static void _vmcs02_to_vmcs12_host_##name(ARG01 * arg) \
 { \
 	HALT_ON_ERRORCOND(__vmx_vmread16(host_encoding) == \
 					  arg->vcpu->vmcs.host_##name); \
@@ -656,13 +656,13 @@ static void _vmcs02_to_vmcs12_host_##name(ARG01 *arg) \
 }
 
 #define DECLARE_FIELDPAIR_64(guest_encoding, host_encoding, name) \
-static u32 _vmcs12_to_vmcs02_host_##name(ARG10 *arg) \
+static u32 _vmcs12_to_vmcs02_host_##name(ARG10 * arg) \
 { \
 	__vmx_vmwrite64(host_encoding, arg->vcpu->vmcs.host_##name); \
 	return VM_INST_SUCCESS; \
 	(void) _vmcs12_to_vmcs02_host_##name##_unused; \
 } \
-static void _vmcs02_to_vmcs12_host_##name(ARG01 *arg) \
+static void _vmcs02_to_vmcs12_host_##name(ARG01 * arg) \
 { \
 	HALT_ON_ERRORCOND(__vmx_vmread64(host_encoding) == \
 					  arg->vcpu->vmcs.host_##name); \
@@ -671,13 +671,13 @@ static void _vmcs02_to_vmcs12_host_##name(ARG01 *arg) \
 }
 
 #define DECLARE_FIELDPAIR_32(guest_encoding, host_encoding, name) \
-static u32 _vmcs12_to_vmcs02_host_##name(ARG10 *arg) \
+static u32 _vmcs12_to_vmcs02_host_##name(ARG10 * arg) \
 { \
 	__vmx_vmwrite32(host_encoding, arg->vcpu->vmcs.host_##name); \
 	return VM_INST_SUCCESS; \
 	(void) _vmcs12_to_vmcs02_host_##name##_unused; \
 } \
-static void _vmcs02_to_vmcs12_host_##name(ARG01 *arg) \
+static void _vmcs02_to_vmcs12_host_##name(ARG01 * arg) \
 { \
 	HALT_ON_ERRORCOND(__vmx_vmread32(host_encoding) == \
 					  arg->vcpu->vmcs.host_##name); \
@@ -686,13 +686,13 @@ static void _vmcs02_to_vmcs12_host_##name(ARG01 *arg) \
 }
 
 #define DECLARE_FIELDPAIR_NW(guest_encoding, host_encoding, name) \
-static u32 _vmcs12_to_vmcs02_host_##name(ARG10 *arg) \
+static u32 _vmcs12_to_vmcs02_host_##name(ARG10 * arg) \
 { \
 	__vmx_vmwriteNW(host_encoding, arg->vcpu->vmcs.host_##name); \
 	return VM_INST_SUCCESS; \
 	(void) _vmcs12_to_vmcs02_host_##name##_unused; \
 } \
-static void _vmcs02_to_vmcs12_host_##name(ARG01 *arg) \
+static void _vmcs02_to_vmcs12_host_##name(ARG01 * arg) \
 { \
 	HALT_ON_ERRORCOND(__vmx_vmreadNW(host_encoding) == \
 					  arg->vcpu->vmcs.host_##name); \
@@ -705,7 +705,7 @@ static void _vmcs02_to_vmcs12_host_##name(ARG01 *arg) \
 /* 16-Bit Control Fields */
 
 /* Virtual-processor identifier (VPID) */
-static u32 _vmcs12_to_vmcs02_control_vpid(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_vpid(ARG10 * arg)
 {
 	u16 vpid02;
 	if (_vmx_hasctl_enable_vpid(arg->ctls)) {
@@ -728,9 +728,10 @@ static u32 _vmcs12_to_vmcs02_control_vpid(ARG10 *arg)
 	}
 	__vmx_vmwrite16(VMCSENC_control_vpid, vpid02);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_vpid_unused;
+	(void)_vmcs12_to_vmcs02_control_vpid_unused;
 }
-static void _vmcs02_to_vmcs12_control_vpid(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_vpid(ARG01 * arg)
 {
 	u16 vpid02;
 	if (_vmx_hasctl_enable_vpid(arg->ctls)) {
@@ -751,7 +752,7 @@ static void _vmcs02_to_vmcs12_control_vpid(ARG01 *arg)
 		HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT, 1, 0));
 	}
 	HALT_ON_ERRORCOND(__vmx_vmread16(VMCSENC_control_vpid) == vpid02);
-	(void) _vmcs02_to_vmcs12_control_vpid_unused;
+	(void)_vmcs02_to_vmcs12_control_vpid_unused;
 }
 
 /* 16-Bit Guest-State Fields */
@@ -761,54 +762,57 @@ static void _vmcs02_to_vmcs12_control_vpid(ARG01 *arg)
 /* 64-Bit Control Fields */
 
 /* VM-exit MSR-store address */
-static u32 _vmcs12_to_vmcs02_control_VM_exit_MSR_store_address(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VM_exit_MSR_store_address(ARG10 * arg)
 {
 	/* VMCS02 needs to always process the same MSRs as VMCS01 */
 	__vmx_vmwrite64(VMCSENC_control_VM_exit_MSR_store_address,
 					hva2spa(arg->vmcs12_info->vmcs02_vmexit_msr_store_area));
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VM_exit_MSR_store_address_unused;
+	(void)_vmcs12_to_vmcs02_control_VM_exit_MSR_store_address_unused;
 }
-static void _vmcs02_to_vmcs12_control_VM_exit_MSR_store_address(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VM_exit_MSR_store_address(ARG01 * arg)
 {
 	u16 encoding = VMCSENC_control_VM_exit_MSR_store_address;
 	HALT_ON_ERRORCOND(hva2spa(arg->vmcs12_info->vmcs02_vmexit_msr_store_area) ==
 					  __vmx_vmread64(encoding));
-	(void) _vmcs02_to_vmcs12_control_VM_exit_MSR_store_address_unused;
+	(void)_vmcs02_to_vmcs12_control_VM_exit_MSR_store_address_unused;
 }
 
 /* VM-exit MSR-load address */
-static u32 _vmcs12_to_vmcs02_control_VM_exit_MSR_load_address(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VM_exit_MSR_load_address(ARG10 * arg)
 {
 	/* VMCS02 needs to always process the same MSRs as VMCS01 */
 	__vmx_vmwrite64(VMCSENC_control_VM_exit_MSR_load_address,
 					hva2spa(arg->vmcs12_info->vmcs02_vmexit_msr_load_area));
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VM_exit_MSR_load_address_unused;
+	(void)_vmcs12_to_vmcs02_control_VM_exit_MSR_load_address_unused;
 }
-static void _vmcs02_to_vmcs12_control_VM_exit_MSR_load_address(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VM_exit_MSR_load_address(ARG01 * arg)
 {
 	u16 encoding = VMCSENC_control_VM_exit_MSR_load_address;
 	HALT_ON_ERRORCOND(hva2spa(arg->vmcs12_info->vmcs02_vmexit_msr_load_area) ==
 					  __vmx_vmread64(encoding));
-	(void) _vmcs02_to_vmcs12_control_VM_exit_MSR_load_address_unused;
+	(void)_vmcs02_to_vmcs12_control_VM_exit_MSR_load_address_unused;
 }
 
 /* VM-entry MSR-load address */
-static u32 _vmcs12_to_vmcs02_control_VM_entry_MSR_load_address(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VM_entry_MSR_load_address(ARG10 * arg)
 {
 	/* VMCS02 needs to always process the same MSRs as VMCS01 */
 	__vmx_vmwrite64(VMCSENC_control_VM_entry_MSR_load_address,
 					hva2spa(arg->vmcs12_info->vmcs02_vmentry_msr_load_area));
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VM_entry_MSR_load_address_unused;
+	(void)_vmcs12_to_vmcs02_control_VM_entry_MSR_load_address_unused;
 }
-static void _vmcs02_to_vmcs12_control_VM_entry_MSR_load_address(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VM_entry_MSR_load_address(ARG01 * arg)
 {
 	u16 encoding = VMCSENC_control_VM_entry_MSR_load_address;
 	HALT_ON_ERRORCOND(hva2spa(arg->vmcs12_info->vmcs02_vmentry_msr_load_area)
 					  == __vmx_vmread64(encoding));
-	(void) _vmcs02_to_vmcs12_control_VM_entry_MSR_load_address_unused;
+	(void)_vmcs02_to_vmcs12_control_VM_entry_MSR_load_address_unused;
 }
 
 /*
@@ -817,7 +821,7 @@ static void _vmcs02_to_vmcs12_control_VM_entry_MSR_load_address(ARG01 *arg)
  */
 
 /* Posted-interrupt descriptor address */
-static u32 _vmcs12_to_vmcs02_control_posted_interrupt_desc_address(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_posted_interrupt_desc_address(ARG10 * arg)
 {
 	if (_vmx_hasctl_process_posted_interrupts(arg->ctls)) {
 		gpa_t addr = arg->vmcs12->control_posted_interrupt_desc_address;
@@ -828,9 +832,10 @@ static u32 _vmcs12_to_vmcs02_control_posted_interrupt_desc_address(ARG10 *arg)
 						guestmem_gpa2spa_size(arg->ctx_pair, addr, 64));
 	}
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_posted_interrupt_desc_address_unused;
+	(void)_vmcs12_to_vmcs02_control_posted_interrupt_desc_address_unused;
 }
-static void _vmcs02_to_vmcs12_control_posted_interrupt_desc_address(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_posted_interrupt_desc_address(ARG01 * arg)
 {
 	if (_vmx_hasctl_process_posted_interrupts(arg->ctls)) {
 		u16 encoding = VMCSENC_control_posted_interrupt_desc_address;
@@ -838,11 +843,11 @@ static void _vmcs02_to_vmcs12_control_posted_interrupt_desc_address(ARG01 *arg)
 		HALT_ON_ERRORCOND(arg->vmcs12->control_posted_interrupt_desc_address ==
 						  __vmx_vmread64(encoding));
 	}
-	(void) _vmcs02_to_vmcs12_control_posted_interrupt_desc_address_unused;
+	(void)_vmcs02_to_vmcs12_control_posted_interrupt_desc_address_unused;
 }
 
 /* EPT pointer */
-static void _update_pae_pdpte(ARG10 *arg)
+static void _update_pae_pdpte(ARG10 * arg)
 {
 	/*
 	 * Assume guest does not enable EPT. Check whether guest is in PAE. If so,
@@ -869,8 +874,9 @@ static void _update_pae_pdpte(ARG10 *arg)
 		__vmx_vmwrite64(VMCSENC_guest_PDPTE3, pdptes[3]);
 	}
 }
+
 #ifdef __DEBUG_QEMU__
-static void _workaround_kvm_216212(ARG10 *arg, ept02_cache_line_t *cache_line)
+static void _workaround_kvm_216212(ARG10 * arg, ept02_cache_line_t * cache_line)
 {
 	/*
 	 * Workaround a KVM bug: https://bugzilla.kernel.org/show_bug.cgi?id=216212
@@ -888,7 +894,7 @@ static void _workaround_kvm_216212(ARG10 *arg, ept02_cache_line_t *cache_line)
 	}
 }
 #endif							/* !__DEBUG_QEMU__ */
-static u32 _vmcs12_to_vmcs02_control_EPT_pointer(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_EPT_pointer(ARG10 * arg)
 {
 	/* Note: VMX_SECPROCBASED_ENABLE_EPT is always enabled */
 	spa_t ept02;
@@ -918,9 +924,10 @@ static u32 _vmcs12_to_vmcs02_control_EPT_pointer(ARG10 *arg)
 	}
 	__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_EPT_pointer_unused;
+	(void)_vmcs12_to_vmcs02_control_EPT_pointer_unused;
 }
-static void _vmcs02_to_vmcs12_control_EPT_pointer(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_EPT_pointer(ARG01 * arg)
 {
 	spa_t ept02;
 	u16 encoding = VMCSENC_control_EPT_pointer;
@@ -937,7 +944,7 @@ static void _vmcs02_to_vmcs12_control_EPT_pointer(ARG01 *arg)
 	}
 	HALT_ON_ERRORCOND(__vmx_vmread64(encoding) == ept02);
 	/* vmcs12->control_EPT_pointer is ignored here */
-	(void) _vmcs02_to_vmcs12_control_EPT_pointer_unused;
+	(void)_vmcs02_to_vmcs12_control_EPT_pointer_unused;
 }
 
 /* 64-Bit Read-Only Data Field */
@@ -945,7 +952,7 @@ static void _vmcs02_to_vmcs12_control_EPT_pointer(ARG01 *arg)
 /* 64-Bit Guest-State Fields */
 
 /* Guest IA32_PAT */
-static u32 _vmcs12_to_vmcs02_guest_IA32_PAT(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_guest_IA32_PAT(ARG10 * arg)
 {
 	if (_vmx_hasctl_vmentry_load_ia32_pat(arg->ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
@@ -957,19 +964,20 @@ static u32 _vmcs12_to_vmcs02_guest_IA32_PAT(ARG10 *arg)
 		arg->guest_ia32_pat = arg->msr01[arg->ia32_pat_index].data;
 	}
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_guest_IA32_PAT_unused;
+	(void)_vmcs12_to_vmcs02_guest_IA32_PAT_unused;
 }
-static void _vmcs02_to_vmcs12_guest_IA32_PAT(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_guest_IA32_PAT(ARG01 * arg)
 {
 	if (_vmx_hasctl_vmexit_save_ia32_pat(arg->ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
 		arg->vmcs12->guest_IA32_PAT = arg->msr02[arg->ia32_pat_index].data;
 	}
-	(void) _vmcs02_to_vmcs12_guest_IA32_PAT_unused;
+	(void)_vmcs02_to_vmcs12_guest_IA32_PAT_unused;
 }
 
 /* Guest IA32_EFER */
-static u32 _vmcs12_to_vmcs02_guest_IA32_EFER(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_guest_IA32_EFER(ARG10 * arg)
 {
 	if (_vmx_hasctl_vmentry_load_ia32_efer(arg->ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
@@ -997,21 +1005,22 @@ static u32 _vmcs12_to_vmcs02_guest_IA32_EFER(ARG10 *arg)
 		}
 	}
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_guest_IA32_EFER_unused;
+	(void)_vmcs12_to_vmcs02_guest_IA32_EFER_unused;
 }
-static void _vmcs02_to_vmcs12_guest_IA32_EFER(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_guest_IA32_EFER(ARG01 * arg)
 {
 	if (_vmx_hasctl_vmexit_save_ia32_efer(arg->ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
 		arg->vmcs12->guest_IA32_EFER = arg->msr02[arg->ia32_efer_index].data;
 	}
-	(void) _vmcs02_to_vmcs12_guest_IA32_EFER_unused;
+	(void)_vmcs02_to_vmcs12_guest_IA32_EFER_unused;
 }
 
 /* 64-Bit Host-State Fields */
 
 /* Host IA32_PAT */
-static u32 _vmcs12_to_vmcs02_host_IA32_PAT(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_host_IA32_PAT(ARG10 * arg)
 {
 	if (_vmx_hasctl_vmexit_load_ia32_pat(arg->ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
@@ -1019,9 +1028,10 @@ static u32 _vmcs12_to_vmcs02_host_IA32_PAT(ARG10 *arg)
 		HALT_ON_ERRORCOND(_check_ia32_pat(arg->vmcs12->host_IA32_PAT));
 	}
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_host_IA32_PAT_unused;
+	(void)_vmcs12_to_vmcs02_host_IA32_PAT_unused;
 }
-static void _vmcs02_to_vmcs12_host_IA32_PAT(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_host_IA32_PAT(ARG01 * arg)
 {
 	if (_vmx_hasctl_vmexit_load_ia32_pat(arg->ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
@@ -1029,11 +1039,11 @@ static void _vmcs02_to_vmcs12_host_IA32_PAT(ARG01 *arg)
 	} else {
 		arg->host_ia32_pat = arg->msr02[arg->ia32_pat_index].data;
 	}
-	(void) _vmcs02_to_vmcs12_host_IA32_PAT_unused;
+	(void)_vmcs02_to_vmcs12_host_IA32_PAT_unused;
 }
 
 /* Host IA32_EFER */
-static u32 _vmcs12_to_vmcs02_host_IA32_EFER(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_host_IA32_EFER(ARG10 * arg)
 {
 	if (_vmx_hasctl_vmexit_load_ia32_efer(arg->ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
@@ -1043,9 +1053,10 @@ static u32 _vmcs12_to_vmcs02_host_IA32_EFER(ARG10 *arg)
 										   host_long, true));
 	}
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_host_IA32_EFER_unused;
+	(void)_vmcs12_to_vmcs02_host_IA32_EFER_unused;
 }
-static void _vmcs02_to_vmcs12_host_IA32_EFER(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_host_IA32_EFER(ARG01 * arg)
 {
 	if (_vmx_hasctl_vmexit_load_ia32_efer(arg->ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
@@ -1063,11 +1074,11 @@ static void _vmcs02_to_vmcs12_host_IA32_EFER(ARG01 *arg)
 			arg->host_ia32_efer = arg->msr02[arg->ia32_efer_index].data & mask;
 		}
 	}
-	(void) _vmcs02_to_vmcs12_host_IA32_EFER_unused;
+	(void)_vmcs02_to_vmcs12_host_IA32_EFER_unused;
 }
 
 /* Host IA32_PERF_GLOBAL_CTRL */
-static u32 _vmcs12_to_vmcs02_host_IA32_PERF_GLOBAL_CTRL(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_host_IA32_PERF_GLOBAL_CTRL(ARG10 * arg)
 {
 	if (_vmx_hasctl_vmexit_load_ia32_perf_global_ctrl(arg->ctls)) {
 		u32 eax, ebx, ecx, edx;
@@ -1081,9 +1092,10 @@ static u32 _vmcs12_to_vmcs02_host_IA32_PERF_GLOBAL_CTRL(ARG10 *arg)
 		}
 	}
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_host_IA32_PERF_GLOBAL_CTRL_unused;
+	(void)_vmcs12_to_vmcs02_host_IA32_PERF_GLOBAL_CTRL_unused;
 }
-static void _vmcs02_to_vmcs12_host_IA32_PERF_GLOBAL_CTRL(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_host_IA32_PERF_GLOBAL_CTRL(ARG01 * arg)
 {
 	if (_vmx_hasctl_vmexit_load_ia32_perf_global_ctrl(arg->ctls)) {
 		u32 eax, ebx, ecx, edx;
@@ -1101,19 +1113,20 @@ static void _vmcs02_to_vmcs12_host_IA32_PERF_GLOBAL_CTRL(ARG01 *arg)
 			}
 		}
 	}
-	(void) _vmcs02_to_vmcs12_host_IA32_PERF_GLOBAL_CTRL_unused;
+	(void)_vmcs02_to_vmcs12_host_IA32_PERF_GLOBAL_CTRL_unused;
 }
 
 /* Host IA32_PKRS */
-static u32 _vmcs12_to_vmcs02_host_IA32_PKRS(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_host_IA32_PKRS(ARG10 * arg)
 {
 	if (_vmx_hasctl_vmexit_load_pkrs(arg->ctls)) {
 		__vmx_vmwrite64(VMCSENC_host_IA32_PKRS, rdmsr64(IA32_PKRS));
 	}
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_host_IA32_PKRS_unused;
+	(void)_vmcs12_to_vmcs02_host_IA32_PKRS_unused;
 }
-static void _vmcs02_to_vmcs12_host_IA32_PKRS(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_host_IA32_PKRS(ARG01 * arg)
 {
 	if (_vmx_hasctl_vmexit_load_pkrs(arg->ctls)) {
 		/* Check L1 */
@@ -1122,13 +1135,13 @@ static void _vmcs02_to_vmcs12_host_IA32_PKRS(ARG01 *arg)
 		/* Update L0 */
 		wrmsr64(IA32_PKRS, __vmx_vmread64(VMCSENC_host_IA32_PKRS));
 	}
-	(void) _vmcs02_to_vmcs12_host_IA32_PKRS_unused;
+	(void)_vmcs02_to_vmcs12_host_IA32_PKRS_unused;
 }
 
 /* 32-Bit Control Fields */
 
 /* Pin-based VM-execution controls */
-static u32 _vmcs12_to_vmcs02_control_VMX_pin_based(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VMX_pin_based(ARG10 * arg)
 {
 	/*
 	 * Note: this function needs to be called before 
@@ -1159,20 +1172,21 @@ static u32 _vmcs12_to_vmcs02_control_VMX_pin_based(ARG10 *arg)
 	val |= (1U << VMX_PINBASED_VIRTUAL_NMIS);
 	__vmx_vmwrite32(VMCSENC_control_VMX_pin_based, val);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VMX_pin_based_unused;
+	(void)_vmcs12_to_vmcs02_control_VMX_pin_based_unused;
 }
-static void _vmcs02_to_vmcs12_control_VMX_pin_based(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VMX_pin_based(ARG01 * arg)
 {
 	u32 val = arg->vmcs12->control_VMX_pin_based;
 	/* Enable NMI exiting because needed by quiesce */
 	val |= (1U << VMX_PINBASED_NMI_EXITING);
 	val |= (1U << VMX_PINBASED_VIRTUAL_NMIS);
 	HALT_ON_ERRORCOND(val == __vmx_vmread32(VMCSENC_control_VMX_pin_based));
-	(void) _vmcs02_to_vmcs12_control_VMX_pin_based_unused;
+	(void)_vmcs02_to_vmcs12_control_VMX_pin_based_unused;
 }
 
 /* Primary processor-based VM-execution controls */
-static u32 _vmcs12_to_vmcs02_control_VMX_cpu_based(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VMX_cpu_based(ARG10 * arg)
 {
 	/*
 	 * Note: this function needs to be called after
@@ -1190,9 +1204,10 @@ static u32 _vmcs12_to_vmcs02_control_VMX_cpu_based(ARG10 *arg)
 	val |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
 	__vmx_vmwrite32(VMCSENC_control_VMX_cpu_based, val);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VMX_cpu_based_unused;
+	(void)_vmcs12_to_vmcs02_control_VMX_cpu_based_unused;
 }
-static void _vmcs02_to_vmcs12_control_VMX_cpu_based(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VMX_cpu_based(ARG01 * arg)
 {
 	u32 val12 = arg->vmcs12->control_VMX_cpu_based;
 	u32 val02 = __vmx_vmread32(VMCSENC_control_VMX_cpu_based);
@@ -1202,11 +1217,11 @@ static void _vmcs02_to_vmcs12_control_VMX_cpu_based(ARG01 *arg)
 	val12 &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
 	val02 &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
 	HALT_ON_ERRORCOND(val12 == val02);
-	(void) _vmcs02_to_vmcs12_control_VMX_cpu_based_unused;
+	(void)_vmcs02_to_vmcs12_control_VMX_cpu_based_unused;
 }
 
 /* VM-exit controls */
-static u32 _vmcs12_to_vmcs02_control_VM_exit_controls(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VM_exit_controls(ARG10 * arg)
 {
 	u32 val = arg->vmcs12->control_VM_exit_controls;
 	u32 g64 = VCPU_g64(arg->vcpu);
@@ -1232,9 +1247,10 @@ static u32 _vmcs12_to_vmcs02_control_VM_exit_controls(ARG10 *arg)
 	val &= ~(1U << VMX_VMEXIT_LOAD_IA32_EFER);
 	__vmx_vmwrite32(VMCSENC_control_VM_exit_controls, val);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VM_exit_controls_unused;
+	(void)_vmcs12_to_vmcs02_control_VM_exit_controls_unused;
 }
-static void _vmcs02_to_vmcs12_control_VM_exit_controls(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VM_exit_controls(ARG01 * arg)
 {
 	u32 val = arg->vmcs12->control_VM_exit_controls;
 	u16 encoding = VMCSENC_control_VM_exit_controls;
@@ -1253,45 +1269,47 @@ static void _vmcs02_to_vmcs12_control_VM_exit_controls(ARG01 *arg)
 	val &= ~(1U << VMX_VMEXIT_SAVE_IA32_EFER);
 	val &= ~(1U << VMX_VMEXIT_LOAD_IA32_EFER);
 	HALT_ON_ERRORCOND(val == __vmx_vmread32(encoding));
-	(void) _vmcs02_to_vmcs12_control_VM_exit_controls_unused;
+	(void)_vmcs02_to_vmcs12_control_VM_exit_controls_unused;
 }
 
 /* VM-exit MSR-store count */
-static u32 _vmcs12_to_vmcs02_control_VM_exit_MSR_store_count(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VM_exit_MSR_store_count(ARG10 * arg)
 {
 	/* VMCS02 needs to always process the same MSRs as VMCS01 */
 	__vmx_vmwrite32(VMCSENC_control_VM_exit_MSR_store_count,
 					arg->vcpu->vmcs.control_VM_exit_MSR_store_count);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VM_exit_MSR_store_count_unused;
+	(void)_vmcs12_to_vmcs02_control_VM_exit_MSR_store_count_unused;
 }
-static void _vmcs02_to_vmcs12_control_VM_exit_MSR_store_count(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VM_exit_MSR_store_count(ARG01 * arg)
 {
 	u16 encoding = VMCSENC_control_VM_exit_MSR_store_count;
 	HALT_ON_ERRORCOND(arg->vcpu->vmcs.control_VM_exit_MSR_store_count ==
 					  __vmx_vmread32(encoding));
-	(void) _vmcs02_to_vmcs12_control_VM_exit_MSR_store_count_unused;
+	(void)_vmcs02_to_vmcs12_control_VM_exit_MSR_store_count_unused;
 }
 
 /* VM-exit MSR-load count */
-static u32 _vmcs12_to_vmcs02_control_VM_exit_MSR_load_count(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VM_exit_MSR_load_count(ARG10 * arg)
 {
 	/* VMCS02 needs to always process the same MSRs as VMCS01 */
 	__vmx_vmwrite32(VMCSENC_control_VM_exit_MSR_load_count,
 					arg->vcpu->vmcs.control_VM_exit_MSR_load_count);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VM_exit_MSR_load_count_unused;
+	(void)_vmcs12_to_vmcs02_control_VM_exit_MSR_load_count_unused;
 }
-static void _vmcs02_to_vmcs12_control_VM_exit_MSR_load_count(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VM_exit_MSR_load_count(ARG01 * arg)
 {
 	u16 encoding = VMCSENC_control_VM_exit_MSR_load_count;
 	HALT_ON_ERRORCOND(arg->vcpu->vmcs.control_VM_exit_MSR_load_count ==
 					  __vmx_vmread32(encoding));
-	(void) _vmcs02_to_vmcs12_control_VM_exit_MSR_load_count_unused;
+	(void)_vmcs02_to_vmcs12_control_VM_exit_MSR_load_count_unused;
 }
 
 /* VM-entry controls */
-static u32 _vmcs12_to_vmcs02_control_VM_entry_controls(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VM_entry_controls(ARG10 * arg)
 {
 	u32 val = arg->vmcs12->control_VM_entry_controls;
 	/* XMHF does not use load IA32_PAT / IA32_EFER */
@@ -1299,9 +1317,10 @@ static u32 _vmcs12_to_vmcs02_control_VM_entry_controls(ARG10 *arg)
 	val &= ~(1U << VMX_VMENTRY_LOAD_IA32_EFER);
 	__vmx_vmwrite32(VMCSENC_control_VM_entry_controls, val);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VM_entry_controls_unused;
+	(void)_vmcs12_to_vmcs02_control_VM_entry_controls_unused;
 }
-static void _vmcs02_to_vmcs12_control_VM_entry_controls(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VM_entry_controls(ARG01 * arg)
 {
 	u32 val02 = __vmx_vmread32(VMCSENC_control_VM_entry_controls);
 	u32 val12 = arg->vmcs12->control_VM_entry_controls;
@@ -1314,35 +1333,39 @@ static void _vmcs02_to_vmcs12_control_VM_entry_controls(ARG01 *arg)
 	/* Copy "IA-32e mode guest" bit from VMCS02 to VMCS12 */
 	arg->vmcs12->control_VM_entry_controls &= mask;
 	arg->vmcs12->control_VM_entry_controls |= val02 & ~mask;
-	(void) _vmcs02_to_vmcs12_control_VM_entry_controls_unused;
+	(void)_vmcs02_to_vmcs12_control_VM_entry_controls_unused;
 }
 
 /* VM-entry MSR-load count */
-static u32 _vmcs12_to_vmcs02_control_VM_entry_MSR_load_count(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VM_entry_MSR_load_count(ARG10 * arg)
 {
 	/* VMCS02 needs to always process the same MSRs as VMCS01 */
 	__vmx_vmwrite32(VMCSENC_control_VM_entry_MSR_load_count,
 					arg->vcpu->vmcs.control_VM_entry_MSR_load_count);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VM_entry_MSR_load_count_unused;
+	(void)_vmcs12_to_vmcs02_control_VM_entry_MSR_load_count_unused;
 }
-static void _vmcs02_to_vmcs12_control_VM_entry_MSR_load_count(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VM_entry_MSR_load_count(ARG01 * arg)
 {
 	u16 encoding = VMCSENC_control_VM_entry_MSR_load_count;
 	HALT_ON_ERRORCOND(arg->vcpu->vmcs.control_VM_entry_MSR_load_count ==
 					  __vmx_vmread32(encoding));
-	(void) _vmcs02_to_vmcs12_control_VM_entry_MSR_load_count_unused;
+	(void)_vmcs02_to_vmcs12_control_VM_entry_MSR_load_count_unused;
 }
 
 /* VM-entry interruption-information field */
-static u32 _vmcs12_to_vmcs02_control_VM_entry_interruption_information(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VM_entry_interruption_information(ARG10 *
+																	   arg)
 {
 	u32 val = arg->vmcs12->control_VM_entry_interruption_information;
 	__vmx_vmwrite32(VMCSENC_control_VM_entry_interruption_information, val);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VM_entry_interruption_information_unused;
+	(void)_vmcs12_to_vmcs02_control_VM_entry_interruption_information_unused;
 }
-static void _vmcs02_to_vmcs12_control_VM_entry_interruption_information(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VM_entry_interruption_information(ARG01 *
+																		arg)
 {
 	/*
 	 * VMCS02 may be changed during L2 -> L0 -> L2 VMEXITs. So don't copy to
@@ -1350,47 +1373,49 @@ static void _vmcs02_to_vmcs12_control_VM_entry_interruption_information(ARG01 *a
 	 */
 	arg->vmcs12->control_VM_entry_interruption_information &=
 		~INTR_INFO_VALID_MASK;
-	(void) _vmcs02_to_vmcs12_control_VM_entry_interruption_information_unused;
+	(void)_vmcs02_to_vmcs12_control_VM_entry_interruption_information_unused;
 }
 
 /* VM-entry exception error code */
-static u32 _vmcs12_to_vmcs02_control_VM_entry_exception_errorcode(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VM_entry_exception_errorcode(ARG10 * arg)
 {
 	u32 val = arg->vmcs12->control_VM_entry_exception_errorcode;
 	__vmx_vmwrite32(VMCSENC_control_VM_entry_exception_errorcode, val);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VM_entry_exception_errorcode_unused;
+	(void)_vmcs12_to_vmcs02_control_VM_entry_exception_errorcode_unused;
 }
-static void _vmcs02_to_vmcs12_control_VM_entry_exception_errorcode(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VM_entry_exception_errorcode(ARG01 * arg)
 {
 	/*
 	 * VMCS02 may be changed during L2 -> L0 -> L2 VMEXITs. So don't copy to
 	 * VMCS12.
 	 */
-	(void) arg;
-	(void) _vmcs02_to_vmcs12_control_VM_entry_exception_errorcode_unused;
+	(void)arg;
+	(void)_vmcs02_to_vmcs12_control_VM_entry_exception_errorcode_unused;
 }
 
 /* VM-entry instruction length */
-static u32 _vmcs12_to_vmcs02_control_VM_entry_instruction_length(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VM_entry_instruction_length(ARG10 * arg)
 {
 	u32 val = arg->vmcs12->control_VM_entry_instruction_length;
 	__vmx_vmwrite32(VMCSENC_control_VM_entry_instruction_length, val);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VM_entry_instruction_length_unused;
+	(void)_vmcs12_to_vmcs02_control_VM_entry_instruction_length_unused;
 }
-static void _vmcs02_to_vmcs12_control_VM_entry_instruction_length(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VM_entry_instruction_length(ARG01 * arg)
 {
 	/*
 	 * VMCS02 may be changed during L2 -> L0 -> L2 VMEXITs. So don't copy to
 	 * VMCS12.
 	 */
-	(void) arg;
-	(void) _vmcs02_to_vmcs12_control_VM_entry_instruction_length_unused;
+	(void)arg;
+	(void)_vmcs02_to_vmcs12_control_VM_entry_instruction_length_unused;
 }
 
 /* Secondary processor-based VM-execution controls */
-static u32 _vmcs12_to_vmcs02_control_VMX_seccpu_based(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_control_VMX_seccpu_based(ARG10 * arg)
 {
 	/* Note: VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS is always enabled */
 	u32 val = arg->vmcs12->control_VMX_seccpu_based;
@@ -1398,16 +1423,17 @@ static u32 _vmcs12_to_vmcs02_control_VMX_seccpu_based(ARG10 *arg)
 	val |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
 	__vmx_vmwrite32(VMCSENC_control_VMX_seccpu_based, val);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_control_VMX_seccpu_based_unused;
+	(void)_vmcs12_to_vmcs02_control_VMX_seccpu_based_unused;
 }
-static void _vmcs02_to_vmcs12_control_VMX_seccpu_based(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_control_VMX_seccpu_based(ARG01 * arg)
 {
 	u32 val = arg->vmcs12->control_VMX_seccpu_based;
 	u16 encoding = VMCSENC_control_VMX_seccpu_based;
 	/* XMHF needs the guest to run in EPT to protect memory */
 	val |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
 	HALT_ON_ERRORCOND(val == __vmx_vmread32(encoding));
-	(void) _vmcs02_to_vmcs12_control_VMX_seccpu_based_unused;
+	(void)_vmcs02_to_vmcs12_control_VMX_seccpu_based_unused;
 }
 
 /* 32-Bit Read-Only Data Fields */
@@ -1415,7 +1441,7 @@ static void _vmcs02_to_vmcs12_control_VMX_seccpu_based(ARG01 *arg)
 /* 32-Bit Guest-State Fields */
 
 /* Guest interruptibility state */
-static u32 _vmcs12_to_vmcs02_guest_interruptibility(ARG10 *arg)
+static u32 _vmcs12_to_vmcs02_guest_interruptibility(ARG10 * arg)
 {
 	u32 val = arg->vmcs12->guest_interruptibility;
 	if (arg->vmcs12_info->guest_nmi_exiting) {
@@ -1432,9 +1458,10 @@ static u32 _vmcs12_to_vmcs02_guest_interruptibility(ARG10 *arg)
 	HALT_ON_ERRORCOND(!arg->vmcs12_info->guest_vmcs_block_nmi_overridden);
 	__vmx_vmwrite32(VMCSENC_guest_interruptibility, val);
 	return VM_INST_SUCCESS;
-	(void) _vmcs12_to_vmcs02_guest_interruptibility_unused;
+	(void)_vmcs12_to_vmcs02_guest_interruptibility_unused;
 }
-static void _vmcs02_to_vmcs12_guest_interruptibility(ARG01 *arg)
+
+static void _vmcs02_to_vmcs12_guest_interruptibility(ARG01 * arg)
 {
 	/* Handle "Blocking by NMI" */
 	u32 val = __vmx_vmread32(VMCSENC_guest_interruptibility);
@@ -1472,7 +1499,7 @@ static void _vmcs02_to_vmcs12_guest_interruptibility(ARG01 *arg)
 	arg->vmcs12->guest_interruptibility = val;
 	/* There is no blocking by STI or by MOV SS after a VM exit */
 	arg->vcpu->vmcs.guest_interruptibility &= ~((1U << 0) | (1U << 1));
-	(void) _vmcs02_to_vmcs12_guest_interruptibility_unused;
+	(void)_vmcs02_to_vmcs12_guest_interruptibility_unused;
 }
 
 /* 32-Bit Host-State Field */
