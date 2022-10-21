@@ -973,7 +973,7 @@ static void _vmcs02_to_vmcs12_host_IA32_PAT(ARG01 *arg)
 	(void) _vmcs02_to_vmcs12_host_IA32_PAT_unused;
 	if (_vmx_hasctl_vmexit_load_ia32_pat(arg->ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
-		arg->host_ia32_pat = vmcs12->host_IA32_PAT;
+		arg->host_ia32_pat = arg->vmcs12->host_IA32_PAT;
 	} else {
 		arg->host_ia32_pat = arg->msr02[arg->ia32_pat_index].data;
 	}
@@ -997,7 +997,7 @@ static void _vmcs02_to_vmcs12_host_IA32_EFER(ARG01 *arg)
 	(void) _vmcs02_to_vmcs12_host_IA32_EFER_unused;
 	if (_vmx_hasctl_vmexit_load_ia32_efer(arg->ctls)) {
 		/* XMHF never uses this feature. Instead, uses MSR load / save area */
-		arg->host_ia32_efer = vmcs12->host_IA32_EFER;
+		arg->host_ia32_efer = arg->vmcs12->host_IA32_EFER;
 	} else {
 		/*
 		 * When not loading IA32_EFER, IA32_EFER is changed as following:
@@ -1072,6 +1072,182 @@ static void _vmcs02_to_vmcs12_host_IA32_PKRS(ARG01 *arg)
 	}
 }
 
+/* 32-Bit Control Fields */
+
+/* Pin-based VM-execution controls */
+static u32 _vmcs12_to_vmcs02_control_VMX_pin_based(ARG10 *arg)
+{
+	/*
+	 * Note: this function needs to be called before 
+	 * _vmcs12_to_vmcs02_control_VMX_cpu_based().
+	 */
+	u32 val = arg->vmcs12->control_VMX_pin_based;
+	(void) _vmcs12_to_vmcs02_control_VMX_pin_based_unused;
+	/* Check for relationship between "NMI exiting" and "virtual NMIs" */
+	arg->vmcs12_info->guest_nmi_exiting = _vmx_hasctl_nmi_exiting(arg->ctls);
+	arg->vmcs12_info->guest_virtual_nmis = _vmx_hasctl_virtual_nmis(arg->ctls);
+	if (!arg->vmcs12_info->guest_nmi_exiting &&
+		arg->vmcs12_info->guest_virtual_nmis) {
+		return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
+	}
+	/*
+	 * Disallow NMI injection if NMI exiting = 0.
+	 * This is a limitation of XMHF. The correct behavior is to make NMI
+	 * not blocked after injecting NMI. However, this requires non-trivial
+	 * XMHF implementation effort. So not implemented, at least for now.
+	 */
+	if (!arg->vmcs12_info->guest_nmi_exiting) {
+		u32 injection = arg->vmcs12->control_VM_entry_interruption_information;
+		if (xmhf_nested_arch_x86vmx_is_interruption_nmi(injection)) {
+			HALT_ON_ERRORCOND(0 && "Not supported (XMHF limitation)");
+		}
+	}
+	/* Enable NMI exiting because needed by quiesce */
+	val |= (1U << VMX_PINBASED_NMI_EXITING);
+	val |= (1U << VMX_PINBASED_VIRTUAL_NMIS);
+	__vmx_vmwrite32(VMCSENC_control_VMX_pin_based, val);
+	return VM_INST_SUCCESS;
+}
+static void _vmcs02_to_vmcs12_control_VMX_pin_based(ARG01 *arg)
+{
+	u32 val = arg->vmcs12->control_VMX_pin_based;
+	(void) _vmcs02_to_vmcs12_control_VMX_pin_based_unused;
+	/* Enable NMI exiting because needed by quiesce */
+	val |= (1U << VMX_PINBASED_NMI_EXITING);
+	val |= (1U << VMX_PINBASED_VIRTUAL_NMIS);
+	HALT_ON_ERRORCOND(val == __vmx_vmread32(VMCSENC_control_VMX_pin_based));
+}
+
+/* Primary processor-based VM-execution controls */
+static u32 _vmcs12_to_vmcs02_control_VMX_cpu_based(ARG10 *arg)
+{
+	/*
+	 * Note: this function needs to be called after 
+	 * _vmcs12_to_vmcs02_control_VMX_pin_based().
+	 */
+	u32 val = arg->vmcs12->control_VMX_cpu_based;
+	(void) _vmcs12_to_vmcs02_control_VMX_cpu_based_unused;
+	/* Check for relationship between "virtual NMIs" and "NMI-window exiting" */
+	arg->vmcs12_info->guest_nmi_window_exiting =
+		_vmx_hasctl_nmi_window_exiting(arg->ctls);
+	if (!arg->vmcs12_info->guest_virtual_nmis &&
+		arg->vmcs12_info->guest_nmi_window_exiting) {
+		return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
+	}
+	/* XMHF needs to activate secondary controls because of EPT */
+	val |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
+	__vmx_vmwrite32(VMCSENC_control_VMX_cpu_based, val);
+	return VM_INST_SUCCESS;
+}
+static void _vmcs02_to_vmcs12_control_VMX_cpu_based(ARG01 *arg)
+{
+	u32 val12 = arg->vmcs12->control_VMX_cpu_based;
+	u32 val02 = __vmx_vmread32(VMCSENC_control_VMX_cpu_based);
+	(void) _vmcs02_to_vmcs12_control_VMX_cpu_based_unused;
+	/* Secondary controls are always required in VMCS02 for EPT */
+	val12 |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
+	/* NMI window exiting may change due to L0 */
+	val12 &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+	val02 &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
+	HALT_ON_ERRORCOND(val12 == val02);
+}
+
+/* Exception bitmap */
+static u32 _vmcs12_to_vmcs02_control_exception_bitmap(ARG10 *arg)
+{
+	u32 val = arg->vmcs12->control_exception_bitmap;
+	(void) _vmcs12_to_vmcs02_control_exception_bitmap_unused;
+	// TODO: in the future, need to merge with host's exception bitmap
+	__vmx_vmwrite32(VMCSENC_control_exception_bitmap, val);
+	return VM_INST_SUCCESS;
+}
+static void _vmcs02_to_vmcs12_control_exception_bitmap(ARG01 *arg)
+{
+	// TODO: in the future, need to merge with host's exception bitmap
+	u32 val = arg->vmcs12->control_exception_bitmap;
+	u16 encoding = VMCSENC_control_exception_bitmap;
+	(void) _vmcs02_to_vmcs12_control_exception_bitmap_unused;
+	HALT_ON_ERRORCOND(val == __vmx_vmread32(encoding));
+}
+
+/* VM-exit controls */
+static u32 _vmcs12_to_vmcs02_control_VM_exit_controls(ARG10 *arg)
+{
+	u32 val = arg->vmcs12->control_VM_exit_controls;
+	u32 g64 = VCPU_g64(arg->vcpu);
+	(void) _vmcs12_to_vmcs02_control_VM_exit_controls_unused;
+	/* Check the "IA-32e mode guest" bit of the guest hypervisor */
+	if (val & (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE)) {
+		HALT_ON_ERRORCOND(g64);
+	} else {
+		HALT_ON_ERRORCOND(!g64);
+	}
+	/*
+	 * The "IA-32e mode guest" bit need to match XMHF. A mismatch can only
+	 * happen when amd64 XMHF runs i386 guest hypervisor.
+	 */
+#ifdef __AMD64__
+	val |= (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE);
+#elif !defined(__I386__)
+#error "Unsupported Arch"
+#endif							/* !defined(__I386__) */
+	/* XMHF does not use save / load IA32_PAT / IA32_EFER */
+	val &= ~(1U << VMX_VMEXIT_SAVE_IA32_PAT);
+	val &= ~(1U << VMX_VMEXIT_LOAD_IA32_PAT);
+	val &= ~(1U << VMX_VMEXIT_SAVE_IA32_EFER);
+	val &= ~(1U << VMX_VMEXIT_LOAD_IA32_EFER);
+	__vmx_vmwrite32(VMCSENC_control_VM_exit_controls, val);
+	return VM_INST_SUCCESS;
+}
+static void _vmcs02_to_vmcs12_control_VM_exit_controls(ARG01 *arg)
+{
+	u32 val = arg->vmcs12->control_VM_exit_controls;
+	u16 encoding = VMCSENC_control_VM_exit_controls;
+	(void) _vmcs02_to_vmcs12_control_VM_exit_controls_unused;
+	/*
+	 * The "IA-32e mode guest" bit need to match XMHF. A mismatch can only
+	 * happen when amd64 XMHF runs i386 guest hypervisor.
+	 */
+#ifdef __AMD64__
+	val |= (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE);
+#elif !defined(__I386__)
+#error "Unsupported Arch"
+#endif							/* !defined(__I386__) */
+	/* XMHF does not use save / load IA32_PAT / IA32_EFER */
+	val &= ~(1U << VMX_VMEXIT_SAVE_IA32_PAT);
+	val &= ~(1U << VMX_VMEXIT_LOAD_IA32_PAT);
+	val &= ~(1U << VMX_VMEXIT_SAVE_IA32_EFER);
+	val &= ~(1U << VMX_VMEXIT_LOAD_IA32_EFER);
+	HALT_ON_ERRORCOND(val == __vmx_vmread32(encoding));
+}
+
+/* VM-entry controls */
+static u32 _vmcs12_to_vmcs02_control_VM_entry_controls(ARG10 *arg)
+{
+	u32 val = arg->vmcs12->control_VM_entry_controls;
+	(void) _vmcs12_to_vmcs02_control_VM_entry_controls_unused;
+	/* XMHF does not use load IA32_PAT / IA32_EFER */
+	val &= ~(1U << VMX_VMENTRY_LOAD_IA32_PAT);
+	val &= ~(1U << VMX_VMENTRY_LOAD_IA32_EFER);
+	__vmx_vmwrite32(VMCSENC_control_VM_entry_controls, val);
+	return VM_INST_SUCCESS;
+}
+static void _vmcs02_to_vmcs12_control_VM_entry_controls(ARG01 *arg)
+{
+	u32 val02 = __vmx_vmread32(VMCSENC_control_VM_entry_controls);
+	u32 val12 = arg->vmcs12->control_VM_entry_controls;
+	u32 mask = ~(1U << VMX_VMENTRY_IA_32E_MODE_GUEST);
+	(void) _vmcs02_to_vmcs12_control_VM_entry_controls_unused;
+	/* XMHF does not use load IA32_PAT / IA32_EFER */
+	val12 &= ~(1U << VMX_VMENTRY_LOAD_IA32_PAT);
+	val12 &= ~(1U << VMX_VMENTRY_LOAD_IA32_EFER);
+	/* Check that other bits are not changed */
+	HALT_ON_ERRORCOND((val12 & mask) == (val02 & mask));
+	/* Copy "IA-32e mode guest" bit from VMCS02 to VMCS12 */
+	arg->vmcs12->control_VM_entry_controls &= mask;
+	arg->vmcs12->control_VM_entry_controls |= val02 & ~mask;
+}
+
 // LXY TODO
 
 /*
@@ -1131,78 +1307,6 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 
 // LXY TODO
 
-	/* 32-Bit Control Fields */
-	{
-		u32 val = vmcs12->control_VMX_pin_based;
-		/* Check for relationship between "NMI exiting" and "virtual NMIs" */
-		vmcs12_info->guest_nmi_exiting = _vmx_hasctl_nmi_exiting(&ctls);
-		vmcs12_info->guest_virtual_nmis = _vmx_hasctl_virtual_nmis(&ctls);
-		if (!vmcs12_info->guest_nmi_exiting && vmcs12_info->guest_virtual_nmis) {
-			return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
-		}
-		/*
-		 * Disallow NMI injection if NMI exiting = 0.
-		 * This is a limitation of XMHF. The correct behavior is to make NMI
-		 * not blocked after injecting NMI. However, this requires non-trivial
-		 * XMHF implementation effort. So not implemented, at least for now.
-		 */
-		if (!vmcs12_info->guest_nmi_exiting) {
-			u32 injection = vmcs12->control_VM_entry_interruption_information;
-			if (xmhf_nested_arch_x86vmx_is_interruption_nmi(injection)) {
-				HALT_ON_ERRORCOND(0 && "Not supported (XMHF limitation)");
-			}
-		}
-		/* Enable NMI exiting because needed by quiesce */
-		val |= (1U << VMX_PINBASED_NMI_EXITING);
-		val |= (1U << VMX_PINBASED_VIRTUAL_NMIS);
-		__vmx_vmwrite32(VMCSENC_control_VMX_pin_based, val);
-	}
-	{
-		u32 val = vmcs12->control_VMX_cpu_based;
-		/*
-		 * Check for relationship between "virtual NMIs" and "NMI-window
-		 * exiting"
-		 */
-		vmcs12_info->guest_nmi_window_exiting =
-			_vmx_hasctl_nmi_window_exiting(&ctls);
-		if (!vmcs12_info->guest_virtual_nmis &&
-			vmcs12_info->guest_nmi_window_exiting) {
-			return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
-		}
-		/* XMHF needs to activate secondary controls because of EPT */
-		val |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
-		__vmx_vmwrite32(VMCSENC_control_VMX_cpu_based, val);
-	}
-	{
-		u32 val = vmcs12->control_exception_bitmap;
-		// TODO: in the future, need to merge with host's exception bitmap
-		__vmx_vmwrite32(VMCSENC_control_exception_bitmap, val);
-	}
-	{
-		u32 val = vmcs12->control_VM_exit_controls;
-		u32 g64 = VCPU_g64(vcpu);
-		/* Check the "IA-32e mode guest" bit of the guest hypervisor */
-		if (val & (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE)) {
-			HALT_ON_ERRORCOND(g64);
-		} else {
-			HALT_ON_ERRORCOND(!g64);
-		}
-		/*
-		 * The "IA-32e mode guest" bit need to match XMHF. A mismatch can only
-		 * happen when amd64 XMHF runs i386 guest hypervisor.
-		 */
-#ifdef __AMD64__
-		val |= (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE);
-#elif !defined(__I386__)
-#error "Unsupported Arch"
-#endif							/* !defined(__I386__) */
-		/* XMHF does not use save / load IA32_PAT / IA32_EFER */
-		val &= ~(1U << VMX_VMEXIT_SAVE_IA32_PAT);
-		val &= ~(1U << VMX_VMEXIT_LOAD_IA32_PAT);
-		val &= ~(1U << VMX_VMEXIT_SAVE_IA32_EFER);
-		val &= ~(1U << VMX_VMEXIT_LOAD_IA32_EFER);
-		__vmx_vmwrite32(VMCSENC_control_VM_exit_controls, val);
-	}
 	{
 		__vmx_vmwrite32(VMCSENC_control_VM_exit_MSR_store_count,
 						vcpu->vmcs.control_VM_exit_MSR_store_count);
@@ -1218,13 +1322,6 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 						hva2spa(vmcs12_info->vmcs02_vmexit_msr_load_area));
 
 		/* VMX control is not checked here; will check in VMEXIT handler */
-	}
-	{
-		u32 val = vmcs12->control_VM_entry_controls;
-		/* XMHF does not use load IA32_PAT / IA32_EFER */
-		val &= ~(1U << VMX_VMENTRY_LOAD_IA32_PAT);
-		val &= ~(1U << VMX_VMENTRY_LOAD_IA32_EFER);
-		__vmx_vmwrite32(VMCSENC_control_VM_entry_controls, val);
 	}
 	{
 		u32 i;
@@ -1384,49 +1481,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 
 // LXY TODO
 
-	/* 32-Bit Control Fields */
-	{
-		u32 val = vmcs12->control_VMX_pin_based;
-		/* Enable NMI exiting because needed by quiesce */
-		val |= (1U << VMX_PINBASED_NMI_EXITING);
-		val |= (1U << VMX_PINBASED_VIRTUAL_NMIS);
-		HALT_ON_ERRORCOND(val == __vmx_vmread32(VMCSENC_control_VMX_pin_based));
-	}
-	{
-		u32 val12 = vmcs12->control_VMX_cpu_based;
-		u32 val02 = __vmx_vmread32(VMCSENC_control_VMX_cpu_based);
-		/* Secondary controls are always required in VMCS02 for EPT */
-		val12 |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
-		/* NMI window exiting may change due to L0 */
-		val12 &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
-		val02 &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
-		HALT_ON_ERRORCOND(val12 == val02);
-	}
-	{
-		// TODO: in the future, need to merge with host's exception bitmap
-		u32 val = vmcs12->control_exception_bitmap;
-		u16 encoding = VMCSENC_control_exception_bitmap;
-		HALT_ON_ERRORCOND(val == __vmx_vmread32(encoding));
-	}
-	{
-		u32 val = vmcs12->control_VM_exit_controls;
-		u16 encoding = VMCSENC_control_VM_exit_controls;
-		/*
-		 * The "IA-32e mode guest" bit need to match XMHF. A mismatch can only
-		 * happen when amd64 XMHF runs i386 guest hypervisor.
-		 */
-#ifdef __AMD64__
-		val |= (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE);
-#elif !defined(__I386__)
-#error "Unsupported Arch"
-#endif							/* !defined(__I386__) */
-		/* XMHF does not use save / load IA32_PAT / IA32_EFER */
-		val &= ~(1U << VMX_VMEXIT_SAVE_IA32_PAT);
-		val &= ~(1U << VMX_VMEXIT_LOAD_IA32_PAT);
-		val &= ~(1U << VMX_VMEXIT_SAVE_IA32_EFER);
-		val &= ~(1U << VMX_VMEXIT_LOAD_IA32_EFER);
-		HALT_ON_ERRORCOND(val == __vmx_vmread32(encoding));
-	}
 	{
 		u32 i;
 		gva_t guest_addr = vmcs12->control_VM_exit_MSR_store_address;
@@ -1477,8 +1531,8 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 						  __vmx_vmread64(encoding));
 
 		/* Set IA32_PAT and IA32_EFER in VMCS01 guest */
-		msr01[ia32_pat_index].data = arg->host_ia32_pat;
-		msr01[ia32_efer_index].data = arg->host_ia32_efer;
+		msr01[ia32_pat_index].data = arg.host_ia32_pat;
+		msr01[ia32_efer_index].data = arg.host_ia32_efer;
 
 		/* Write MSRs as requested by guest */
 		for (i = 0; i < vmcs12->control_VM_exit_MSR_load_count; i++) {
@@ -1500,19 +1554,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 				}
 			}
 		}
-	}
-	{
-		u32 val02 = __vmx_vmread32(VMCSENC_control_VM_entry_controls);
-		u32 val12 = vmcs12->control_VM_entry_controls;
-		u32 mask = ~(1U << VMX_VMENTRY_IA_32E_MODE_GUEST);
-		/* XMHF does not use load IA32_PAT / IA32_EFER */
-		val12 &= ~(1U << VMX_VMENTRY_LOAD_IA32_PAT);
-		val12 &= ~(1U << VMX_VMENTRY_LOAD_IA32_EFER);
-		/* Check that other bits are not changed */
-		HALT_ON_ERRORCOND((val12 & mask) == (val02 & mask));
-		/* Copy "IA-32e mode guest" bit from VMCS02 to VMCS12 */
-		vmcs12->control_VM_entry_controls &= mask;
-		vmcs12->control_VM_entry_controls |= val02 & ~mask;
 	}
 	{
 		/* VMCS02 needs to always process the same MSRs as VMCS01 */
