@@ -1575,6 +1575,61 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 }
 
 /*
+ * Perform operations in xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02() that depend
+ * on walking EPT01. This is intended to be called when XMHF or hypapp decides
+ * to flush EPT. As a rule of thumb, functions called by
+ * xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02() that uses arg->ctx_pair should
+ * also be called by this function.
+ */
+void xmhf_nested_arch_x86vmx_rewalk_ept01(VCPU * vcpu,
+										  vmcs12_info_t * vmcs12_info)
+{
+	struct nested_vmcs12 *vmcs12 = &vmcs12_info->vmcs12_value;
+	vmx_ctls_t ctls;
+	guestmem_hptw_ctx_pair_t ctx_pair;
+	ARG10 arg = {
+		.vcpu = vcpu,
+		.vmcs12_info = vmcs12_info,
+		.vmcs12 = vmcs12,
+		.ctls = &ctls,
+		.ctx_pair = &ctx_pair,
+		/* All fields below are not used */
+		.guest_ia32_pat = 0,
+		.guest_ia32_efer = 0,
+		.ia32_pat_index = 0,
+		.ia32_efer_index = 0,
+		.msr01 = NULL,
+	};
+	HALT_ON_ERRORCOND(_vmcs12_get_ctls(vcpu, vmcs12, &ctls) == 0);
+	guestmem_init(vcpu, &ctx_pair);
+
+#define FIELD_CTLS_ARG (&ctls)
+#define DECLARE_FIELD_64_RW(encoding, name, ...) \
+	{ \
+		HALT_ON_ERRORCOND(_vmcs12_to_vmcs02_##name(&arg) != VM_INST_SUCCESS); \
+	}
+#include "nested-x86vmx-vmcs12-fields.h"
+
+	/* Special handling for EPT02 */
+	if (vmcs12_info->guest_ept_enable) {
+		ept02_cache_line_t *cache_line;
+		bool cache_hit;
+		gpa_t ept12 = vmcs12_info->guest_ept_root;
+		spa_t ept02 = xmhf_nested_arch_x86vmx_get_ept02(vcpu, ept12, &cache_hit,
+														&cache_line);
+		HALT_ON_ERRORCOND(!cache_hit);
+		vmcs12_info->guest_ept_cache_line = cache_line;
+		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
+#ifdef __DEBUG_QEMU__
+		_workaround_kvm_bug_216212(&arg);
+#endif							/* !__DEBUG_QEMU__ */
+		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
+	} else {
+		_update_pae_pdpte(&arg);
+	}
+}
+
+/*
  * Translate VMCS02 (already loaded as current VMCS) to VMCS12 (vmcs12)
  */
 void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
@@ -1845,61 +1900,6 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 	{
 		/* RFLAGS is cleared, except bit 1, which is always set */
 		vcpu->vmcs.guest_RFLAGS = (1UL << 1);
-	}
-}
-
-/*
- * Perform operations in xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02() that depend
- * on walking EPT01. This is intended to be called when XMHF or hypapp decides
- * to flush EPT. As a rule of thumb, functions called by
- * xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02() that uses arg->ctx_pair should
- * also be called by this function.
- */
-void xmhf_nested_arch_x86vmx_rewalk_ept01(VCPU * vcpu,
-										  vmcs12_info_t * vmcs12_info)
-{
-	struct nested_vmcs12 *vmcs12 = &vmcs12_info->vmcs12_value;
-	vmx_ctls_t ctls;
-	guestmem_hptw_ctx_pair_t ctx_pair;
-	ARG10 arg = {
-		.vcpu = vcpu,
-		.vmcs12_info = vmcs12_info,
-		.vmcs12 = vmcs12,
-		.ctls = &ctls,
-		.ctx_pair = &ctx_pair,
-		/* All fields below are not used */
-		.guest_ia32_pat = 0,
-		.guest_ia32_efer = 0,
-		.ia32_pat_index = 0,
-		.ia32_efer_index = 0,
-		.msr01 = NULL,
-	};
-	HALT_ON_ERRORCOND(_vmcs12_get_ctls(vcpu, vmcs12, &ctls) == 0);
-	guestmem_init(vcpu, &ctx_pair);
-
-#define FIELD_CTLS_ARG (&ctls)
-#define DECLARE_FIELD_64_RW(encoding, name, ...) \
-	{ \
-		HALT_ON_ERRORCOND(_vmcs12_to_vmcs02_##name(&arg) != VM_INST_SUCCESS); \
-	}
-#include "nested-x86vmx-vmcs12-fields.h"
-
-	/* Special handling for EPT02 */
-	if (vmcs12_info->guest_ept_enable) {
-		ept02_cache_line_t *cache_line;
-		bool cache_hit;
-		gpa_t ept12 = vmcs12_info->guest_ept_root;
-		spa_t ept02 = xmhf_nested_arch_x86vmx_get_ept02(vcpu, ept12, &cache_hit,
-														&cache_line);
-		HALT_ON_ERRORCOND(!cache_hit);
-		vmcs12_info->guest_ept_cache_line = cache_line;
-		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
-#ifdef __DEBUG_QEMU__
-		_workaround_kvm_bug_216212(&arg);
-#endif							/* !__DEBUG_QEMU__ */
-		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
-	} else {
-		_update_pae_pdpte(&arg);
 	}
 }
 
