@@ -469,7 +469,7 @@ DECLARE_FIELD_32_RW(0x4002, control_VMX_cpu_based,
 					_unused,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4004, control_exception_bitmap,
-					(FIELD_PROP_CTRL),
+					(FIELD_PROP_CTRL | FIELD_PROP_ID_GUEST | FIELD_PROP_SWWRONLY),
 					(1),
 					_unused,
 					UNDEFINED)

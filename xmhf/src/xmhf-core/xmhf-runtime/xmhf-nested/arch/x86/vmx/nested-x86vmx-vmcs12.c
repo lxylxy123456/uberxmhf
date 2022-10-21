@@ -1152,24 +1152,6 @@ static void _vmcs02_to_vmcs12_control_VMX_cpu_based(ARG01 *arg)
 	HALT_ON_ERRORCOND(val12 == val02);
 }
 
-/* Exception bitmap */
-static u32 _vmcs12_to_vmcs02_control_exception_bitmap(ARG10 *arg)
-{
-	u32 val = arg->vmcs12->control_exception_bitmap;
-	(void) _vmcs12_to_vmcs02_control_exception_bitmap_unused;
-	// TODO: in the future, need to merge with host's exception bitmap
-	__vmx_vmwrite32(VMCSENC_control_exception_bitmap, val);
-	return VM_INST_SUCCESS;
-}
-static void _vmcs02_to_vmcs12_control_exception_bitmap(ARG01 *arg)
-{
-	// TODO: in the future, need to merge with host's exception bitmap
-	u32 val = arg->vmcs12->control_exception_bitmap;
-	u16 encoding = VMCSENC_control_exception_bitmap;
-	(void) _vmcs02_to_vmcs12_control_exception_bitmap_unused;
-	HALT_ON_ERRORCOND(val == __vmx_vmread32(encoding));
-}
-
 /* VM-exit controls */
 static u32 _vmcs12_to_vmcs02_control_VM_exit_controls(ARG10 *arg)
 {
