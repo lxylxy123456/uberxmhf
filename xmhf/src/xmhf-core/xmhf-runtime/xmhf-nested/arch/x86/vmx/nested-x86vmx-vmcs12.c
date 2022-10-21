@@ -870,7 +870,7 @@ static void _update_pae_pdpte(ARG10 *arg)
 	}
 }
 #ifdef __DEBUG_QEMU__
-static void _workaround_kvm_bug_216212(ARG10 *arg)
+static void _workaround_kvm_216212(ARG10 *arg, ept02_cache_line_t *cache_line)
 {
 	/*
 	 * Workaround a KVM bug: https://bugzilla.kernel.org/show_bug.cgi?id=216212
@@ -908,7 +908,7 @@ static u32 _vmcs12_to_vmcs02_control_EPT_pointer(ARG10 *arg)
 		arg->vmcs12_info->guest_ept_cache_line = cache_line;
 		arg->vmcs12_info->guest_ept_root = ept12;
 #ifdef __DEBUG_QEMU__
-		_workaround_kvm_bug_216212(arg);
+		_workaround_kvm_216212(arg, cache_line);
 #endif							/* !__DEBUG_QEMU__ */
 	} else {
 		/* Guest does not use EPT, just use XMHF's EPT */
@@ -1606,7 +1606,7 @@ void xmhf_nested_arch_x86vmx_rewalk_ept01(VCPU * vcpu,
 #define FIELD_CTLS_ARG (&ctls)
 #define DECLARE_FIELD_64_RW(encoding, name, ...) \
 	{ \
-		HALT_ON_ERRORCOND(_vmcs12_to_vmcs02_##name(&arg) != VM_INST_SUCCESS); \
+		HALT_ON_ERRORCOND(_vmcs12_to_vmcs02_##name(&arg) == VM_INST_SUCCESS); \
 	}
 #include "nested-x86vmx-vmcs12-fields.h"
 
@@ -1621,7 +1621,7 @@ void xmhf_nested_arch_x86vmx_rewalk_ept01(VCPU * vcpu,
 		vmcs12_info->guest_ept_cache_line = cache_line;
 		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
 #ifdef __DEBUG_QEMU__
-		_workaround_kvm_bug_216212(&arg);
+		_workaround_kvm_216212(&arg, cache_line);
 #endif							/* !__DEBUG_QEMU__ */
 		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
 	} else {
