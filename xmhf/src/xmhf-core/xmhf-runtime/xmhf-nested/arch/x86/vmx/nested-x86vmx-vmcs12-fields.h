@@ -534,9 +534,9 @@ DECLARE_FIELD_32_RW(0x401C, control_Task_PRivilege_Threshold,
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x401E, control_VMX_seccpu_based,
-					(FIELD_PROP_CTRL | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_CTRL),
 					(_vmx_hasctl_activate_secondary_controls(FIELD_CTLS_ARG)),
-					,
+					_unused,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4020, control_PLE_gap,
 					(FIELD_PROP_CTRL | FIELD_PROP_ID_GUEST | FIELD_PROP_SWWRONLY),
@@ -683,9 +683,9 @@ DECLARE_FIELD_32_RW(0x4822, guest_TR_access_rights,
 					,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4824, guest_interruptibility,
-					(FIELD_PROP_GUEST | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_GUEST),
 					(1),
-					,
+					_unused,
 					UNDEFINED)
 DECLARE_FIELD_32_RW(0x4826, guest_activity_state,
 					(FIELD_PROP_GUEST | FIELD_PROP_ID_GUEST),
@@ -710,7 +710,7 @@ DECLARE_FIELD_32_RW(0x482E, guest_VMX_preemption_timer_value,
 
 /* 32-Bit Host-State Field */
 DECLARE_FIELD_32_RW(0x4C00, host_SYSENTER_CS,
-					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_HOST | FIELD_PROP_ID_HOST),
 					(1),
 					_unused,
 					UNDEFINED)
@@ -968,17 +968,17 @@ DECLARE_FIELD_NW_RW(0x6C16, host_RIP,
 					_unused,
 					UNDEFINED)
 DECLARE_FIELD_NW_RW(0x6C18, host_IA32_S_CET,
-					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_HOST | FIELD_PROP_UNSUPP),
 					(_vmx_hasctl_vmexit_load_cet_state(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
 DECLARE_FIELD_NW_RW(0x6C1A, host_SSP,
-					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_HOST | FIELD_PROP_UNSUPP),
 					(_vmx_hasctl_vmexit_load_cet_state(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
 DECLARE_FIELD_NW_RW(0x6C1C, host_IA32_INTERRUPT_SSP_TABLE_ADDR,
-					(FIELD_PROP_HOST | FIELD_PROP_IGNORE /* TODO */),
+					(FIELD_PROP_HOST | FIELD_PROP_UNSUPP),
 					(_vmx_hasctl_vmexit_load_cet_state(FIELD_CTLS_ARG)),
 					,
 					UNDEFINED)
