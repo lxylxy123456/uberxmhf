@@ -155,6 +155,10 @@ In the mean time, tested Windows on Dell 7050 a little bit. Using
 
 Will handle Windows 7 problem in `bug_099`.
 
+Also tried to install Windows 11 on Dell. Looks like Windows 11 can only be
+installed in UEFI environment. If the installation USB is booted using legacy
+mode, Windows 11 will report unsupported hardware.
+
 Merged PR in `xmhf64 5185f1e6a..f8029f6e8`. Immediately before the merge,
 branchs are `xmhf64-tboot10-tmp c426b0e0e..77b875fc0` and
 `xmhf64-tboot10 c426b0e0e..d4507447b`. After the merge these 2 branchs are

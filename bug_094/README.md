@@ -250,7 +250,7 @@ Fixing in `xmhf64-nest 0bd29bc66`. However, the problem now becomes an
 assertion error. This is because VMPTRLD is called with no active VMCS pointer.
 Fixed in `xmhf64-nest 3ca7e20f5` by checking for this special case.
 
-### Testing Windows
+### Testing Windows as guest
 
 At `xmhf64-nest-dev c91401f26` (`xmhf64-nest 4bfe710ab`), using
 `./build.sh amd64 --dmap --mem 0x230000000 --event-logger` to build XMHF.
@@ -282,6 +282,16 @@ EPT12 as read only and only invalidate part of EPT02. We need to study shadow
 paging. Sample references:
 * <https://www.kernel.org/doc/Documentation/virtual/kvm/mmu.txt>
 * <https://stackoverflow.com/questions/14176904/>
+
+### Testing Windows as L1 host
+
+We also test running XMHF, Windows 10 x64, Nested guest. Planned hypervisors
+are VirtualBox, VMware, Hyper-V (if supported). Then will try virtualization
+based security.
+
+* HP, amd64 XMHF, win10x64, VirtualBox, win10x86: see mouse and black screen
+  (too slow to reach login screen)
+* HP, amd64 XMHF, win10x64, VirtualBox, win10x64: see mouse and black screen
 
 ## Fix
 

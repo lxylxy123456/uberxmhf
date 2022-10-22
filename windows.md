@@ -151,3 +151,12 @@ still sees host's date, but Windows XP x64 will see the fake date.
 
 Ref: <https://unix.stackexchange.com/questions/345483/>
 
+### Windows 10 Disable Update
+
+Ref: <https://www.cleverfiles.com/howto/disable-update-windows-10.html>
+
+Run `services.msc`, "Windows Update", "Properties", "Startup type" set to
+"Disabled".
+
+Or maybe just cut the Internet.
+
