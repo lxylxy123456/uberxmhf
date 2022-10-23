@@ -1212,13 +1212,21 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 */
 	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
 		if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_RDMSR) {
-			printf("{%d,%d,0x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, r->ecx);
+			if (r->ecx != 0xc0000080) {
+				printf("{%d,%d,%d,0x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, r->ecx);
+			}
 		} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_WRMSR) {
-			printf("{%d,%d,0x%08x,0x%08x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, r->ecx, r->edx, r->eax);
+			if (r->ecx != 0xc0000080) {
+				printf("{%d,%d,%d,0x%08x,0x%08x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, r->ecx, r->edx, r->eax);
+			}
 		} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_CPUID) {
-			printf("{%d,%d,0x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, r->eax);
+			printf("{%d,%d,%d,0x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, r->eax);
 		} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EPT_VIOLATION) {
-			printf("{%d,%d,0x%08lx,0x%016llx,0x%08lx}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.info_exit_qualification, vcpu->vmcs.guest_paddr, vcpu->vmcs.info_guest_linear_address);
+			printf("{%d,%d,%d,0x%08lx,0x%016llx,0x%08lx}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, vcpu->vmcs.info_exit_qualification, vcpu->vmcs.guest_paddr, vcpu->vmcs.info_guest_linear_address);
+			if (vcpu->vmcs.info_exit_qualification == 0x182U &&
+				vcpu->vmcs.guest_paddr == 0x00000000fee00300ULL) {
+				// asm volatile("1: nop; jmp 1b; nop; nop; nop; nop; nop; nop; nop; nop");
+			}
 			{
 				u64 inst;
 				guestmem_hptw_ctx_pair_t ctx_pair;
@@ -1234,8 +1242,11 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				printf("\tRDI = 0x%016llx\n", r->rdi);
 			}
 		} else {
-			printf("{%d,%d}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
+			printf("{%d,%d,%d}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility);
 		}
+	} else {
+		// TODO: will deadlock
+		printf("{%d,%d,%d,0x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, vcpu->vmcs.info_vmexit_interrupt_information);
 	}
 
 #ifdef __DEBUG_EVENT_LOGGER__
