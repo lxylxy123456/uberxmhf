@@ -292,6 +292,11 @@ based security.
 * HP, amd64 XMHF, win10x64, VirtualBox, win10x86: see mouse and black screen
   (too slow to reach login screen)
 * HP, amd64 XMHF, win10x64, VirtualBox, win10x64: see mouse and black screen
+  (too slow to reach login screen)
+* Dell, amd64 XMHF, win10x64, VirtualBox, win10x86: can boot
+* Dell, amd64 XMHF, win10x64, VirtualBox, win10x64: can boot
+* Dell, amd64 XMHF, win10x64, VMware, win10x86: can boot
+* Dell, amd64 XMHF, win10x64, VMware, win10x64: can boot
 
 ## Fix
 
