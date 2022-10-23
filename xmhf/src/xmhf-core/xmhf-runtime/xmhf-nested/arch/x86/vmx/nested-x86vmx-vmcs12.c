@@ -970,6 +970,28 @@ static void _vmcs02_to_vmcs12_control_EPT_pointer(ARG01 * arg)
 	(void)_vmcs02_to_vmcs12_control_EPT_pointer_unused;
 }
 
+static void _rewalk_ept01_control_EPT_pointer(ARG10 * arg)
+{
+	spa_t ept02;
+	if (arg->vmcs12_info->guest_ept_enable) {
+		ept02_cache_line_t *cache_line;
+		bool cache_hit;
+		gpa_t ept12 = arg->vmcs12->control_EPT_pointer;
+		ept02 = xmhf_nested_arch_x86vmx_get_ept02(arg->vcpu, ept12, &cache_hit,
+												  &cache_line);
+		HALT_ON_ERRORCOND(!cache_hit);
+		arg->vmcs12_info->guest_ept_cache_line = cache_line;
+		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
+#ifdef __DEBUG_QEMU__
+		_workaround_kvm_216212(arg, cache_line);
+#endif							/* !__DEBUG_QEMU__ */
+	} else {
+		ept02 = arg->vcpu->vmcs.control_EPT_pointer;
+		_update_pae_pdpte(arg);
+	}
+	__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
+}
+
 /*
  * 64-Bit Read-Only Data Field
  */
@@ -1701,22 +1723,7 @@ void xmhf_nested_arch_x86vmx_rewalk_ept01(VCPU * vcpu,
 #include "nested-x86vmx-vmcs12-fields.h"
 
 	/* Special handling for EPT02 */
-	if (vmcs12_info->guest_ept_enable) {
-		ept02_cache_line_t *cache_line;
-		bool cache_hit;
-		gpa_t ept12 = vmcs12_info->guest_ept_root;
-		spa_t ept02 = xmhf_nested_arch_x86vmx_get_ept02(vcpu, ept12, &cache_hit,
-														&cache_line);
-		HALT_ON_ERRORCOND(!cache_hit);
-		vmcs12_info->guest_ept_cache_line = cache_line;
-		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
-#ifdef __DEBUG_QEMU__
-		_workaround_kvm_216212(&arg, cache_line);
-#endif							/* !__DEBUG_QEMU__ */
-		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
-	} else {
-		_update_pae_pdpte(&arg);
-	}
+	_rewalk_ept01_control_EPT_pointer(&arg);
 }
 
 /*

@@ -347,6 +347,7 @@ static vmcs12_info_t *new_active_vmcs12(VCPU * vcpu, gpa_t vmcs_ptr, u32 rev)
 		   vcpu->vmcs.control_VM_entry_MSR_load_count * sizeof(msr_entry_t));
 	vmcs12_info->guest_ept_enable = 0;
 	vmcs12_info->guest_ept_root = 0;
+	vmcs12_info->guest_ept_cache_line = 0;
 	vmcs12_info->guest_nmi_exiting = false;
 	vmcs12_info->guest_virtual_nmis = false;
 	vmcs12_info->guest_nmi_window_exiting = false;
@@ -496,7 +497,7 @@ static u32 _vmx_nested_check_ud(VCPU * vcpu, int is_vmxon)
 			return 1;
 		}
 	} else {
-		if (!vcpu->vmx_nested_is_vmx_operation) {
+		if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_DISABLED) {
 			return 1;
 		}
 	}
@@ -509,9 +510,8 @@ static u32 _vmx_nested_check_ud(VCPU * vcpu, int is_vmxon)
 void xmhf_nested_arch_x86vmx_vcpu_init(VCPU * vcpu)
 {
 	u32 i;
-	vcpu->vmx_nested_is_vmx_operation = 0;
+	vcpu->vmx_nested_operation_mode = NESTED_VMX_MODE_DISABLED;
 	vcpu->vmx_nested_vmxon_pointer = 0;
-	vcpu->vmx_nested_is_vmx_root_operation = 0;
 	vcpu->vmx_nested_cur_vmcs12 = INVALID_VMCS12_INDEX;
 
 	/* Compute MSRs for the guest */
@@ -624,7 +624,7 @@ void xmhf_nested_arch_x86vmx_handle_invept(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
-	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+	} else if (vcpu->vmx_nested_operation_mode != NESTED_VMX_MODE_ROOT) {
 		/*
 		 * Guest hypervisor is likely performing nested virtualization.
 		 * This case should be handled in
@@ -687,7 +687,7 @@ void xmhf_nested_arch_x86vmx_handle_invvpid(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
-	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+	} else if (vcpu->vmx_nested_operation_mode != NESTED_VMX_MODE_ROOT) {
 		/*
 		 * Guest hypervisor is likely performing nested virtualization.
 		 * This case should be handled in
@@ -758,7 +758,7 @@ void xmhf_nested_arch_x86vmx_handle_vmclear(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
-	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+	} else if (vcpu->vmx_nested_operation_mode != NESTED_VMX_MODE_ROOT) {
 		/*
 		 * Guest hypervisor is likely performing nested virtualization.
 		 * This case should be handled in
@@ -846,7 +846,7 @@ void xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(VCPU * vcpu,
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
-	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+	} else if (vcpu->vmx_nested_operation_mode != NESTED_VMX_MODE_ROOT) {
 		/*
 		 * Guest hypervisor is likely performing nested virtualization.
 		 * This case should be handled in
@@ -886,7 +886,7 @@ void xmhf_nested_arch_x86vmx_handle_vmptrld(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
-	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+	} else if (vcpu->vmx_nested_operation_mode != NESTED_VMX_MODE_ROOT) {
 		/*
 		 * Guest hypervisor is likely performing nested virtualization.
 		 * This case should be handled in
@@ -958,7 +958,7 @@ void xmhf_nested_arch_x86vmx_handle_vmptrst(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
-	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+	} else if (vcpu->vmx_nested_operation_mode != NESTED_VMX_MODE_ROOT) {
 		/*
 		 * Guest hypervisor is likely performing nested virtualization.
 		 * This case should be handled in
@@ -988,7 +988,7 @@ void xmhf_nested_arch_x86vmx_handle_vmread(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
-	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+	} else if (vcpu->vmx_nested_operation_mode != NESTED_VMX_MODE_ROOT) {
 		/*
 		 * Guest hypervisor is likely performing nested virtualization.
 		 * This case should be handled in
@@ -1041,7 +1041,7 @@ void xmhf_nested_arch_x86vmx_handle_vmwrite(VCPU * vcpu, struct regs *r)
 {
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
-	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+	} else if (vcpu->vmx_nested_operation_mode != NESTED_VMX_MODE_ROOT) {
 		/* Note: Currently does not support 1-setting of "VMCS shadowing" */
 		/*
 		 * Guest hypervisor is likely performing nested virtualization.
@@ -1103,7 +1103,7 @@ void xmhf_nested_arch_x86vmx_handle_vmxoff(VCPU * vcpu, struct regs *r)
 	(void)r;
 	if (_vmx_nested_check_ud(vcpu, 0)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
-	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+	} else if (vcpu->vmx_nested_operation_mode != NESTED_VMX_MODE_ROOT) {
 		/*
 		 * Guest hypervisor is likely performing nested virtualization.
 		 * This case should be handled in
@@ -1115,9 +1115,8 @@ void xmhf_nested_arch_x86vmx_handle_vmxoff(VCPU * vcpu, struct regs *r)
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
 	} else {
 		/* Note: ignoring all logic related to SMI, SMM, SMX */
-		vcpu->vmx_nested_is_vmx_operation = 0;
+		vcpu->vmx_nested_operation_mode = NESTED_VMX_MODE_DISABLED;
 		vcpu->vmx_nested_vmxon_pointer = 0;
-		vcpu->vmx_nested_is_vmx_root_operation = 0;
 		vcpu->vmx_nested_cur_vmcs12 = INVALID_VMCS12_INDEX;
 #ifdef VMX_NESTED_USE_SHADOW_VMCS
 		if (_vmx_hasctl_vmcs_shadowing(&vcpu->vmx_caps)) {
@@ -1150,7 +1149,7 @@ void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU * vcpu, struct regs *r)
 #endif							/* !__DEBUG_QEMU__ */
 	if (_vmx_nested_check_ud(vcpu, 1)) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_UD, 0, 0);
-	} else if (!vcpu->vmx_nested_is_vmx_operation) {
+	} else if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_DISABLED) {
 		u64 vcr0 = _vmx_guest_get_guest_cr0(vcpu);
 		u64 vcr4 = _vmx_guest_get_guest_cr4(vcpu);
 		/*
@@ -1184,9 +1183,8 @@ void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU * vcpu, struct regs *r)
 					(rev != ((u32) basic_msr & 0x7fffffffU))) {
 					_vmx_nested_vm_fail_invalid(vcpu);
 				} else {
-					vcpu->vmx_nested_is_vmx_operation = 1;
+					vcpu->vmx_nested_operation_mode = NESTED_VMX_MODE_ROOT;
 					vcpu->vmx_nested_vmxon_pointer = vmxon_ptr;
-					vcpu->vmx_nested_is_vmx_root_operation = 1;
 					vcpu->vmx_nested_cur_vmcs12 = INVALID_VMCS12_INDEX;
 #ifdef VMX_NESTED_USE_SHADOW_VMCS
 					if (_vmx_hasctl_vmcs_shadowing(&vcpu->vmx_caps)) {
@@ -1210,7 +1208,7 @@ void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU * vcpu, struct regs *r)
 			}
 			vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 		}
-	} else if (!vcpu->vmx_nested_is_vmx_root_operation) {
+	} else if (vcpu->vmx_nested_operation_mode != NESTED_VMX_MODE_ROOT) {
 		/*
 		 * Guest hypervisor is likely performing nested virtualization.
 		 * This case should be handled in
