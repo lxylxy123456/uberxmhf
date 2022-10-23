@@ -151,11 +151,12 @@ u64 _vmx_get_guest_efer(VCPU *vcpu)
 //---intercept handler (CPUID)--------------------------------------------------
 static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 	//printf("CPU(0x%02x): CPUID\n", vcpu->id);
-	u32 old_eax = r->eax;
+//	u32 old_eax = r->eax;
 	asm volatile ("cpuid\r\n"
           :"=a"(r->eax), "=b"(r->ebx), "=c"(r->ecx), "=d"(r->edx)
           :"a"(r->eax), "c" (r->ecx));
 	
+#if 0
 	// Use the registers returned by <xmhf_app_handlecpuid>
 	xmhf_app_handlecpuid(vcpu, r, old_eax);
 
@@ -208,6 +209,7 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 			r->edx = 0x46484d58U;
 		}
 	}
+#endif
 #endif
 
 	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
@@ -665,8 +667,17 @@ u32 xmhf_parteventhub_arch_x86vmx_handle_rdmsr(VCPU *vcpu, u32 index, u64 *value
 		case IA32_VMX_TRUE_ENTRY_CTLS_MSR: /* fallthrough */
 		// Note: IA32_VMX_VMFUNC_MSR temporarily not supported
 		// case IA32_VMX_VMFUNC_MSR:
-			*value = vcpu->vmx_nested_msrs[index - IA32_VMX_BASIC_MSR];
-			break;
+			// TODO
+			if (0) {
+				*value = vcpu->vmx_nested_msrs[index - IA32_VMX_BASIC_MSR];
+				break;
+			} else {
+				printf("RDMSR 0x%08x is VMX\n", index);
+				if (rdmsr_safe(index, value) != 0) {
+					return 1;
+				}
+				break;
+			}
 #endif /* !__NESTED_VIRTUALIZATION__ */
 		default:{
 			if (rdmsr_safe(index, value) != 0) {
@@ -1199,9 +1210,33 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * is for quiescing (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION),
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
-//	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
-//		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
-//	}
+	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+		if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_RDMSR) {
+			printf("{%d,%d,0x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, r->ecx);
+		} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_WRMSR) {
+			printf("{%d,%d,0x%08x,0x%08x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, r->ecx, r->edx, r->eax);
+		} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_CPUID) {
+			printf("{%d,%d,0x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, r->eax);
+		} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EPT_VIOLATION) {
+			printf("{%d,%d,0x%08lx,0x%016llx,0x%08lx}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.info_exit_qualification, vcpu->vmcs.guest_paddr, vcpu->vmcs.info_guest_linear_address);
+			{
+				u64 inst;
+				guestmem_hptw_ctx_pair_t ctx_pair;
+				guestmem_init(vcpu, &ctx_pair);
+				guestmem_copy_gv2h(&ctx_pair, 0, &inst, vcpu->vmcs.guest_RIP, sizeof(u64));
+				printf("\tInst = 0x%016llx\n", inst);
+				printf("\tRAX = 0x%016llx\n", r->rax);
+				printf("\tRBX = 0x%016llx\n", r->rbx);
+				printf("\tRCX = 0x%016llx\n", r->rcx);
+				printf("\tRDX = 0x%016llx\n", r->rdx);
+				printf("\tRBP = 0x%016llx\n", r->rbp);
+				printf("\tRSI = 0x%016llx\n", r->rsi);
+				printf("\tRDI = 0x%016llx\n", r->rdi);
+			}
+		} else {
+			printf("{%d,%d}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
+		}
+	}
 
 #ifdef __DEBUG_EVENT_LOGGER__
 	if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_CPUID) {
