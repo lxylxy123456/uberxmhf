@@ -68,8 +68,6 @@
 /* Forward VMEXIT to L1, change reason to EPT misconfiguration */
 #define NESTED_VMEXIT_HANDLE_201_EPT_MISCONFIG	4
 
-extern bool lxy_verbose;
-
 /*
  * Return whether interruption information corresponds to NMI interrupt.
  * The input should be one of the following VMCS fields:
@@ -229,9 +227,8 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 		return result;
 	}
 
-	if (lxy_verbose) {
-		printf("CPU(0x%02x): nested vmentry 0x%08lx\n",
-			   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP);
+	if (0) {
+		printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
 	}
 
 	/* From now on, cannot fail */
@@ -501,10 +498,6 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 		status = xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu, cache_line,
 														   guest2_paddr,
 														   qualification);
-		if (0 && lxy_verbose) {
-			printf("CPU(0x%02x): EPT %d 0x%016llx 0x%08lx\n", vcpu->id, status,
-				   guest2_paddr, qualification);
-		}
 	}
 	switch (status) {
 	case 1:
@@ -593,7 +586,7 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
  * The argument behavior indicates how the VMEXIT should be transformed.
  */
 static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
-									u32 behavior, struct regs *r)
+									u32 behavior)
 {
 	/*
 	 * Begin blocking EPT02 flush (blocking is needed because VMCS translation
@@ -674,21 +667,9 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_201,
 					   &vmcs12_info->vmcs12_value.info_vmexit_reason);
 #endif							/* __DEBUG_EVENT_LOGGER__ */
-	if (lxy_verbose) {
-		if (vmcs12_info->vmcs12_value.info_vmexit_reason == 0) {
-			printf("CPU(0x%02x): nested vmexit  0x%08lx 0: 0x%08x\n", vcpu->id,
-				   vmcs12_info->vmcs12_value.guest_RIP,
-				   vmcs12_info->vmcs12_value.info_vmexit_interrupt_information);
-		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason == 1) {
-			// No printing
-		} else if (vmcs12_info->vmcs12_value.info_vmexit_reason == 31) {
-			printf("CPU(0x%02x): nested vmexit  0x%08lx 31 ecx=0x%08x\n",
-				   vcpu->id, vmcs12_info->vmcs12_value.guest_RIP, r->ecx);
-		} else {
-			printf("CPU(0x%02x): nested vmexit  0x%08lx %d\n", vcpu->id,
-				   vmcs12_info->vmcs12_value.guest_RIP,
-				   vmcs12_info->vmcs12_value.info_vmexit_reason);
-		}
+	if (0) {
+		printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
+			   vmcs12_info->vmcs12_value.info_vmexit_reason);
 	}
 
 	/*
@@ -775,7 +756,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			printf("CPU(0x%02x): 202 vmexit %d\n", vcpu->id, vmexit_reason);
 		}
 	} else {
-		handle_vmexit20_forward(vcpu, vmcs12_info, handle_behavior, r);
+		handle_vmexit20_forward(vcpu, vmcs12_info, handle_behavior);
 	}
 
 	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
