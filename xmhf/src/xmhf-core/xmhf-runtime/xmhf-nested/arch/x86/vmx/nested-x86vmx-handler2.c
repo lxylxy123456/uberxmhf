@@ -228,7 +228,7 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 		return result;
 	}
 
-	if (0) {
+	if (1) {
 		printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
 	}
 
@@ -249,6 +249,8 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 	HALT_ON_ERRORCOND(vcpu->vmx_mhv_nmi_handler_arg == SMPG_VMX_NMI_INJECT);
 	vcpu->vmx_mhv_nmi_handler_arg = SMPG_VMX_NMI_NESTED;
 	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
+
+	printf("LXY: VMLAUNCH / VMENTRY succeed\n");
 
 	if (vmcs12_info->launched) {
 		__vmx_vmentry_vmresume(r);
@@ -668,7 +670,7 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_201,
 					   &vmcs12_info->vmcs12_value.info_vmexit_reason);
 #endif							/* __DEBUG_EVENT_LOGGER__ */
-	if (0) {
+	if (1) {
 		printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
 			   vmcs12_info->vmcs12_value.info_vmexit_reason);
 	}
@@ -753,7 +755,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_202,
 						   &vmexit_reason);
 #endif							/* __DEBUG_EVENT_LOGGER__ */
-		if (0) {
+		if (1) {
 			printf("CPU(0x%02x): 202 vmexit %d\n", vcpu->id, vmexit_reason);
 		}
 	} else {

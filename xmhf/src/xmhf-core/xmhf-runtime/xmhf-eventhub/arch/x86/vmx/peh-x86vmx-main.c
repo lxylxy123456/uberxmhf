@@ -1223,24 +1223,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			printf("{%d,%d,%d,0x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, r->eax);
 		} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EPT_VIOLATION) {
 			printf("{%d,%d,%d,0x%08lx,0x%016llx,0x%08lx}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, vcpu->vmcs.info_exit_qualification, vcpu->vmcs.guest_paddr, vcpu->vmcs.info_guest_linear_address);
-			if (vcpu->vmcs.info_exit_qualification == 0x182U &&
-				vcpu->vmcs.guest_paddr == 0x00000000fee00300ULL) {
-				// asm volatile("1: nop; jmp 1b; nop; nop; nop; nop; nop; nop; nop; nop");
-			}
-			{
-				u64 inst;
-				guestmem_hptw_ctx_pair_t ctx_pair;
-				guestmem_init(vcpu, &ctx_pair);
-				guestmem_copy_gv2h(&ctx_pair, 0, &inst, vcpu->vmcs.guest_RIP, sizeof(u64));
-				printf("\tInst = 0x%016llx\n", inst);
-				printf("\tRAX = 0x%016llx\n", r->rax);
-				printf("\tRBX = 0x%016llx\n", r->rbx);
-				printf("\tRCX = 0x%016llx\n", r->rcx);
-				printf("\tRDX = 0x%016llx\n", r->rdx);
-				printf("\tRBP = 0x%016llx\n", r->rbp);
-				printf("\tRSI = 0x%016llx\n", r->rsi);
-				printf("\tRDI = 0x%016llx\n", r->rdi);
-			}
 		} else {
 			printf("{%d,%d,%d}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility);
 		}
