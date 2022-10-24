@@ -781,6 +781,30 @@ static void _vmcs02_to_vmcs12_control_vpid(ARG01 * arg)
  * 64-Bit Control Fields
  */
 
+/* Address of MSR bitmaps */
+
+static u32 _vmcs12_to_vmcs02_control_MSR_Bitmaps_address(ARG10 * arg)
+{
+	if (_vmx_hasctl_use_msr_bitmaps(arg->ctls)) {
+		/* Note: ideally should return VMENTRY error */
+		HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_4K
+						  (arg->vmcs12->control_MSR_Bitmaps_address));
+	}
+	/* XMHF never uses MSR bitmaps, so set VMCS02 to invalid value */
+	__vmx_vmwrite64(VMCSENC_control_MSR_Bitmaps_address, UINT64_MAX);
+	return VM_INST_SUCCESS;
+	(void)arg;
+	(void)_vmcs12_to_vmcs02_control_MSR_Bitmaps_address_unused;
+}
+
+static void _vmcs02_to_vmcs12_control_MSR_Bitmaps_address(ARG01 * arg)
+{
+	u16 encoding = VMCSENC_control_MSR_Bitmaps_address;
+	HALT_ON_ERRORCOND(__vmx_vmread64(encoding) == UINT64_MAX);
+	(void)arg;
+	(void)_vmcs02_to_vmcs12_control_MSR_Bitmaps_address_unused;
+}
+
 /* VM-exit MSR-store address */
 
 static u32 _vmcs12_to_vmcs02_control_VM_exit_MSR_store_address(ARG10 * arg)
@@ -1270,6 +1294,10 @@ static u32 _vmcs12_to_vmcs02_control_VMX_cpu_based(ARG10 * arg)
 	}
 	/* XMHF needs to activate secondary controls because of EPT */
 	val |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
+#ifdef __VMX_NESTED_MSR_BITMAP__
+	/* XMHF does not use MSR bitmaps, but nested hypervisor may use them. */
+	val &= ~(1U << VMX_PROCBASED_USE_MSR_BITMAPS);
+#endif							/* __VMX_NESTED_MSR_BITMAP__ */
 	__vmx_vmwrite32(VMCSENC_control_VMX_cpu_based, val);
 	return VM_INST_SUCCESS;
 	(void)_vmcs12_to_vmcs02_control_VMX_cpu_based_unused;
@@ -1281,6 +1309,10 @@ static void _vmcs02_to_vmcs12_control_VMX_cpu_based(ARG01 * arg)
 	u32 val02 = __vmx_vmread32(VMCSENC_control_VMX_cpu_based);
 	/* Secondary controls are always required in VMCS02 for EPT */
 	val12 |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
+#ifdef __VMX_NESTED_MSR_BITMAP__
+	/* XMHF does not use MSR bitmaps, but nested hypervisor may use them. */
+	val12 &= ~(1U << VMX_PROCBASED_USE_MSR_BITMAPS);
+#endif							/* __VMX_NESTED_MSR_BITMAP__ */
 	/* NMI window exiting may change due to L0 */
 	val12 &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
 	val02 &= ~(1U << VMX_PROCBASED_NMI_WINDOW_EXITING);
