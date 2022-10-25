@@ -180,3 +180,55 @@ Dell and QEMU are also similar.
 
 TODO: check XMHF issued VMENTRY errors
 
+In git `xmhf64-nest-dev b51f67a20`, QEMU UP serial `20221024103137`, print
+whether VMENTRY fails or not. Can see that Windows first performs a VMLAUNCH
+and a series of VMRESUME's and succeeds. The exit reason for those are VMCALL.
+Then Windows performs two failed VMLAUNCHs and halts.
+
+If we retry booting Windows, Windows shows error message for previous boot,
+which is 0xc0000017 "There isn't enough memory to create a ramdisk device."
+
+By printing, the VMENTRY failure error code is 7
+(`VM_INST_ERRNO_VMENTRY_INVALID_CTRL`). The problem happens at bit 28 of
+`control_VMX_cpu_based` (`VMX_PROCBASED_USE_MSR_BITMAPS`). Windows sets this
+bit, but XMHF does not allow it.
+
+```
+(gdb) p/x val
+$5 = 0xb6a06dfa
+(gdb) p/x fixed0
+$6 = 0x4006172
+(gdb) p/x fixed1
+$7 = 0xeff9fffe
+(gdb) 
+```
+
+Also interestingly, the behavior of Windows is to first try with
+`val=0xb6a06dfa`. When that fails, it tries `val=0xb6206dfa` (removes bit 23
+`VMX_PROCBASED_MOV_DR_EXITING`). See git `xmhf64-nest-dev 49ae0f18c`, serial
+`20221024105343`.
+
+Now it appears that Windows is imperfect since
+* It returns error 0xc0000017 to the user, but the error is totally irrelevant
+  to insufficient memory.
+* It should check MSRs to make sure whether VMCS control fields are allowed.
+  When not allowed, it should not blindly remove bit 23.
+
+Now to make Hyper-V work, we just need to support MSR bitmaps in XMHF.
+
+### Implement MSR bitmaps
+
+In `ecf60f5f3..8f73abd70`, implment MSR bitmap. However, after the commit,
+(Dell, XMHF, Debian, VirtualBox, Windows) no longer works. So not commiting to
+`xmhf64` for now.
+
+Build with command `./build.sh amd64 fast --mem 0x230000000 && gr`, in
+`xmhf64-nest ecf60f5f3`, Windows 7 x86 and x64 can all boot correctly.
+
+However, in `xmhf64-nest 8f73abd70`, Windows 7 x86 bluescreen with error code
+`0x71(0, 0, 0, 0)`. Windows 7 x64 see Virtual Box
+`Guru Meditation 1155 (VINF_EM_TRIPLE_FAULT)`. So the MSR bitmap implementation
+is incorrect.
+
+TODO: test MSR bitmap using LHV
+
