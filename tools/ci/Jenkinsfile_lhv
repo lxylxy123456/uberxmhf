@@ -5,7 +5,7 @@
 properties([
     parameters([
         string(name: 'XMHF_BRANCH', defaultValue: 'lhv'),
-        string(name: 'BUILD_OPTS', defaultValue: '--lhv-opt 0x1fd')
+        string(name: 'BUILD_OPTS', defaultValue: '--lhv-opt 0x5fd')
     ])
 ])
 
