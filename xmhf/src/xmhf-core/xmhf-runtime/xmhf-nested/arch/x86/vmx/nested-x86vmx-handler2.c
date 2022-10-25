@@ -583,6 +583,32 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 }
 
 #ifdef __VMX_NESTED_MSR_BITMAP__
+/* Similar to _vmx_inject_exception(), but inject #GP(0) to L2 guest */
+static void _nested_vmx_inject_gp(void)
+{
+	u32 vector = CPU_EXCEPTION_GP;
+	u32 has_ec = 1;
+	u32 errcode = 0;
+	u16 encoding;
+	union {
+		struct _vmx_event_injection st;
+		uint32_t ui;
+	} injection_info;
+	HALT_ON_ERRORCOND(vector < 32);
+	HALT_ON_ERRORCOND(has_ec <= 1);
+	injection_info.ui = 0;
+	injection_info.st.vector = vector;  /* e.g. #UD, #GP */
+	injection_info.st.type = 0x3;       /* Hardware Exception */
+	injection_info.st.errorcode = has_ec;
+	injection_info.st.valid = 1;
+	/* Copy IDT-vectoring information */
+	encoding = VMCSENC_control_VM_entry_interruption_information;
+	__vmx_vmwrite32(encoding, injection_info.ui);
+	/* Copy IDT-vectoring error code */
+	encoding = VMCSENC_control_VM_entry_exception_errorcode;
+	__vmx_vmwrite32(encoding, errcode);
+}
+
 /* Check whether the RDMSR / WRMSR should cause VMEXIT to L1 */
 static bool check_msr_bitmap(vmcs12_info_t * vmcs12_info, u32 msr_val,
 							 bool is_wrmsr, guestmem_hptw_ctx_pair_t * ctx_pair)
@@ -624,7 +650,7 @@ static bool check_msr_bitmap(vmcs12_info_t * vmcs12_info, u32 msr_val,
 
 /*
  * Handle L2 guest VMEXIT to L0 due to RDMSR.
- * This function has 3 possible return values:
+ * This function has 2 possible return values:
  * * NESTED_VMEXIT_HANDLE_201: L0 should forward the RDMSR VMEXIT to L1.
  * * NESTED_VMEXIT_HANDLE_202: L0 should handle the RDMSR and return to L2.
  */
@@ -645,8 +671,9 @@ static u32 handle_vmexit20_rdmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		} else {
 			if (xmhf_parteventhub_arch_x86vmx_handle_rdmsr(vcpu, r->ecx,
 														   &read_data)) {
-				/* Likely need to inject #GP(0), but need to double check */
-				HALT_ON_ERRORCOND(0 && "RDMSR fail, what should I do?");
+				/* RDMSR fail, inject #GP(0) */
+				_nested_vmx_inject_gp();
+				return NESTED_VMEXIT_HANDLE_202;
 			}
 		}
 		/* Assign read_result to r->eax and r->edx */
@@ -672,7 +699,7 @@ static u32 handle_vmexit20_rdmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 
 /*
  * Handle L2 guest VMEXIT to L0 due to WRMSR.
- * This function has 3 possible return values:
+ * This function has 2 possible return values:
  * * NESTED_VMEXIT_HANDLE_201: L0 should forward the WRMSR VMEXIT to L1.
  * * NESTED_VMEXIT_HANDLE_202: L0 should handle the WRMSR and return to L2.
  */
@@ -693,8 +720,9 @@ static u32 handle_vmexit20_wrmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		} else {
 			if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr(vcpu, r->ecx,
 														   write_data)) {
-				/* Likely need to inject #GP(0), but need to double check */
-				HALT_ON_ERRORCOND(0 && "WRMSR fail, what should I do?");
+				/* WRMSR fail, inject #GP(0) */
+				_nested_vmx_inject_gp();
+				return NESTED_VMEXIT_HANDLE_202;
 			}
 		}
 		/* Increase RIP since instruction is emulated */
