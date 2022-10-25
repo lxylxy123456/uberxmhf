@@ -861,12 +861,10 @@ void xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(VCPU * vcpu,
 	} else {
 		if (!cpu_has_current_vmcs12(vcpu)) {
 			_vmx_nested_vm_fail_invalid(vcpu);
-			printf("LXY: VMENTRY fail: invalid\n");
 		} else if (vcpu->vmcs.guest_interruptibility & (1U << 1)) {
 			/* Blocking by MOV SS */
 			_vmx_nested_vm_fail_valid
 				(vcpu, VM_INST_ERRNO_VMENTRY_EVENT_BLOCK_MOVSS);
-			printf("LXY: VMENTRY fail: MOV SS\n");
 		} else {
 			u32 error_number;
 			vmcs12_info_t *vmcs12_info;
@@ -881,8 +879,8 @@ void xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(VCPU * vcpu,
 														   r);
 			}
 			_vmx_nested_vm_fail_valid(vcpu, error_number);
-			printf("LXY: VMENTRY fail %u\n", error_number);
 		}
+		HALT_ON_ERRORCOND(0);
 		vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 	}
 }

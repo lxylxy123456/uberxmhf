@@ -151,12 +151,11 @@ u64 _vmx_get_guest_efer(VCPU *vcpu)
 //---intercept handler (CPUID)--------------------------------------------------
 static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 	//printf("CPU(0x%02x): CPUID\n", vcpu->id);
-//	u32 old_eax = r->eax;
+	u32 old_eax = r->eax;
 	asm volatile ("cpuid\r\n"
           :"=a"(r->eax), "=b"(r->ebx), "=c"(r->ecx), "=d"(r->edx)
           :"a"(r->eax), "c" (r->ecx));
 	
-#if 0
 	// Use the registers returned by <xmhf_app_handlecpuid>
 	xmhf_app_handlecpuid(vcpu, r, old_eax);
 
@@ -209,7 +208,6 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 			r->edx = 0x46484d58U;
 		}
 	}
-#endif
 #endif
 
 	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
@@ -667,17 +665,8 @@ u32 xmhf_parteventhub_arch_x86vmx_handle_rdmsr(VCPU *vcpu, u32 index, u64 *value
 		case IA32_VMX_TRUE_ENTRY_CTLS_MSR: /* fallthrough */
 		// Note: IA32_VMX_VMFUNC_MSR temporarily not supported
 		// case IA32_VMX_VMFUNC_MSR:
-			// TODO
-			if (0) {
-				*value = vcpu->vmx_nested_msrs[index - IA32_VMX_BASIC_MSR];
-				break;
-			} else {
-				printf("RDMSR 0x%08x is VMX\n", index);
-				if (rdmsr_safe(index, value) != 0) {
-					return 1;
-				}
-				break;
-			}
+			*value = vcpu->vmx_nested_msrs[index - IA32_VMX_BASIC_MSR];
+			break;
 #endif /* !__NESTED_VIRTUALIZATION__ */
 		default:{
 			if (rdmsr_safe(index, value) != 0) {

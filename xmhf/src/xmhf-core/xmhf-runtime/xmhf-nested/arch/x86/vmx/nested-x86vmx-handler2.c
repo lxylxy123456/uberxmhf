@@ -250,8 +250,6 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 	vcpu->vmx_mhv_nmi_handler_arg = SMPG_VMX_NMI_NESTED;
 	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
 
-	printf("LXY: VMLAUNCH / VMENTRY succeed\n");
-
 	if (vmcs12_info->launched) {
 		__vmx_vmentry_vmresume(r);
 	} else {

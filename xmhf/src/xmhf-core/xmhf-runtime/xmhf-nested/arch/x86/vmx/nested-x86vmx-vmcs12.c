@@ -416,9 +416,6 @@ static u32 _vmcs12_get_ctls(VCPU * vcpu, struct nested_vmcs12 *vmcs12,
 		u32 fixed0 = vcpu->vmx_nested_procbased_ctls;
 		u32 fixed1 = vcpu->vmx_nested_procbased_ctls >> 32;
 		if (!((~val & fixed0) == 0 && (val & ~fixed1) == 0)) {
-			printf("control_VMX_cpu_based: val    = 0x%08x\n", val);
-			printf("control_VMX_cpu_based: fixed0 = 0x%08x\n", fixed0);
-			printf("control_VMX_cpu_based: fixed1 = 0x%08x\n", fixed1);
 			return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
 		}
 		ctls->procbased_ctls = val;
