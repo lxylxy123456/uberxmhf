@@ -581,6 +581,10 @@ static void lhv_guest_test_user(VCPU *vcpu)
 }
 
 /* Test MSR bitmap */
+#define MSR_TEST_NORMAL	0x2900b05d
+#define MSR_TEST_VMEXIT	0xf6d7a004
+#define MSR_TEST_EXCEPT	0xc23a16e5
+
 static void lhv_guest_msr_bitmap_vmexit_handler(VCPU *vcpu, struct regs *r,
 												vmexit_info_t *info)
 {
@@ -633,10 +637,18 @@ static void lhv_guest_msr_bitmap_vmexit_handler(VCPU *vcpu, struct regs *r,
 		}
 		break;
 	case VMX_VMEXIT_WRMSR:
-		r->ebx = 1;
+		r->ebx = MSR_TEST_VMEXIT;
 		break;
 	case VMX_VMEXIT_RDMSR:
-		r->ebx = 1;
+		switch (r->ecx) {
+		case MSR_APIC_BASE: /* fallthrough */
+		case IA32_X2APIC_APICID:
+			return;
+		default:
+			HALT_ON_ERRORCOND(r->ebx == MSR_TEST_NORMAL);
+			r->ebx = MSR_TEST_VMEXIT;
+			break;
+		}
 		break;
 	case VMX_VMEXIT_CPUID:
 		return;
@@ -649,12 +661,12 @@ static void lhv_guest_msr_bitmap_vmexit_handler(VCPU *vcpu, struct regs *r,
 
 static void _test_rdmsr(u32 ecx, u32 expected_ebx)
 {
-	u32 ebx = 0, eax, edx;
+	u32 ebx = MSR_TEST_NORMAL, eax, edx;
 	asm volatile ("1:\n"
 				  "rdmsr\n"
 				  "jmp 3f\n"
 				  "2:\n"
-				  "movl $2, %%ebx\n"
+				  "movl %[e], %%ebx\n"
 				  "jmp 3f\n"
 				  ".section .xcph_table\n"
 #ifdef __AMD64__
@@ -671,18 +683,18 @@ static void _test_rdmsr(u32 ecx, u32 expected_ebx)
 				  ".previous\r\n"
 				  "3:\r\n"
 				  : "+b"(ebx), "=a"(eax), "=d"(edx)
-				  : "c" (ecx));
+				  : "c" (ecx), [e]"g"(MSR_TEST_EXCEPT));
 	HALT_ON_ERRORCOND(ebx == expected_ebx);
 }
 
 static void _test_wrmsr(u32 ecx, u32 expected_ebx, u64 val)
 {
-	u32 ebx = 0, eax = (u32) val, edx = (u32) (val >> 32);
+	u32 ebx = MSR_TEST_NORMAL, eax = (u32) val, edx = (u32) (val >> 32);
 	asm volatile ("1:\n"
 				  "wrmsr\n"
 				  "jmp 3f\n"
 				  "2:\n"
-				  "movl $2, %%ebx\n"
+				  "movl %[e], %%ebx\n"
 				  "jmp 3f\n"
 				  ".section .xcph_table\n"
 #ifdef __AMD64__
@@ -699,15 +711,12 @@ static void _test_wrmsr(u32 ecx, u32 expected_ebx, u64 val)
 				  ".previous\r\n"
 				  "3:\r\n"
 				  : "+b"(ebx)
-				  : "c" (ecx), "a"(eax), "d"(edx));
+				  : "c" (ecx), "a"(eax), "d"(edx), [e]"g"(MSR_TEST_EXCEPT));
 	HALT_ON_ERRORCOND(ebx == expected_ebx);
 }
 
 static void lhv_guest_msr_bitmap(VCPU *vcpu)
 {
-#define MSR_TEST_NORMAL	0
-#define MSR_TEST_VMEXIT	1
-#define MSR_TEST_EXCEPT	2
 	if (__LHV_OPT__ & LHV_USE_MSRBITMAP) {
 		vcpu->vmexit_handler_override = lhv_guest_msr_bitmap_vmexit_handler;
 		/* Enable MSR bitmap */
@@ -773,10 +782,11 @@ static void lhv_guest_msr_bitmap(VCPU *vcpu)
 		_test_wrmsr(0xc0001fff, MSR_TEST_VMEXIT, 0x1234567890abcdefULL);
 		vcpu->vmexit_handler_override = NULL;
 	}
+}
+
 #undef MSR_TEST_NORMAL
 #undef MSR_TEST_VMEXIT
 #undef MSR_TEST_EXCEPT
-}
 
 /* Main logic to call subsequent tests */
 void lhv_guest_main(ulong_t cpu_id)
