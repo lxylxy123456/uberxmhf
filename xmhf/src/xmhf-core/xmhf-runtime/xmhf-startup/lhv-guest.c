@@ -634,6 +634,26 @@ static void lhv_guest_msr_bitmap_vmexit_handler(VCPU *vcpu, struct regs *r,
 			HALT_ON_ERRORCOND((msr_bitmap[r->ebx / 8] & (1 << (r->ebx % 8))));
 			msr_bitmap[r->ebx / 8] &= ~(1 << (r->ebx % 8));
 			break;
+		case 41:
+			/* Prepare for FS / GS check */
+			HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_FS_BASE) == 0ULL);
+			HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_GS_BASE) == 0ULL);
+			HALT_ON_ERRORCOND(vmcs_vmread(vcpu, VMCS_guest_FS_base) == 0UL);
+			HALT_ON_ERRORCOND(vmcs_vmread(vcpu, VMCS_guest_GS_base) == 0UL);
+			vmcs_vmwrite(vcpu, VMCS_guest_FS_base, 0x680effffUL);
+			vmcs_vmwrite(vcpu, VMCS_guest_GS_base, 0x6810ffffUL);
+			break;
+		case 42:
+			/* Check FS / GS */
+			HALT_ON_ERRORCOND(vmcs_vmread(vcpu, VMCS_guest_FS_base) ==
+							  0xffff680eUL);
+			HALT_ON_ERRORCOND(vmcs_vmread(vcpu, VMCS_guest_GS_base) ==
+							  0xffff6810UL);
+			HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_FS_BASE) == 0ULL);
+			HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_GS_BASE) == 0ULL);
+			vmcs_vmwrite(vcpu, VMCS_guest_FS_base, 0UL);
+			vmcs_vmwrite(vcpu, VMCS_guest_GS_base, 0UL);
+			break;
 		}
 		break;
 	case VMX_VMEXIT_WRMSR:
@@ -774,6 +794,14 @@ static void lhv_guest_msr_bitmap(VCPU *vcpu)
 		_test_wrmsr(0x00001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
 		_test_wrmsr(0xc0001fff, MSR_TEST_VMEXIT, 0x1234567890abcdefULL);
 		asm volatile ("vmcall" : : "a"(39), "b"(0x6000 + 0x1fff));
+		/* Test read / write IA32_FS_BASE / IA32_GS_BASE (will not VMEXIT) */
+		asm volatile ("vmcall" : : "a"(41));
+		_test_rdmsr(IA32_MSR_FS_BASE, MSR_TEST_NORMAL);
+		HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_FS_BASE) == 0x680effffULL);
+		HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_GS_BASE) == 0x6810ffffULL);
+		_test_wrmsr(IA32_MSR_FS_BASE, MSR_TEST_NORMAL, 0xffff680eULL);
+		_test_wrmsr(IA32_MSR_GS_BASE, MSR_TEST_NORMAL, 0xffff6810ULL);
+		asm volatile ("vmcall" : : "a"(42));
 		/* Disable MSR bitmap */
 		asm volatile ("vmcall" : : "a"(37));
 		_test_rdmsr(0x00001fff, MSR_TEST_VMEXIT);
