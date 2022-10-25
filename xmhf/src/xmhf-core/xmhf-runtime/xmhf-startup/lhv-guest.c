@@ -638,6 +638,8 @@ static void lhv_guest_msr_bitmap_vmexit_handler(VCPU *vcpu, struct regs *r,
 	case VMX_VMEXIT_RDMSR:
 		r->ebx = 1;
 		break;
+	case VMX_VMEXIT_CPUID:
+		return;
 	default:
 		HALT_ON_ERRORCOND(0 && "Unknown exit reason");
 	}
@@ -645,55 +647,135 @@ static void lhv_guest_msr_bitmap_vmexit_handler(VCPU *vcpu, struct regs *r,
 	vmresume_asm(r);
 }
 
-static void _test_rdmsr(u32 ecx, bool vmexit)
+static void _test_rdmsr(u32 ecx, u32 expected_ebx)
 {
 	u32 ebx = 0, eax, edx;
-	asm volatile ("rdmsr" : "+b"(ebx), "=a"(eax), "=d"(edx) : "c"(ecx));
-	HALT_ON_ERRORCOND(ebx == (vmexit ? 1 : 0));
+	asm volatile ("1:\n"
+				  "rdmsr\n"
+				  "jmp 3f\n"
+				  "2:\n"
+				  "movl $2, %%ebx\n"
+				  "jmp 3f\n"
+				  ".section .xcph_table\n"
+#ifdef __AMD64__
+				  ".quad 0xd\r\n"
+				  ".quad 1b\r\n"
+				  ".quad 2b\r\n"
+#elif defined(__I386__)
+				  ".long 0xd\r\n"
+				  ".long 1b\r\n"
+				  ".long 2b\r\n"
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+				  ".previous\r\n"
+				  "3:\r\n"
+				  : "+b"(ebx), "=a"(eax), "=d"(edx)
+				  : "c" (ecx));
+	HALT_ON_ERRORCOND(ebx == expected_ebx);
 }
 
-static void _test_wrmsr(u32 ecx, bool vmexit, u64 val)
+static void _test_wrmsr(u32 ecx, u32 expected_ebx, u64 val)
 {
 	u32 ebx = 0, eax = (u32) val, edx = (u32) (val >> 32);
-	asm volatile ("wrmsr" : "+b"(ebx) : "c"(ecx), "a"(eax), "d"(edx));
-	HALT_ON_ERRORCOND(ebx == (vmexit ? 1 : 0));
+	asm volatile ("1:\n"
+				  "wrmsr\n"
+				  "jmp 3f\n"
+				  "2:\n"
+				  "movl $2, %%ebx\n"
+				  "jmp 3f\n"
+				  ".section .xcph_table\n"
+#ifdef __AMD64__
+				  ".quad 0xd\r\n"
+				  ".quad 1b\r\n"
+				  ".quad 2b\r\n"
+#elif defined(__I386__)
+				  ".long 0xd\r\n"
+				  ".long 1b\r\n"
+				  ".long 2b\r\n"
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+				  ".previous\r\n"
+				  "3:\r\n"
+				  : "+b"(ebx)
+				  : "c" (ecx), "a"(eax), "d"(edx));
+	HALT_ON_ERRORCOND(ebx == expected_ebx);
 }
 
 static void lhv_guest_msr_bitmap(VCPU *vcpu)
 {
+#define MSR_TEST_NORMAL	0
+#define MSR_TEST_VMEXIT	1
+#define MSR_TEST_EXCEPT	2
 	if (__LHV_OPT__ & LHV_USE_MSRBITMAP) {
 		vcpu->vmexit_handler_override = lhv_guest_msr_bitmap_vmexit_handler;
 		/* Enable MSR bitmap */
 		asm volatile ("vmcall" : : "a"(34));
 		/* Initial: ignore everything */
-		_test_rdmsr(0xc0000082, false);
-		_test_wrmsr(0xc0000082, false, 0xffffffffffffffffULL);
+		_test_rdmsr(0xc0000082, MSR_TEST_NORMAL);
+		_test_wrmsr(0xc0000082, MSR_TEST_NORMAL, 0xffffffffffffffffULL);
 		asm volatile ("vmcall" : : "a"(38), "b"(0x2000 + 0x82));
 		/* VMEXIT only read IA32_LSTAR */
-		_test_rdmsr(0xc0000082, true);
-		_test_wrmsr(0xc0000082, false, 0xffffffffffffffffULL);
+		_test_rdmsr(0xc0000082, MSR_TEST_VMEXIT);
+		_test_wrmsr(0xc0000082, MSR_TEST_NORMAL, 0xffffffffffffffffULL);
 		asm volatile ("vmcall" : : "a"(39), "b"(0x2000 + 0x82));
 		asm volatile ("vmcall" : : "a"(38), "b"(0x6000 + 0x82));
 		/* VMEXIT only write IA32_LSTAR */
-		_test_rdmsr(0xc0000082, false);
-		_test_wrmsr(0xc0000082, true, 0xffffffffffffffffULL);
-		_test_rdmsr(0x3b, false);
-		_test_wrmsr(0x3b, false, 0x1234567890abcdefULL);
+		_test_rdmsr(0xc0000082, MSR_TEST_NORMAL);
+		_test_wrmsr(0xc0000082, MSR_TEST_VMEXIT, 0xffffffffffffffffULL);
+		_test_rdmsr(0x0000003b, MSR_TEST_NORMAL);
+		_test_wrmsr(0x0000003b, MSR_TEST_NORMAL, 0x1234567890abcdefULL);
 		asm volatile ("vmcall" : : "a"(39), "b"(0x6000 + 0x82));
 		asm volatile ("vmcall" : : "a"(38), "b"(0x0000 + 0x3b));
 		/* VMEXIT only read IA32_TSC_ADJUST */
-		_test_rdmsr(0x3b, true);
-		_test_wrmsr(0x3b, false, 0xfedcba0987654321ULL);
+		_test_rdmsr(0x0000003b, MSR_TEST_VMEXIT);
+		_test_wrmsr(0x0000003b, MSR_TEST_NORMAL, 0xfedcba0987654321ULL);
 		asm volatile ("vmcall" : : "a"(39), "b"(0x0000 + 0x3b));
 		asm volatile ("vmcall" : : "a"(38), "b"(0x4000 + 0x3b));
 		/* VMEXIT only write IA32_TSC_ADJUST */
-		_test_rdmsr(0x3b, false);
-		_test_wrmsr(0x3b, true, 0xdeadbeefbeefdeadULL);
+		_test_rdmsr(0x0000003b, MSR_TEST_NORMAL);
+		_test_wrmsr(0x0000003b, MSR_TEST_VMEXIT, 0xdeadbeefbeefdeadULL);
 		asm volatile ("vmcall" : : "a"(39), "b"(0x4000 + 0x3b));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x0000 + 0x1fff));
+		/* VMEXIT only read 0x00001fff */
+		_test_rdmsr(0x00001fff, MSR_TEST_VMEXIT);
+		_test_rdmsr(0xc0001fff, MSR_TEST_EXCEPT);
+		_test_wrmsr(0x00001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		_test_wrmsr(0xc0001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x0000 + 0x1fff));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x2000 + 0x1fff));
+		/* VMEXIT only read 0xc0001fff */
+		_test_rdmsr(0x00001fff, MSR_TEST_EXCEPT);
+		_test_rdmsr(0xc0001fff, MSR_TEST_VMEXIT);
+		_test_wrmsr(0x00001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		_test_wrmsr(0xc0001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x2000 + 0x1fff));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x4000 + 0x1fff));
+		/* VMEXIT only write 0x00001fff */
+		_test_rdmsr(0x00001fff, MSR_TEST_EXCEPT);
+		_test_rdmsr(0xc0001fff, MSR_TEST_EXCEPT);
+		_test_wrmsr(0x00001fff, MSR_TEST_VMEXIT, 0x1234567890abcdefULL);
+		_test_wrmsr(0xc0001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x4000 + 0x1fff));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x6000 + 0x1fff));
+		/* VMEXIT only write 0xc0001fff */
+		_test_rdmsr(0x00001fff, MSR_TEST_EXCEPT);
+		_test_rdmsr(0xc0001fff, MSR_TEST_EXCEPT);
+		_test_wrmsr(0x00001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		_test_wrmsr(0xc0001fff, MSR_TEST_VMEXIT, 0x1234567890abcdefULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x6000 + 0x1fff));
 		/* Disable MSR bitmap */
 		asm volatile ("vmcall" : : "a"(37));
+		_test_rdmsr(0x00001fff, MSR_TEST_VMEXIT);
+		_test_rdmsr(0xc0001fff, MSR_TEST_VMEXIT);
+		_test_wrmsr(0x00001fff, MSR_TEST_VMEXIT, 0x1234567890abcdefULL);
+		_test_wrmsr(0xc0001fff, MSR_TEST_VMEXIT, 0x1234567890abcdefULL);
 		vcpu->vmexit_handler_override = NULL;
 	}
+#undef MSR_TEST_NORMAL
+#undef MSR_TEST_VMEXIT
+#undef MSR_TEST_EXCEPT
 }
 
 /* Main logic to call subsequent tests */
@@ -797,6 +879,58 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 		break;
 #endif /* __DEBUG_QEMU__ */
 	default:
+		{
+			extern uint8_t _begin_xcph_table[];
+			extern uint8_t _end_xcph_table[];
+            uintptr_t exception_rip;
+            hva_t *found = NULL;
+            hva_t *i = NULL;
+
+            // skip error code on stack if applicable
+            if (vector == CPU_EXCEPTION_DF ||
+                vector == CPU_EXCEPTION_TS ||
+                vector == CPU_EXCEPTION_NP ||
+                vector == CPU_EXCEPTION_SS ||
+                vector == CPU_EXCEPTION_GP ||
+                vector == CPU_EXCEPTION_PF ||
+                vector == CPU_EXCEPTION_AC) {
+#ifdef __AMD64__
+                r->rsp += sizeof(uintptr_t);
+#elif defined(__I386__)
+                r->esp += sizeof(uintptr_t);
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+            }
+
+#ifdef __AMD64__
+            exception_rip = ((uintptr_t *)(r->rsp))[0];
+#elif defined(__I386__)
+            exception_rip = ((uintptr_t *)(r->esp))[0];
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+
+            for (i = (hva_t *)_begin_xcph_table;
+                 i < (hva_t *)_end_xcph_table; i += 3) {
+                if (i[0] == vector && i[1] == exception_rip) {
+                    found = i;
+                    break;
+                }
+            }
+
+            if (found) {
+                /* Found in xcph table; Modify EIP on stack and iret */
+#ifdef __AMD64__
+                ((uintptr_t *)(r->rsp))[0] = found[2];
+#elif defined(__I386__)
+                ((uintptr_t *)(r->esp))[0] = found[2];
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+                break;
+            }
+        }
 		printf("Guest: interrupt / exception vector %ld\n", vector);
 		HALT_ON_ERRORCOND(0 && "Guest: unknown interrupt / exception!\n");
 		break;
