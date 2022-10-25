@@ -580,6 +580,122 @@ static void lhv_guest_test_user(VCPU *vcpu)
 	}
 }
 
+/* Test MSR bitmap */
+static void lhv_guest_msr_bitmap_vmexit_handler(VCPU *vcpu, struct regs *r,
+												vmexit_info_t *info)
+{
+	static u8 msr_bitmap_allcpu[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+		__attribute__(( section(".bss.palign_data") ));
+	const u32 mask = (1U << 28);
+	u8 *msr_bitmap = msr_bitmap_allcpu[vcpu->idx];
+	switch (info->vmexit_reason) {
+	case VMX_VMEXIT_VMCALL:
+		switch (r->eax) {
+		case 34:
+			/* Enable MSR bitmap */
+			{
+				u32 val = vmcs_vmread(vcpu, VMCS_control_VMX_cpu_based);
+				HALT_ON_ERRORCOND((val & mask) == 0);
+				val |= mask;
+				vmcs_vmwrite(vcpu, VMCS_control_VMX_cpu_based, val);
+			}
+			for (u32 i = 0; i < PAGE_SIZE_4K; i++) {
+				HALT_ON_ERRORCOND(msr_bitmap[i] == 0);
+			}
+			{
+				u64 addr = (u64) (ulong_t) msr_bitmap;
+				vmcs_vmwrite(vcpu, VMCS_control_MSR_Bitmaps_address, addr);
+			}
+			HALT_ON_ERRORCOND(rdmsr64(0x3b) == 0ULL);
+			break;
+		case 37:
+			/* Disable MSR bitmap */
+			{
+				u32 val = vmcs_vmread(vcpu, VMCS_control_VMX_cpu_based);
+				HALT_ON_ERRORCOND((val & mask) == mask);
+				val &= ~mask;
+				vmcs_vmwrite(vcpu, VMCS_control_VMX_cpu_based, val);
+			}
+			wrmsr64(0x3b, 0ULL);
+			break;
+		case 38:
+			/* Set bit, argument in EBX */
+			HALT_ON_ERRORCOND(r->ebx < 0x8000);
+			HALT_ON_ERRORCOND(!(msr_bitmap[r->ebx / 8] & (1 << (r->ebx % 8))));
+			msr_bitmap[r->ebx / 8] |= (1 << (r->ebx % 8));
+			break;
+		case 39:
+			/* Clear bit, argument in EBX */
+			HALT_ON_ERRORCOND(r->ebx < 0x8000);
+			HALT_ON_ERRORCOND((msr_bitmap[r->ebx / 8] & (1 << (r->ebx % 8))));
+			msr_bitmap[r->ebx / 8] &= ~(1 << (r->ebx % 8));
+			break;
+		}
+		break;
+	case VMX_VMEXIT_WRMSR:
+		r->ebx = 1;
+		break;
+	case VMX_VMEXIT_RDMSR:
+		r->ebx = 1;
+		break;
+	default:
+		HALT_ON_ERRORCOND(0 && "Unknown exit reason");
+	}
+	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
+	vmresume_asm(r);
+}
+
+static void _test_rdmsr(u32 ecx, bool vmexit)
+{
+	u32 ebx = 0, eax, edx;
+	asm volatile ("rdmsr" : "+b"(ebx), "=a"(eax), "=d"(edx) : "c"(ecx));
+	HALT_ON_ERRORCOND(ebx == (vmexit ? 1 : 0));
+}
+
+static void _test_wrmsr(u32 ecx, bool vmexit, u64 val)
+{
+	u32 ebx = 0, eax = (u32) val, edx = (u32) (val >> 32);
+	asm volatile ("wrmsr" : "+b"(ebx) : "c"(ecx), "a"(eax), "d"(edx));
+	HALT_ON_ERRORCOND(ebx == (vmexit ? 1 : 0));
+}
+
+static void lhv_guest_msr_bitmap(VCPU *vcpu)
+{
+	if (__LHV_OPT__ & LHV_USE_MSRBITMAP) {
+		vcpu->vmexit_handler_override = lhv_guest_msr_bitmap_vmexit_handler;
+		/* Enable MSR bitmap */
+		asm volatile ("vmcall" : : "a"(34));
+		/* Initial: ignore everything */
+		_test_rdmsr(0xc0000082, false);
+		_test_wrmsr(0xc0000082, false, 0xffffffffffffffffULL);
+		asm volatile ("vmcall" : : "a"(38), "b"(0x2000 + 0x82));
+		/* VMEXIT only read IA32_LSTAR */
+		_test_rdmsr(0xc0000082, true);
+		_test_wrmsr(0xc0000082, false, 0xffffffffffffffffULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x2000 + 0x82));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x6000 + 0x82));
+		/* VMEXIT only write IA32_LSTAR */
+		_test_rdmsr(0xc0000082, false);
+		_test_wrmsr(0xc0000082, true, 0xffffffffffffffffULL);
+		_test_rdmsr(0x3b, false);
+		_test_wrmsr(0x3b, false, 0x1234567890abcdefULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x6000 + 0x82));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x0000 + 0x3b));
+		/* VMEXIT only read IA32_TSC_ADJUST */
+		_test_rdmsr(0x3b, true);
+		_test_wrmsr(0x3b, false, 0xfedcba0987654321ULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x0000 + 0x3b));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x4000 + 0x3b));
+		/* VMEXIT only write IA32_TSC_ADJUST */
+		_test_rdmsr(0x3b, false);
+		_test_wrmsr(0x3b, true, 0xdeadbeefbeefdeadULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x4000 + 0x3b));
+		/* Disable MSR bitmap */
+		asm volatile ("vmcall" : : "a"(37));
+		vcpu->vmexit_handler_override = NULL;
+	}
+}
+
 /* Main logic to call subsequent tests */
 void lhv_guest_main(ulong_t cpu_id)
 {
@@ -655,6 +771,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		}
 		lhv_guest_test_unrestricted_guest(vcpu);
 		lhv_guest_test_large_page(vcpu);
+		lhv_guest_msr_bitmap(vcpu);
 		lhv_guest_wait_int(vcpu);
 	}
 }
