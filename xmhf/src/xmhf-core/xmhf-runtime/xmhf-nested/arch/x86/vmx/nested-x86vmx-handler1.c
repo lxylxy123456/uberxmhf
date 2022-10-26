@@ -880,7 +880,6 @@ void xmhf_nested_arch_x86vmx_handle_vmlaunch_vmresume(VCPU * vcpu,
 			}
 			_vmx_nested_vm_fail_valid(vcpu, error_number);
 		}
-		HALT_ON_ERRORCOND(0);
 		vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 	}
 }

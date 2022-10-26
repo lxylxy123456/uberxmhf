@@ -1225,26 +1225,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * is for quiescing (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION),
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
-	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
-		if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_RDMSR) {
-			if (r->ecx != 0xc0000080) {
-				printf("{%d,%d,%d,0x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, r->ecx);
-			}
-		} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_WRMSR) {
-			if (r->ecx != 0xc0000080) {
-				printf("{%d,%d,%d,0x%08x,0x%08x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, r->ecx, r->edx, r->eax);
-			}
-		} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_CPUID) {
-			printf("{%d,%d,%d,0x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, r->eax);
-		} else if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EPT_VIOLATION) {
-			printf("{%d,%d,%d,0x%08lx,0x%016llx,0x%08lx}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, vcpu->vmcs.info_exit_qualification, vcpu->vmcs.guest_paddr, vcpu->vmcs.info_guest_linear_address);
-		} else {
-			printf("{%d,%d,%d}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility);
-		}
-	} else {
-		// TODO: will deadlock
-		printf("{%d,%d,%d,0x%08x}\n", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason, vcpu->vmcs.guest_interruptibility, vcpu->vmcs.info_vmexit_interrupt_information);
-	}
+//	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+//		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
+//	}
 
 #ifdef __DEBUG_EVENT_LOGGER__
 	if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_CPUID) {

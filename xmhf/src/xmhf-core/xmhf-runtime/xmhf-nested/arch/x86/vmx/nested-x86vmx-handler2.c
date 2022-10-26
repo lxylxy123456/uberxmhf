@@ -228,7 +228,7 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 		return result;
 	}
 
-	if (1) {
+	if (0) {
 		printf("CPU(0x%02x): nested vmentry\n", vcpu->id);
 	}
 
@@ -860,7 +860,7 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_201,
 					   &vmcs12_info->vmcs12_value.info_vmexit_reason);
 #endif							/* __DEBUG_EVENT_LOGGER__ */
-	if (1) {
+	if (0) {
 		printf("CPU(0x%02x): nested vmexit %d\n", vcpu->id,
 			   vmcs12_info->vmcs12_value.info_vmexit_reason);
 	}
@@ -953,7 +953,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_202,
 						   &vmexit_reason);
 #endif							/* __DEBUG_EVENT_LOGGER__ */
-		if (1) {
+		if (0) {
 			printf("CPU(0x%02x): 202 vmexit %d\n", vcpu->id, vmexit_reason);
 		}
 	} else {
