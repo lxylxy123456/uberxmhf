@@ -537,7 +537,9 @@ static void lhv_guest_test_unrestricted_guest(VCPU *vcpu)
 			printf("CPU(0x%02x): LHV guest can disable paging\n", vcpu->id);
 		}
 		write_cr0(cr0);
-		asm volatile ("sti");
+		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+			asm volatile ("sti");
+		}
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
@@ -794,7 +796,12 @@ static void lhv_guest_msr_bitmap(VCPU *vcpu)
 		_test_wrmsr(0x00001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
 		_test_wrmsr(0xc0001fff, MSR_TEST_VMEXIT, 0x1234567890abcdefULL);
 		asm volatile ("vmcall" : : "a"(39), "b"(0x6000 + 0x1fff));
-		/* Test read / write IA32_FS_BASE / IA32_GS_BASE (will not VMEXIT) */
+		/*
+		 * Test read / write IA32_FS_BASE / IA32_GS_BASE (will not VMEXIT)
+		 * Interrupts need to be disabled, because xcph will move to FS and GS,
+		 * which clears the base to 0.
+		 */
+		asm volatile ("cli");
 		asm volatile ("vmcall" : : "a"(41));
 		_test_rdmsr(IA32_MSR_FS_BASE, MSR_TEST_NORMAL);
 		HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_FS_BASE) == 0x680effffULL);
@@ -802,6 +809,9 @@ static void lhv_guest_msr_bitmap(VCPU *vcpu)
 		_test_wrmsr(IA32_MSR_FS_BASE, MSR_TEST_NORMAL, 0xffff680eULL);
 		_test_wrmsr(IA32_MSR_GS_BASE, MSR_TEST_NORMAL, 0xffff6810ULL);
 		asm volatile ("vmcall" : : "a"(42));
+		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+			asm volatile ("sti");
+		}
 		/* Disable MSR bitmap */
 		asm volatile ("vmcall" : : "a"(37));
 		_test_rdmsr(0x00001fff, MSR_TEST_VMEXIT);
