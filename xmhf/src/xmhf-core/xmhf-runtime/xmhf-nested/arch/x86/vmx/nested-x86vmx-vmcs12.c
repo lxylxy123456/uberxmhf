@@ -1702,17 +1702,37 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 			guestmem_copy_gp2h(&ctx_pair, 0, &msr12,
 							   guest_addr + sizeof(msr_entry_t) * i,
 							   sizeof(msr_entry_t));
-			if (xmhf_partition_arch_x86vmx_get_xmhf_msr(msr12.index, &index)) {
-				HALT_ON_ERRORCOND(msr02[index].index == msr12.index);
-				msr02[index].data = msr12.data;
-			} else {
-				if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr
-					(vcpu, msr12.index, msr12.data)) {
-					/*
-					 * Likely need to fail VMENTRY, but need to double check.
-					 */
-					HALT_ON_ERRORCOND(0 && "WRMSR fail, what should I do?");
+			switch (msr12.index) {
+			case IA32_SYSENTER_CS_MSR:
+				__vmx_vmwrite32(VMCSENC_guest_SYSENTER_CS, (u32)msr12.data);
+				break;
+			case IA32_SYSENTER_EIP_MSR:
+				__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_EIP, (ulong_t)msr12.data);
+				break;
+			case IA32_SYSENTER_ESP_MSR:
+				__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_ESP, (ulong_t)msr12.data);
+				break;
+			case IA32_MSR_FS_BASE: /* fallthrough */
+			case IA32_MSR_GS_BASE:
+				/* Likely need to fail VMENTRY, but need to double check. */
+				HALT_ON_ERRORCOND(0 && "Not allowed, what should I do?");
+				break;
+			default:
+				if (xmhf_partition_arch_x86vmx_get_xmhf_msr(msr12.index,
+															&index)) {
+					HALT_ON_ERRORCOND(msr02[index].index == msr12.index);
+					msr02[index].data = msr12.data;
+				} else {
+					if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr
+						(vcpu, msr12.index, msr12.data)) {
+						/*
+						 * Likely need to fail VMENTRY, but need to double
+						 * check.
+						 */
+						HALT_ON_ERRORCOND(0 && "WRMSR fail, what should I do?");
+					}
 				}
+				break;
 			}
 		}
 	}
@@ -1812,18 +1832,39 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 			guestmem_copy_gp2h(&ctx_pair, 0, &msr12,
 							   guest_addr + sizeof(msr_entry_t) * i,
 							   sizeof(msr_entry_t));
-			if (xmhf_partition_arch_x86vmx_get_xmhf_msr(msr12.index, &index)) {
-				msr_entry_t *msr02 = vmcs12_info->vmcs02_vmexit_msr_store_area;
-				HALT_ON_ERRORCOND(msr02[index].index == msr12.index);
-				msr12.data = msr02[index].data;
-			} else {
-				if (xmhf_parteventhub_arch_x86vmx_handle_rdmsr
-					(vcpu, msr12.index, &msr12.data)) {
-					/*
-					 * Likely need to fail VMEXIT, but need to double check.
-					 */
-					HALT_ON_ERRORCOND(0 && "RDMSR fail, what should I do?");
+			switch (msr12.index) {
+			case IA32_SYSENTER_CS_MSR:
+				msr12.data = (u64) __vmx_vmread32(VMCSENC_guest_SYSENTER_CS);
+				break;
+			case IA32_SYSENTER_EIP_MSR:
+				msr12.data = (u64) __vmx_vmreadNW(VMCSENC_guest_SYSENTER_EIP);
+				break;
+			case IA32_SYSENTER_ESP_MSR:
+				msr12.data = (u64) __vmx_vmreadNW(VMCSENC_guest_SYSENTER_ESP);
+				break;
+			case IA32_MSR_FS_BASE:
+				msr12.data = (u64) __vmx_vmreadNW(VMCSENC_guest_FS_base);
+				break;
+			case IA32_MSR_GS_BASE:
+				msr12.data = (u64) __vmx_vmreadNW(VMCSENC_guest_GS_base);
+				break;
+			default:
+				if (xmhf_partition_arch_x86vmx_get_xmhf_msr(msr12.index,
+															&index)) {
+					msr_entry_t *msr02 =
+						vmcs12_info->vmcs02_vmexit_msr_store_area;
+					HALT_ON_ERRORCOND(msr02[index].index == msr12.index);
+					msr12.data = msr02[index].data;
+				} else {
+					if (xmhf_parteventhub_arch_x86vmx_handle_rdmsr
+						(vcpu, msr12.index, &msr12.data)) {
+						/*
+						 * Likely need to fail VMEXIT, but need to double check.
+						 */
+						HALT_ON_ERRORCOND(0 && "RDMSR fail, what should I do?");
+					}
 				}
+				break;
 			}
 			guestmem_copy_h2gp(&ctx_pair, 0,
 							   guest_addr + sizeof(msr_entry_t) * i,
@@ -1845,17 +1886,36 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 			guestmem_copy_gp2h(&ctx_pair, 0, &msr12,
 							   guest_addr + sizeof(msr_entry_t) * i,
 							   sizeof(msr_entry_t));
-			if (xmhf_partition_arch_x86vmx_get_xmhf_msr(msr12.index, &index)) {
-				HALT_ON_ERRORCOND(msr01[index].index == msr12.index);
-				msr01[index].data = msr12.data;
-			} else {
-				if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr
-					(vcpu, msr12.index, msr12.data)) {
-					/*
-					 * Likely need to fail VMEXIT, but need to double check.
-					 */
-					HALT_ON_ERRORCOND(0 && "WRMSR fail, what should I do?");
+			switch (msr12.index) {
+			case IA32_SYSENTER_CS_MSR:
+				vcpu->vmcs.guest_SYSENTER_CS = (u32)msr12.data;
+				break;
+			case IA32_SYSENTER_EIP_MSR:
+				vcpu->vmcs.guest_SYSENTER_EIP = (ulong_t)msr12.data;
+				break;
+			case IA32_SYSENTER_ESP_MSR:
+				vcpu->vmcs.guest_SYSENTER_ESP = (ulong_t)msr12.data;
+				break;
+			case IA32_MSR_FS_BASE: /* fallthrough */
+			case IA32_MSR_GS_BASE:
+				/* Likely need to fail VMEXIT, but need to double check. */
+				HALT_ON_ERRORCOND(0 && "Not allowed, what should I do?");
+				break;
+			default:
+				if (xmhf_partition_arch_x86vmx_get_xmhf_msr(msr12.index,
+															&index)) {
+					HALT_ON_ERRORCOND(msr01[index].index == msr12.index);
+					msr01[index].data = msr12.data;
+				} else {
+					if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr
+						(vcpu, msr12.index, msr12.data)) {
+						/*
+						 * Likely need to fail VMEXIT, but need to double check.
+						 */
+						HALT_ON_ERRORCOND(0 && "WRMSR fail, what should I do?");
+					}
 				}
+				break;
 			}
 		}
 	}
