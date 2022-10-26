@@ -659,7 +659,6 @@ static u32 handle_vmexit20_rdmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 {
 	guestmem_hptw_ctx_pair_t ctx_pair;
 	guestmem_init(vcpu, &ctx_pair);
-	printf("CPU(0x%02x): 20? rdmsr 0x%08x -> ?\n", vcpu->id, r->ecx);
 	if (check_msr_bitmap(vmcs12_info, r->ecx, false, &ctx_pair)) {
 		return NESTED_VMEXIT_HANDLE_201;
 	} else {
@@ -728,8 +727,6 @@ static u32 handle_vmexit20_wrmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 {
 	guestmem_hptw_ctx_pair_t ctx_pair;
 	guestmem_init(vcpu, &ctx_pair);
-	printf("CPU(0x%02x): 20? wrmsr 0x%08x <- 0x%08x%08x\n", vcpu->id,
-		   r->ecx, r->edx, r->eax);
 	if (check_msr_bitmap(vmcs12_info, r->ecx, true, &ctx_pair)) {
 		return NESTED_VMEXIT_HANDLE_201;
 	} else {
