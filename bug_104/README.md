@@ -19,7 +19,7 @@ First enable Hyper-V in Windows 10. Follow official guide:
 	* In "Windows Features", turn on Hyper-V
 	* Restart
 * <https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/quick-start/quick-create-virtual-machine>
-	* TODO
+	* Open "Hyper-V Manager", follow tutorial
 
 ### XMHF unable to boot Windows 10 with Hyper-V enabled
 
@@ -230,5 +230,69 @@ However, in `xmhf64-nest 8f73abd70`, Windows 7 x86 bluescreen with error code
 `Guru Meditation 1155 (VINF_EM_TRIPLE_FAULT)`. So the MSR bitmap implementation
 is incorrect.
 
-TODO: test MSR bitmap using LHV
+In `lhv a717b82cb..2097a56d4`, add tests for MSR bitmap. However, looks like
+XMHF passes the test.
+
+Found a pitfall related to GCC's `-Werror=implicit-fallthrough` warning. In the
+following code, `break;` for `case VMX_VMEXIT_RDMSR` is forgotten. However, GCC
+does not emit a warning because the following case is simply return / break.
+However, this causes unexpected behavior because return and break have
+different behavior in my code. Suppose `case VMX_VMEXIT_CPUID` contains
+something like `i++;`, then there will be a warning generated.
+
+```c
+	switch (info->vmexit_reason) {
+	...
+	case VMX_VMEXIT_RDMSR:
+		switch (r->ecx) {
+		case MSR_APIC_BASE: /* fallthrough */
+		case IA32_X2APIC_APICID:
+			return;
+		default:
+			HALT_ON_ERRORCOND(r->ebx == MSR_TEST_NORMAL);
+			r->ebx = MSR_TEST_VMEXIT;
+			break;
+		}
+		// break;
+	case VMX_VMEXIT_CPUID:
+		return;
+	default:
+		HALT_ON_ERRORCOND(0 && "Unknown exit reason");
+	}
+```
+
+In `xmhf64-nest-dev 51ca53716`, serial `20221025161427`. Can see that there are
+only 5 202 VMEXITs due to WRMSR. No 202 VMEXITs due to RDMSR. The WRMSR 202
+VMEXITs are for MSR values:
+* 0xc0000100 `IA32_FS_BASE`
+* 0xc0000101 `IA32_GS_BASE`
+* 0xc0000102 `IA32_KERNEL_GS_BASE`
+
+The problem happens because `xmhf_parteventhub_arch_x86vmx_handle_rdmsr()` uses
+things like `vcpu->vmcs.guest_GS_base`, which is VMCS01. In this case we should
+use VMCS02 instead. The WRMSR function has the same issues. Other callers to
+`xmhf_parteventhub_arch_x86vmx_handle_rdmsr()` are VMCS02 and VMCS12
+translation functions. These functions also need to be reviewed.
+
+The test to MSR bitmap is implemented in `lhv ce69c270c..a717b82cb`. The
+commits `xmhf64-nest-dev ecf60f5f3..a8cbe3d6c` on top of `xmhf64-nest` pass
+this test. Squashed the changes to `xmhf64 5dcac3287`.
+
+After the change, (Dell, XMHF x64, Windows 10 Hyper-V) can boot. Looks like
+Windows 10 is running as a hypervisor (similar to Xen?), and XMHF sees a lot of
+EPT02 full messages.
+
+### Create Hyper-V virtual machine
+
+Create virtual machines using Hyper-V and install Windows 10 x64.
+
+In "Hyper-V Settings", change default directory to store virtual machine disks.
+* Ref: <https://www.altaro.com/hyper-v/hyper-v-change-default-vhd-location/>
+
+Result
+* Dell, amd64 XMHF, win10x64, Hyper-V, win10x64: good (install and run)
+
+### Virtualization Based Security
+
+TODO
 
