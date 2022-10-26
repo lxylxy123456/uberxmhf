@@ -373,7 +373,7 @@ void lhv_vmx_main(VCPU *vcpu)
 	{
 		struct regs r;
 		memset(&r, 0, sizeof(r));
-		r.edi = vcpu->id;
+		r.edi = vcpu->idx;
 		vmlaunch_asm(&r);
 	}
 
