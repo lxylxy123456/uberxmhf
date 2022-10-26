@@ -1704,7 +1704,7 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 							   sizeof(msr_entry_t));
 			switch (msr12.index) {
 			case IA32_SYSENTER_CS_MSR:
-				__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_CS, (u32)msr12.data);
+				__vmx_vmwrite32(VMCSENC_guest_SYSENTER_CS, (u32)msr12.data);
 				break;
 			case IA32_SYSENTER_EIP_MSR:
 				__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_EIP, (ulong_t)msr12.data);
@@ -1834,7 +1834,7 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 							   sizeof(msr_entry_t));
 			switch (msr12.index) {
 			case IA32_SYSENTER_CS_MSR:
-				msr12.data = (u64) __vmx_vmreadNW(VMCSENC_guest_SYSENTER_CS);
+				msr12.data = (u64) __vmx_vmread32(VMCSENC_guest_SYSENTER_CS);
 				break;
 			case IA32_SYSENTER_EIP_MSR:
 				msr12.data = (u64) __vmx_vmreadNW(VMCSENC_guest_SYSENTER_EIP);

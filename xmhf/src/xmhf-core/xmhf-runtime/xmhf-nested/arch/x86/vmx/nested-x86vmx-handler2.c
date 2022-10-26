@@ -666,7 +666,7 @@ static u32 handle_vmexit20_rdmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		u64 read_data;
 		switch (r->ecx) {
 		case IA32_SYSENTER_CS_MSR:
-			read_data = (u64) __vmx_vmreadNW(VMCSENC_guest_SYSENTER_CS);
+			read_data = (u64) __vmx_vmread32(VMCSENC_guest_SYSENTER_CS);
 			break;
 		case IA32_SYSENTER_EIP_MSR:
 			read_data = (u64) __vmx_vmreadNW(VMCSENC_guest_SYSENTER_EIP);
@@ -735,7 +735,7 @@ static u32 handle_vmexit20_wrmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		u64 write_data = ((u64) r->edx << 32) | (u64) r->eax;
 		switch (r->ecx) {
 		case IA32_SYSENTER_CS_MSR:
-			__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_CS, (u32)write_data);
+			__vmx_vmwrite32(VMCSENC_guest_SYSENTER_CS, (u32)write_data);
 			break;
 		case IA32_SYSENTER_EIP_MSR:
 			__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_EIP, (ulong_t)write_data);
