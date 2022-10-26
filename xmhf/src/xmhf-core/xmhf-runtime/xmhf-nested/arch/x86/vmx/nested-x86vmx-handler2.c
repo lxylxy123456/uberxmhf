@@ -664,17 +664,36 @@ static u32 handle_vmexit20_rdmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 	} else {
 		u32 index;
 		u64 read_data;
-		if (xmhf_partition_arch_x86vmx_get_xmhf_msr(r->ecx, &index)) {
-			msr_entry_t *msr02 = vmcs12_info->vmcs02_vmexit_msr_store_area;
-			HALT_ON_ERRORCOND(msr02[index].index == r->ecx);
-			read_data = msr02[index].data;
-		} else {
-			if (xmhf_parteventhub_arch_x86vmx_handle_rdmsr(vcpu, r->ecx,
-														   &read_data)) {
-				/* RDMSR fail, inject #GP(0) */
-				_nested_vmx_inject_gp();
-				return NESTED_VMEXIT_HANDLE_202;
+		switch (r->ecx) {
+		case IA32_SYSENTER_CS_MSR:
+			read_data = (u64) __vmx_vmreadNW(VMCSENC_guest_SYSENTER_CS);
+			break;
+		case IA32_SYSENTER_EIP_MSR:
+			read_data = (u64) __vmx_vmreadNW(VMCSENC_guest_SYSENTER_EIP);
+			break;
+		case IA32_SYSENTER_ESP_MSR:
+			read_data = (u64) __vmx_vmreadNW(VMCSENC_guest_SYSENTER_ESP);
+			break;
+		case IA32_MSR_FS_BASE:
+			read_data = (u64) __vmx_vmreadNW(VMCSENC_guest_FS_base);
+			break;
+		case IA32_MSR_GS_BASE:
+			read_data = (u64) __vmx_vmreadNW(VMCSENC_guest_GS_base);
+			break;
+		default:
+			if (xmhf_partition_arch_x86vmx_get_xmhf_msr(r->ecx, &index)) {
+				msr_entry_t *msr02 = vmcs12_info->vmcs02_vmexit_msr_store_area;
+				HALT_ON_ERRORCOND(msr02[index].index == r->ecx);
+				read_data = msr02[index].data;
+			} else {
+				if (xmhf_parteventhub_arch_x86vmx_handle_rdmsr(vcpu, r->ecx,
+															   &read_data)) {
+					/* RDMSR fail, inject #GP(0) */
+					_nested_vmx_inject_gp();
+					return NESTED_VMEXIT_HANDLE_202;
+				}
 			}
+			break;
 		}
 		/* Assign read_result to r->eax and r->edx */
 		{
@@ -714,16 +733,35 @@ static u32 handle_vmexit20_wrmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		msr_entry_t *msr02 = vmcs12_info->vmcs02_vmentry_msr_load_area;
 		u32 index;
 		u64 write_data = ((u64) r->edx << 32) | (u64) r->eax;
-		if (xmhf_partition_arch_x86vmx_get_xmhf_msr(r->ecx, &index)) {
-			HALT_ON_ERRORCOND(msr02[index].index == r->ecx);
-			msr02[index].data = write_data;
-		} else {
-			if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr(vcpu, r->ecx,
-														   write_data)) {
-				/* WRMSR fail, inject #GP(0) */
-				_nested_vmx_inject_gp();
-				return NESTED_VMEXIT_HANDLE_202;
+		switch (r->ecx) {
+		case IA32_SYSENTER_CS_MSR:
+			__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_CS, (u32)write_data);
+			break;
+		case IA32_SYSENTER_EIP_MSR:
+			__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_EIP, (ulong_t)write_data);
+			break;
+		case IA32_SYSENTER_ESP_MSR:
+			__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_ESP, (ulong_t)write_data);
+			break;
+		case IA32_MSR_FS_BASE:
+			__vmx_vmwriteNW(VMCSENC_guest_FS_base, (ulong_t)write_data);
+			break;
+		case IA32_MSR_GS_BASE:
+			__vmx_vmwriteNW(VMCSENC_guest_GS_base, (ulong_t)write_data);
+			break;
+		default:
+			if (xmhf_partition_arch_x86vmx_get_xmhf_msr(r->ecx, &index)) {
+				HALT_ON_ERRORCOND(msr02[index].index == r->ecx);
+				msr02[index].data = write_data;
+			} else {
+				if (xmhf_parteventhub_arch_x86vmx_handle_wrmsr(vcpu, r->ecx,
+															   write_data)) {
+					/* WRMSR fail, inject #GP(0) */
+					_nested_vmx_inject_gp();
+					return NESTED_VMEXIT_HANDLE_202;
+				}
 			}
+			break;
 		}
 		/* Increase RIP since instruction is emulated */
 		{
