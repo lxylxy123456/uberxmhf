@@ -292,7 +292,38 @@ In "Hyper-V Settings", change default directory to store virtual machine disks.
 Result
 * Dell, amd64 XMHF, win10x64, Hyper-V, win10x64: good (install and run)
 
-### Virtualization Based Security
+### Virtual Box Nested Virtualization
 
-TODO
+In (XMHF x64, Windows 10 x64 Hyper-V, Virtual Box), Virtual Box cannot enable
+nested virtualization. Currently at `xmhf64-nest 8bf94895d`.
+
+Looks like Virtual Box requires "VMCS shadowing" to be supported
+(`VMX_SECPROCBASED_VMCS_SHADOWING`), but currently XMHF does not support it.
+Virtual Box checkbox for "Enable Nested VT-x/AMD-V" will be greyed out.
+
+### Virtualization Based Security (VBS)
+
+Follow the following tutorial to turn on VBS on Windows 10 x64:
+<https://learn.microsoft.com/en-us/windows/security/threat-protection/device-guard/enable-virtualization-based-protection-of-code-integrity>
+* Run `gpedit.msc`
+* Computer Configuration > Administrative Templates > System > Device Guard
+* Double click "Turn on Virtualization Based Security"
+* Change "Not Configured" to "Enabled"
+* For now keep other settings as is
+* Restart
+
+Looks like Windows can boot well. After enabling other settings, Windows can
+still boot. I am worried that VBS is not effective when Windows 10 boots in
+legacy mode. Maybe UEFI is required.
+
+## Fix
+
+`xmhf64 6792c4c41..5dcac3287`
+* Correctly restore `guest_interruptibility` when handling dbexception
+
+`xmhf64-nest d52b4718c..56ceab9e4`
+* Fix bug: remove EPT02 blocking if VMENTRY fails
+* Cache result of `_vmcs12_get_ctls()` during L2 operation
+* Support MSR bitmap for guest hypervisor
+* Disallow modifying APIC MSRs in MSR load area
 
