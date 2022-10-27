@@ -1561,7 +1561,7 @@ static u32 _vmcs12_to_vmcs02_guest_interruptibility(ARG10 * arg)
 			arg->vmcs12_info->guest_block_nmi = false;
 		} else {
 			/* NMI Exiting = 1, virtual NMIs = 0 */
-			arg->vmcs12_info->guest_block_nmi = val & (1U << 3);
+			arg->vmcs12_info->guest_block_nmi = val & VMX_GUEST_INTR_BLOCK_NMI;
 		}
 	} else {
 		/* NMI Exiting = 0, virtual NMIs = 0, guest_block_nmi is ignored */
@@ -1579,32 +1579,32 @@ static void _vmcs02_to_vmcs12_guest_interruptibility(ARG01 * arg)
 	if (arg->vmcs12_info->guest_vmcs_block_nmi_overridden) {
 		arg->vmcs12_info->guest_vmcs_block_nmi_overridden = false;
 		if (arg->vmcs12_info->guest_vmcs_block_nmi) {
-			val |= (1U << 3);
+			val |= VMX_GUEST_INTR_BLOCK_NMI;
 		} else {
-			val &= ~(1U << 3);
+			val &= ~VMX_GUEST_INTR_BLOCK_NMI;
 		}
 	}
 	if (arg->vmcs12_info->guest_nmi_exiting) {
 		/* Copy guest NMI blocking to host (VMCS01) */
 		if (arg->vmcs12_info->guest_block_nmi) {
-			arg->vcpu->vmcs.guest_interruptibility |= (1U << 3);
+			arg->vcpu->vmcs.guest_interruptibility |= VMX_GUEST_INTR_BLOCK_NMI;
 		} else {
-			arg->vcpu->vmcs.guest_interruptibility &= ~(1U << 3);
+			arg->vcpu->vmcs.guest_interruptibility &= ~VMX_GUEST_INTR_BLOCK_NMI;
 		}
 		/* Set guest interruptibility state in VMCS12 */
 		if (!arg->vmcs12_info->guest_virtual_nmis) {
 			if (arg->vmcs12_info->guest_block_nmi) {
-				val |= (1U << 3);
+				val |= VMX_GUEST_INTR_BLOCK_NMI;
 			} else {
-				val &= ~(1U << 3);
+				val &= ~VMX_GUEST_INTR_BLOCK_NMI;
 			}
 		}
 	} else {
 		/* Copy guest NMI blocking to host (VMCS01) */
-		if (val & (1U << 3)) {
-			arg->vcpu->vmcs.guest_interruptibility |= (1U << 3);
+		if (val & VMX_GUEST_INTR_BLOCK_NMI) {
+			arg->vcpu->vmcs.guest_interruptibility |= VMX_GUEST_INTR_BLOCK_NMI;
 		} else {
-			arg->vcpu->vmcs.guest_interruptibility &= ~(1U << 3);
+			arg->vcpu->vmcs.guest_interruptibility &= ~VMX_GUEST_INTR_BLOCK_NMI;
 		}
 	}
 	arg->vmcs12->guest_interruptibility = val;
@@ -1704,22 +1704,27 @@ u32 xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(VCPU * vcpu,
 							   sizeof(msr_entry_t));
 			switch (msr12.index) {
 			case IA32_SYSENTER_CS_MSR:
-				__vmx_vmwrite32(VMCSENC_guest_SYSENTER_CS, (u32)msr12.data);
+				__vmx_vmwrite32(VMCSENC_guest_SYSENTER_CS, (u32) msr12.data);
 				break;
 			case IA32_SYSENTER_EIP_MSR:
-				__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_EIP, (ulong_t)msr12.data);
+				__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_EIP,
+								(ulong_t) msr12.data);
 				break;
 			case IA32_SYSENTER_ESP_MSR:
-				__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_ESP, (ulong_t)msr12.data);
+				__vmx_vmwriteNW(VMCSENC_guest_SYSENTER_ESP,
+								(ulong_t) msr12.data);
 				break;
-			case IA32_MSR_FS_BASE: /* fallthrough */
+			case IA32_MSR_FS_BASE:	/* fallthrough */
 			case IA32_MSR_GS_BASE:
 				/* Likely need to fail VMENTRY, but need to double check. */
 				HALT_ON_ERRORCOND(0 && "Not allowed, what should I do?");
 				break;
 			default:
-				if (xmhf_partition_arch_x86vmx_get_xmhf_msr(msr12.index,
-															&index)) {
+				if ((msr12.index & 0xffffff00U) == 0x00000800U) {
+					/* Likely need to fail VMENTRY, but need to double check. */
+					HALT_ON_ERRORCOND(0 && "Not allowed, what should I do?");
+				} else if (xmhf_partition_arch_x86vmx_get_xmhf_msr(msr12.index,
+																   &index)) {
 					HALT_ON_ERRORCOND(msr02[index].index == msr12.index);
 					msr02[index].data = msr12.data;
 				} else {
@@ -1888,22 +1893,25 @@ void xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12(VCPU * vcpu,
 							   sizeof(msr_entry_t));
 			switch (msr12.index) {
 			case IA32_SYSENTER_CS_MSR:
-				vcpu->vmcs.guest_SYSENTER_CS = (u32)msr12.data;
+				vcpu->vmcs.guest_SYSENTER_CS = (u32) msr12.data;
 				break;
 			case IA32_SYSENTER_EIP_MSR:
-				vcpu->vmcs.guest_SYSENTER_EIP = (ulong_t)msr12.data;
+				vcpu->vmcs.guest_SYSENTER_EIP = (ulong_t) msr12.data;
 				break;
 			case IA32_SYSENTER_ESP_MSR:
-				vcpu->vmcs.guest_SYSENTER_ESP = (ulong_t)msr12.data;
+				vcpu->vmcs.guest_SYSENTER_ESP = (ulong_t) msr12.data;
 				break;
-			case IA32_MSR_FS_BASE: /* fallthrough */
+			case IA32_MSR_FS_BASE:	/* fallthrough */
 			case IA32_MSR_GS_BASE:
 				/* Likely need to fail VMEXIT, but need to double check. */
 				HALT_ON_ERRORCOND(0 && "Not allowed, what should I do?");
 				break;
 			default:
-				if (xmhf_partition_arch_x86vmx_get_xmhf_msr(msr12.index,
-															&index)) {
+				if ((msr12.index & 0xffffff00U) == 0x00000800U) {
+					/* Likely need to fail VMEXIT, but need to double check. */
+					HALT_ON_ERRORCOND(0 && "Not allowed, what should I do?");
+				} else if (xmhf_partition_arch_x86vmx_get_xmhf_msr(msr12.index,
+																   &index)) {
 					HALT_ON_ERRORCOND(msr01[index].index == msr12.index);
 					msr01[index].data = msr12.data;
 				} else {

@@ -47,8 +47,12 @@
 //vmx.h - Intel VMX definitions
 //author: amit vasudevan (amitvasudevan@acm.org)
 
-#define VMXON_SIZE		(4096)
-#define VMCS_SIZE			(8192)
+//Guest Interruptibility state
+#define VMX_GUEST_INTR_BLOCK_STI    (1U << 0)   // Blocking by STI
+#define VMX_GUEST_INTR_BLOCK_MOVSS  (1U << 1)   // Blocking by MOV SS
+#define VMX_GUEST_INTR_BLOCK_SMI    (1U << 2)   // Blocking by SMI
+#define VMX_GUEST_INTR_BLOCK_NMI    (1U << 3)   // Blocking by NMI
+#define VMX_GUEST_INTR_ENCLV_INT    (1U << 4)   // Enclave interruption
 
 //VM Exit Interruption-information format
 #define INTR_INFO_VECTOR_MASK           (0x000000ff)        // 7:0
@@ -67,6 +71,14 @@
 #define INTR_TYPE_SW_INTERRUPT        (4U << 8)  // software interrupt
 #define INTR_TYPE_PRIV_SW_EXCEPTION   (5U << 8)  // privleged software exception (INT1)
 #define INTR_TYPE_SW_EXCEPTION        (6U << 8)  // software exception (INTO, INT3)
+
+/* Used in bitfields (BF) */
+#define INTR_TYPE_BF_HW_INTERRUPT       (0U)  // hardware/external interrupt
+#define INTR_TYPE_BF_NMI                (2U)  // NMI
+#define INTR_TYPE_BF_HW_EXCEPTION       (3U)  // processor exception
+#define INTR_TYPE_BF_SW_INTERRUPT       (4U)  // software interrupt
+#define INTR_TYPE_BF_PRIV_SW_EXCEPTION  (5U)  // privleged software exception (INT1)
+#define INTR_TYPE_BF_SW_EXCEPTION       (6U)  // software exception (INTO, INT3)
 
 //
 #define VMX_EVENT_CANCEL  (0)
