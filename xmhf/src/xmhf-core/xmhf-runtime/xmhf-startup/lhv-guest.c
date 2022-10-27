@@ -251,9 +251,10 @@ static void lhv_guest_test_ept_vmexit_handler(VCPU *vcpu, struct regs *r,
 			/* Let the default handler report the error */
 			return;
 		}
-		HALT_ON_ERRORCOND(q == 0x181);
-		HALT_ON_ERRORCOND(r->eax == 0xdeadbeef);
-		HALT_ON_ERRORCOND(r->ebx == 0x12340000);
+		/* On older machines: q = 0x181; on Dell 7050: q = 0x581 */
+		HALT_ON_ERRORCOND((q & ~0xe00UL) == 0x181UL);
+		HALT_ON_ERRORCOND(r->eax == 0xdeadbeefU);
+		HALT_ON_ERRORCOND(r->ebx == 0x12340000U);
 		r->eax = 0xfee1c0de;
 		vcpu->ept_exit_count++;
 	}
