@@ -316,6 +316,9 @@ Looks like Windows can boot well. After enabling other settings, Windows can
 still boot. I am worried that VBS is not effective when Windows 10 boots in
 legacy mode. Maybe UEFI is required.
 
+If I remove Hyper-V and keep VBS, looks like Windows does not access nested
+virtualization feature in XMHF. So likely UEFI is required for VBS.
+
 ## Fix
 
 `xmhf64 6792c4c41..5dcac3287`
