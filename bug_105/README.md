@@ -26,6 +26,7 @@ changed LHV in `lhv de25814dc` to ignore these bits.
 ### The Mysterious Exception 0x27
 
 TODO: run pebbels kernel, see what happens
+TODO: review tboot `calibrate_tsc()`
 TODO: see `bug_090`
 
 TODO
