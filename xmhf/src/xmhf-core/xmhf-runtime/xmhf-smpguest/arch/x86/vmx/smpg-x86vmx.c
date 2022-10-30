@@ -271,8 +271,9 @@ u32 xmhf_smpguest_arch_x86vmx_eventhandler_hwpgtblviolation(VCPU *vcpu, u32 padd
   vcpu->vmcs.guest_RFLAGS &= ~(EFLAGS_IF);
 
   //disable NMIs
-  g_vmx_lapic_guest_intr_nmimask = vcpu->vmcs.guest_interruptibility & (1U << 3);
-  vcpu->vmcs.guest_interruptibility |= (1U << 3);
+  g_vmx_lapic_guest_intr_nmimask =
+    vcpu->vmcs.guest_interruptibility & VMX_GUEST_INTR_BLOCK_NMI;
+  vcpu->vmcs.guest_interruptibility |= VMX_GUEST_INTR_BLOCK_NMI;
 
   //intercept all exceptions (XMHF will panic if the guest's APIC access resuls
   //in an exception)
@@ -409,7 +410,9 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_dbexception(VCPU *vcpu, struct regs 
   vcpu->vmcs.guest_RFLAGS |= g_vmx_lapic_guest_eflags_tfifmask;
 
   //restore NMI blocking (likely enable NMIs)
-  vcpu->vmcs.guest_interruptibility |= g_vmx_lapic_guest_intr_nmimask;
+  vcpu->vmcs.guest_interruptibility =
+    ((vcpu->vmcs.guest_interruptibility & ~VMX_GUEST_INTR_BLOCK_NMI) |
+     g_vmx_lapic_guest_intr_nmimask);
 
   //restore exception bitmap
   vcpu->vmcs.control_exception_bitmap = g_vmx_lapic_exception_bitmap;
@@ -948,7 +951,7 @@ void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU *vcpu)
 	/* When the guest OS is blocking NMI, max of guest_nmi_pending is 1 */
 	{
 		u32 __guest_interruptibility = __vmx_vmread32(0x4824);
-		if (__guest_interruptibility & (1U << 3)) {
+		if (__guest_interruptibility & VMX_GUEST_INTR_BLOCK_NMI) {
 			nmi_pending_limit = 1;
 		}
 	}

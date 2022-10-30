@@ -128,7 +128,7 @@ void _vmx_inject_exception(VCPU *vcpu, u32 vector, u32 has_ec, u32 errcode)
 	HALT_ON_ERRORCOND(has_ec <= 1);
 	injection_info.ui = 0;
 	injection_info.st.vector = vector;  /* e.g. #UD, #GP */
-	injection_info.st.type = 0x3;       /* Hardware Exception */
+	injection_info.st.type = INTR_TYPE_BF_HW_EXCEPTION;
 	injection_info.st.errorcode = has_ec;
 	injection_info.st.valid = 1;
 	vcpu->vmcs.control_VM_entry_interruption_information = injection_info.ui;
@@ -842,9 +842,6 @@ static void vmx_handle_intercept_cr0access_ug(VCPU *vcpu, struct regs *r, u32 gp
 		}
 	}
 
-	//flush mappings
-	xmhf_memprot_arch_x86vmx_flushmappings(vcpu);
-
 	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 }
 
@@ -1314,8 +1311,8 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * Check and clear guest interruptibility state.
 	 * However, ignore bit 3, because it is for virtual NMI.
 	 */
-	if ((vcpu->vmcs.guest_interruptibility & ~(1U << 3)) != 0){
-		vcpu->vmcs.guest_interruptibility &= (1U << 3);
+	if ((vcpu->vmcs.guest_interruptibility & ~VMX_GUEST_INTR_BLOCK_NMI) != 0){
+		vcpu->vmcs.guest_interruptibility &= VMX_GUEST_INTR_BLOCK_NMI;
 	}
 
 	//make sure we have no nested events
