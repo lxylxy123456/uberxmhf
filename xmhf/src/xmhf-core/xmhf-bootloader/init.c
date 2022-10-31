@@ -1056,7 +1056,8 @@ void cstartup(multiboot_info_t *mbi){
 
     //check number of elements in mod_array. Currently bootloader assumes that
     //mod_array[0] is SL+RT, mod_array[1] is guest OS boot module.
-    HALT_ON_ERRORCOND(mods_count >= 2);
+    HALT_ON_ERRORCOND(mods_count >= 1);
+    // HALT_ON_ERRORCOND(mods_count >= 2);
 
     //find highest 2MB aligned physical memory address that the hypervisor
     //binary must be moved to
@@ -1130,8 +1131,8 @@ void cstartup(multiboot_info_t *mbi){
         //memcpy((void *)&slpb->pcpus, (void *)&pcpus, (sizeof(PCPU) * pcpus_numentries));
         memcpy((void *)&slpb->cpuinfobuffer, (void *)&pcpus, (sizeof(PCPU) * pcpus_numentries));
         slpb->runtime_size = (mod_array[0].mod_end - mod_array[0].mod_start) - PAGE_SIZE_2M;
-        slpb->runtime_osbootmodule_base = mod_array[1].mod_start;
-        slpb->runtime_osbootmodule_size = (mod_array[1].mod_end - mod_array[1].mod_start);
+        slpb->runtime_osbootmodule_base = 0; // mod_array[1].mod_start;
+        slpb->runtime_osbootmodule_size = 0; // (mod_array[1].mod_end - mod_array[1].mod_start);
         slpb->runtime_osbootdrive = get_tboot_boot_drive();
 
 		//check if we have an optional app module and if so populate relevant SLPB
