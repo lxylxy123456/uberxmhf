@@ -59,15 +59,6 @@ void xmhf_baseplatform_arch_x86_udelay(u32 usecs){
   u8 val;
   u32 latchregval;
 
-	if (1) {
-		u64 start = rdtsc64();
-		printf("Replace sleep with RDTSC\n");
-		while (rdtsc64() - start < (u64)usecs * 3500) {
-			xmhf_cpu_relax();
-		}
-		return;
-	}
-
   //enable 8254 ch-2 counter
   val = inb(0x61);
   val &= 0x0d; //turn PC speaker off
