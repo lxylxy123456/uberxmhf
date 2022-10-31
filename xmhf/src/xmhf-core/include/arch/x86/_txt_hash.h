@@ -45,6 +45,27 @@
  */
 
 /*
+ * XMHF: The following file is taken from:
+ *  tboot-1.10.5/include/hash.h
+ * Changes made include:
+ *  Split to hash.h (in libbaremetal) and _txt_hash.h (in xmhf-core).
+ * List of symbols in hash.h (others are in _txt_hash.h):
+ *  TB_HALG_SHA1_LG
+ *  TB_HALG_SHA1
+ *  TB_HALG_SHA256
+ *  TB_HALG_SM3
+ *  TB_HALG_SHA384
+ *  TB_HALG_SHA512
+ *  TB_HALG_NULL
+ *  SHA1_LENGTH
+ *  SHA256_LENGTH
+ *  SM3_LENGTH
+ *  SHA384_LENGTH
+ *  SHA512_LENGTH
+ *  tb_hash_t
+ */
+
+/*
  * hash.h:  definition of and support fns for tb_hash_t type
  *
  * Copyright (c) 2006-2007, Intel Corporation
@@ -79,57 +100,60 @@
  *
  */
 
-/*
- * Modified for XMHF by jonmccune@cmu.edu, 2011.01.04
- */
+#ifndef __TXT_HASH_H__
+#define __TXT_HASH_H__
 
-#ifndef __HASH_H__
-#define __HASH_H__
+typedef uint8_t sha1_hash_t[SHA1_LENGTH];
+typedef uint8_t sha256_hash_t[SHA256_LENGTH];
+typedef uint8_t sm3_hash_t[SM3_LENGTH];
+typedef uint8_t sha384_hash_t[SHA384_LENGTH];
+typedef uint8_t sha512_hash_t[SHA512_LENGTH];
 
-#define TB_HALG_SHA1    0
-
-#ifndef SHA1_LENGTH
-#define SHA1_LENGTH        20
-#endif
-#ifndef SHA256_LENGTH
-#define SHA256_LENGTH      32
-#endif
-
-typedef union {
-    uint8_t    sha1[SHA1_LENGTH];
-    uint8_t    sha256[SHA256_LENGTH];
-} tb_hash_t;
-
-
-/* static inline const char *hash_alg_to_string(uint8_t hash_alg) */
-/* { */
-/*     if ( hash_alg == TB_HALG_SHA1 ) */
-/*         return "TB_HALG_SHA1"; */
-/*     else { */
-/*         static char buf[32]; */
-/*         snprintf(buf, sizeof(buf), "unsupported (%u)", hash_alg); */
-/*         return buf; */
-/*     } */
-/* } */
-
-
-static inline unsigned int get_hash_size(uint8_t hash_alg)
+static inline const char *hash_alg_to_string(uint16_t hash_alg)
 {
-    return (hash_alg == TB_HALG_SHA1) ? SHA1_LENGTH : 0;
+    if ( hash_alg == TB_HALG_SHA1 || hash_alg == TB_HALG_SHA1_LG )
+        return "TB_HALG_SHA1";
+    else if ( hash_alg == TB_HALG_SHA256 )
+        return "TB_HALG_SHA256";
+    else if ( hash_alg == TB_HALG_SM3 )
+        return "TB_HALG_SM3";
+    else if ( hash_alg == TB_HALG_SHA384 )
+        return "TB_HALG_SHA384";
+    else if ( hash_alg == TB_HALG_SHA512 )
+        return "TB_HALG_SHA512";
+    else
+        return "unsupported";
+}
+
+static inline unsigned int get_hash_size(uint16_t hash_alg)
+{
+    if ( hash_alg == TB_HALG_SHA1 || hash_alg == TB_HALG_SHA1_LG )
+        return SHA1_LENGTH;
+    else if ( hash_alg == TB_HALG_SHA256 )
+        return SHA256_LENGTH;
+    else if ( hash_alg == TB_HALG_SM3 )
+        return SM3_LENGTH;
+    else if ( hash_alg == TB_HALG_SHA384 )
+        return SHA384_LENGTH;
+    else if ( hash_alg == TB_HALG_SHA512 )
+        return SHA512_LENGTH;
+    else
+        return 0;
 }
 
 extern bool are_hashes_equal(const tb_hash_t *hash1, const tb_hash_t *hash2,
-                             uint8_t hash_alg);
+                             uint16_t hash_alg);
 extern bool hash_buffer(const unsigned char* buf, size_t size, tb_hash_t *hash,
-                        uint8_t hash_alg);
+                        uint16_t hash_alg);
 extern bool extend_hash(tb_hash_t *hash1, const tb_hash_t *hash2,
-                        uint8_t hash_alg);
-extern void print_hash(const tb_hash_t *hash, uint8_t hash_alg);
+                        uint16_t hash_alg);
+extern void print_hash(const tb_hash_t *hash, uint16_t hash_alg);
+extern bool import_hash(const char *string, tb_hash_t *hash, uint16_t alg);
 extern void copy_hash(tb_hash_t *dest_hash, const tb_hash_t *src_hash,
-                      uint8_t hash_alg);
+                      uint16_t hash_alg);
 
 
-#endif    /* __HASH_H__ */
+#endif    /* __TXT_HASH_H__ */
 
 
 /*
