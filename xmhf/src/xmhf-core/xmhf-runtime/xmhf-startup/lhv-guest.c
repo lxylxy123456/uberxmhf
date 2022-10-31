@@ -42,6 +42,7 @@ const char *exit_source_str[] = {
 };
 
 static volatile u32 l2_ready = 0;
+static volatile u32 l2_init_apic_id = 0U;
 static volatile u32 master_fail = 0;
 static volatile u32 experiment_no = 0;
 static volatile u32 state_no = 0;
@@ -124,7 +125,8 @@ void handle_timer_interrupt(VCPU *vcpu, int vector, int guest, uintptr_t rip)
 			static u32 count = 0;
 			volatile u32 *icr_high = (volatile u32 *)(0xfee00310);
 			volatile u32 *icr_low = (volatile u32 *)(0xfee00300);
-			*icr_high = 0x01000000U;
+			HALT_ON_ERRORCOND(l2_init_apic_id != 0);
+			*icr_high = l2_init_apic_id;
 			switch ((count++) % (INTERRUPT_PERIOD * 2)) {
 			case 0:
 				if (!quiet) {
@@ -1658,6 +1660,8 @@ void lhv_guest_main(ulong_t cpu_id)
 			in_bochs = true;
 			printf("    Bochs detected\n");
 		}
+		/* Set APIC ID (Bits 31 - 24: Initial APIC ID) */
+		l2_init_apic_id = ebx & 0xff000000;
 		/*
 		 * Detect QEMU / KVM using
 		 * https://01.org/linuxgraphics/gfx-docs/drm/virt/kvm/cpuid.html
