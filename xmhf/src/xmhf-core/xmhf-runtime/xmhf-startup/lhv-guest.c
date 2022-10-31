@@ -1753,6 +1753,22 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 			handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector, 1, rip);
 		}
 		break;
+	case 0x27:
+		/*
+		 * We encountered the Mysterious IRQ 7. This has been observed on Bochs
+		 * and Dell 7050. The correct way is likely to ignore this interrupt
+		 * (without sending EOI to PIC). References:
+		 * * https://en.wikipedia.org/wiki/Intel_8259#Spurious_interrupts
+		 * * https://wiki.osdev.org/8259_PIC#Spurious_IRQs
+		 * * Project 3: Writing a Kernel From Scratch (not publicly available)
+		 *    15-410 Operating Systems
+		 *    February 25, 2022
+		 *    4.1.8 The Mysterious Exception 0x27, aka IRQ 7
+		 *
+		 * Note that calling printf() here will deadlock if the interrupted
+		 * code is already calling printf().
+		 */
+		break;
 	default:
 		printf("Guest: interrupt / exception vector %ld\n", vector);
 		HALT_ON_ERRORCOND(0 && "Guest: unknown interrupt / exception!\n");
