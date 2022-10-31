@@ -146,11 +146,6 @@ static inline uintptr_t vmcall(uintptr_t eax, uintptr_t ecx, uintptr_t edx,
 /* Above are for pal_demo */
 
 __attribute__((__noreturn__)) void leave_user_mode(void) {
-	printf("End of user mode\n");
-	asm volatile ("sti");
-	while (1) {
-		asm volatile ("pause");
-	}
 	asm volatile ("movl $0xdeaddead, %eax; int $0x23;");
 	HALT_ON_ERRORCOND(0 && "system call returned");
 }
