@@ -26,7 +26,8 @@ OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/dmap-interface-earlyinit.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/dmap-x86-earlyinit.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/svm/dmap-svm.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/vmx/dmap-vmx-earlyinit.o
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal.o
+OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal-common.o
+OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal-earlyinit.o
 endif
 
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/bplt-interface.o
@@ -40,7 +41,7 @@ OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
 
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx.o
 ifeq ($(DRT), y)
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs.o
+OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs-common.o
 endif
 
 # separate from OBJECTS_PRECOMPILED becasue needs to come after libs on link line

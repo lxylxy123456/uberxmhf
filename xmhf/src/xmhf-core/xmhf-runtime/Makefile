@@ -45,7 +45,9 @@
 #OBJECTS_PRECOMPILED += ./xmhf-dmaprot/iommu-pt.o
 #OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/dmap-x86-runtime.o
 #OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/svm/dmap-svm.o
-#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal.o
+#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal-common.o
+#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal-runtime.o
+#OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-quirks.o
 #OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-runtime.o
 #OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-utils.o
 #OBJECTS_PRECOMPILED += ./xmhf-dmaprot/arch/x86/vmx/dmap-vmx-data.o
@@ -77,7 +79,7 @@ OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-data.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-smp.o
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-vmcs.o
 #ifeq ($(DRT), y)
-#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs.o
+#OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs-common.o
 #endif
 OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-reboot.o
 

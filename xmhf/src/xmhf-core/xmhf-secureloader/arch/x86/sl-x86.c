@@ -53,9 +53,9 @@
 #include <xmhf.h>
 
 
-// 2 pages of memory in untrusted SL memory for Intel to set up DMA protection
+// 1 pages of memory in untrusted SL memory for Intel to disable all DMA accesses
 // According to implementation, they should be simply memset to 0
-u8 g_sl_intel_dmap_buffer[2 * PAGE_SIZE_4K]
+u8 g_sl_intel_dmap_buffer[1 * PAGE_SIZE_4K]
 __attribute__((section(".sl_untrusted_params"), aligned(PAGE_SIZE_4K)));
 
 //we only have confidence in the runtime's expected value here in the SL
@@ -87,6 +87,8 @@ void xmhf_setup_sl_paging(u32 baseaddr) {
         hva &= ADDR_4GB - 1ULL; /* wrap around for low physical addresses */
         sl_pdt[i] = p4l_make_pde_big(hva, default_flags);
     }
+    /* Flush TLB */
+    write_cr3(read_cr3());
 }
 #elif !defined(__I386__)
     #error "Unsupported Arch"
