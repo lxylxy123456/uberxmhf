@@ -251,9 +251,10 @@ static void lhv_guest_test_ept_vmexit_handler(VCPU *vcpu, struct regs *r,
 			/* Let the default handler report the error */
 			return;
 		}
-		HALT_ON_ERRORCOND(q == 0x181);
-		HALT_ON_ERRORCOND(r->eax == 0xdeadbeef);
-		HALT_ON_ERRORCOND(r->ebx == 0x12340000);
+		/* On older machines: q = 0x181; on Dell 7050: q = 0x581 */
+		HALT_ON_ERRORCOND((q & ~0xe00UL) == 0x181UL);
+		HALT_ON_ERRORCOND(r->eax == 0xdeadbeefU);
+		HALT_ON_ERRORCOND(r->ebx == 0x12340000U);
 		r->eax = 0xfee1c0de;
 		vcpu->ept_exit_count++;
 	}
@@ -537,7 +538,9 @@ static void lhv_guest_test_unrestricted_guest(VCPU *vcpu)
 			printf("CPU(0x%02x): LHV guest can disable paging\n", vcpu->id);
 		}
 		write_cr0(cr0);
-		asm volatile ("sti");
+		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+			asm volatile ("sti");
+		}
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
@@ -579,6 +582,250 @@ static void lhv_guest_test_user(VCPU *vcpu)
 		vcpu->vmexit_handler_override = NULL;
 	}
 }
+
+/* Test MSR bitmap */
+#define MSR_TEST_NORMAL	0x2900b05d
+#define MSR_TEST_VMEXIT	0xf6d7a004
+#define MSR_TEST_EXCEPT	0xc23a16e5
+
+static void lhv_guest_msr_bitmap_vmexit_handler(VCPU *vcpu, struct regs *r,
+												vmexit_info_t *info)
+{
+	static u8 msr_bitmap_allcpu[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+		__attribute__(( section(".bss.palign_data") ));
+	const u32 mask = (1U << 28);
+	u8 *msr_bitmap = msr_bitmap_allcpu[vcpu->idx];
+	switch (info->vmexit_reason) {
+	case VMX_VMEXIT_VMCALL:
+		switch (r->eax) {
+		case 34:
+			/* Enable MSR bitmap */
+			{
+				u32 val = vmcs_vmread(vcpu, VMCS_control_VMX_cpu_based);
+				HALT_ON_ERRORCOND((val & mask) == 0);
+				val |= mask;
+				vmcs_vmwrite(vcpu, VMCS_control_VMX_cpu_based, val);
+			}
+			for (u32 i = 0; i < PAGE_SIZE_4K; i++) {
+				HALT_ON_ERRORCOND(msr_bitmap[i] == 0);
+			}
+			{
+				u64 addr = (u64) (ulong_t) msr_bitmap;
+				vmcs_vmwrite(vcpu, VMCS_control_MSR_Bitmaps_address, addr);
+			}
+			HALT_ON_ERRORCOND(rdmsr64(0x3b) == 0ULL);
+			break;
+		case 37:
+			/* Disable MSR bitmap */
+			{
+				u32 val = vmcs_vmread(vcpu, VMCS_control_VMX_cpu_based);
+				HALT_ON_ERRORCOND((val & mask) == mask);
+				val &= ~mask;
+				vmcs_vmwrite(vcpu, VMCS_control_VMX_cpu_based, val);
+			}
+			wrmsr64(0x3b, 0ULL);
+			break;
+		case 38:
+			/* Set bit, argument in EBX */
+			HALT_ON_ERRORCOND(r->ebx < 0x8000);
+			HALT_ON_ERRORCOND(!(msr_bitmap[r->ebx / 8] & (1 << (r->ebx % 8))));
+			msr_bitmap[r->ebx / 8] |= (1 << (r->ebx % 8));
+			break;
+		case 39:
+			/* Clear bit, argument in EBX */
+			HALT_ON_ERRORCOND(r->ebx < 0x8000);
+			HALT_ON_ERRORCOND((msr_bitmap[r->ebx / 8] & (1 << (r->ebx % 8))));
+			msr_bitmap[r->ebx / 8] &= ~(1 << (r->ebx % 8));
+			break;
+		case 41:
+			/* Prepare for FS / GS check */
+			HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_FS_BASE) == 0ULL);
+			HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_GS_BASE) == 0ULL);
+			HALT_ON_ERRORCOND(vmcs_vmread(vcpu, VMCS_guest_FS_base) == 0UL);
+			HALT_ON_ERRORCOND(vmcs_vmread(vcpu, VMCS_guest_GS_base) == 0UL);
+			vmcs_vmwrite(vcpu, VMCS_guest_FS_base, 0x680effffUL);
+			vmcs_vmwrite(vcpu, VMCS_guest_GS_base, 0x6810ffffUL);
+			break;
+		case 42:
+			/* Check FS / GS */
+			HALT_ON_ERRORCOND(vmcs_vmread(vcpu, VMCS_guest_FS_base) ==
+							  0xffff680eUL);
+			HALT_ON_ERRORCOND(vmcs_vmread(vcpu, VMCS_guest_GS_base) ==
+							  0xffff6810UL);
+			HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_FS_BASE) == 0ULL);
+			HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_GS_BASE) == 0ULL);
+			vmcs_vmwrite(vcpu, VMCS_guest_FS_base, 0UL);
+			vmcs_vmwrite(vcpu, VMCS_guest_GS_base, 0UL);
+			break;
+		}
+		break;
+	case VMX_VMEXIT_WRMSR:
+		r->ebx = MSR_TEST_VMEXIT;
+		break;
+	case VMX_VMEXIT_RDMSR:
+		switch (r->ecx) {
+		case MSR_APIC_BASE: /* fallthrough */
+		case IA32_X2APIC_APICID:
+			return;
+		default:
+			HALT_ON_ERRORCOND(r->ebx == MSR_TEST_NORMAL);
+			r->ebx = MSR_TEST_VMEXIT;
+			break;
+		}
+		break;
+	case VMX_VMEXIT_CPUID:
+		return;
+	default:
+		HALT_ON_ERRORCOND(0 && "Unknown exit reason");
+	}
+	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
+	vmresume_asm(r);
+}
+
+static void _test_rdmsr(u32 ecx, u32 expected_ebx)
+{
+	u32 ebx = MSR_TEST_NORMAL, eax, edx;
+	asm volatile ("1:\n"
+				  "rdmsr\n"
+				  "jmp 3f\n"
+				  "2:\n"
+				  "movl %[e], %%ebx\n"
+				  "jmp 3f\n"
+				  ".section .xcph_table\n"
+#ifdef __AMD64__
+				  ".quad 0xd\r\n"
+				  ".quad 1b\r\n"
+				  ".quad 2b\r\n"
+#elif defined(__I386__)
+				  ".long 0xd\r\n"
+				  ".long 1b\r\n"
+				  ".long 2b\r\n"
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+				  ".previous\r\n"
+				  "3:\r\n"
+				  : "+b"(ebx), "=a"(eax), "=d"(edx)
+				  : "c" (ecx), [e]"g"(MSR_TEST_EXCEPT));
+	HALT_ON_ERRORCOND(ebx == expected_ebx);
+}
+
+static void _test_wrmsr(u32 ecx, u32 expected_ebx, u64 val)
+{
+	u32 ebx = MSR_TEST_NORMAL, eax = (u32) val, edx = (u32) (val >> 32);
+	asm volatile ("1:\n"
+				  "wrmsr\n"
+				  "jmp 3f\n"
+				  "2:\n"
+				  "movl %[e], %%ebx\n"
+				  "jmp 3f\n"
+				  ".section .xcph_table\n"
+#ifdef __AMD64__
+				  ".quad 0xd\r\n"
+				  ".quad 1b\r\n"
+				  ".quad 2b\r\n"
+#elif defined(__I386__)
+				  ".long 0xd\r\n"
+				  ".long 1b\r\n"
+				  ".long 2b\r\n"
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+				  ".previous\r\n"
+				  "3:\r\n"
+				  : "+b"(ebx)
+				  : "c" (ecx), "a"(eax), "d"(edx), [e]"g"(MSR_TEST_EXCEPT));
+	HALT_ON_ERRORCOND(ebx == expected_ebx);
+}
+
+static void lhv_guest_msr_bitmap(VCPU *vcpu)
+{
+	if (__LHV_OPT__ & LHV_USE_MSRBITMAP) {
+		vcpu->vmexit_handler_override = lhv_guest_msr_bitmap_vmexit_handler;
+		/* Enable MSR bitmap */
+		asm volatile ("vmcall" : : "a"(34));
+		/* Initial: ignore everything */
+		_test_rdmsr(0xc0000082, MSR_TEST_NORMAL);
+		_test_wrmsr(0xc0000082, MSR_TEST_NORMAL, 0xffffffffffffffffULL);
+		asm volatile ("vmcall" : : "a"(38), "b"(0x2000 + 0x82));
+		/* VMEXIT only read IA32_LSTAR */
+		_test_rdmsr(0xc0000082, MSR_TEST_VMEXIT);
+		_test_wrmsr(0xc0000082, MSR_TEST_NORMAL, 0xffffffffffffffffULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x2000 + 0x82));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x6000 + 0x82));
+		/* VMEXIT only write IA32_LSTAR */
+		_test_rdmsr(0xc0000082, MSR_TEST_NORMAL);
+		_test_wrmsr(0xc0000082, MSR_TEST_VMEXIT, 0xffffffffffffffffULL);
+		_test_rdmsr(0x0000003b, MSR_TEST_NORMAL);
+		_test_wrmsr(0x0000003b, MSR_TEST_NORMAL, 0x1234567890abcdefULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x6000 + 0x82));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x0000 + 0x3b));
+		/* VMEXIT only read IA32_TSC_ADJUST */
+		_test_rdmsr(0x0000003b, MSR_TEST_VMEXIT);
+		_test_wrmsr(0x0000003b, MSR_TEST_NORMAL, 0xfedcba0987654321ULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x0000 + 0x3b));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x4000 + 0x3b));
+		/* VMEXIT only write IA32_TSC_ADJUST */
+		_test_rdmsr(0x0000003b, MSR_TEST_NORMAL);
+		_test_wrmsr(0x0000003b, MSR_TEST_VMEXIT, 0xdeadbeefbeefdeadULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x4000 + 0x3b));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x0000 + 0x1fff));
+		/* VMEXIT only read 0x00001fff */
+		_test_rdmsr(0x00001fff, MSR_TEST_VMEXIT);
+		_test_rdmsr(0xc0001fff, MSR_TEST_EXCEPT);
+		_test_wrmsr(0x00001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		_test_wrmsr(0xc0001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x0000 + 0x1fff));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x2000 + 0x1fff));
+		/* VMEXIT only read 0xc0001fff */
+		_test_rdmsr(0x00001fff, MSR_TEST_EXCEPT);
+		_test_rdmsr(0xc0001fff, MSR_TEST_VMEXIT);
+		_test_wrmsr(0x00001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		_test_wrmsr(0xc0001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x2000 + 0x1fff));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x4000 + 0x1fff));
+		/* VMEXIT only write 0x00001fff */
+		_test_rdmsr(0x00001fff, MSR_TEST_EXCEPT);
+		_test_rdmsr(0xc0001fff, MSR_TEST_EXCEPT);
+		_test_wrmsr(0x00001fff, MSR_TEST_VMEXIT, 0x1234567890abcdefULL);
+		_test_wrmsr(0xc0001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x4000 + 0x1fff));
+		asm volatile ("vmcall" : : "a"(38), "b"(0x6000 + 0x1fff));
+		/* VMEXIT only write 0xc0001fff */
+		_test_rdmsr(0x00001fff, MSR_TEST_EXCEPT);
+		_test_rdmsr(0xc0001fff, MSR_TEST_EXCEPT);
+		_test_wrmsr(0x00001fff, MSR_TEST_EXCEPT, 0x1234567890abcdefULL);
+		_test_wrmsr(0xc0001fff, MSR_TEST_VMEXIT, 0x1234567890abcdefULL);
+		asm volatile ("vmcall" : : "a"(39), "b"(0x6000 + 0x1fff));
+		/*
+		 * Test read / write IA32_FS_BASE / IA32_GS_BASE (will not VMEXIT)
+		 * Interrupts need to be disabled, because xcph will move to FS and GS,
+		 * which clears the base to 0.
+		 */
+		asm volatile ("cli");
+		asm volatile ("vmcall" : : "a"(41));
+		_test_rdmsr(IA32_MSR_FS_BASE, MSR_TEST_NORMAL);
+		HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_FS_BASE) == 0x680effffULL);
+		HALT_ON_ERRORCOND(rdmsr64(IA32_MSR_GS_BASE) == 0x6810ffffULL);
+		_test_wrmsr(IA32_MSR_FS_BASE, MSR_TEST_NORMAL, 0xffff680eULL);
+		_test_wrmsr(IA32_MSR_GS_BASE, MSR_TEST_NORMAL, 0xffff6810ULL);
+		asm volatile ("vmcall" : : "a"(42));
+		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+			asm volatile ("sti");
+		}
+		/* Disable MSR bitmap */
+		asm volatile ("vmcall" : : "a"(37));
+		_test_rdmsr(0x00001fff, MSR_TEST_VMEXIT);
+		_test_rdmsr(0xc0001fff, MSR_TEST_VMEXIT);
+		_test_wrmsr(0x00001fff, MSR_TEST_VMEXIT, 0x1234567890abcdefULL);
+		_test_wrmsr(0xc0001fff, MSR_TEST_VMEXIT, 0x1234567890abcdefULL);
+		vcpu->vmexit_handler_override = NULL;
+	}
+}
+
+#undef MSR_TEST_NORMAL
+#undef MSR_TEST_VMEXIT
+#undef MSR_TEST_EXCEPT
 
 /* Main logic to call subsequent tests */
 void lhv_guest_main(ulong_t cpu_id)
@@ -655,6 +902,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		}
 		lhv_guest_test_unrestricted_guest(vcpu);
 		lhv_guest_test_large_page(vcpu);
+		lhv_guest_msr_bitmap(vcpu);
 		lhv_guest_wait_int(vcpu);
 	}
 }
@@ -680,6 +928,58 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 		break;
 #endif /* __DEBUG_QEMU__ */
 	default:
+		{
+			extern uint8_t _begin_xcph_table[];
+			extern uint8_t _end_xcph_table[];
+            uintptr_t exception_rip;
+            hva_t *found = NULL;
+            hva_t *i = NULL;
+
+            // skip error code on stack if applicable
+            if (vector == CPU_EXCEPTION_DF ||
+                vector == CPU_EXCEPTION_TS ||
+                vector == CPU_EXCEPTION_NP ||
+                vector == CPU_EXCEPTION_SS ||
+                vector == CPU_EXCEPTION_GP ||
+                vector == CPU_EXCEPTION_PF ||
+                vector == CPU_EXCEPTION_AC) {
+#ifdef __AMD64__
+                r->rsp += sizeof(uintptr_t);
+#elif defined(__I386__)
+                r->esp += sizeof(uintptr_t);
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+            }
+
+#ifdef __AMD64__
+            exception_rip = ((uintptr_t *)(r->rsp))[0];
+#elif defined(__I386__)
+            exception_rip = ((uintptr_t *)(r->esp))[0];
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+
+            for (i = (hva_t *)_begin_xcph_table;
+                 i < (hva_t *)_end_xcph_table; i += 3) {
+                if (i[0] == vector && i[1] == exception_rip) {
+                    found = i;
+                    break;
+                }
+            }
+
+            if (found) {
+                /* Found in xcph table; Modify EIP on stack and iret */
+#ifdef __AMD64__
+                ((uintptr_t *)(r->rsp))[0] = found[2];
+#elif defined(__I386__)
+                ((uintptr_t *)(r->esp))[0] = found[2];
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+                break;
+            }
+        }
 		printf("Guest: interrupt / exception vector %ld\n", vector);
 		HALT_ON_ERRORCOND(0 && "Guest: unknown interrupt / exception!\n");
 		break;
