@@ -44,44 +44,18 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-//error.h - error handling
-//author: amit vasudevan (amitvasudevan@acm.org)
-
-#ifndef __ERROR_H_
-#define __ERROR_H_
-
-
-#ifndef __ASSEMBLY__
-
-/* HALT() contains an infinite loop to indicate that it never exits */
-#define HALT() do { __asm__ __volatile__ ("cli; hlt\r\n"); } while (1)
-
-#define HALT_ON_ERRORCOND(_p) \
-    do { \
-        if ( !(_p) ) { \
-            printf("\nFatal: Halting! Condition '%s' failed, line %d, file %s\n", #_p , __LINE__, __FILE__); \
-            HALT(); \
-        } \
-    } while (0)
-//#define WARNING(_p) { if ( !(_p) ) { printf("\nWarning Assertion '%s' failed, line %d, file %s\n", #_p , __LINE__, __FILE__);} }
-
-/* awesome trick from http://www.jaggersoft.com/pubs/CVu11_3.html */
-#define COMPILE_TIME_ASSERT(pred)               \
-  switch(0){case 0:case pred:;}
-
 /*
- * XMHF: The following functions are taken from:
- *  tboot-1.10.5/include/misc.h
- * List of functions:
- *  plus_overflow_u64
- *  plus_overflow_u32
- *  multiply_overflow_u32
+ * XMHF: The following file is taken from:
+ *  tboot-1.10.5/tboot/include/integrity.h
+ * Changes made include:
+ *  Skip including poly1305.h.
  */
 
 /*
- * misc.h:  miscellaneous support fns
+ * integrity.h: routines for memory integrity measurement &
+ *          verification. Memory integrity is protected with tpm seal
  *
- * Copyright (c) 2010, Intel Corporation
+ * Copyright (c) 2007-2009, Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,37 +87,76 @@
  *
  */
 
-/*
- *  These three "plus overflow" functions take a "x" value
- *    and add the "y" value to it and if the two values are
- *    greater than the size of the variable type, they will
- *    overflow the type and end up with a smaller value and
- *    return TRUE - that they did overflow.  i.e.
- *    x + y <= variable type maximum.
- */
-static inline bool plus_overflow_u64(uint64_t x, uint64_t y)
-{
-    return ((((uint64_t)(~0)) - x) < y);
-}
+#ifndef _TBOOT_INTEGRITY_H_
+#define _TBOOT_INTEGRITY_H_
 
-static inline bool plus_overflow_u32(uint32_t x, uint32_t y)
-{
-    return ((((uint32_t)(~0)) - x) < y);
-}
+#include <hash.h>
+
+// XMHF: Skip including poly1305.h.
+//#include <poly1305.h>
+#define POLY1305_DIGEST_SIZE 16
 
 /*
- * This checks to see if two numbers multiplied together are larger
- *   than the type that they are.  Returns TRUE if OVERFLOWING.
- *   If the first parameter "x" is greater than zero and
- *   if that is true, that the largest possible value 0xFFFFFFFF / "x"
- *   is less than the second parameter "y".  If "y" is zero then
- *   it will also fail because no unsigned number is less than zero.
+ * state that must be saved across S3 and will be sealed for integrity
+ * before extending PCRs and launching kernel
  */
-static inline bool multiply_overflow_u32(uint32_t x, uint32_t y)
-{
-    return (x > 0) ? ((((uint32_t)(~0))/x) < y) : false;
-}
+#define MAX_VL_HASHES 32
+#define MAX_ALG_NUM 5
 
-#endif /*__ASSEMBLY__*/
+typedef struct {
+    uint16_t  alg;
+    tb_hash_t hash;
+} hash_entry_t;
 
-#endif /* _ERROR_H */
+typedef struct {
+    uint32_t  count;
+    hash_entry_t entries[MAX_ALG_NUM];
+} hash_list_t;
+
+typedef struct {
+    /* low and high memory regions to protect w/ VT-d PMRs */
+    uint64_t vtd_pmr_lo_base;
+    uint64_t vtd_pmr_lo_size;
+    uint64_t vtd_pmr_hi_base;
+    uint64_t vtd_pmr_hi_size;
+    /* VL policy at time of sealing */
+    tb_hash_t pol_hash;
+    /* verified launch measurements to be re-extended in DRTM PCRs
+     * a given PCR may have more than one hash and will get extended in the
+     * order it appears in the list */
+    uint8_t num_vl_entries;
+    struct {
+        uint8_t pcr;
+        hash_list_t hl;
+    } vl_entries[MAX_VL_HASHES];
+} pre_k_s3_state_t;
+
+/*
+ * state that must be saved across S3 and will be sealed for integrity
+ * just before entering S3 (after kernel shuts down)
+ */
+typedef struct {
+    uint64_t kernel_s3_resume_vector;
+    uint8_t  kernel_integ[POLY1305_DIGEST_SIZE];
+} post_k_s3_state_t;
+
+
+extern pre_k_s3_state_t g_pre_k_s3_state;
+extern post_k_s3_state_t g_post_k_s3_state;
+
+extern bool seal_pre_k_state(void);
+extern bool seal_post_k_state(void);
+extern bool verify_integrity(void);
+
+#endif /* _TBOOT_INTEGRITY_H_ */
+
+
+/*
+ * Local variables:
+ * mode: C
+ * c-set-style: "BSD"
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * End:
+ */

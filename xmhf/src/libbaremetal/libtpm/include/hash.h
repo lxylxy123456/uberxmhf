@@ -44,44 +44,31 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-//error.h - error handling
-//author: amit vasudevan (amitvasudevan@acm.org)
-
-#ifndef __ERROR_H_
-#define __ERROR_H_
-
-
-#ifndef __ASSEMBLY__
-
-/* HALT() contains an infinite loop to indicate that it never exits */
-#define HALT() do { __asm__ __volatile__ ("cli; hlt\r\n"); } while (1)
-
-#define HALT_ON_ERRORCOND(_p) \
-    do { \
-        if ( !(_p) ) { \
-            printf("\nFatal: Halting! Condition '%s' failed, line %d, file %s\n", #_p , __LINE__, __FILE__); \
-            HALT(); \
-        } \
-    } while (0)
-//#define WARNING(_p) { if ( !(_p) ) { printf("\nWarning Assertion '%s' failed, line %d, file %s\n", #_p , __LINE__, __FILE__);} }
-
-/* awesome trick from http://www.jaggersoft.com/pubs/CVu11_3.html */
-#define COMPILE_TIME_ASSERT(pred)               \
-  switch(0){case 0:case pred:;}
-
 /*
- * XMHF: The following functions are taken from:
- *  tboot-1.10.5/include/misc.h
- * List of functions:
- *  plus_overflow_u64
- *  plus_overflow_u32
- *  multiply_overflow_u32
+ * XMHF: The following file is taken from:
+ *  tboot-1.10.5/include/hash.h
+ * Changes made include:
+ *  Split to hash.h (in libbaremetal) and _txt_hash.h (in xmhf-core).
+ * List of symbols in hash.h (others are in _txt_hash.h):
+ *  TB_HALG_SHA1_LG
+ *  TB_HALG_SHA1
+ *  TB_HALG_SHA256
+ *  TB_HALG_SM3
+ *  TB_HALG_SHA384
+ *  TB_HALG_SHA512
+ *  TB_HALG_NULL
+ *  SHA1_LENGTH
+ *  SHA256_LENGTH
+ *  SM3_LENGTH
+ *  SHA384_LENGTH
+ *  SHA512_LENGTH
+ *  tb_hash_t
  */
 
 /*
- * misc.h:  miscellaneous support fns
+ * hash.h:  definition of and support fns for tb_hash_t type
  *
- * Copyright (c) 2010, Intel Corporation
+ * Copyright (c) 2006-2007, Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,37 +100,41 @@
  *
  */
 
+#ifndef __HASH_H__
+#define __HASH_H__
+
+#define TB_HALG_SHA1_LG 0x0000  /* legacy define for SHA1 */
+#define TB_HALG_SHA1    0x0004
+#define TB_HALG_SHA256  0x000B
+#define TB_HALG_SM3     0x0012
+#define TB_HALG_SHA384  0x000C
+#define TB_HALG_SHA512  0x000D
+#define TB_HALG_NULL    0x0010
+
+#define SHA1_LENGTH        20
+#define SHA256_LENGTH      32
+#define SM3_LENGTH         32
+#define SHA384_LENGTH      48
+#define SHA512_LENGTH      64
+
+typedef union {
+    uint8_t    sha1[SHA1_LENGTH];
+    uint8_t    sha256[SHA256_LENGTH];
+    uint8_t    sm3[SM3_LENGTH];
+    uint8_t    sha384[SHA384_LENGTH];
+    uint8_t    sha512[SHA512_LENGTH];
+} tb_hash_t;
+
+
+#endif    /* __HASH_H__ */
+
+
 /*
- *  These three "plus overflow" functions take a "x" value
- *    and add the "y" value to it and if the two values are
- *    greater than the size of the variable type, they will
- *    overflow the type and end up with a smaller value and
- *    return TRUE - that they did overflow.  i.e.
- *    x + y <= variable type maximum.
+ * Local variables:
+ * mode: C
+ * c-set-style: "BSD"
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * End:
  */
-static inline bool plus_overflow_u64(uint64_t x, uint64_t y)
-{
-    return ((((uint64_t)(~0)) - x) < y);
-}
-
-static inline bool plus_overflow_u32(uint32_t x, uint32_t y)
-{
-    return ((((uint32_t)(~0)) - x) < y);
-}
-
-/*
- * This checks to see if two numbers multiplied together are larger
- *   than the type that they are.  Returns TRUE if OVERFLOWING.
- *   If the first parameter "x" is greater than zero and
- *   if that is true, that the largest possible value 0xFFFFFFFF / "x"
- *   is less than the second parameter "y".  If "y" is zero then
- *   it will also fail because no unsigned number is less than zero.
- */
-static inline bool multiply_overflow_u32(uint32_t x, uint32_t y)
-{
-    return (x > 0) ? ((((uint32_t)(~0))/x) < y) : false;
-}
-
-#endif /*__ASSEMBLY__*/
-
-#endif /* _ERROR_H */

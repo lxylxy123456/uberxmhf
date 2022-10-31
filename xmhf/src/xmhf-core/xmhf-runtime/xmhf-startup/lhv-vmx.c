@@ -6,13 +6,13 @@
 #define MAX_MSR_LS 16	/* Max number of MSRs in MSR load / store */
 
 static u8 all_vmxon_region[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__(( section(".bss.palign_data") ));
+__attribute__((aligned(PAGE_SIZE_4K)));
 
 static u8 all_vmcs[MAX_VCPU_ENTRIES][MAX_GUESTS][PAGE_SIZE_4K]
-__attribute__(( section(".bss.palign_data") ));
+__attribute__((aligned(PAGE_SIZE_4K)));
 
 static u8 all_guest_stack[MAX_VCPU_ENTRIES][MAX_GUESTS][PAGE_SIZE_4K]
-__attribute__(( section(".bss.palign_data") ));
+__attribute__((aligned(PAGE_SIZE_4K)));
 
 static msr_entry_t vmexit_msrstore_entries[MAX_VCPU_ENTRIES][MAX_GUESTS][MAX_MSR_LS]
 __attribute__((aligned(16)));
