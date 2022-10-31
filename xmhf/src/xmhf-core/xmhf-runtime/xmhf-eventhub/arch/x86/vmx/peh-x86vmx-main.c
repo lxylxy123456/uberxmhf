@@ -691,7 +691,6 @@ static void _vmx_handle_intercept_ioportaccess(VCPU *vcpu, struct regs *r){
   //call our app handler, TODO: it should be possible for an app to
   //NOT want a callback by setting up some parameters during appmain
 
-#if 0
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
 	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 	app_ret_status=xmhf_app_handleintercept_portaccess(vcpu, r, portnum, access_type,
@@ -704,32 +703,24 @@ static void _vmx_handle_intercept_ioportaccess(VCPU *vcpu, struct regs *r){
 	app_ret_status=xmhf_app_handleintercept_portaccess(vcpu, r, portnum, access_type,
           access_size);
 #endif // __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
-#endif
 
   if(app_ret_status == APP_IOINTERCEPT_CHAIN){
    	if(access_type == IO_TYPE_OUT){
-  		if( access_size== IO_SIZE_BYTE) {
+  		if( access_size== IO_SIZE_BYTE)
   				outb((u8)r->eax, portnum);
-	  			printf("outb port=0x%04x al=0x%02x\n", portnum, (u8) r->eax);
-  		} else if (access_size == IO_SIZE_WORD) {
+  		else if (access_size == IO_SIZE_WORD)
   				outw((u16)r->eax, portnum);
-	  			printf("outw port=0x%04x\n", portnum);
-  		} else if (access_size == IO_SIZE_DWORD) {
+  		else if (access_size == IO_SIZE_DWORD)
   				outl((u32)r->eax, portnum);
-	  			printf("outl port=0x%04x\n", portnum);
-  		}
   	}else{
   		if( access_size== IO_SIZE_BYTE){
   				r->eax &= 0xFFFFFF00UL;	//clear lower 8 bits
   				r->eax |= (u8)inb(portnum);
-	  			printf("inb port=0x%04x al=0x%02x\n", portnum, (u8) r->eax);
   		}else if (access_size == IO_SIZE_WORD){
   				r->eax &= 0xFFFF0000UL;	//clear lower 16 bits
   				r->eax |= (u16)inw(portnum);
-	  			printf("inw port=0x%04x\n", portnum);
   		}else if (access_size == IO_SIZE_DWORD){
   				r->eax = (u32)inl(portnum);
-	  			printf("inl port=0x%04x\n", portnum);
   		}
   	}
   	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
@@ -1056,32 +1047,6 @@ u32 xmhf_parteventhub_arch_x86vmx_print_guest(VCPU *vcpu, struct regs *r)
 	HALT();
 }
 
-#define NSAVED_INTS 10
-u32 saved_interrupts[NSAVED_INTS][2];
-
-bool find_saved_interrupt_can_fail(bool valid, u32 *ans) {
-	for (u32 i = 0; i < NSAVED_INTS; i++) {
-		if (valid) {
-			if (saved_interrupts[i][0] != 0) {
-				*ans = i;
-				return true;
-			}
-		} else {
-			if (saved_interrupts[i][0] == 0) {
-				*ans = i;
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-u32 find_saved_interrupt(bool valid) {
-	u32 ans;
-	HALT_ON_ERRORCOND(find_saved_interrupt_can_fail(valid, &ans));
-	return ans;
-}
-
 //---hvm_intercept_handler------------------------------------------------------
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	/*
@@ -1114,39 +1079,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 	 * is for quiescing (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION),
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
-	// lxy
-	{
-		static bool inited = false;
-		if (!inited) {
-			//memset( (void *)vcpu->vmx_vaddr_iobitmap, 0xff, (2*PAGE_SIZE_4K));
-			memset( (void *)vcpu->vmx_vaddr_iobitmap, 0xff, 0x1f);
-//			((u8 *)vcpu->vmx_vaddr_iobitmap)[0x1f0 / 8] = 0;
-//			((u8 *)vcpu->vmx_vaddr_iobitmap)[0x3f6 / 8] &= ~(1 << (0x3f6 % 8));
-//			((u8 *)vcpu->vmx_vaddr_iobitmap)[0x3c0 / 8] = 0;
-//			((u8 *)vcpu->vmx_vaddr_iobitmap)[0x3c8 / 8] = 0;
-//			((u8 *)vcpu->vmx_vaddr_iobitmap)[0x3d0 / 8] = 0;
-//			((u8 *)vcpu->vmx_vaddr_iobitmap)[0x400 / 8] = 0;
-			// Pin based
-			vcpu->vmcs.control_VMX_pin_based |= 1;
-			vcpu->vmcs.control_VM_exit_controls |= (1U << 15);
-			// vcpu->vmcs.control_exception_bitmap = 0xffffffff;
-			vcpu->vmcs.control_exception_bitmap = 0xffffbfff;
-			inited = true;
-		}
-	}
-	// TODO: vcpu->vmcs.control_exception_bitmap
-	// TODO: external interrupt
-	// if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
-	if (vcpu->vmcs.guest_CR0 & 1) {
-		HALT_ON_ERRORCOND(vcpu->id == 0);
-		if (vcpu->vmcs.info_vmexit_reason == 30 ||
-			vcpu->vmcs.info_vmexit_reason == 1 ||
-			vcpu->vmcs.info_vmexit_reason == 7) {
-			;
-		} else {
-			printf("0x%08x: %d\n", vcpu->vmcs.guest_RIP, (u32)vcpu->vmcs.info_vmexit_reason);
-		}
-	}
+//	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+//		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
+//	}
 
 #ifdef __DEBUG_EVENT_LOGGER__
 	if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_CPUID) {
@@ -1170,35 +1105,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		//--------------------------------------------------------------
 		//xmhf-core and hypapp intercepts
 		//--------------------------------------------------------------
-
-		// lxy
-		case 1:
-			printf("Interrupt 0x%08x 0x%08x\n",
-					vcpu->vmcs.info_vmexit_interrupt_information,
-					vcpu->vmcs.info_vmexit_interrupt_error_code);
-			vcpu->vmcs.control_VMX_cpu_based |= (1U << 2);
-			{
-				u32 i = find_saved_interrupt(false);
-				saved_interrupts[i][0] = vcpu->vmcs.info_vmexit_interrupt_information;
-				saved_interrupts[i][1] = vcpu->vmcs.info_vmexit_interrupt_error_code;
-			}
-			break;
-
-		case 7:
-			printf("Inject interrupt\n");
-			{
-				u32 i = find_saved_interrupt(true);
-				u32 ans;
-				vcpu->vmcs.control_VM_entry_interruption_information =
-					saved_interrupts[i][0];
-				vcpu->vmcs.control_VM_entry_exception_errorcode =
-					saved_interrupts[i][1];
-				saved_interrupts[i][0] = 0;
-				if (!find_saved_interrupt_can_fail(true, &ans)) {
-					vcpu->vmcs.control_VMX_cpu_based &= ~(1U << 2);
-				}
-			}
-			break;
 
 		case VMX_VMEXIT_VMCALL:{
 			//if INT 15h E820 hypercall, then let the xmhf-core handle it
@@ -1256,7 +1162,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
  		case VMX_VMEXIT_EXCEPTION:{
 			switch(vcpu->vmcs.info_vmexit_interrupt_information & INTR_INFO_VECTOR_MASK){
 				case INT1_VECTOR:
-					printf("INT1\n");
 					HALT_ON_ERRORCOND(
 						(vcpu->vmcs.info_vmexit_interrupt_information &
 						 INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_HW_EXCEPTION);
@@ -1264,7 +1169,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 					break;
 
 				case NMI_VECTOR:
-					printf("NMI\n");
 					HALT_ON_ERRORCOND((vcpu->vmcs.info_vmexit_interrupt_information &
 									   INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI);
 					#ifndef __XMHF_VERIFICATION__
@@ -1274,18 +1178,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 					break;
 
 				default:
-					// lxy
-					/*
-					printf("Exception 0x%08x 0x%08x\n",
-						vcpu->vmcs.info_vmexit_interrupt_information,
-						vcpu->vmcs.info_vmexit_interrupt_error_code);
-					vcpu->vmcs.control_VM_entry_interruption_information =
-						vcpu->vmcs.info_vmexit_interrupt_information;
-					vcpu->vmcs.control_VM_entry_exception_errorcode =
-						vcpu->vmcs.info_vmexit_interrupt_error_code;
-					break;
-					*/
-
 					printf("VMEXIT-EXCEPTION:\n");
 					printf("control_exception_bitmap=0x%08x\n",
 						vcpu->vmcs.control_exception_bitmap);
