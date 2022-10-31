@@ -592,7 +592,7 @@ static void lhv_guest_msr_bitmap_vmexit_handler(VCPU *vcpu, struct regs *r,
 												vmexit_info_t *info)
 {
 	static u8 msr_bitmap_allcpu[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-		__attribute__(( section(".bss.palign_data") ));
+		__attribute__((aligned(PAGE_SIZE_4K)));
 	const u32 mask = (1U << 28);
 	u8 *msr_bitmap = msr_bitmap_allcpu[vcpu->idx];
 	switch (info->vmexit_reason) {

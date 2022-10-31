@@ -3,17 +3,17 @@
 #include "trustvisor.h"
 
 static u8 user_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__(( section(".bss.palign_data") ));
+__attribute__((aligned(PAGE_SIZE_4K)));
 
 #ifdef __AMD64__
-static u64 user_pml4t[P4L_NPLM4T * 512] __attribute__(( section(".bss.palign_data") ));
-static u64 user_pdpt[P4L_NPDPT * 512] __attribute__(( section(".bss.palign_data") ));
-static u64 user_pdt[P4L_NPDT * 512] __attribute__(( section(".bss.palign_data") ));
-static u64 user_pt[P4L_NPT * 512] __attribute__(( section(".bss.palign_data") ));
+static u64 user_pml4t[P4L_NPLM4T * 512] __attribute__((aligned(PAGE_SIZE_4K)));
+static u64 user_pdpt[P4L_NPDPT * 512] __attribute__((aligned(PAGE_SIZE_4K)));
+static u64 user_pdt[P4L_NPDT * 512] __attribute__((aligned(PAGE_SIZE_4K)));
+static u64 user_pt[P4L_NPT * 512] __attribute__((aligned(PAGE_SIZE_4K)));
 #elif defined(__I386__)
 static u64 user_pdpt[4] __attribute__ ((aligned (32)));
-static u64 user_pd[4][512] __attribute__(( section(".bss.palign_data") ));
-static u64 user_pt[4][512][512] __attribute__(( section(".bss.palign_data") ));
+static u64 user_pd[4][512] __attribute__((aligned(PAGE_SIZE_4K)));
+static u64 user_pt[4][512][512] __attribute__((aligned(PAGE_SIZE_4K)));
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
@@ -128,13 +128,13 @@ uintptr_t my_pal(uintptr_t arg1) {
 void end_pal_c(void) {}
 
 static u8 pal_demo_code[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__(( section(".bss.palign_data") ));
+__attribute__((aligned(PAGE_SIZE_4K)));
 static u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__(( section(".bss.palign_data") ));
+__attribute__((aligned(PAGE_SIZE_4K)));
 static u8 pal_demo_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__(( section(".bss.palign_data") ));
+__attribute__((aligned(PAGE_SIZE_4K)));
 static u8 pal_demo_param[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__(( section(".bss.palign_data") ));
+__attribute__((aligned(PAGE_SIZE_4K)));
 
 static inline uintptr_t vmcall(uintptr_t eax, uintptr_t ecx, uintptr_t edx,
 								uintptr_t esi, uintptr_t edi) {
