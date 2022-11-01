@@ -149,8 +149,161 @@ similar. In `abcabc04f..28ce646f2`, remove the latter and use the former.
 In `lhv aa934304c..83723a519`, merged a lot of commits from `xmhf64` to `lhv`.
 Fixed a few regressions due to the merge.
 
+Testing LHV
+* x86 lhv: good
+* x64 lhv: good
+* x86 xmhf, x86 lhv: good
+* x64 xmhf, x86 lhv: good
+* x64 xmhf, x64 lhv: good
+
+### Easier way to boot kernel in QEMU
+
+Looks like there are much easier ways to boot a kernel that supports multiboot
+in QEMU. To boot XMHF, use the following (however, cannot load the guest GRUB):
+```sh
+gunzip -k hypervisor-x86-i386.bin.gz
+qemu-system-x86_64 -cpu Haswell,vmx=yes -enable-kvm -m 1G -kernel init-x86-i386.bin -serial stdio -initrd hypervisor-x86-i386.bin,/dev/null
+```
+
+To boot pebbles kernel, use
+```sh
+qemu-system-x86_64 -kernel kernel.strip
+```
+
 ### Pebbles memory management code bug
 
-TODO: test lhv in Dell and HP 2540p
-TODO: report bug in pebbles kernel `lmm_add_free()`
+We start debugging lmm code for pebbles kernel. By setting a break point at
+`lmm_add_free()`, we can see the call stack during boot
+
+```
+#0  lmm_add_free (lmm=0x3d94e4 <malloc_lmm>, block=0x500, size=6912) at 410kern/lmm/lmm_add_free.c:30
+#1  0x00109c05 in mb_util_lmm (mbi=0x2a020, lmm=0x3d94e4 <malloc_lmm>) at 410kern/boot/util_lmm.c:139
+#2  0x00100aff in mb_entry (info=0x2a020, istack=0x3d807c <cursor_visible>) at 410kern/entry.c:40
+#3  0x00100a3b in _start () at 410kern/boot/head.S:120
+```
+
+By editing GRUB configurations, looks like this bug is reproducible when 2 or
+more multiboot modules are loaded. For example:
+```
+menuentry "XMHF-build32lhv-2" {
+	set root='(hd0,msdos5)'         # point to file system for /
+	set kernel='/boot/xmhf/build32lhv/init.bin'
+	echo "Loading ${kernel}..."
+	multiboot ${kernel} serial=115200,8n1,0xf0a0
+	module --nounzip (hd0)+1        # where grub is installed
+	module --nounzip (hd0)+1        # where grub is installed
+}
+```
+
+Add the following to `int putbyte(char ch)` to print to serial port, very
+convenient
+```
+// #define PORT 0x3F8
+#define PORT 0xf0a0
+	// https://wiki.osdev.org/Serial_Ports
+	while ((inb(PORT + 5) & 0x20) == 0);
+	outb(PORT, ch);
+```
+
+See `util_lmm2.diff` for patch to `util_lmm.c`. Serial `20221031123823`. Can
+see that the bug happens because:
+* `m[0].string = 0x000100c8`, `strlen(m[0].string) = 0`,
+  `m[1].string = 0x000100cc`, leaving a small hole within an aligned 8 bytes.
+* `lmm_add_free(&malloc_lmm, (void *) min, max - min);` is called with
+  `min = 0x000100c9`, `max = 0x000100cc`
+* In `lmm_add_free()`, `min` is aligned up (becomes `0x000100d0`) and `max` is
+  aligned down (becomes `0x000100c8`)
+* `assert(max >= min);` fails
+
+This bug should be reproducible on QEMU (or even Simics). We just need to add
+a lot of modules with short arguments. Indeed, this bug is reproduced using
+XMHF's grub generation program and repeating `module --nounzip (hd0)+1` 4
+times. The p2 reference kernel also crashes.
+
+To edit GRUB in 15410's environment, edit `410kern/menu.lst`. This is GRUB 1
+syntax, <https://uberxmhf.org/docs/pc-intel-x86_32/installing.html> may be
+helpful.
+
+However, looks like this bug cannot be easily reproduced in GRUB 1. After using
+`modulenounzip (fd0)+1`, all strings are put together without gap in between.
+The same happens when using QEMU `-kernel kernel -initrd 'a,a ,a'`.
+
+To let other people reproduce this bug, it looks like we need to use GRUB2 I
+have. I can use existing `c.img`, then split it into the 1M MBR header and an
+ext4 file system. Then use Linux to modify the file system.
+```sh
+dd if=c.img of=a.img count=1M iflag=count_bytes
+dd if=c.img of=b.img skip=1M iflag=skip_bytes
+mkdir -p mnt
+mount b.img mnt
+sudo cp .../kernel.strip mnt/boot/
+umount mnt/
+dd if=b.img of=c.img seek=1M oflag=seek_bytes
+```
+
+### Pathos IRQ 7 handling bug
+
+We try to reverse engineer Pathos kernel and see how EOI is called when
+handling the IRQ 7.
+
+Using the Pathos kernel provided for F22,
+* `IRQ[0x20].base = 0x101c48 <KORlKYfQujCzh>` is timer interrupt
+* `IRQ[0x27].base = 0x101cd8 <JcqPZpQmVMFE>` is the IRQ 7
+
+Using `objdump -d kernel | grep out`, we see that `0x10d9db <PEpE+9>` is the
+OUT instruction.
+
+Using GDB, to set breakpoints at `KORlKYfQujCzh` and `PEpE+9`, we see how EOI
+is called during normal timer interrupt.
+```
+(gdb) bt
+#0  0x0010d9db in PEpE ()
+#1  0x0010f5c4 in cZmYwuzgoCnOdWkwwMHfsJaVhN ()
+#2  0x001017db in cPHavRDPp ()
+#3  0x00101c75 in KORlKYfQujCzh ()
+#4  0x0054ef70 in ?? ()
+#5  0x00102c8c in hEo ()
+#6  0x00000020 in ?? ()
+#7  0x00000000 in ?? ()
+(gdb) 
+```
+
+At `KORlKYfQujCzh`, we modify `EIP` to `JcqPZpQmVMFE` using GDB. Then we see
+how EOI is called in the same way:
+```
+(gdb) c
+Continuing.
+
+Breakpoint 1, 0x00101c48 in KORlKYfQujCzh ()
+(gdb) p $eip = &JcqPZpQmVMFE
+$4 = (void (*)()) 0x101cd8 <JcqPZpQmVMFE>
+(gdb) c
+Continuing.
+
+Breakpoint 2, 0x0010d9db in PEpE ()
+(gdb) bt
+#0  0x0010d9db in PEpE ()
+#1  0x0010f5c4 in cZmYwuzgoCnOdWkwwMHfsJaVhN ()
+#2  0x001015dc in OrFbdlCA ()
+#3  0x00101d05 in JcqPZpQmVMFE ()
+#4  0x0054ef70 in ?? ()
+#5  0x00102c8c in hEo ()
+#6  0x00000027 in ?? ()
+#7  0x00000000 in ?? ()
+(gdb) 
+```
+
+On Nov 1, the lmm bug and IRQ 7 possible bug are reported to staff-410. Will
+track updates in `bug_076`.
+
+## Fix
+
+`lhv ce69c270c..83723a519`
+* Update EPT VMEXIT test for new hardware
+* Handle IRQ 7 correctly
+* Merge updates from `xmhf64`
+
+`lhv-nmi fa93291f4..a733de787`
+* Handle IRQ 7
+* Remove assumption about APIC ID of first AP = 1
 

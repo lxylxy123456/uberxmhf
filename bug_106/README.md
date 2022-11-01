@@ -2,10 +2,10 @@
 
 ## Scope
 * Nested virtualization, all configurations
-* `lhv de25814dc`
-* `xmhf64 abcabc04f`
-* `xmhf64-nest 46c22f3a7`
-* `xmhf64-nest-dev 9d4235ce2`
+* `lhv 83723a519`
+* `xmhf64 28ce646f2`
+* `xmhf64-nest 9ba342c98`
+* `xmhf64-nest-dev 186e6588f`
 
 ## Behavior
 The current design does not support running TrustVisor in L2, because all

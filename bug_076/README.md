@@ -311,4 +311,6 @@ This page will be used to track various bugs reported to QEMU / KVM
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216234>
 * `bug_087`: KVM and Bochs incorrect behavior on nested NMI
 	* TODO: not reported yet
+* `bug_105`: Pathos kernel panic in LMM
+	* Private email
 

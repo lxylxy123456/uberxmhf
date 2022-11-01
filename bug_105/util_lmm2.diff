@@ -1,0 +1,122 @@
+diff --git a/410kern/boot/util_lmm.c b/410kern/boot/util_lmm.c
+index 7a304bd..6e262f8 100644
+--- a/410kern/boot/util_lmm.c
++++ b/410kern/boot/util_lmm.c
+@@ -63,17 +63,41 @@ static struct lmm_region reg1mb, reg16mb, reghigh;
+ void mb_util_lmm (mbinfo_t *mbi, lmm_t *lmm)
+ {
+ 	vm_offset_t min;
+ 	extern char _start[], end[];
+ 
++	printf("mbi->flags = 0x%08x\n", mbi->flags);
++	printf("mbi->cmdline = 0x%08lx\n", mbi->cmdline);
++	printf("mbi->mem_lower = 0x%08lx\n", mbi->mem_lower);
++	printf("mbi->mem_upper = 0x%08lx\n", mbi->mem_upper);
++	printf("mbi->mods_count = 0x%08x\n", mbi->mods_count);
++	printf("mbi->mods_addr = 0x%08lx\n", mbi->mods_addr);
++
++	{
++		struct multiboot_module *m = (struct multiboot_module*)
++			phystokv(mbi->mods_addr);
++		for (int i = 0; i < 2; i++) {
++			printf("m[%d].mod_start = 0x%08lx\n", i, m[i].mod_start);
++			printf("m[%d].mod_end = 0x%08lx\n", i, m[i].mod_end);
++			printf("m[%d].string = 0x%08lx\n", i, m[i].string);
++		}
++	}
++
++#define P(x) printf("L%3d: " #x " = 0x%08llx\n", __LINE__, (unsigned long long) (x))
++
++#define PMM printf("L%3d: min = 0x%08llx; max = 0x%08llx\n", __LINE__, (unsigned long long) (min), (unsigned long long) (max))
++
+ 	/* Memory regions to skip.  */
+ 	vm_offset_t cmdline_start_pa = mbi->flags & MULTIBOOT_CMDLINE
+ 		? mbi->cmdline : 0;
+ 	vm_offset_t cmdline_end_pa = cmdline_start_pa
+ 		? cmdline_start_pa+strlen((char*)phystokv(cmdline_start_pa))+1
+ 		: 0;
+ 
++	P(cmdline_start_pa);
++	P(cmdline_end_pa);
++
+ 	/* Initialize the base memory allocator
+ 	   according to the PC's physical memory regions.  */
+ 	lmm_init(lmm);
+ 
+     /* Do the x86 init dance to build our initial regions */
+@@ -92,59 +116,75 @@ void mb_util_lmm (mbinfo_t *mbi, lmm_t *lmm)
+ 	   as well as our own executable code, data, and bss.
+ 	   Start at the end of the BIOS data area.  */
+ 	min = 0x500;
+ 	do
+ 	{
++		printf("\n");
+ 		vm_offset_t max = 0xffffffff;
++		PMM;
+ 
+ 		/* Skip the I/O and ROM area.  */
+ 		skip(mbi->mem_lower * 1024, 0x100000);
++		PMM;
+ 
+ 		/* Stop at the end of upper memory.  */
+ 		skip(0x100000 + mbi->mem_upper * 1024, 0xffffffff);
++		PMM;
+ 
+ 		/* Skip our own text, data, and bss.  */
+ 		skip(kvtophys(_start), kvtophys(end));
++		PMM;
+ 
+ 		/* FIXME: temporary state of affairs */
+ 		extern char __kimg_start[];
+ 		skip(kvtophys(__kimg_start), kvtophys(end));
++		PMM;
+ 
+ 		/* Skip the important stuff the bootloader passed to us.  */
+ 		skip(cmdline_start_pa, cmdline_end_pa);
++		PMM;
+ 		if ((mbi->flags & MULTIBOOT_MODS)
+ 		    && (mbi->mods_count > 0))
+ 		{
+ 			struct multiboot_module *m = (struct multiboot_module*)
+ 				phystokv(mbi->mods_addr);
+ 			unsigned i;
+ 
+ 			skip(mbi->mods_addr,
+ 			     mbi->mods_addr +
+ 			     mbi->mods_count * sizeof(*m));
++			PMM;
+ 			for (i = 0; i < mbi->mods_count; i++)
+ 			{
+ 				if (m[i].string != 0)
+ 				{
+ 					char *s = (char*)phystokv(m[i].string);
+ 					unsigned len = strlen(s);
++					P(len);
+ 					skip(m[i].string, m[i].string+len+1);
++					PMM;
+ 				}
+ 				skip(m[i].mod_start, m[i].mod_end);
++				PMM;
+ 			}
+ 		}
++		PMM;
+ 
+ 		/* We actually found a contiguous memory block
+ 		   that doesn't conflict with anything else!  Whew!
+ 		   Add it to the free list.  */
+ 		lmm_add_free(&malloc_lmm, (void *) min, max - min);
+ 
+ 		/* Continue searching just past the end of this region.  */
+ 		min = max;
++		PMM;
+ 
+ 		/* The skip() macro jumps to this label
+ 		   to restart with a different (higher) min address.  */
+ 		retry:;
++		PMM;
+ 	}
+ 	while (min < 0xffffffff);
++	printf("Done\n");
++	asm volatile ("1: hlt; jmp 1b;");
+ }
+ 
