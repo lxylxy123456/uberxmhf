@@ -23,5 +23,7 @@ Challenges include:
 
 ## Debugging
 
+TODO: document existing XMHF interfaces
+TODO: how to pass configuration to TrustVisor? need to defined vmcall offset
 TODO: test using LHV
 
