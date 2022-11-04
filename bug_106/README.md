@@ -113,12 +113,34 @@ Planned change to interfaces
 		* Currently using 0x4c415000U "?PAL"
 		* TrustVisor will check during "Call when VMEXIT201". If match, it
 		  becomes VMEXIT202
+* Extra features
+	* For each XMHF generated event, use a bool to allow hypapp to control
+	  quiesce or not?
+	* Initiate quiesce in hypapp code? We cannot quiesce everytime there is a
+	  VMEXIT20 due to EPT / VMCALL, but if the event is related to TrustVisor
+	  we need to quiesce.
 
-Addressed takes:
+Addressed tasks:
 * Document existing XMHF interfaces
 * How to pass configuration to TrustVisor? need to defined vmcall offset
 
-TODO: consider reviewing other existing hypapps
+Other hypapps
+* `helloworld`: trivial
+* `lockdown`: only other hypapp in XMHF's repository
+* `quiesce`: looks like test case, ignored
+* `trustvisor`: analyzed above
+* `verify`: looks like test case, ignored
+
+Looks like lockdown is more complicated in these ways:
+* Which system needs nested virtualization? Only red? Or both?
+* System switch happens due to user triggered event. What if at that time the
+  system is in L2?
+
+Currently we do not consider the compatibility of lockdown.
+
+Addressed tasks:
+* Consider reviewing other existing hypapps
+
 TODO: test using LHV
 TODO: review why `xmhf_app_handlecpuid()` is used, likely unnecessary
 
