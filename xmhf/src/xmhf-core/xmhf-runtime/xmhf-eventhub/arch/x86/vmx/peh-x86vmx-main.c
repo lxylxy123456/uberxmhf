@@ -1002,8 +1002,17 @@ static void _vmx_handle_intercept_xsetbv(VCPU *vcpu, struct regs *r){
  * Return 1 if optimized, or 0 if not optimized.
  */
 static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
-	vcpu->vmcs.info_vmexit_reason = __vmx_vmread32(0x4402);
 
+#define _OPT_VMWRITE(size, name) \
+	do { \
+		__vmx_vmwrite##size(VMCSENC_##name, vcpu->vmcs.name); \
+	} while (0)
+#define _OPT_VMREAD(size, name) \
+	do { \
+		vcpu->vmcs.name = __vmx_vmread##size(VMCSENC_##name); \
+	} while (0)
+
+	_OPT_VMREAD(32, info_vmexit_reason);
 	switch ((u32)vcpu->vmcs.info_vmexit_reason) {
 	case VMX_VMEXIT_WRMSR:
 		/* Only optimize WRMSR for some MSRs */
@@ -1015,10 +1024,10 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_wrmsr,
 							   &r->ecx);
 #endif /* __DEBUG_EVENT_LOGGER__ */
-			vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
-			vcpu->vmcs.info_vmexit_instruction_length = __vmx_vmread32(0x440C);
+			_OPT_VMREAD(NW, guest_RIP);
+			_OPT_VMREAD(32, info_vmexit_instruction_length);
 			_vmx_handle_intercept_wrmsr(vcpu, r);
-			__vmx_vmwriteNW(0x681E, vcpu->vmcs.guest_RIP);
+			_OPT_VMWRITE(NW, guest_RIP);
 			return 1;
 		default:
 			return 0;
@@ -1028,37 +1037,37 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 #ifdef __DEBUG_EVENT_LOGGER__
 		xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_cpuid, &r->eax);
 #endif /* __DEBUG_EVENT_LOGGER__ */
-		vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
-		vcpu->vmcs.info_vmexit_instruction_length = __vmx_vmread32(0x440C);
+		_OPT_VMREAD(NW, guest_RIP);
+		_OPT_VMREAD(32, info_vmexit_instruction_length);
 		_vmx_handle_intercept_cpuid(vcpu, r);
-		__vmx_vmwriteNW(0x681E, vcpu->vmcs.guest_RIP);
+		_OPT_VMWRITE(NW, guest_RIP);
 		return 1;
 	case VMX_VMEXIT_EPT_VIOLATION: {
 		/* Optimize EPT violation due to LAPIC */
 		u64 gpa;
-		vcpu->vmcs.guest_paddr = __vmx_vmread64(0x2400);
+		_OPT_VMREAD(64, guest_paddr);
 		gpa = vcpu->vmcs.guest_paddr;
 		if(vcpu->isbsp && (gpa >= g_vmx_lapic_base) && (gpa < (g_vmx_lapic_base + PAGE_SIZE_4K)) ){
 #ifdef __DEBUG_EVENT_LOGGER__
 			xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_other,
 							   &vcpu->vmcs.info_vmexit_reason);
 #endif /* __DEBUG_EVENT_LOGGER__ */
-			vcpu->vmcs.info_exit_qualification = __vmx_vmreadNW(0x6400);
-			vcpu->vmcs.control_exception_bitmap = __vmx_vmread32(0x4004);
-			vcpu->vmcs.guest_interruptibility = __vmx_vmread32(0x4824);
-			vcpu->vmcs.guest_RFLAGS = __vmx_vmreadNW(0x6820);
-			vcpu->vmcs.control_EPT_pointer = __vmx_vmread64(0x201A);
+			_OPT_VMREAD(NW, info_exit_qualification);
+			_OPT_VMREAD(32, control_exception_bitmap);
+			_OPT_VMREAD(32, guest_interruptibility);
+			_OPT_VMREAD(NW, guest_RFLAGS);
+			_OPT_VMREAD(64, control_EPT_pointer);
 			_vmx_handle_intercept_eptviolation(vcpu, r);
-			__vmx_vmwrite32(0x4004, vcpu->vmcs.control_exception_bitmap);
-			__vmx_vmwrite32(0x4824, vcpu->vmcs.guest_interruptibility);
-			__vmx_vmwriteNW(0x6820, vcpu->vmcs.guest_RFLAGS);
+			_OPT_VMWRITE(32, control_exception_bitmap);
+			_OPT_VMWRITE(32, guest_interruptibility);
+			_OPT_VMWRITE(NW, guest_RFLAGS);
 			return 1;
 		}
 		return 0;
 	}
 	case VMX_VMEXIT_EXCEPTION:
 		/* Optimize debug exception (#DB) for LAPIC operation */
-		vcpu->vmcs.info_vmexit_interrupt_information = __vmx_vmread32(0x4404);
+		_OPT_VMREAD(32, info_vmexit_interrupt_information);
 		if (((u32)vcpu->vmcs.info_vmexit_interrupt_information &
 			 INTR_INFO_VECTOR_MASK) == INT1_VECTOR) {
 #ifdef __DEBUG_EVENT_LOGGER__
@@ -1066,18 +1075,18 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				 INTR_INFO_VECTOR_MASK;
 			xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_xcph, &key);
 #endif /* __DEBUG_EVENT_LOGGER__ */
-			vcpu->vmcs.guest_CS_selector = __vmx_vmread16(0x0802);
-			vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
-			vcpu->vmcs.control_exception_bitmap = __vmx_vmread32(0x4004);
-			vcpu->vmcs.guest_interruptibility = __vmx_vmread32(0x4824);
-			vcpu->vmcs.guest_RFLAGS = __vmx_vmreadNW(0x6820);
-			vcpu->vmcs.control_EPT_pointer = __vmx_vmread64(0x201A);
+			_OPT_VMREAD(16, guest_CS_selector);
+			_OPT_VMREAD(NW, guest_RIP);
+			_OPT_VMREAD(32, control_exception_bitmap);
+			_OPT_VMREAD(32, guest_interruptibility);
+			_OPT_VMREAD(NW, guest_RFLAGS);
+			_OPT_VMREAD(64, control_EPT_pointer);
 			HALT_ON_ERRORCOND((vcpu->vmcs.info_vmexit_interrupt_information &
 							   INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_HW_EXCEPTION);
 			xmhf_smpguest_arch_x86_eventhandler_dbexception(vcpu, r);
-			__vmx_vmwrite32(0x4004, vcpu->vmcs.control_exception_bitmap);
-			__vmx_vmwrite32(0x4824, vcpu->vmcs.guest_interruptibility);
-			__vmx_vmwriteNW(0x6820, vcpu->vmcs.guest_RFLAGS);
+			_OPT_VMWRITE(32, control_exception_bitmap);
+			_OPT_VMWRITE(32, guest_interruptibility);
+			_OPT_VMWRITE(NW, guest_RFLAGS);
 			return 1;
 		}
 		return 0;
@@ -1088,27 +1097,27 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_other,
 						   &vcpu->vmcs.info_vmexit_reason);
 #endif /* __DEBUG_EVENT_LOGGER__ */
-		vcpu->vmcs.guest_CS_selector = __vmx_vmread16(0x0802);
-		vcpu->vmcs.control_EPT_pointer = __vmx_vmread64(0x201A);
-		vcpu->vmcs.control_VM_entry_controls = __vmx_vmread32(0x4012);
-		vcpu->vmcs.info_vmexit_instruction_length = __vmx_vmread32(0x440C);
-		vcpu->vmcs.info_vmx_instruction_information = __vmx_vmread32(0x440E);
-		vcpu->vmcs.guest_CS_access_rights = __vmx_vmread32(0x4816);
-		vcpu->vmcs.control_CR0_mask = __vmx_vmreadNW(0x6000);
-		vcpu->vmcs.control_CR0_shadow = __vmx_vmreadNW(0x6004);
-		vcpu->vmcs.info_exit_qualification = __vmx_vmreadNW(0x6400);
-		vcpu->vmcs.guest_CR0 = __vmx_vmreadNW(0x6800);
-		vcpu->vmcs.guest_CR3 = __vmx_vmreadNW(0x6802);
-		vcpu->vmcs.guest_ES_base = __vmx_vmreadNW(0x6806);
-		vcpu->vmcs.guest_CS_base = __vmx_vmreadNW(0x6808);
-		vcpu->vmcs.guest_SS_base = __vmx_vmreadNW(0x680A);
-		vcpu->vmcs.guest_DS_base = __vmx_vmreadNW(0x680C);
-		vcpu->vmcs.guest_FS_base = __vmx_vmreadNW(0x680E);
-		vcpu->vmcs.guest_GS_base = __vmx_vmreadNW(0x6810);
-		vcpu->vmcs.guest_RSP = __vmx_vmreadNW(0x681C);
-		vcpu->vmcs.guest_RIP = __vmx_vmreadNW(0x681E);
-		vcpu->vmcs.guest_RFLAGS = __vmx_vmreadNW(0x6820);
-		vcpu->vmcs.control_VM_entry_interruption_information = __vmx_vmread32(0x4016);
+		_OPT_VMREAD(16, guest_CS_selector);
+		_OPT_VMREAD(64, control_EPT_pointer);
+		_OPT_VMREAD(32, control_VM_entry_controls);
+		_OPT_VMREAD(32, info_vmexit_instruction_length);
+		_OPT_VMREAD(32, info_vmx_instruction_information);
+		_OPT_VMREAD(32, guest_CS_access_rights);
+		_OPT_VMREAD(NW, control_CR0_mask);
+		_OPT_VMREAD(NW, control_CR0_shadow);
+		_OPT_VMREAD(NW, info_exit_qualification);
+		_OPT_VMREAD(NW, guest_CR0);
+		_OPT_VMREAD(NW, guest_CR3);
+		_OPT_VMREAD(NW, guest_ES_base);
+		_OPT_VMREAD(NW, guest_CS_base);
+		_OPT_VMREAD(NW, guest_SS_base);
+		_OPT_VMREAD(NW, guest_DS_base);
+		_OPT_VMREAD(NW, guest_FS_base);
+		_OPT_VMREAD(NW, guest_GS_base);
+		_OPT_VMREAD(NW, guest_RSP);
+		_OPT_VMREAD(NW, guest_RIP);
+		_OPT_VMREAD(NW, guest_RFLAGS);
+		_OPT_VMREAD(32, control_VM_entry_interruption_information);
 		switch ((u32)vcpu->vmcs.info_vmexit_reason) {
 		case VMX_VMEXIT_VMREAD:
 			xmhf_nested_arch_x86vmx_handle_vmread(vcpu, r);
@@ -1119,16 +1128,20 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		default:
 			HALT_ON_ERRORCOND(0);
 		}
-		__vmx_vmwrite32(0x4016, vcpu->vmcs.control_VM_entry_interruption_information);
-		__vmx_vmwrite32(0x4018, vcpu->vmcs.control_VM_entry_exception_errorcode);
-		__vmx_vmwriteNW(0x681C, vcpu->vmcs.guest_RSP);
-		__vmx_vmwriteNW(0x681E, vcpu->vmcs.guest_RIP);
-		__vmx_vmwriteNW(0x6820, vcpu->vmcs.guest_RFLAGS);
+		_OPT_VMWRITE(32, control_VM_entry_interruption_information);
+		_OPT_VMWRITE(32, control_VM_entry_exception_errorcode);
+		_OPT_VMWRITE(NW, guest_RSP);
+		_OPT_VMWRITE(NW, guest_RIP);
+		_OPT_VMWRITE(NW, guest_RFLAGS);
 		return 1;
 #endif /* !__NESTED_VIRTUALIZATION__ */
 	default:
 		return 0;
 	}
+
+#undef _OPT_VMREAD
+#undef _OPT_VMWRITE
+
 }
 
 #endif /* __OPTIMIZE_NESTED_VIRT__ */
