@@ -92,6 +92,7 @@ Planned change to interfaces
 		* For example, TrustVisor currently halts when VMCALL number is
 		  incorrect / EPT access is invalid. But for VMEXIT20 need to forward
 		  the VMEXIT to L1
+	* Call when nested EPT fault and EPT01 is invalid (likely not needed)
 	* Call when VMEXIT201
 	* Call when VMEXIT102 (because symmetrical to VMEXIT201)
 	* Maybe: call when VMEXIT202
