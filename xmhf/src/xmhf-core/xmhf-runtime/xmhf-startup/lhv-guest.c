@@ -600,8 +600,8 @@ static void lhv_guest_test_nested_user(VCPU *vcpu)
 		HALT_ON_ERRORCOND(!(__LHV_OPT__ & LHV_NO_EFLAGS_IF));
 		vcpu->vmexit_handler_override =
 			lhv_guest_test_nested_user_vmexit_handler;
-		// TODO
-		asm volatile ("vmcall" : : "a"(0x4c4150ffU));
+		// asm volatile ("vmcall" : : "a"(0x4c4150ffU));
+		enter_user_mode(vcpu, 0x4c415000U);
 		vcpu->vmexit_handler_override = NULL;
 	}
 }

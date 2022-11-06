@@ -79,6 +79,7 @@ static void set_user_mode_page_table(void)
 	spin_unlock(&lock);
 }
 
+/* arg indicates VMCALL EAX offset. Used by pal_demo code during nested virt */
 void enter_user_mode(VCPU *vcpu, ulong_t arg)
 {
 	uintptr_t stack_top = ((uintptr_t) user_stack[vcpu->idx]) + PAGE_SIZE_4K;
@@ -184,23 +185,22 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 	uintptr_t pal_entry = dst_begin - src_begin + (uintptr_t) my_pal;
 	typeof(&my_pal) pal_func = (typeof(&my_pal)) pal_entry;
 	memcpy((void *)dst_begin, (void *)src_begin, code_size);
-	printf("CPU(0x%02x): starting PAL\n", vcpu->id);
-	HALT_ON_ERRORCOND(!vmcall(
-		TV_HC_REG, (uintptr_t)&sections, 0, (uintptr_t)&params, pal_entry));
+	printf("CPU(0x%02x): starting PAL 0x%x\n", vcpu->id, arg);
+	HALT_ON_ERRORCOND(!vmcall(TV_HC_REG + arg, (uintptr_t)&sections, 0,
+							  (uintptr_t)&params, pal_entry));
 	HALT_ON_ERRORCOND(pal_func(0x11111111) == 0x2345bcde);
 
 	if (0 && "invalid access") {
 		printf("", *(u32*)pal_entry);
 	}
 
-	HALT_ON_ERRORCOND(!vmcall(TV_HC_UNREG, pal_entry, 0, 0, 0));
+	HALT_ON_ERRORCOND(!vmcall(TV_HC_UNREG + arg, pal_entry, 0, 0, 0));
 
 	if ("valid access") {
 		printf("", *(u32*)pal_entry);
 	}
 
-	printf("CPU(0x%02x): completed PAL\n", vcpu->id);
-	(void)arg;
+	printf("CPU(0x%02x): completed PAL 0x%x\n", vcpu->id, arg);
 }
 
 void user_main(VCPU *vcpu, ulong_t arg)
