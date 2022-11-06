@@ -842,6 +842,35 @@ static u32 handle_vmexit20_wrmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 #endif							/* __VMX_NESTED_MSR_BITMAP__ */
 
 /*
+ * Handle L2 guest VMEXIT to L0 due to VMCALL.
+ * This function has 2 possible return values:
+ * * NESTED_VMEXIT_HANDLE_201: L0 should forward the VMCALL VMEXIT to L1.
+ * * NESTED_VMEXIT_HANDLE_202: L0 should handle the VMCALL and return to L2.
+ */
+static u32 handle_vmexit20_vmcall(VCPU * vcpu, struct regs *r)
+{
+	if (r->eax < __VMX_HYPAPP_L2_VMCALL_MIN__ ||
+		r->eax > __VMX_HYPAPP_L2_VMCALL_MAX__) {
+		return NESTED_VMEXIT_HANDLE_201;
+	}
+	/* Quiesce, invoke hypapp */
+	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+	if(xmhf_app_handlehypercall(vcpu, r) != APP_SUCCESS) {
+		printf("CPU(0x%02x): error(halt), unhandled L2 hypercall 0x%08x!\n",
+			   vcpu->id, r->eax);
+		HALT();
+	}
+	xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+	/* Increase RIP since instruction is emulated */
+	{
+		ulong_t rip = __vmx_vmreadNW(VMCSENC_guest_RIP);
+		rip += __vmx_vmread32(VMCSENC_info_vmexit_instruction_length);
+		__vmx_vmwriteNW(VMCSENC_guest_RIP, rip);
+	}
+	return NESTED_VMEXIT_HANDLE_202;
+}
+
+/*
  * Forward L2 to L0 VMEXIT to L1.
  * The argument behavior indicates how the VMEXIT should be transformed.
  */
@@ -1011,6 +1040,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		handle_behavior = handle_vmexit20_wrmsr(vcpu, vmcs12_info, r);
 		break;
 #endif							/* __VMX_NESTED_MSR_BITMAP__ */
+	case VMX_VMEXIT_VMCALL:
+		handle_behavior = handle_vmexit20_vmcall(vcpu, r);
+		break;
 	default:
 		break;
 	}
