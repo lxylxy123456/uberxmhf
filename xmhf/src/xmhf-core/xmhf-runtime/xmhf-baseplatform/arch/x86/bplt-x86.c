@@ -116,3 +116,335 @@ void xmhf_baseplatform_arch_cpuinitialize(void){
 	if(cpu_vendor == CPU_VENDOR_INTEL)
 		xmhf_baseplatform_arch_x86vmx_cpuinitialize();
 }
+
+u64 VCPU_gdtr_base(VCPU *vcpu)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      return __vmx_vmreadNW(VMCSENC_guest_GDTR_base);
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    return vcpu->vmcs.guest_GDTR_base;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    return vcpu->vmcb_vaddr_ptr->gdtr.base;
+  } else {
+    HALT_ON_ERRORCOND(false);
+    return 0;
+  }
+}
+
+size_t VCPU_gdtr_limit(VCPU *vcpu)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      return __vmx_vmread32(VMCSENC_guest_GDTR_limit);
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    return vcpu->vmcs.guest_GDTR_limit;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    return vcpu->vmcb_vaddr_ptr->gdtr.limit;
+  } else {
+    HALT_ON_ERRORCOND(false);
+    return 0;
+  }
+}
+
+u64 VCPU_grflags(VCPU *vcpu)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      return __vmx_vmreadNW(VMCSENC_guest_RFLAGS);
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    return vcpu->vmcs.guest_RFLAGS;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    return vcpu->vmcb_vaddr_ptr->rflags;
+  } else {
+    HALT_ON_ERRORCOND(false);
+    return 0;
+  }
+}
+
+void VCPU_grflags_set(VCPU *vcpu, u64 val)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      __vmx_vmwriteNW(VMCSENC_guest_RFLAGS, val);
+      return;
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    vcpu->vmcs.guest_RFLAGS = val;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    vcpu->vmcb_vaddr_ptr->rflags = val;
+  } else {
+    HALT_ON_ERRORCOND(false);
+  }
+}
+
+u64 VCPU_grip(VCPU *vcpu)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      return __vmx_vmreadNW(VMCSENC_guest_RIP);
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    return vcpu->vmcs.guest_RIP;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    return vcpu->vmcb_vaddr_ptr->rip;
+  } else {
+    HALT_ON_ERRORCOND(false);
+    return 0;
+  }
+}
+
+void VCPU_grip_set(VCPU *vcpu, u64 val)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      __vmx_vmwriteNW(VMCSENC_guest_RIP, val);
+      return;
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    vcpu->vmcs.guest_RIP = val;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    vcpu->vmcb_vaddr_ptr->rip = val;
+  } else {
+    HALT_ON_ERRORCOND(false);
+  }
+}
+
+u64 VCPU_grsp(VCPU *vcpu)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      return __vmx_vmreadNW(VMCSENC_guest_RSP);
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    return vcpu->vmcs.guest_RSP;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    return vcpu->vmcb_vaddr_ptr->rsp;
+  } else {
+    HALT_ON_ERRORCOND(false);
+    return 0;
+  }
+}
+
+void VCPU_grsp_set(VCPU *vcpu, u64 val)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      __vmx_vmwriteNW(VMCSENC_guest_RSP, val);
+      return;
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    vcpu->vmcs.guest_RSP = val;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    vcpu->vmcb_vaddr_ptr->rsp = val;
+  } else {
+    HALT_ON_ERRORCOND(false);
+  }
+}
+
+ulong_t VCPU_gcr0(VCPU *vcpu)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      return __vmx_vmreadNW(VMCSENC_guest_CR0);
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    return vcpu->vmcs.guest_CR0;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    return vcpu->vmcb_vaddr_ptr->cr0;
+  } else {
+    HALT_ON_ERRORCOND(false);
+    return 0;
+  }
+}
+
+void VCPU_gcr0_set(VCPU *vcpu, ulong_t cr0)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      __vmx_vmwriteNW(VMCSENC_guest_CR0, cr0);
+      return;
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    vcpu->vmcs.guest_CR0 = cr0;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    vcpu->vmcb_vaddr_ptr->cr0 = cr0;
+  } else {
+    HALT_ON_ERRORCOND(false);
+  }
+}
+
+u64 VCPU_gcr3(VCPU *vcpu)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      return __vmx_vmreadNW(VMCSENC_guest_CR3);
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    return vcpu->vmcs.guest_CR3;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    return vcpu->vmcb_vaddr_ptr->cr3;
+  } else {
+    HALT_ON_ERRORCOND(false);
+    return 0;
+  }
+}
+
+void VCPU_gcr3_set(VCPU *vcpu, u64 cr3)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      __vmx_vmwriteNW(VMCSENC_guest_CR3, cr3);
+      return;
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    vcpu->vmcs.guest_CR3 = cr3;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    vcpu->vmcb_vaddr_ptr->cr3 = cr3;
+  } else {
+    HALT_ON_ERRORCOND(false);
+  }
+}
+
+ulong_t VCPU_gcr4(VCPU *vcpu)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      return __vmx_vmreadNW(VMCSENC_guest_CR4);
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    return vcpu->vmcs.guest_CR4;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    return vcpu->vmcb_vaddr_ptr->cr4;
+  } else {
+    HALT_ON_ERRORCOND(false);
+    return 0;
+  }
+}
+
+void VCPU_gcr4_set(VCPU *vcpu, ulong_t cr4)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      __vmx_vmwriteNW(VMCSENC_guest_CR4, cr4);
+      return;
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    vcpu->vmcs.guest_CR4 = cr4;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    vcpu->vmcb_vaddr_ptr->cr4 = cr4;
+  } else {
+    HALT_ON_ERRORCOND(false);
+  }
+}
+
+/* Return whether guest OS is in long mode (return 1 or 0) */
+u32 VCPU_glm(VCPU *vcpu) {
+    if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+        if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+            return (__vmx_vmread32(VMCSENC_control_VM_entry_controls) >>
+                    VMX_VMENTRY_IA_32E_MODE_GUEST) & 1U;
+        }
+#endif /* __NESTED_VIRTUALIZATION__ */
+        return (vcpu->vmcs.control_VM_entry_controls >>
+                VMX_VMENTRY_IA_32E_MODE_GUEST) & 1U;
+    } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+        /* Not implemented */
+        HALT_ON_ERRORCOND(false);
+        return 0;
+    } else {
+        HALT_ON_ERRORCOND(false);
+        return 0;
+    }
+}
+
+/*
+ * Return whether guest application is in 64-bit mode (return 1 or 0).
+ * If guest OS is in long mode, return 1 if guest application in 64-bit mode.
+ * If guest OS in legacy mode (e.g. protected mode), will always return 0;
+ */
+u32 VCPU_g64(VCPU *vcpu) {
+    if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+        if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+            return __vmx_vmread32(VMCSENC_guest_CS_access_rights);
+        }
+#endif /* __NESTED_VIRTUALIZATION__ */
+        return (vcpu->vmcs.guest_CS_access_rights >> 13) & 1U;
+    } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+        /* Not implemented */
+        HALT_ON_ERRORCOND(false);
+        return 0;
+    } else {
+        HALT_ON_ERRORCOND(false);
+        return 0;
+    }
+}
+
+/*
+ * Update vcpu->vmcs.guest_PDPTE{0..3} for PAE guests. This is needed
+ * after guest CR3 is changed.
+ */
+void VCPU_gpdpte_set(VCPU *vcpu, u64 pdptes[4]) {
+    if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+        if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+            __vmx_vmwrite64(VMCSENC_guest_PDPTE0, pdptes[0]);
+            __vmx_vmwrite64(VMCSENC_guest_PDPTE1, pdptes[1]);
+            __vmx_vmwrite64(VMCSENC_guest_PDPTE2, pdptes[2]);
+            __vmx_vmwrite64(VMCSENC_guest_PDPTE3, pdptes[3]);
+            return;
+        }
+#endif /* __NESTED_VIRTUALIZATION__ */
+        vcpu->vmcs.guest_PDPTE0 = pdptes[0];
+        vcpu->vmcs.guest_PDPTE1 = pdptes[1];
+        vcpu->vmcs.guest_PDPTE2 = pdptes[2];
+        vcpu->vmcs.guest_PDPTE3 = pdptes[3];
+    } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+        /* Not implemented */
+        HALT_ON_ERRORCOND(false);
+    } else {
+        HALT_ON_ERRORCOND(false);
+    }
+}
+
+/*
+ * Return whether guest is running in L2 mode, i.e. VMX non-root. When nested
+ * virtualization is not enabled, always return false.
+ */
+bool VCPU_nested(VCPU *vcpu) {
+    if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+        if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+            return true;
+        }
+#endif /* __NESTED_VIRTUALIZATION__ */
+        return false;
+    } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+        /* Not implemented */
+        HALT_ON_ERRORCOND(false);
+        return false;
+    } else {
+        HALT_ON_ERRORCOND(false);
+        return false;
+    }
+}
+

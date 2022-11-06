@@ -210,6 +210,7 @@ static u32 do_TV_HC_SHARE(VCPU *vcpu, struct regs *r)
 static u64 do_TV_HC_TEST(VCPU *vcpu, struct regs *r)
 {
   (void)r;
+  HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
 #ifdef __XMHF_AMD64__
   eu_warn("CPU(0x%02x): test hypercall, rcx=0x%016x", vcpu->id, r->rcx);
 #else /* !__XMHF_AMD64__ */
@@ -222,6 +223,7 @@ static u64 do_TV_HC_REG(VCPU *vcpu, struct regs *r)
 {
   u64 scode_info, scode_pm, scode_en;
   u64 ret;
+  HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
 
 #ifdef __XMHF_AMD64__
   scode_info = r->rcx; /* sensitive code as guest virtual address */
@@ -243,6 +245,7 @@ static u64 do_TV_HC_UNREG(VCPU *vcpu, struct regs *r)
 {
   u64 scode_gva;
   u64 ret;
+  HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
   /* sensitive code as guest virtual address in ecx */
 #ifdef __XMHF_AMD64__
   scode_gva = r->rcx;
@@ -583,6 +586,7 @@ u32 tv_app_handlehypercall(VCPU *vcpu, struct regs *r)
   u32 status = APP_SUCCESS;
   u64 ret = 0;
 
+  HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
   started_business = 1;
 
 //#ifdef __MP_VERSION__
@@ -673,6 +677,7 @@ u32 tv_app_handleintercept_hwpgtblviolation(VCPU *vcpu,
 #if defined(__LDN_TV_INTEGRATION__)
   (void)gva;
 #endif //__LDN_TV_INTEGRATION__
+  HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
 
   started_business = 1;
 
