@@ -356,7 +356,7 @@ void VCPU_gcr4_set(VCPU *vcpu, ulong_t cr4)
 }
 
 /* Return whether guest OS is in long mode (return 1 or 0) */
-u32 VCPU_glm(VCPU *vcpu) {
+bool VCPU_glm(VCPU *vcpu) {
     if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
 #ifdef __NESTED_VIRTUALIZATION__
         if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
@@ -369,10 +369,10 @@ u32 VCPU_glm(VCPU *vcpu) {
     } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
         /* Not implemented */
         HALT_ON_ERRORCOND(false);
-        return 0;
+        return false;
     } else {
         HALT_ON_ERRORCOND(false);
-        return 0;
+        return false;
     }
 }
 
@@ -381,21 +381,21 @@ u32 VCPU_glm(VCPU *vcpu) {
  * If guest OS is in long mode, return 1 if guest application in 64-bit mode.
  * If guest OS in legacy mode (e.g. protected mode), will always return 0;
  */
-u32 VCPU_g64(VCPU *vcpu) {
+bool VCPU_g64(VCPU *vcpu) {
     if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
 #ifdef __NESTED_VIRTUALIZATION__
         if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
-            return __vmx_vmread32(VMCSENC_guest_CS_access_rights);
+            return (__vmx_vmread32(VMCSENC_guest_CS_access_rights) >> 13) & 1U;
         }
 #endif /* __NESTED_VIRTUALIZATION__ */
         return (vcpu->vmcs.guest_CS_access_rights >> 13) & 1U;
     } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
         /* Not implemented */
         HALT_ON_ERRORCOND(false);
-        return 0;
+        return false;
     } else {
         HALT_ON_ERRORCOND(false);
-        return 0;
+        return false;
     }
 }
 

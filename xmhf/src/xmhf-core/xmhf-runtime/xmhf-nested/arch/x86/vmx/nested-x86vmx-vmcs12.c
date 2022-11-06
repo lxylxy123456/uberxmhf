@@ -1303,7 +1303,7 @@ static void _vmcs02_to_vmcs12_control_VMX_cpu_based(ARG01 * arg)
 static u32 _vmcs12_to_vmcs02_control_VM_exit_controls(ARG10 * arg)
 {
 	u32 val = arg->vmcs12->control_VM_exit_controls;
-	u32 g64 = VCPU_g64(arg->vcpu);
+	bool g64 = VCPU_g64(arg->vcpu);
 	/* Check the "IA-32e mode guest" bit of the guest hypervisor */
 	if (val & (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE)) {
 		HALT_ON_ERRORCOND(g64);

@@ -443,8 +443,8 @@ u64 VCPU_gcr3(VCPU *vcpu);
 void VCPU_gcr3_set(VCPU *vcpu, u64 cr3);
 ulong_t VCPU_gcr4(VCPU *vcpu);
 void VCPU_gcr4_set(VCPU *vcpu, ulong_t cr4);
-u32 VCPU_glm(VCPU *vcpu);
-u32 VCPU_g64(VCPU *vcpu);
+bool VCPU_glm(VCPU *vcpu);
+bool VCPU_g64(VCPU *vcpu);
 void VCPU_gpdpte_set(VCPU *vcpu, u64 pdptes[4]);
 bool VCPU_nested(VCPU *vcpu);
 
