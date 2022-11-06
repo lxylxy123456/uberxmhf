@@ -719,7 +719,7 @@ static bool check_msr_bitmap(vmcs12_info_t * vmcs12_info, u32 msr_val,
  * Handle L2 guest VMEXIT to L0 due to RDMSR.
  * This function has 2 possible return values:
  * * NESTED_VMEXIT_HANDLE_201: L0 should forward the RDMSR VMEXIT to L1.
- * * NESTED_VMEXIT_HANDLE_202: L0 should handle the RDMSR and return to L2.
+ * * NESTED_VMEXIT_HANDLE_202: VMCALL handled, L0 should return to L2.
  */
 static u32 handle_vmexit20_rdmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 								 struct regs *r)
@@ -787,7 +787,7 @@ static u32 handle_vmexit20_rdmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
  * Handle L2 guest VMEXIT to L0 due to WRMSR.
  * This function has 2 possible return values:
  * * NESTED_VMEXIT_HANDLE_201: L0 should forward the WRMSR VMEXIT to L1.
- * * NESTED_VMEXIT_HANDLE_202: L0 should handle the WRMSR and return to L2.
+ * * NESTED_VMEXIT_HANDLE_202: VMCALL handled, L0 should return to L2.
  */
 static u32 handle_vmexit20_wrmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 								 struct regs *r)
@@ -845,7 +845,7 @@ static u32 handle_vmexit20_wrmsr(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
  * Handle L2 guest VMEXIT to L0 due to VMCALL.
  * This function has 2 possible return values:
  * * NESTED_VMEXIT_HANDLE_201: L0 should forward the VMCALL VMEXIT to L1.
- * * NESTED_VMEXIT_HANDLE_202: L0 should handle the VMCALL and return to L2.
+ * * NESTED_VMEXIT_HANDLE_202: VMCALL handled, L0 should return to L2.
  */
 static u32 handle_vmexit20_vmcall(VCPU * vcpu, struct regs *r)
 {
@@ -855,7 +855,7 @@ static u32 handle_vmexit20_vmcall(VCPU * vcpu, struct regs *r)
 	}
 	/* Quiesce, invoke hypapp */
 	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
-	if(xmhf_app_handlehypercall(vcpu, r) != APP_SUCCESS) {
+	if (xmhf_app_handlehypercall(vcpu, r) != APP_SUCCESS) {
 		printf("CPU(0x%02x): error(halt), unhandled L2 hypercall 0x%08x!\n",
 			   vcpu->id, r->eax);
 		HALT();
@@ -868,6 +868,26 @@ static u32 handle_vmexit20_vmcall(VCPU * vcpu, struct regs *r)
 		__vmx_vmwriteNW(VMCSENC_guest_RIP, rip);
 	}
 	return NESTED_VMEXIT_HANDLE_202;
+}
+
+/*
+ * Handle L2 guest VMEXIT to L0 due to CPUID.
+ * This function has 2 possible return values:
+ * * NESTED_VMEXIT_HANDLE_201: L0 should forward the VMCALL VMEXIT to L1.
+ * * NESTED_VMEXIT_HANDLE_202: VMCALL handled, L0 should return to L2.
+ */
+static u32 handle_vmexit20_cpuid(VCPU * vcpu, struct regs *r)
+{
+	u32 app_ret_status = xmhf_app_handlecpuid(vcpu, r);
+	switch (app_ret_status) {
+	case APP_CPUID_SKIP:
+		return NESTED_VMEXIT_HANDLE_202;
+	case APP_CPUID_CHAIN:
+		return NESTED_VMEXIT_HANDLE_201;
+	default:
+		HALT_ON_ERRORCOND(0 && "Bad return code from xmhf_app_handlecpuid()");
+		break;
+	}
 }
 
 /*
@@ -1042,6 +1062,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 #endif							/* __VMX_NESTED_MSR_BITMAP__ */
 	case VMX_VMEXIT_VMCALL:
 		handle_behavior = handle_vmexit20_vmcall(vcpu, r);
+		break;
+	case VMX_VMEXIT_CPUID:
+		handle_behavior = handle_vmexit20_cpuid(vcpu, r);
 		break;
 	default:
 		break;
