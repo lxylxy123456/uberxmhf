@@ -100,7 +100,8 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg);
 void user_main(VCPU *vcpu, ulong_t arg);
 
 /* lhv-user-asm.S */
-void enter_user_mode_asm(ureg_t *ureg);
+void enter_user_mode_asm(ureg_t *ureg, uintptr_t *esp0);
+void exit_user_mode_asm(uintptr_t esp0);
 
 /* LAPIC */
 #define LAPIC_DEFAULT_BASE    0xfee00000

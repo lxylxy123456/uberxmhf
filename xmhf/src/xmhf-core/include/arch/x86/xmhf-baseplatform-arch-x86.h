@@ -299,8 +299,6 @@ typedef struct _vcpu {
   u8 ept_num;
   void (*volatile vmexit_handler_override)(struct _vcpu *, struct regs *,
                                            vmexit_info_t *);
-  /* When LHV host user mode is running, the guest kernel mode registers */
-  struct regs guest_regs;
 } VCPU;
 
 #define SIZE_STRUCT_VCPU    (sizeof(struct _vcpu))
