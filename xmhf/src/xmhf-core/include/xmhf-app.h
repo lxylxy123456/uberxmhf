@@ -65,6 +65,8 @@
 #define APP_IOINTERCEPT_SKIP    0xA1
 #define APP_INIT_SUCCESS        0x0
 #define APP_INIT_FAIL           0xFF
+#define APP_CPUID_CHAIN         0x0F
+#define APP_CPUID_SKIP          0xA2
 
 
 //application parameter block
@@ -87,6 +89,9 @@ typedef struct {
 /*
  * Called by all CPUs when XMHF boots.
  *
+ * Hypapp should return APP_INIT_SUCCESS if hypapp initialization is successful.
+ * Otherwise hypapp should return APP_INIT_FAIL (XMHF will halt).
+ *
  * When this function is called, other CPUs are NOT quiesced.
  */
 extern u32 xmhf_app_main(VCPU *vcpu, APP_PARAM_BLOCK *apb);
@@ -98,6 +103,10 @@ extern u32 xmhf_app_main(VCPU *vcpu, APP_PARAM_BLOCK *apb);
  * portnum: I/O port number accessed (0 - 0xffff inclusive)
  * access_type: IO_TYPE_IN or IO_TYPE_OUT
  * access_size: IO_SIZE_BYTE or IO_SIZE_WORD or IO_SIZE_DWORD
+ *
+ * Hypapp should return APP_IOINTERCEPT_SKIP if the I/O port access is handled.
+ * Otherwise hypapp should return APP_IOINTERCEPT_CHAIN (XMHF will perform the
+ * access in hypervisor mode).
  *
  * When this function is called, other CPUs may or may not be quiesced. This is
  * configured using __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__.
@@ -161,16 +170,14 @@ extern u32 xmhf_app_handlemtrr(VCPU *vcpu, u32 msr, u64 val);
 /*
  * Called when the guest executes CPUID.
  *
- * The intention is to allow the guest to detect presence of the hypapp.
- *
- * Before calling this function, XMHF already performs CPUID and updates r. The
- * old EAX from the guest is in fn.
- *
- * TODO: modify interface to let hypapp return whether CPUID is handled.
+ * The intention of this function is to allow the guest to detect presence of
+ * the hypapp. If the hypapp handles the CPUID instruction, it should return
+ * APP_CPUID_SKIP. Otherwise the hypapp should return APP_CPUID_CHAIN and XMHF
+ * will handle the CPUID instruction.
  *
  * When this function is called, other CPUs are NOT quiesced.
  */
-extern void xmhf_app_handlecpuid(VCPU *vcpu, struct regs *r, uint32_t fn);
+extern u32 xmhf_app_handlecpuid(VCPU *vcpu, struct regs *r);
 
 #endif	//__ASSEMBLY__
 
