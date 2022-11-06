@@ -567,10 +567,8 @@ static void lhv_guest_test_user_vmexit_handler(VCPU *vcpu, struct regs *r,
 	}
 	HALT_ON_ERRORCOND(r->eax == 33);
 	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
-	memcpy(&vcpu->guest_regs, r, sizeof(struct regs));
-	/* After user mode ends, just run vmresume_asm(&vcpu->guest_regs); */
 	enter_user_mode(vcpu, 0);
-	HALT_ON_ERRORCOND(0 && "Should never return");
+	vmresume_asm(r);
 }
 
 static void lhv_guest_test_user(VCPU *vcpu)

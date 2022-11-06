@@ -2,8 +2,16 @@
 #include <lhv.h>
 #include "trustvisor.h"
 
+/* Stack for user program */
 static u8 user_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
 __attribute__((aligned(PAGE_SIZE_4K)));
+
+/* Stack for interrupt and system call during user mode */
+static u8 interrupt_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+__attribute__((aligned(PAGE_SIZE_4K)));
+
+/* When running user program, ESP of kernel code (used when user exits) */
+static uintptr_t esp0[MAX_VCPU_ENTRIES];
 
 #ifdef __AMD64__
 static u64 user_pml4t[P4L_NPLM4T * 512] __attribute__((aligned(PAGE_SIZE_4K)));
@@ -75,38 +83,40 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 {
 	uintptr_t stack_top = ((uintptr_t) user_stack[vcpu->idx]) + PAGE_SIZE_4K;
 	uintptr_t *stack = (uintptr_t *)stack_top;
-	ureg_t ureg = {
-		.r={},
-		.eip=(uintptr_t) user_main,
-		.cs=__CS_R3,
-		.eflags=2 | (3 << 12),
-		.esp=(uintptr_t) (&stack[-3]),
-		.ss=__DS_R3,
-	};
+	uintptr_t *pesp0 = &esp0[vcpu->idx];
+	ureg_t *ureg = (ureg_t *)((uintptr_t)(&stack[-3]) - sizeof(ureg_t));
+	memset(&ureg->r, 0, sizeof(ureg->r));
+	ureg->eip = (uintptr_t) user_main;
+	ureg->cs = __CS_R3;
+	ureg->eflags = 2 | (3 << 12);
+	ureg->esp = (uintptr_t) (&stack[-3]);
+	ureg->ss = __DS_R3;
 	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
-		ureg.eflags |= EFLAGS_IF;
+		ureg->eflags |= EFLAGS_IF;
 	}
-	memset(&ureg.r, 0, sizeof(ureg.r));
+	{
+		uintptr_t top = ((uintptr_t) interrupt_stack[vcpu->idx]) + PAGE_SIZE_4K;
 #ifdef __AMD64__
-	ureg.r.rsi = arg;
-	ureg.r.rdi = (uintptr_t) vcpu;
-	stack[-3] = 0xdeadbeef;
-	/* Setup TSS */
-	*(u64 *)(g_runtime_TSS[vcpu->idx] + 4) = vcpu->rsp;
+		ureg->r.rsi = arg;
+		ureg->r.rdi = (uintptr_t) vcpu;
+		stack[-3] = 0xdeadbeef;
+		/* Setup TSS */
+		*(u64 *)(g_runtime_TSS[vcpu->idx] + 4) = top;
 #elif defined(__I386__)
-	stack[-1] = arg;
-	stack[-2] = (uintptr_t) vcpu;
-	stack[-3] = 0xdeadbeef;
-	/* Setup TSS */
-	*(u32 *)(g_runtime_TSS[vcpu->idx] + 4) = vcpu->esp;
-	*(u16 *)(g_runtime_TSS[vcpu->idx] + 8) = __DS;
+		stack[-1] = arg;
+		stack[-2] = (uintptr_t) vcpu;
+		stack[-3] = 0xdeadbeef;
+		/* Setup TSS */
+		*(u32 *)(g_runtime_TSS[vcpu->idx] + 4) = top;
+		*(u16 *)(g_runtime_TSS[vcpu->idx] + 8) = __DS;
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
+	}
 	/* Setup page table */
 	set_user_mode_page_table();
 	/* Iret to user mode */
-	enter_user_mode_asm(&ureg);
+	enter_user_mode_asm(ureg, pesp0);
 }
 
 void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
@@ -114,7 +124,7 @@ void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
 	/* Currently the only syscall is to exit guest mode */
 	HALT_ON_ERRORCOND(vector == 0x23);
 	HALT_ON_ERRORCOND(r->eax == 0xdeaddead);
-	vmresume_asm(&vcpu->guest_regs);
+	exit_user_mode_asm(esp0[vcpu->idx]);
 }
 
 /* Below are for pal_demo */
