@@ -210,7 +210,6 @@ static u32 do_TV_HC_SHARE(VCPU *vcpu, struct regs *r)
 static u64 do_TV_HC_TEST(VCPU *vcpu, struct regs *r)
 {
   (void)r;
-  HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
 #ifdef __XMHF_AMD64__
   eu_warn("CPU(0x%02x): test hypercall, rcx=0x%016x", vcpu->id, r->rcx);
 #else /* !__XMHF_AMD64__ */
@@ -586,7 +585,6 @@ u32 tv_app_handlehypercall(VCPU *vcpu, struct regs *r)
   u32 status = APP_SUCCESS;
   u64 ret = 0;
 
-  HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
   started_business = 1;
 
 //#ifdef __MP_VERSION__
@@ -599,10 +597,16 @@ u32 tv_app_handlehypercall(VCPU *vcpu, struct regs *r)
 #else /* !__XMHF_AMD64__ */
     cmd = (u32)r->eax;
 #endif /* __XMHF_AMD64__ */
+    if (VCPU_nested(vcpu)) {
+      cmd -= __VMX_HYPAPP_L2_VMCALL_MIN__;
+    }
     linux_vmcb = 0;
   } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
     linux_vmcb = (struct _svm_vmcbfields *)(vcpu->vmcb_vaddr_ptr);
     cmd = (u32)linux_vmcb->rax;
+    if (VCPU_nested(vcpu)) {
+      HALT_ON_ERRORCOND(0 && "Not implemented");
+    }
   } else {
     printf("unknown cpu vendor type!\n");
     HALT();
