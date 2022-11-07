@@ -260,11 +260,11 @@ void init_scode(VCPU * vcpu)
   /* initialize heap memory */
   mem_init();
 
-  whitelist = malloc(WHITELIST_LIMIT);
+  EU_VERIFY(whitelist = malloc(WHITELIST_LIMIT));
   eu_trace("alloc %dKB mem for scode_list at %lx!", (WHITELIST_LIMIT/1024), (unsigned long)whitelist);
-  scode_pfn_bitmap = (unsigned char *)malloc(PFN_BITMAP_LIMIT);
+  EU_VERIFY(scode_pfn_bitmap = (unsigned char *)malloc(PFN_BITMAP_LIMIT));
   eu_trace("alloc %dKB mem for pfn_bitmap at %lx!", (PFN_BITMAP_LIMIT/1024), (unsigned long)scode_pfn_bitmap);
-  scode_pfn_bitmap_2M = (unsigned short *)malloc(PFN_BITMAP_2M_LIMIT);
+  EU_VERIFY(scode_pfn_bitmap_2M = (unsigned short *)malloc(PFN_BITMAP_2M_LIMIT));
   eu_trace("alloc %dKB mem for pfn_bitmap_2M at %lx!", (PFN_BITMAP_LIMIT/1024), (unsigned long)scode_pfn_bitmap_2M);
 
   memset(whitelist, 0, WHITELIST_LIMIT);
@@ -282,7 +282,7 @@ void init_scode(VCPU * vcpu)
     if ( g_midtable[inum].cpu_lapic_id > max)
       max = g_midtable[inum].cpu_lapic_id;
   }
-  scode_curr = malloc((max+1) * sizeof(*scode_curr));
+  EU_VERIFY(scode_curr = malloc((max+1) * sizeof(*scode_curr)));
   memset(scode_curr, 0xFF, ((max+1) * sizeof(*scode_curr)));
 
 #ifdef __DRT__
@@ -1416,6 +1416,12 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
     *curr = -1;
   }
   return err;
+}
+
+/* Return whether current CPU is running scode */
+bool hpt_scode_is_scode(VCPU * vcpu)
+{
+  return (scode_curr[vcpu->id]) != -1;
 }
 
 /* caller is responsible for flushing TLB */

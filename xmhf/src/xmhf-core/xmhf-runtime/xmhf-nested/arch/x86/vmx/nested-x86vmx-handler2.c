@@ -287,6 +287,9 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 {
 	u32 result;
 
+	u32 app_ret_status = xmhf_app_handle_nest_entry(vcpu, r);
+	HALT_ON_ERRORCOND(app_ret_status == APP_SUCCESS);
+
 	/*
 	   Features notes
 	   * "VMCS shadowing" not supported (logic not written)
@@ -1079,6 +1082,8 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			printf("CPU(0x%02x): 202 vmexit %d\n", vcpu->id, vmexit_reason);
 		}
 	} else {
+		u32 app_ret_status = xmhf_app_handle_nest_exit(vcpu, r);
+		HALT_ON_ERRORCOND(app_ret_status == APP_SUCCESS);
 		handle_vmexit20_forward(vcpu, vmcs12_info, handle_behavior);
 	}
 

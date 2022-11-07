@@ -738,6 +738,28 @@ void tv_app_handleshutdown(VCPU *vcpu, struct regs __attribute__((unused)) *r)
   xmhf_baseplatform_reboot(vcpu);
 }
 
+#ifdef __NESTED_VIRTUALIZATION__
+u32 tv_app_handle_nest_entry(VCPU *vcpu, struct regs *r)
+{
+  (void)r;
+  if (hpt_scode_is_scode(vcpu)) {
+    eu_err("CPU(0x%02x): tv_app_handle_nest_entry in scode, Halt!", vcpu->id);
+    HALT();
+  }
+  return APP_SUCCESS;
+}
+
+u32 tv_app_handle_nest_exit(VCPU *vcpu, struct regs *r)
+{
+  (void)r;
+  if (hpt_scode_is_scode(vcpu)) {
+    eu_err("CPU(0x%02x): tv_app_handle_nest_exit in scode, Halt!", vcpu->id);
+    HALT();
+  }
+  return APP_SUCCESS;
+}
+#endif /* __NESTED_VIRTUALIZATION__ */
+
 /* Local Variables: */
 /* mode:c           */
 /* indent-tabs-mode:nil */
