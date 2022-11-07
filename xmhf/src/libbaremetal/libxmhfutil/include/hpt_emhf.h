@@ -89,6 +89,8 @@ static inline hpt_pm_t hpt_emhf_get_default_root_pm(VCPU *vcpu)
   return (hpt_pm_t)xmhf_memprot_get_default_root_pagemap_address(vcpu);
 }
 
+// Access EPT / NPT (EPT02 when nested virtualization)
+
 static inline hpt_pa_t hpt_emhf_get_root_pm_pa(VCPU *vcpu)
 {
   hpt_type_t t = hpt_emhf_get_hpt_type(vcpu);
@@ -129,6 +131,68 @@ static inline void hpt_emhf_set_root_pm(VCPU *vcpu, hpt_pm_t root)
 {
   hpt_emhf_set_root_pm_pa( vcpu, hva2spa(root));
 }
+
+static inline void hpt_emhf_get_root_pmo(VCPU *vcpu, hpt_pmo_t *root)
+{
+  hpt_type_t t = hpt_emhf_get_hpt_type(vcpu);
+  *root = (hpt_pmo_t) {
+    .pm = hpt_emhf_get_root_pm(vcpu),
+    .t = t,
+    .lvl = hpt_root_lvl(t),
+  };
+}
+
+// Access EPT01 / NPT01 (EPT01 even when nested virtualization)
+
+static inline hpt_pa_t hpt_emhf_get_l1_root_pm_pa(VCPU *vcpu)
+{
+  hpt_type_t t = hpt_emhf_get_hpt_type(vcpu);
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+    return hpt_eptp_get_address(t,
+                                 xmhf_memprot_arch_x86vmx_get_EPTP01(vcpu));
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    HALT_ON_ERRORCOND(0 && "Not implemented");
+  } else {
+    HALT_ON_ERRORCOND(0);
+    return 0;
+  }
+}
+
+static inline void hpt_emhf_set_l1_root_pm_pa(VCPU *vcpu, hpt_pa_t root_pa)
+{
+  hpt_type_t t = hpt_emhf_get_hpt_type(vcpu);
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+    xmhf_memprot_arch_x86vmx_set_EPTP01( vcpu, hpt_eptp_set_address(t,
+                                                                    xmhf_memprot_arch_x86vmx_get_EPTP01(vcpu),
+                                                                    root_pa));
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    HALT_ON_ERRORCOND(0 && "Not implemented");
+  } else {
+    HALT_ON_ERRORCOND(0);
+  }
+}
+
+static inline hpt_pm_t hpt_emhf_get_l1_root_pm(VCPU *vcpu)
+{
+  return spa2hva( hpt_emhf_get_l1_root_pm_pa( vcpu));
+}
+
+static inline void hpt_emhf_set_l1_root_pm(VCPU *vcpu, hpt_pm_t root)
+{
+  hpt_emhf_set_l1_root_pm_pa( vcpu, hva2spa(root));
+}
+
+static inline void hpt_emhf_get_l1_root_pmo(VCPU *vcpu, hpt_pmo_t *root)
+{
+  hpt_type_t t = hpt_emhf_get_hpt_type(vcpu);
+  *root = (hpt_pmo_t) {
+    .pm = hpt_emhf_get_l1_root_pm(vcpu),
+    .t = t,
+    .lvl = hpt_root_lvl(t),
+  };
+}
+
+// Access guest page table
 
 static inline hpt_type_t hpt_emhf_get_guest_hpt_type(VCPU *vcpu) {
   ulong_t cr4 = VCPU_gcr4(vcpu);
@@ -171,16 +235,6 @@ static inline hpt_pm_t hpt_emhf_get_guest_root_pm(VCPU *vcpu)
 static inline void hpt_emhf_set_guest_root_pm( VCPU *vcpu, hpt_pm_t root)
 {
   hpt_emhf_set_guest_root_pm_pa( vcpu, hva2gpa( root));
-}
-
-static inline void hpt_emhf_get_root_pmo(VCPU *vcpu, hpt_pmo_t *root)
-{
-  hpt_type_t t = hpt_emhf_get_hpt_type(vcpu);
-  *root = (hpt_pmo_t) {
-    .pm = hpt_emhf_get_root_pm(vcpu),
-    .t = t,
-    .lvl = hpt_root_lvl(t),
-  };
 }
 
 static inline void hpt_emhf_get_guest_root_pmo(VCPU *vcpu, hpt_pmo_t *root)
