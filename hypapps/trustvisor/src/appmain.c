@@ -758,6 +758,17 @@ u32 tv_app_handle_nest_exit(VCPU *vcpu, struct regs *r)
   }
   return APP_SUCCESS;
 }
+
+u32 tv_app_handle_ept02_change(VCPU *vcpu, gpa_t ept12, spa_t *ept02)
+{
+  // TODO: if current CPU is running scode, swap EPT02 with TV's value.
+  (void)ept12;
+  (void)ept02;
+  if (hpt_scode_is_scode(vcpu)) {
+    HALT_ON_ERRORCOND(0 && "Not implemented");
+  }
+  return APP_SUCCESS;
+}
 #endif /* __NESTED_VIRTUALIZATION__ */
 
 /* Local Variables: */

@@ -990,6 +990,13 @@ static void _rewalk_ept01_control_EPT_pointer(ARG10 * arg)
 											  &cache_line);
 		HALT_ON_ERRORCOND(!cache_hit);
 		arg->vmcs12_info->guest_ept_cache_line = cache_line;
+
+		/* Notify hypapp about change in EPTP02 (hypapp may change ept02) */
+		{
+			u32 stat = xmhf_app_handle_ept02_change(arg->vcpu, eptp12, &ept02);
+			HALT_ON_ERRORCOND(stat == APP_SUCCESS);
+		}
+
 		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
 #ifdef __DEBUG_QEMU__
 		_workaround_kvm_216212(arg, cache_line);

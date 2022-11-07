@@ -203,6 +203,21 @@ extern u32 xmhf_app_handle_nest_entry(VCPU *vcpu, struct regs *r);
  * When this function is called, other CPUs are NOT quiesced.
  */
 extern u32 xmhf_app_handle_nest_exit(VCPU *vcpu, struct regs *r);
+
+/*
+ * Called when XMHF creates a new EPT02 (NPT02 in AMD?) for the current L2
+ * guest. ept12 is the value of EPT pointer in VMCS12. ept02 is pointer to the
+ * newly created EPT02. Changing ept02 will change the value XMHF writes to
+ * VMCS02.
+ *
+ * When the hypapp changes EPT02, this function makes sure that XMHF does not
+ * overwrite the hypapp's value when EPT02 is flushed.
+ *
+ * Hypapp should return APP_SUCCESS.
+ *
+ * When this function is called, other CPUs are NOT quiesced.
+ */
+extern u32 xmhf_app_handle_ept02_change(VCPU *vcpu, gpa_t ept12, spa_t *ept02);
 #endif /* __NESTED_VIRTUALIZATION__ */
 
 #endif	//__ASSEMBLY__
