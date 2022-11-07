@@ -69,7 +69,6 @@ The following are existing interfaces in XMHF64:
 	* Walk page table from EPTP / CR3 using custom logic (HPT library)
 	* Modify page table entries from EPTP / CR3 (e.g. `hptw_set_prot()`)
 		* See `scode_lend_section()`, `scode_return_section()`
-		* TODO: Need to confirm
 	* Modify DMA page table entries: `xmhf_dmaprot_protect()` /
 	  `xmhf_dmaprot_unprotect()`
 	* Flush TLB: `xmhf_memprot_flushmappings_alltlb()`
@@ -88,20 +87,32 @@ Possible vulnerability about TrustVisor found:
 
 Planned change to interfaces
 * Interface for XMHF to forward event to Hypapp
-	* Existing events only handle VMEXIT10, not VMEXIT20
-		* For example, TrustVisor currently halts when VMCALL number is
-		  incorrect / EPT access is invalid. But for VMEXIT20 need to forward
-		  the VMEXIT to L1
-	* Call when nested EPT fault and EPT01 is invalid (likely not needed)
-	* Call when VMEXIT201
-	* Call when VMEXIT102 (because symmetrical to VMEXIT201)
+	* Existing events handle both VMEXIT10 and VMEXIT20
+		* For VMCALL, define a specific range of EAX that should be handled by
+		  hypapp instead of L1
+		* For EPT, perform EPT01 and EPT12 walk as usual. If EPT12 fails, let
+		  L1 handle. If EPT01 fails, let hypapp handle.
+	* Call when EPTP02 changes (no quiesce, event triggered by flush of EPT02)
+	* Call when VMEXIT201 (no quiesce)
+	* Call when VMEXIT102 (no quiesce, because symmetrical to VMEXIT201)
 	* Maybe: call when VMEXIT202
 * Hypapp to access data in XMHF
 	* Add `VCPU_gnest` to indicate whether in nested virtualization
 	* Functions in `xmhf-baseplatform-arch-x86.h` (e.g. `VCPU_gcr3`): if in L2,
 	  use VMCS02 instead of VMCS01.
-	* EPT functions: (`xmhf_memprot_arch_x86vmx_get_EPTP`,
-	  `xmhf_memprot_arch_x86vmx_set_EPTP`): use VMCS02 if in L2
+	* EPTP functions: need to access both EPTP01 and EPTP02. Normally hypapps
+	  want to access EPTP02, but TrustVisor also accesses EPTP01 to make EPTP01
+	  the same across all CPUs
+		* `xmhf_memprot_arch_x86vmx_get_EPTP` /
+		  `xmhf_memprot_arch_x86vmx_set_EPTP`: use EPT01 or EPT02 depend on VMX
+		  operation mode
+		* `xmhf_memprot_arch_x86vmx_get_EPTP01` /
+		  `xmhf_memprot_arch_x86vmx_set_EPTP01`: always use EPT01
+		* If TrustVisor changes EPTP01 (at this time other CPUs are quiesced),
+		  normally requesting TLB flush should be able to sync the change to
+		  other CPUs.
+	* Walk EPT02: require new function because
+		* EPT02 is generated dynamically from EPT01 and EPT12
 	* Modify page table entries from EPTP: require new function because
 		* Hypapp specifies address based on EPT02, XMHF needs to update EPT01
 		* In the future, can try merging small pages in EPT to form bigger pages
