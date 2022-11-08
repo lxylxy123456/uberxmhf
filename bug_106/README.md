@@ -3,6 +3,7 @@
 ## Scope
 * Nested virtualization, all configurations
 * `lhv 83723a519`
+* `lhv-dev a41a04b0c`
 * `xmhf64 28ce646f2`
 * `xmhf64-nest 9ba342c98`
 * `xmhf64-nest-dev 186e6588f`
@@ -136,7 +137,7 @@ Addressed tasks:
 * Document existing XMHF interfaces
 * How to pass configuration to TrustVisor? need to defined vmcall offset
 
-Other hypapps
+Other hypapps shipped with XMHF code:
 * `helloworld`: trivial
 * `lockdown`: only other hypapp in XMHF's repository
 * `quiesce`: looks like test case, ignored
@@ -153,6 +154,55 @@ Currently we do not consider the compatibility of lockdown.
 Addressed tasks:
 * Consider reviewing other existing hypapps
 
-TODO: test using LHV
-TODO: review why `xmhf_app_handlecpuid()` is used, likely unnecessary
+Discussed with superymk. `xmhf_app_handlecpuid()` is needed because guest needs
+a way to detect presence of XMHF / Hypapp. However, I changed the call
+interface a little bit in `xmhf64 19978269c` to make it usable in L2.
+
+Addressed tasks:
+* Review why `xmhf_app_handlecpuid()` is used, likely unnecessary
+
+In `lhv e19f3c178`, revise LHV to be able to preserve kernel mode (ring 0)
+state while running in user mode. In `lhv-dev 742b17717`, able to call
+TrustVisor from LHV in L2. This makes testing and debugging with QEMU easy.
+
+Addressed tasks:
+* Test using LHV
+
+### TrustVisor handling of EPT
+
+We review how TrustVisor uses EPT, because there are a lot of changes.
+
+* Access to EPT is handled in `hpt_emhf.h` using functions
+	* `hpt_emhf_get_root_pm_pa`: get EPTP physical address
+	* `hpt_emhf_get_root_pm`: get EPTP virtual address
+		* Used in `hptw_emhf_host_ctx_init_of_vcpu()`: see below
+	* `hpt_emhf_set_root_pm_pa`: set EPTP physical address
+		* Used in `hpt_scode_switch_scode()` to change EPT02
+	* `hpt_emhf_set_root_pm`: set EPTP virtual address
+		* Used when first time calling `scode_register()`, to switch EPT01
+		* Used in `hpt_scode_switch_regular()` to change EPT02
+	* `hpt_emhf_get_root_pmo`: get EPTP virtual address and some metadata
+		* Used when first time calling `scode_register()`, `g_reg_npmo_root` is
+		  considered the common EPT across all CPUs
+	* `hptw_emhf_host_ctx_init_of_vcpu()`: construct class to walk EPT02
+		* Used when first time calling `scode_register()`, `g_hptw_reg_host_ctx`
+		  is used to walk EPT02 (including walk guest page table)
+		* Used by `hptw_emhf_checked_guest_ctx_init_of_vcpu()`, similarly is
+		  used to construct class to walk gust page table.
+
+For TrustVisor, the functions provided by OS need to be compatible with the
+hptw library. The requirements are reflected in `hptw_ctx_t`.
+* gzp: not supported
+* pa2ptr: need to walk EPT02, two choices
+	1. Walk the computed EPT02, when failure call
+	   `xmhf_nested_arch_x86vmx_handle_ept02_exit()` and retry
+	2. 2D walk EPT12 and EPT01
+* ptr2pa: not supported
+* Also need to keep track of `ept02_cache_line_t * cache_line`
+
+For removing memory, can simply change EPT01. This is easy because EPT01 is
+unique.
+
+TODO: consider a hypothetical hypapp: lockdown but support shared memory between red and green
+TODO
 
