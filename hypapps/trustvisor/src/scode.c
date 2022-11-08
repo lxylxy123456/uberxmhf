@@ -415,6 +415,10 @@ int memsect_info_register(VCPU * vcpu, struct tv_pal_sections *ps_scode_info, wh
   return rv;
 }
 
+static void scode_debug_do_not_call_me(void)
+{
+  HALT_ON_ERRORCOND(0);
+}
 
 /* register scode in whitelist */
 u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
@@ -439,6 +443,11 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
     if (!did_change_root_mappings) {
       hpt_emhf_get_root_pmo(vcpu, &g_reg_npmo_root);
       hptw_emhf_host_ctx_init_of_vcpu( &g_hptw_reg_host_ctx, vcpu);
+      // Debug: make sure gzp
+      g_hptw_reg_host_ctx.super.gzp =
+        (typeof(g_hptw_reg_host_ctx.super.gzp))scode_debug_do_not_call_me;
+      g_hptw_reg_host_ctx.super.ptr2pa =
+        (typeof(g_hptw_reg_host_ctx.super.ptr2pa))scode_debug_do_not_call_me;
 #ifdef __MP_VERSION__
       {
         size_t i;
