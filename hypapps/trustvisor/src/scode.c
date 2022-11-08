@@ -64,8 +64,13 @@
 
 /* #define EU_DOWNCAST(vctx, t) assert(((t)vctx)->magic == t ## _MAGIC), (t)vctx */
 
-hpt_pmo_t g_reg_npmo_root;
-hptw_emhf_host_ctx_t g_hptw_reg_host_ctx;
+bool g_did_change_root_mappings = false;
+hpt_pmo_t g_reg_npmo_l1_root;
+hptw_emhf_host_ctx_t g_hptw_reg_host_l1_ctx;
+
+// TODO: remove these macros
+#define g_reg_npmo_root g_reg_npmo_l1_root
+#define g_hptw_reg_host_ctx g_hptw_reg_host_l1_ctx
 
 /* this is the return address we push onto the stack when entering the
    pal. We return to the reg world on a nested page fault on
@@ -438,30 +443,28 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
      to set up their EPTs and call xmhf_app_main.
   */
   {
-    static bool did_change_root_mappings=false;
-
-    if (!did_change_root_mappings) {
-      hpt_emhf_get_root_pmo(vcpu, &g_reg_npmo_root);
-      hptw_emhf_host_ctx_init_of_vcpu( &g_hptw_reg_host_ctx, vcpu);
-      // Debug: make sure gzp
-      g_hptw_reg_host_ctx.super.gzp =
-        (typeof(g_hptw_reg_host_ctx.super.gzp))scode_debug_do_not_call_me;
-      g_hptw_reg_host_ctx.super.ptr2pa =
-        (typeof(g_hptw_reg_host_ctx.super.ptr2pa))scode_debug_do_not_call_me;
+    if (!g_did_change_root_mappings) {
+      hpt_emhf_get_l1_root_pmo(vcpu, &g_reg_npmo_l1_root);
+      hptw_emhf_host_l1_ctx_init_of_vcpu( &g_hptw_reg_host_l1_ctx, vcpu);
+      // TODO: debug: make sure gzp and ptr2pa is not called
+      g_hptw_reg_host_l1_ctx.super.gzp =
+        (typeof(g_hptw_reg_host_l1_ctx.super.gzp))scode_debug_do_not_call_me;
+      g_hptw_reg_host_l1_ctx.super.ptr2pa =
+        (typeof(g_hptw_reg_host_l1_ctx.super.ptr2pa))scode_debug_do_not_call_me;
 #ifdef __MP_VERSION__
       {
         size_t i;
         for( i=0 ; i<g_midtable_numentries ; i++ )  {
           eu_trace("cpu %d setting root pm from %p to %p",
-                  i,
-                  hpt_emhf_get_root_pm((VCPU *)(g_midtable[i].vcpu_vaddr_ptr)),
-                  g_reg_npmo_root.pm);
-          hpt_emhf_set_root_pm((VCPU *)(g_midtable[i].vcpu_vaddr_ptr),
-                               g_reg_npmo_root.pm);
+                   i,
+                   hpt_emhf_get_l1_root_pm((VCPU *)(g_midtable[i].vcpu_vaddr_ptr)),
+                   g_reg_npmo_l1_root.pm);
+          hpt_emhf_set_l1_root_pm((VCPU *)(g_midtable[i].vcpu_vaddr_ptr),
+                                  g_reg_npmo_l1_root.pm);
         }
       }
 #endif
-      did_change_root_mappings = true;
+      g_did_change_root_mappings = true;
     }
   }
 
@@ -505,8 +508,8 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
   whitelist_new.reg_gpt_root_pa = hpt_emhf_get_guest_root_pm_pa( vcpu);
   whitelist_new.reg_gpt_type = hpt_emhf_get_guest_hpt_type( vcpu);
   pal_npmo_root = (hpt_pmo_t) {
-    .t = g_reg_npmo_root.t,
-    .lvl = g_reg_npmo_root.lvl,
+    .t = g_reg_npmo_l1_root.t,
+    .lvl = g_reg_npmo_l1_root.lvl,
     .pm = pagelist_get_zeroedpage(whitelist_new.npl),
   };
   pal_gpmo_root = (hpt_pmo_t) {
@@ -666,6 +669,7 @@ u64 scode_unregister(VCPU * vcpu, u64 gvaddr)
 
   eu_trace("*** scode unregister ***");
 
+  EU_CHK( g_did_change_root_mappings );
   EU_CHK( whitelist_size != 0);
 
   eu_trace("CPU(%02x): remove from whitelist gcr3 %#llx, gvaddr %#x", vcpu->id, gcr3, gvaddr);
@@ -1014,7 +1018,7 @@ u32 scode_marshall32(VCPU * vcpu)
 
 
 
-//todo: switch from regular code to sensitive code
+//switch from regular code to sensitive code
 u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
 {
   int curr=scode_curr[vcpu->id];
@@ -1028,6 +1032,7 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   perf_ctr_timer_start(&g_tv_perf_ctrs[TV_PERF_CTR_SWITCH_SCODE], vcpu->idx);
 
   eu_trace("*** to scode ***");
+  EU_CHK( g_did_change_root_mappings );
 
   spin_lock(&(whitelist[curr].pal_running_lock));
   whitelist[curr].pal_running_vcpu_id=vcpu->id;
@@ -1255,6 +1260,7 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
   eu_trace("************************************");
   eu_trace("***** switch to regular code  ******");
   eu_trace("************************************");
+  EU_CHK( g_did_change_root_mappings );
 
   /* marshalling parameters back to regular code */
   EU_CHKN( scode_unmarshall(vcpu));
@@ -1279,6 +1285,7 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
 
   /* clear the NPT permission setting in switching into scode */
   eu_trace("change NPT permission to exit PAL!");
+  // TODO: should be something else
   hpt_emhf_set_root_pm(vcpu, g_reg_npmo_root.pm);
   VCPU_gcr3_set(vcpu, whitelist[curr].gcr3);
 

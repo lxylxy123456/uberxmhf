@@ -57,6 +57,7 @@ typedef struct {
   pagelist_t *pl;
 } hptw_emhf_host_ctx_t;
 int hptw_emhf_host_ctx_init(hptw_emhf_host_ctx_t *ctx, hpt_pa_t root_pa, hpt_type_t t, pagelist_t *pl);
+int hptw_emhf_host_l1_ctx_init_of_vcpu(hptw_emhf_host_ctx_t *rv, VCPU *vcpu);
 int hptw_emhf_host_ctx_init_of_vcpu(hptw_emhf_host_ctx_t *rv, VCPU *vcpu);
 
 typedef struct {

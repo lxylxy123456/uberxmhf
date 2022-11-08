@@ -142,6 +142,20 @@ int hptw_emhf_checked_guest_ctx_init(hptw_emhf_checked_guest_ctx_t *ctx,
   return 0;
 }
 
+/* Always return EPT01 */
+int hptw_emhf_host_l1_ctx_init_of_vcpu(hptw_emhf_host_ctx_t *rv, VCPU *vcpu)
+{
+  hpt_pa_t root_pa;
+  hpt_type_t t;
+
+  t = hpt_emhf_get_hpt_type( vcpu);
+  root_pa = hva2spa( hpt_emhf_get_l1_root_pm( vcpu));
+
+  hptw_emhf_host_ctx_init( rv, root_pa, t, NULL);
+  return 0;
+}
+
+/* Return EPT01 when in L1, return EPT02 when in L2 */
 int hptw_emhf_host_ctx_init_of_vcpu(hptw_emhf_host_ctx_t *rv, VCPU *vcpu)
 {
   hpt_pa_t root_pa;
