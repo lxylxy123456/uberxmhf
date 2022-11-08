@@ -437,22 +437,21 @@ u16 xmhf_nested_arch_x86vmx_get_vpid02(VCPU * vcpu, u16 vpid12, bool *cache_hit)
 }
 
 /*
- * Handle an EPT exit received by L0 when running L2. There are 4 cases,
- * represented by 4 different return values.
- * * VMX_NESTED_EPT02_CACHEMISS: L2 accesses legitimate memory, but L0 has not
- *   processed the EPT entry in L1 yet. XMHF should add EPT entry to EPT02 and
- *   continue running L2.
- * * VMX_NESTED_EPT12_VIOLATION: L2 accesses memory not in EPT12. XMHF should
- *   forward EPT violation to L1.
- * * VMX_NESTED_EPT01_VIOLATION: L2 accesses memory not valid in EPT01 (L1 sets
- *   up EPT that accesses illegal memory). XMHF should halt for security.
- * * VMX_NESTED_EPT12_MISCONFIG: The EPT12 for L2's memory access is
- *   misconfigured. XMHF should return EPT misconfiguration exit to L1.
+ * Walk EPT12 and EPT01 to simulate access of EPT02. Update entry in EPT02.
+ *
+ * guest2_paddr: L2 address accessed
+ * pxmhf_paddr: when access is successful, written with L0 address
+ * access_type: defined by HPT, such as HPT_PROTS_RW
+ * return one of the following:
+ * * VMX_NESTED_EPT02_CACHEMISS
+ * * VMX_NESTED_EPT12_VIOLATION
+ * * VMX_NESTED_EPT01_VIOLATION
+ * * VMX_NESTED_EPT12_MISCONFIG
  */
-int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
+static int xmhf_nested_arch_x86vmx_walk_ept02(VCPU * vcpu,
 											  ept02_cache_line_t * cache_line,
 											  u64 guest2_paddr,
-											  ulong_t qualification)
+											  hpt_prot_t access_type)
 {
 	ept12_ctx_t *ept12_ctx;
 	ept02_ctx_t *ept02_ctx;
@@ -461,22 +460,10 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 	hpt_pmeo_t pmeo12;
 	hpt_pmeo_t pmeo01;
 	hpt_pmeo_t pmeo02;
-	hpt_prot_t access_type;
 
 	HALT_ON_ERRORCOND(cache_line->valid);
 	ept12_ctx = &cache_line->value.ept12_ctx;
 	ept02_ctx = &cache_line->value.ept02_ctx;
-	access_type = 0;
-	if (qualification & (1UL << 0)) {
-		access_type |= HPT_PROT_READ_MASK;
-	}
-	if (qualification & (1UL << 1)) {
-		access_type |= HPT_PROT_WRITE_MASK;
-	}
-	if (qualification & (1UL << 2)) {
-		access_type |= HPT_PROT_EXEC_MASK;
-	}
-	HALT_ON_ERRORCOND(access_type);
 
 	/* Get the entry in EPT12 and the L1 paddr that is to be accessed */
 	if (hptw_checked_get_pmeo(&pmeo12, &ept12_ctx->ctx, access_type, 0,
@@ -553,6 +540,110 @@ int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 }
 
 /*
+ * Handle L2 memory access (translation with EPT02), using HPTW interface.
+ * TODO: let xmhf_nested_arch_x86vmx_walk_ept02() return the address, save 1
+ * page table walk.
+ */
+void *xmhf_nested_arch_x86vmx_access_ept02(VCPU * vcpu, void* cache_line,
+										   hpt_prot_t access_type,
+										   hpt_va_t va, size_t requested_sz,
+										   size_t *avail_sz)
+{
+	ept02_cache_line_t *line = (ept02_cache_line_t *)cache_line;
+	ept02_ctx_t *ept02_ctx = &line->value.ept02_ctx;
+	/* Try to walk EPT02 directly, fast if EPT02 hit */
+	void *ans = hptw_checked_access_va(&ept02_ctx->ctx, access_type, 0, va,
+									   requested_sz, avail_sz);
+	if (ans == NULL) {
+		/* Walk EPT12 and EPT01, and then update EPT02 entry */
+		switch (xmhf_nested_arch_x86vmx_walk_ept02(vcpu, line, va,
+												   access_type)) {
+		case VMX_NESTED_EPT02_CACHEMISS:
+			/* Now EPT02 must hit (other CPUs should be quiesced) */
+			ans = hptw_checked_access_va(&ept02_ctx->ctx, access_type, 0, va,
+										 requested_sz, avail_sz);
+			HALT_ON_ERRORCOND(ans != NULL);
+			break;
+		default:
+			/* Access fails due to EPT01 or EPT12 violation / misconfig */
+			break;
+		}
+	}
+	return ans;
+}
+
+/*
+ * Handle an EPT exit received by L0 when running L2. There are 4 cases,
+ * represented by 4 different return values.
+ * * VMX_NESTED_EPT02_CACHEMISS: L2 accesses legitimate memory, but L0 has not
+ *   processed the EPT entry in L1 yet. XMHF should add EPT entry to EPT02 and
+ *   continue running L2.
+ * * VMX_NESTED_EPT12_VIOLATION: L2 accesses memory not in EPT12. XMHF should
+ *   forward EPT violation to L1.
+ * * VMX_NESTED_EPT01_VIOLATION: L2 accesses memory not valid in EPT01 (L1 sets
+ *   up EPT that accesses illegal memory). XMHF should halt for security.
+ * * VMX_NESTED_EPT12_MISCONFIG: The EPT12 for L2's memory access is
+ *   misconfigured. XMHF should return EPT misconfiguration exit to L1.
+ */
+int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
+											  ept02_cache_line_t * cache_line,
+											  u64 guest2_paddr,
+											  ulong_t qualification)
+{
+	hpt_prot_t access_type = 0;
+	if (qualification & (1UL << 0)) {
+		access_type |= HPT_PROT_READ_MASK;
+	}
+	if (qualification & (1UL << 1)) {
+		access_type |= HPT_PROT_WRITE_MASK;
+	}
+	if (qualification & (1UL << 2)) {
+		access_type |= HPT_PROT_EXEC_MASK;
+	}
+	HALT_ON_ERRORCOND(access_type);
+	return xmhf_nested_arch_x86vmx_walk_ept02(vcpu, cache_line, guest2_paddr,
+											  access_type);
+}
+
+#ifdef __DEBUG_QEMU__
+/* Pretend EPT exit happens on guest2_paddr because of bug in QEMU */
+void xmhf_nested_arch_x86vmx_hardcode_ept(VCPU * vcpu,
+										  ept02_cache_line_t * cache_line,
+										  u64 guest2_paddr)
+{
+	switch (xmhf_nested_arch_x86vmx_walk_ept02(vcpu, cache_line, guest2_paddr,
+											   HPT_PROTS_RW)) {
+	case VMX_NESTED_EPT02_CACHEMISS:
+		/* Everything is well */
+		break;
+	case VMX_NESTED_EPT01_VIOLATION:
+		HALT_ON_ERRORCOND(0 && "Guest EPT will access illegal memory");
+		break;
+	case VMX_NESTED_EPT12_VIOLATION:
+		/*
+		 * Guest hypervisor has not set up EPT for guest2_paddr. This should
+		 * result in an EPT violation in the future. However, if KVM
+		 * is buggy, we may not be able to workaround easily.
+		 */
+		printf("CPU(0x%02x): Warning: 0x%016llx not in guest EPT\n", vcpu->id,
+			   guest2_paddr);
+		break;
+	case VMX_NESTED_EPT12_MISCONFIG:
+		/*
+		 * Guest hypervisor will encounter EPT misconfiguration. For now ignore
+		 * the error.
+		 */
+		printf("CPU(0x%02x): Warning: 0x%016llx misconfigured guest EPT\n",
+			   vcpu->id, guest2_paddr);
+		break;
+	default:
+		HALT_ON_ERRORCOND(0 && "Unknown status");
+		break;
+	}
+}
+#endif							/* !__DEBUG_QEMU__ */
+
+/*
  * This function is what xmhf_nested_arch_x86vmx_flush_ept02() does when no
  * blocking occurs.
  */
@@ -612,40 +703,3 @@ void xmhf_nested_arch_x86vmx_unblock_ept02_flush(VCPU * vcpu)
 	}
 }
 
-#ifdef __DEBUG_QEMU__
-void xmhf_nested_arch_x86vmx_hardcode_ept(VCPU * vcpu,
-										  ept02_cache_line_t * cache_line,
-										  u64 guest2_paddr)
-{
-	switch (xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu, cache_line,
-													  guest2_paddr,
-													  HPT_PROTS_RW)) {
-	case VMX_NESTED_EPT02_CACHEMISS:
-		/* Everything is well */
-		break;
-	case VMX_NESTED_EPT01_VIOLATION:
-		HALT_ON_ERRORCOND(0 && "Guest EPT will access illegal memory");
-		break;
-	case VMX_NESTED_EPT12_VIOLATION:
-		/*
-		 * Guest hypervisor has not set up EPT for guest2_paddr. This should
-		 * result in an EPT violation in the future. However, if KVM
-		 * is buggy, we may not be able to workaround easily.
-		 */
-		printf("CPU(0x%02x): Warning: 0x%016llx not in guest EPT\n", vcpu->id,
-			   guest2_paddr);
-		break;
-	case VMX_NESTED_EPT12_MISCONFIG:
-		/*
-		 * Guest hypervisor will encounter EPT misconfiguration. For now ignore
-		 * the error.
-		 */
-		printf("CPU(0x%02x): Warning: 0x%016llx misconfigured guest EPT\n",
-			   vcpu->id, guest2_paddr);
-		break;
-	default:
-		HALT_ON_ERRORCOND(0 && "Unknown status");
-		break;
-	}
-}
-#endif							/* !__DEBUG_QEMU__ */
