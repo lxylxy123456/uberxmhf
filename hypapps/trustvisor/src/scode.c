@@ -69,7 +69,6 @@ hpt_pmo_t g_reg_npmo_l1_root;
 hptw_emhf_host_ctx_t g_hptw_reg_host_l1_ctx;
 
 // TODO: remove these macros
-#define g_reg_npmo_root g_reg_npmo_l1_root
 #define g_hptw_reg_host_ctx g_hptw_reg_host_l1_ctx
 
 /* this is the return address we push onto the stack when entering the
@@ -112,7 +111,7 @@ int * scode_curr = NULL;
 void scode_release_all_shared_pages(VCPU *vcpu, whitelist_entry_t* entry);
 
 /* search scode in whitelist */
-int scode_in_list(u64 gcr3, uintptr_t gvaddr, bool g64)
+int scode_in_list(u64 gcr3, uintptr_t gvaddr, bool g64, u64 ept12)
 {
   size_t i, j;
 
@@ -120,7 +119,8 @@ int scode_in_list(u64 gcr3, uintptr_t gvaddr, bool g64)
     {
       hpt_type_t t = whitelist[i].hptw_pal_checked_guest_ctx.super.t;
       if ((hpt_cr3_get_address(t, gcr3) == whitelist[i].gcr3) &&
-          (!!g64 == !!whitelist[i].g64)) {
+          (!!g64 == !!whitelist[i].g64) &&
+          (ept12 == whitelist[i].ept12)) {
         for( j=0 ; j<(u32)(whitelist[i].scode_info.num_sections) ; j++ )  {
           if( (gvaddr >= whitelist[i].scode_info.sections[j].start_addr) &&
               (gvaddr < ((whitelist[i].scode_info.sections[j].start_addr)+((whitelist[i].scode_info.sections[j].page_num)<<PAGE_SHIFT_4K)))  )  {
@@ -136,7 +136,7 @@ int scode_in_list(u64 gcr3, uintptr_t gvaddr, bool g64)
   return -1;
 }
 
-static whitelist_entry_t* find_scode_by_entry(u64 gcr3, uintptr_t gv_entry, bool g64)
+static whitelist_entry_t* find_scode_by_entry(u64 gcr3, uintptr_t gv_entry, bool g64, u64 ept12)
 {
   size_t i;
 
@@ -146,6 +146,7 @@ static whitelist_entry_t* find_scode_by_entry(u64 gcr3, uintptr_t gv_entry, bool
       hpt_type_t t = whitelist[i].hptw_pal_checked_guest_ctx.super.t;
       if ((whitelist[i].gcr3 == hpt_cr3_get_address(t, gcr3)) &&
           (!!g64 == !!whitelist[i].g64) &&
+          (ept12 == whitelist[i].ept12) &&
           (whitelist[i].entry_v == gv_entry))
         return &whitelist[i];
     }
@@ -484,6 +485,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
   whitelist_new.id = 0;
   whitelist_new.g64 = VCPU_g64(vcpu);
   whitelist_new.gcr3 = gcr3; /* Will clear lower bits for CR3 later */
+  whitelist_new.ept12 = 0;  // TODO
   whitelist_new.grsp = (uintptr_t)-1;
 
   /* store scode entry point */
@@ -1077,6 +1079,7 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   eu_trace("change NPT permission to run PAL!");
   eu_trace("vcpu=%#x, guest_RIP=%#lx, guest_RSP=%#lx", vcpu->id,
            VCPU_grip(vcpu), VCPU_grsp(vcpu));
+  whitelist[curr].saved_pt_root_pa = hpt_emhf_get_root_pm_pa(vcpu);
   hpt_emhf_set_root_pm_pa( vcpu, whitelist[curr].hptw_pal_host_ctx.super.root_pa);
   VCPU_gcr3_set(vcpu, whitelist[curr].pal_gcr3);
 
@@ -1285,8 +1288,7 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
 
   /* clear the NPT permission setting in switching into scode */
   eu_trace("change NPT permission to exit PAL!");
-  // TODO: should be something else
-  hpt_emhf_set_root_pm(vcpu, g_reg_npmo_root.pm);
+  hpt_emhf_set_root_pm_pa(vcpu, whitelist[curr].saved_pt_root_pa);
   VCPU_gcr3_set(vcpu, whitelist[curr].gcr3);
 
   /*
@@ -1356,6 +1358,7 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
   u64 gcr3 = VCPU_gcr3(vcpu);
   uintptr_t rip = (uintptr_t)VCPU_grip(vcpu);
   bool g64;
+  u64 ept12;
   u32 err=1;
 
 #if defined(__LDN_TV_INTEGRATION__)
@@ -1372,7 +1375,8 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
 #endif //__LDN_TV_INTEGRATION__
 
   g64 = VCPU_g64(vcpu);
-  index = scode_in_list(gcr3, rip, g64);
+  ept12 = 0;    // TODO
+  index = scode_in_list(gcr3, rip, g64, ept12);
   if ((*curr == -1) && (index >= 0)) {
     /* regular code to sensitive code */
 
@@ -1497,10 +1501,12 @@ u32 scode_share_ranges(VCPU * vcpu, u32 scode_entry, u32 gva_base[], u32 gva_len
   size_t i;
   whitelist_entry_t* entry;
   bool g64;
+  u64 ept12;
   u32 err=1;
 
   g64 = VCPU_g64(vcpu);
-  EU_CHK( entry = find_scode_by_entry(VCPU_gcr3(vcpu), scode_entry, g64));
+  ept12 = 0;    // TODO
+  EU_CHK( entry = find_scode_by_entry(VCPU_gcr3(vcpu), scode_entry, g64, ept12));
 
   for(i=0; i<count; i++) {
     EU_CHKN( scode_share_range(vcpu, entry, gva_base[i], gva_len[i]));

@@ -105,6 +105,9 @@ typedef struct whitelist_entry{
   u64       gcr3;
   u32       id;
   bool      g64;        /* whether running in 64-bit mode */
+  u64       ept12;      /* NULL when L1, EPT12 when L2 */
+  /* The fields above need to match when searching for a PAL */
+
   uintptr_t grsp;       /* guest reguar stack */
   uintptr_t gssp;       /* guest sensitive code stack */
   uintptr_t gss_size;   /* guest sensitive code stack page number */
@@ -116,6 +119,7 @@ typedef struct whitelist_entry{
   uintptr_t gpm_size; /* guest parameter page number */
   u64       gpm_num;  /* guest parameter number */
 
+  hpt_pa_t  saved_pt_root_pa; /* regular EPT / NPT root (EPT02 when L2 guest) */
   u32 saved_exception_intercepts;
 
   tv_pal_section_int_t sections[TV_MAX_SECTIONS];
