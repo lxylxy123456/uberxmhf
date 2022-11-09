@@ -553,6 +553,8 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
                                      hva2gpa(page)));
   }
 
+  HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
+
   eu_trace("adding sections to pal's npts and gpts:");
   /* map each requested section into the pal */
   whitelist_new.sections_num = whitelist_new.scode_info.num_sections;
@@ -670,6 +672,7 @@ u64 scode_unregister(VCPU * vcpu, u64 gvaddr)
   g64 = VCPU_g64(vcpu);
 
   eu_trace("*** scode unregister ***");
+  HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
 
   EU_CHK( g_did_change_root_mappings );
   EU_CHK( whitelist_size != 0);
@@ -1374,6 +1377,7 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
   EU_CHK( hpt_error_wasInsnFetch(vcpu, errorcode));
 #endif //__LDN_TV_INTEGRATION__
 
+  HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
   g64 = VCPU_g64(vcpu);
   ept12 = 0;    // TODO
   index = scode_in_list(gcr3, rip, g64, ept12);
