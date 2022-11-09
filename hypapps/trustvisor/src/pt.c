@@ -334,7 +334,7 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
 
 #ifdef __DMAP__
     /* Disable device accesses to these memory (via IOMMU) */
-    xmhf_dmaprot_protect(page_reg_gpa???, PAGE_SIZE_4K);
+    xmhf_dmaprot_protect(page_reg_spa, PAGE_SIZE_4K);
 #endif /* __DMAP__ */
   }
 }
