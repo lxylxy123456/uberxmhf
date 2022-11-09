@@ -90,6 +90,7 @@ void *xmhf_nested_arch_x86vmx_access_ept02(VCPU * vcpu, void* cache_line,
 										   hpt_prot_t access_type,
 										   hpt_va_t va, size_t requested_sz,
 										   size_t *avail_sz);
+gpa_t xmhf_nested_arch_x86vmx_get_ept12(VCPU *vcpu);
 void xmhf_nested_arch_x86vmx_flush_ept02(VCPU *vcpu);
 
 #endif	//__ASSEMBLY__

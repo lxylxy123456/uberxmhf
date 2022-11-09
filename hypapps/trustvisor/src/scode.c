@@ -485,7 +485,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
   whitelist_new.id = 0;
   whitelist_new.g64 = VCPU_g64(vcpu);
   whitelist_new.gcr3 = gcr3; /* Will clear lower bits for CR3 later */
-  whitelist_new.ept12 = 0;  // TODO
+  whitelist_new.ept12 = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
   whitelist_new.grsp = (uintptr_t)-1;
 
   /* store scode entry point */
@@ -1379,7 +1379,7 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
 
   HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
   g64 = VCPU_g64(vcpu);
-  ept12 = 0;    // TODO
+  ept12 = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
   index = scode_in_list(gcr3, rip, g64, ept12);
   if ((*curr == -1) && (index >= 0)) {
     /* regular code to sensitive code */
@@ -1509,7 +1509,7 @@ u32 scode_share_ranges(VCPU * vcpu, u32 scode_entry, u32 gva_base[], u32 gva_len
   u32 err=1;
 
   g64 = VCPU_g64(vcpu);
-  ept12 = 0;    // TODO
+  ept12 = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
   EU_CHK( entry = find_scode_by_entry(VCPU_gcr3(vcpu), scode_entry, g64, ept12));
 
   for(i=0; i<count; i++) {

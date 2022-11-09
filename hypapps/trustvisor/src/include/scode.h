@@ -105,7 +105,7 @@ typedef struct whitelist_entry{
   u64       gcr3;
   u32       id;
   bool      g64;        /* whether running in 64-bit mode */
-  u64       ept12;      /* NULL when L1, EPT12 when L2 */
+  gpa_t     ept12;      /* NULL when L1, EPT12 when L2 */
   /* The fields above need to match when searching for a PAL */
 
   uintptr_t grsp;       /* guest reguar stack */
