@@ -174,7 +174,8 @@ u64 scode_register(VCPU * vcpu, u64 scode_info, u64 scode_pm, u64 gventry);
 u64 scode_unregister(VCPU * vcpu, u64 gvaddr);
 void init_scode(VCPU * vcpu);
 
-void scode_lend_section( hptw_ctx_t *reg_npm_ctx,
+void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
+                         hptw_ctx_t *reg_npm01_ctx,
                          hptw_ctx_t *reg_gpm_ctx,
                          hptw_ctx_t *pal_npm_ctx,
                          hptw_ctx_t *pal_gpm_ctx,
