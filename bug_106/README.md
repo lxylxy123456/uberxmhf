@@ -203,6 +203,38 @@ hptw library. The requirements are reflected in `hptw_ctx_t`.
 For removing memory, can simply change EPT01. This is easy because EPT01 is
 unique.
 
-TODO: consider a hypothetical hypapp: lockdown but support shared memory between red and green
+#### About searching for PAL
+
+Currently `scode_in_list()` is used to search for PALs for a match while
+entering scode. The following need to match
+* `gcr3`: guest CR3
+	* Assumption: guest CR3 does not change, even across different CPUs
+* `g64`: whether guest is in 64-bit mode
+* `gvaddr`: e.g. guest RIP
+* Assumption: EPT01 never changes.
+
+Examples of breaking the CR3 assumption (not likely in a normal OS):
+* Different CR3s are created for the same physical memory (same CPU), e.g.
+  `mmap()` with `MAP_SHARED` then `fork()`
+* For different CPUs, different CR3s are used (for the same process)
+
+After supporting nested virtualization, we also need to distinguish different
+L2 address spaces. There are 2 possible solutions
+* Distinguish using EPT02: does not work with current shadow EPT implementation
+* Distinguish using EPT12: just need to assume that L1 hypervisor uses the same
+  EPT across different CPUs. This is a reasonable assumption for Xen / Hyper-V
+  architecture
+	* Note that XMHF in L1 breaks this assumption
+
+Another solution is to radically change how PALs are implemented. A whitelist
+specifies all pages (L0 physical address) and virtual addresses. It does not
+care number of levels of translations in between. TrustVisor will build a new
+CR3 from scratch. For example whitelist spec looks like:
+* entry: va=0x80001234, pa=0x0aaa1234
+* .text: va=0x80001000, pa=0x0aaa1000
+* .data: va=0xcccc1000, pa=0x0aaa3000
+* param: va=0xcccc2000, pa=0x0aaa5000
+* stack: va=0xffff1000, pa=0x0aaa7000
+
 TODO
 
