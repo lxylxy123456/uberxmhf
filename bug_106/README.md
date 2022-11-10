@@ -236,5 +236,34 @@ CR3 from scratch. For example whitelist spec looks like:
 * param: va=0xcccc2000, pa=0x0aaa5000
 * stack: va=0xffff1000, pa=0x0aaa7000
 
+#### TrustVisor Vulnerability
+
+Found a possible vulnerability in TrustVisor's implementation. In `pt.c`
+function `scode_lend_section()`, permission checking is done on
+1. Guest CR3 satisfies `section->reg_prot`
+2. XMHF EPT satisfies `section->pal_prot`
+
+For example, for data section:
+* `section->reg_prot` is 0
+* `section->pal_prot` is RW
+
+1 is wrong. Should also check `section->pal_prot`. This can cause memory
+integrity of the guest OS to be broken. Example attack:
+* Start process A (privileged), have some mmaped memory X
+* Start process B, map the same memory X with read only
+* Process B starts PAL, register memory X as data section
+* PAL modifies content of memory X, will be able to modify
+* Process A will read incorrect value
+
+This vulnerability is fixed in `xmhf64-nest-dev 3708b0457`. Cherry-picked in
+`xmhf64-nest 06faedbde`.
+
+Future work: implement this exploit
+
+TODO: compiler bug in xmhf64-nest-dev: `xmhf_nested_arch_x86vmx_get_ept12()`
+TODO: `// TODO: replace with hptw_checked_get_pmeo()`
+TODO: Make sure 3708b0457 works (does not break things)
+
 TODO
+TODO: `#### TrustVisor Vulnerability` above
 
