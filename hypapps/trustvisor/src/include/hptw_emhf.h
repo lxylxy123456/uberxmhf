@@ -81,7 +81,11 @@ int hptw_emhf_checked_guest_ctx_init_of_vcpu(hptw_emhf_checked_guest_ctx_t *rv, 
 static inline gpa_t hpt_emhf_get_l1l2_root_pm_pa(VCPU *vcpu)
 {
   if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
     return xmhf_nested_arch_x86vmx_get_ept12(vcpu);
+#else /* !__NESTED_VIRTUALIZATION__ */
+    return 0;
+#endif /* __NESTED_VIRTUALIZATION__ */
   } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
     HALT_ON_ERRORCOND(0 && "Not implemented");
   } else {
