@@ -52,8 +52,8 @@
 #include <pages.h>
 
 typedef struct {
-  hptw_ctx_t super;
-
+  hptw_ctx_t super; /* When nested virtualization, EPT12. Otherwise, EPT01 */
+  hptw_ctx_t lower; /* When nested virtualization, EPT01. Otherwise, ignored */
   pagelist_t *pl;
 } hptw_emhf_host_ctx_t;
 int hptw_emhf_host_ctx_init(hptw_emhf_host_ctx_t *ctx, hpt_pa_t root_pa, hpt_type_t t, pagelist_t *pl);

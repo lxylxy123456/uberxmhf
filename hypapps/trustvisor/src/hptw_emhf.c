@@ -84,6 +84,65 @@ int hptw_emhf_host_ctx_init(hptw_emhf_host_ctx_t *ctx, hpt_pa_t root_pa, hpt_typ
       .root_pa = root_pa,
       .t = t,
     },
+    .lower = (hptw_ctx_t) {
+      .ptr2pa = NULL,
+      .pa2ptr = NULL,
+      .gzp = NULL,
+      .root_pa = 0,
+      .t = HPT_TYPE_INVALID,
+    },
+    .pl = pl,
+  };
+  return 0;
+}
+
+static hpt_pa_t hptw_emhf_host_nested01_ctx_ptr2pa(void *vctx, void *ptr)
+{
+  (void)vctx;
+  (void)ptr;
+  HALT_ON_ERRORCOND(0 && "Not supported");
+  return 0;
+}
+
+static void* hptw_emhf_host_nested12_ctx_pa2ptr(void *vctx, hpt_pa_t gpa, size_t sz, hpt_prot_t access_type, hptw_cpl_t cpl, size_t *avail_sz)
+{
+  hptw_emhf_host_ctx_t *ctx = vctx;
+  HALT_ON_ERRORCOND(ctx);
+
+  return hptw_checked_access_va(&ctx->lower,
+                                access_type,
+                                cpl,
+                                gpa,
+                                sz,
+                                avail_sz);
+}
+
+static void* hptw_emhf_host_nested01_ctx_gzp(void *vctx, size_t alignment, size_t sz)
+{
+  (void)vctx;
+  (void)alignment;
+  (void)sz;
+  HALT_ON_ERRORCOND(0 && "Not supported");
+  return NULL;
+}
+
+int hptw_emhf_host_nested_ctx_init(hptw_emhf_host_ctx_t *ctx, hpt_pa_t root_pa01, hpt_pa_t root_pa12, hpt_type_t t, pagelist_t *pl)
+{
+  *ctx = (hptw_emhf_host_ctx_t) {
+    .super = (hptw_ctx_t) {
+      .ptr2pa = hptw_emhf_host_ctx_ptr2pa,
+      .pa2ptr = hptw_emhf_host_nested12_ctx_pa2ptr,
+      .gzp = hptw_emhf_host_ctx_gzp,
+      .root_pa = root_pa12,
+      .t = t,
+    },
+    .lower = (hptw_ctx_t) {
+      .ptr2pa = hptw_emhf_host_nested01_ctx_ptr2pa,
+      .pa2ptr = hptw_emhf_host_ctx_pa2ptr,
+      .gzp = hptw_emhf_host_nested01_ctx_gzp,
+      .root_pa = root_pa01,
+      .t = t,
+    },
     .pl = pl,
   };
   return 0;
@@ -164,7 +223,19 @@ int hptw_emhf_host_ctx_init_of_vcpu(hptw_emhf_host_ctx_t *rv, VCPU *vcpu)
   hpt_type_t t;
 
   t = hpt_emhf_get_hpt_type( vcpu);
-  root_pa = hva2spa( hpt_emhf_get_root_pm( vcpu));
+  root_pa = hva2spa( hpt_emhf_get_l1_root_pm( vcpu));
+
+#ifdef __NESTED_VIRTUALIZATION__
+  {
+    // TODO: use xmhf_nested_arch_x86vmx_access_ept02() to increase performance
+    // However, this may require changing the structure of HPT library.
+    hpt_pa_t root_pa12 = xmhf_nested_arch_x86vmx_get_ept12(vcpu);
+    if (root_pa12 != 0) {
+      hptw_emhf_host_nested_ctx_init(rv, root_pa, root_pa12, t, NULL);
+      return 0;
+    }
+  }
+#endif /* __NESTED_VIRTUALIZATION__ */
 
   hptw_emhf_host_ctx_init( rv, root_pa, t, NULL);
   return 0;
