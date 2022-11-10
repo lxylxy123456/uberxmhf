@@ -418,11 +418,6 @@ int memsect_info_register(VCPU * vcpu, struct tv_pal_sections *ps_scode_info, wh
   return rv;
 }
 
-static void scode_debug_do_not_call_me(void)
-{
-  HALT_ON_ERRORCOND(0);
-}
-
 /* register scode in whitelist */
 u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
 {
