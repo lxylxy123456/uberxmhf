@@ -522,14 +522,19 @@ static u32 handle_vmexit20_nmi_window(VCPU * vcpu, vmcs12_info_t * vmcs12_info)
  *   L1.
  */
 static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
-										 vmcs12_info_t * vmcs12_info)
+										 vmcs12_info_t * vmcs12_info,
+										 struct regs *r)
 {
 	u32 ret;
 	/*
 	 * By default, if L1 has not enabled EPT, then it is letting L2 access
-	 * illegal memory. XMHF will halt.
+	 * illegal memory. XMHF will invoke hypapp and halt (if required).
 	 */
 	int status = VMX_NESTED_EPT01_VIOLATION;
+	ulong_t qualification = __vmx_vmreadNW(VMCSENC_info_exit_qualification);
+	u64 guest2_paddr = __vmx_vmread64(VMCSENC_guest_paddr);
+	u64 guest1_paddr = guest2_paddr;
+	u64 xmhf_paddr = 0;
 
 	/*
 	 * Begin blocking EPT02 flush (blocking is needed because
@@ -539,8 +544,6 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 
 	if (vmcs12_info->guest_ept_enable) {
 		ept02_cache_line_t *cache_line = vmcs12_info->guest_ept_cache_line;
-		u64 guest2_paddr = __vmx_vmread64(VMCSENC_guest_paddr);
-		ulong_t qualification = __vmx_vmreadNW(VMCSENC_info_exit_qualification);
 		HALT_ON_ERRORCOND(cache_line->key == vmcs12_info->guest_ept_root);
 #ifdef __DEBUG_QEMU__
 		/*
@@ -589,6 +592,8 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 #endif							/* !__DEBUG_QEMU__ */
 		status = xmhf_nested_arch_x86vmx_handle_ept02_exit(vcpu, cache_line,
 														   guest2_paddr,
+														   &guest1_paddr,
+														   &xmhf_paddr,
 														   qualification);
 	}
 	switch (status) {
@@ -620,14 +625,18 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 		ret = NESTED_VMEXIT_HANDLE_202;
 		break;
 	case VMX_NESTED_EPT01_VIOLATION:
-		/* Guest accesses illegal address, halt for safety */
-		printf("CPU(0x%02x): qualification: 0x%08lx\n", vcpu->id,
-			   __vmx_vmreadNW(VMCSENC_info_exit_qualification));
-		printf("CPU(0x%02x): paddr: 0x%016llx\n", vcpu->id,
-			   __vmx_vmread64(VMCSENC_guest_paddr));
-		printf("CPU(0x%02x): linear addr:   0x%08lx\n", vcpu->id,
-			   __vmx_vmreadNW(VMCSENC_info_guest_linear_address));
-		HALT_ON_ERRORCOND(0 && "Guest accesses illegal memory");
+		{
+			/* Guest accesses illegal address, first invoke hypapp */
+			gva_t gva = __vmx_vmreadNW(VMCSENC_info_guest_linear_address);
+#ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
+			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+#endif /* __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__ */
+			xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, guest1_paddr,
+													  gva, (qualification & 7));
+#ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
+			xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+#endif /* __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__ */
+		}
 		break;
 	case VMX_NESTED_EPT12_VIOLATION:
 		/*
@@ -1050,7 +1059,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		handle_behavior = handle_vmexit20_nmi_window(vcpu, vmcs12_info);
 		break;
 	case VMX_VMEXIT_EPT_VIOLATION:
-		handle_behavior = handle_vmexit20_ept_violation(vcpu, vmcs12_info);
+		handle_behavior = handle_vmexit20_ept_violation(vcpu, vmcs12_info, r);
 		break;
 	case VMX_VMEXIT_EPT_MISCONFIGURATION:
 		HALT_ON_ERRORCOND(0 && "XMHF misconfigured EPT");
