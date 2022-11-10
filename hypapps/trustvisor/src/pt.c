@@ -230,7 +230,7 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
     /* XXX we don't use hpt_va_t or hpt_pa_t for gpa's because these
        get used as both */
     u64 page_reg_gpa, page_pal_gpa; /* guest-physical-addresses */
-    spa_t page_reg_spa;
+    u64 page_reg_spa;
 
     hpt_pmeo_t page_reg_gpmeo; /* reg's guest page-map-entry and lvl */
     hpt_pmeo_t page_pal_gpmeo; /* pal's guest page-map-entry and lvl */
@@ -319,12 +319,18 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
   }
 }
 
-/* lend a section of memory from a user-space process (on the
-   commodity OS) to a pal.
-   PRE: assumes section was already successfully lent using scode_lend_section
-   PRE: assumes no concurrent access to page tables (e.g., quiesce other cpus)
-*/
-void scode_return_section(hptw_ctx_t *reg_npm_ctx,
+/*
+ * lend a section of memory from a user-space process (on the
+ * commodity OS) to a pal.
+ * PRE: assumes section was already successfully lent using scode_lend_section
+ * PRE: assumes no concurrent access to page tables (e.g., quiesce other cpus)
+ *
+ * In nested virtualization, the memory is returned to EPT01 (reg_npm01_ctx),
+ * and the nested guest's future access to the memory will cause EPT02
+ * violation. XMHF will update EPT02 using EPT01 and retry the access. See also
+ * scode_lend_section(). Again, EPT01 is assumed to be identity mapping.
+ */
+void scode_return_section(hptw_ctx_t *reg_npm01_ctx,
                           hptw_ctx_t *pal_npm_ctx,
                           hptw_ctx_t *pal_gpm_ctx,
                           const tv_pal_section_int_t *section)
@@ -336,7 +342,8 @@ void scode_return_section(hptw_ctx_t *reg_npm_ctx,
 
     /* XXX we don't use hpt_va_t or hpt_pa_t for gpa's because these
        get used as both */
-    u64 page_reg_gpa, page_pal_gpa; /* guest-physical-addresses */
+    u64 page_pal_gpa; /* guest-physical-addresses */
+    u64 page_reg_spa;
     hpt_pmeo_t page_pal_gpmeo; /* pal's guest page-map-entry and lvl */
 
     hptw_get_pmeo(&page_pal_gpmeo,
@@ -347,7 +354,7 @@ void scode_return_section(hptw_ctx_t *reg_npm_ctx,
     page_pal_gpa = hpt_pmeo_get_address(&page_pal_gpmeo);
 
     /* lend_section always uses the same gpas between reg and pal */
-    page_reg_gpa = page_pal_gpa;
+    page_reg_spa = page_pal_gpa;
 
     /* check that this pal VM is allowed to access this system-physical mem.
        we only check that it's readable; trustvisor-wide we maintain the invariant
@@ -377,13 +384,13 @@ void scode_return_section(hptw_ctx_t *reg_npm_ctx,
                        HPT_PROTS_NONE);
 
     /* add access to reg nested page tables */
-    hptw_set_prot(reg_npm_ctx,
-                       page_reg_gpa,
+    hptw_set_prot(reg_npm01_ctx,
+                       page_reg_spa,
                        HPT_PROTS_RWX);
 
 #ifdef __DMAP__
     /* Enable device accesses to these memory (via IOMMU) */
-    xmhf_dmaprot_unprotect(page_reg_gpa, PAGE_SIZE_4K);
+    xmhf_dmaprot_unprotect(page_reg_spa, PAGE_SIZE_4K);
 #endif /* __DMAP__ */
   }
 }

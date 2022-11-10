@@ -721,7 +721,7 @@ u64 scode_unregister(VCPU * vcpu, u64 gvaddr)
       HALT_ON_ERRORCOND(!err);
     }
 
-    scode_return_section( &g_hptw_reg_host_ctx.super,
+    scode_return_section( &g_hptw_reg_host_l1_ctx.super,
                           &whitelist[i].hptw_pal_host_ctx.super,
                           &whitelist[i].hptw_pal_checked_guest_ctx.super,
                           &whitelist[i].sections[j]);
@@ -1462,7 +1462,7 @@ void scode_release_all_shared_pages(VCPU *vcpu, whitelist_entry_t* wle)
       i >= 0 && wle->sections[i].section_type == TV_PAL_SECTION_SHARED;
       i--) {
     eu_trace("returning shared section num %d at 0x%08llx", i, wle->sections[i].pal_gva);
-    scode_return_section( &g_hptw_reg_host_ctx.super,
+    scode_return_section( &g_hptw_reg_host_l1_ctx.super,
                           &wle->hptw_pal_host_ctx.super,
                           &wle->hptw_pal_checked_guest_ctx.super,
                           &wle->sections[i]);
