@@ -239,52 +239,32 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
     hpt_pmeo_t page_reg_npmeo02; /* reg's nested page-map-entry and lvl */
     hpt_pmeo_t page_pal_npmeo; /* pal's nested page-map-entry and lvl */
 
-    /* Convert gva to gpa */
-    // TODO: replace with hptw_checked_get_pmeo()
-    hptw_get_pmeo(&page_reg_gpmeo,
-                      reg_gpm_ctx,
-                      1,
-                      page_reg_gva);
+    /* Convert gva to gpa (guest CR3) */
+    hpt_err = hptw_checked_get_pmeo(&page_reg_gpmeo,
+                                    reg_gpm_ctx,
+                                    section->pal_prot,
+                                    HPTW_CPL3,
+                                    page_reg_gva);
+    CHK_RV(hpt_err);
     eu_trace("got pme %016llx, level %d, type %d",
              page_reg_gpmeo.pme, page_reg_gpmeo.lvl, page_reg_gpmeo.t);
     HALT_ON_ERRORCOND(page_reg_gpmeo.lvl==1); /* we don't handle large pages */
     page_reg_gpa = hpt_pmeo_get_address(&page_reg_gpmeo);
 
-    /* Convert gpa to spa */
-    // TODO: replace with hptw_checked_get_pmeo()
-    hptw_get_pmeo(&page_reg_npmeo02,
-                      reg_npm02_ctx,
-                      1,
-                      page_reg_gpa);
+    /* Convert gpa to spa (EPT02) */
+    hpt_err = hptw_checked_get_pmeo(&page_reg_npmeo02,
+                                    reg_npm02_ctx,
+                                    section->pal_prot,
+                                    HPTW_CPL3,
+                                    page_reg_gpa);
+    CHK_RV(hpt_err);
+    eu_trace("got npmeo02 %016llx, level %d, type %d",
+             page_reg_gpmeo.pme, page_reg_gpmeo.lvl, page_reg_gpmeo.t);
     HALT_ON_ERRORCOND(page_reg_npmeo02.lvl==1); /* we don't handle large pages */
     page_reg_spa = hpt_pmeo_get_address(&page_reg_npmeo02);
 
     /* no reason to go with a different mapping */
     page_pal_gpa = page_reg_spa;
-
-    /* check that this VM is allowed to access this system-physical mem (spa) */
-    {
-      hpt_prot_t effective_prots;
-      bool user_accessible=false;
-      effective_prots = hptw_get_effective_prots(reg_npm02_ctx,
-                                                      page_reg_gpa,
-                                                      &user_accessible);
-      CHK((effective_prots & section->pal_prot) == section->pal_prot);
-      CHK(user_accessible);
-    }
-
-    /* check that this guest process is allowed to access this guest-physical mem */
-    {
-      hpt_prot_t effective_prots;
-      bool user_accessible=false;
-      effective_prots = hptw_get_effective_prots(reg_gpm_ctx,
-                                                      page_reg_gva,
-                                                      &user_accessible);
-      eu_trace("got reg gpt prots:0x%x, user:%d",
-               (u32)effective_prots, (int)user_accessible);
-      CHK((effective_prots & section->pal_prot) == section->pal_prot);
-      CHK(user_accessible);
-    }
 
     /* check that the requested virtual address isn't already mapped
        into PAL's address space */
@@ -305,7 +285,7 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
     HALT_ON_ERRORCOND(page_reg_npmeo01.lvl==1); /* we don't handle large pages */
     HALT_ON_ERRORCOND(hpt_pmeo_get_address(&page_reg_npmeo01) == page_reg_spa);
 
-    /* revoke access from 'reg' VM */
+    /* revoke access from 'reg' VM (using EPT01) */
     hpt_pmeo_setprot(&page_reg_npmeo01, section->reg_prot);
     hpt_err = hptw_insert_pmeo(reg_npm01_ctx,
                                    &page_reg_npmeo01,
