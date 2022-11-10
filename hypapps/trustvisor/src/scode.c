@@ -68,9 +68,6 @@ bool g_did_change_root_mappings = false;
 hpt_pmo_t g_reg_npmo_l1_root;
 hptw_emhf_host_ctx_t g_hptw_reg_host_l1_ctx;
 
-// TODO: remove these macros
-#define g_hptw_reg_host_ctx g_hptw_reg_host_l1_ctx
-
 /* this is the return address we push onto the stack when entering the
    pal. We return to the reg world on a nested page fault on
    instruction fetch of this address */
@@ -434,6 +431,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
   u64 gcr3;
   hpt_pmo_t pal_npmo_root, pal_gpmo_root;
   hptw_emhf_checked_guest_ctx_t reg_guest_walk_ctx;
+  hptw_emhf_host_ctx_t g_hptw_reg_host_ctx;
   u64 rv=1;
 
   /* set all CPUs to use the same 'reg' nested page tables,
@@ -446,12 +444,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
   {
     if (!g_did_change_root_mappings) {
       hpt_emhf_get_l1_root_pmo(vcpu, &g_reg_npmo_l1_root);
-      hptw_emhf_host_l1_ctx_init_of_vcpu( &g_hptw_reg_host_l1_ctx, vcpu);
-      // TODO: debug: make sure gzp and ptr2pa is not called
-      g_hptw_reg_host_l1_ctx.super.gzp =
-        (typeof(g_hptw_reg_host_l1_ctx.super.gzp))scode_debug_do_not_call_me;
-      g_hptw_reg_host_l1_ctx.super.ptr2pa =
-        (typeof(g_hptw_reg_host_l1_ctx.super.ptr2pa))scode_debug_do_not_call_me;
+      EU_CHKN( hptw_emhf_host_l1_ctx_init_of_vcpu( &g_hptw_reg_host_l1_ctx, vcpu) );
 #ifdef __MP_VERSION__
       {
         size_t i;
@@ -469,6 +462,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
     }
   }
 
+  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu( &g_hptw_reg_host_ctx, vcpu) );
   EU_CHKN( hptw_emhf_checked_guest_ctx_init_of_vcpu( &reg_guest_walk_ctx, vcpu));
 
   gcr3 = VCPU_gcr3(vcpu);
@@ -1164,9 +1158,11 @@ u32 scode_unmarshall(VCPU * vcpu)
 
   int curr=scode_curr[vcpu->id];
 
+  hptw_emhf_host_ctx_t g_hptw_reg_host_ctx;
   hptw_emhf_checked_guest_ctx_t reg_guest_walk_ctx;
   u32 err=1;
 
+  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu( &g_hptw_reg_host_ctx, vcpu) );
 
   EU_CHKN( hptw_emhf_checked_guest_ctx_init( &reg_guest_walk_ctx,
                                              whitelist[curr].reg_gpt_root_pa,
@@ -1475,6 +1471,8 @@ u32 scode_share_range(VCPU * vcpu, whitelist_entry_t *wle, u32 gva_base, u32 gva
 {
   u32 err=1;
   hptw_emhf_checked_guest_ctx_t vcpu_guest_walk_ctx;
+  hptw_emhf_host_ctx_t g_hptw_reg_host_ctx;
+  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu( &g_hptw_reg_host_ctx, vcpu) );
   EU_CHKN( hptw_emhf_checked_guest_ctx_init_of_vcpu( &vcpu_guest_walk_ctx, vcpu));
 
   EU_CHK( wle->sections_num < TV_MAX_SECTIONS);
