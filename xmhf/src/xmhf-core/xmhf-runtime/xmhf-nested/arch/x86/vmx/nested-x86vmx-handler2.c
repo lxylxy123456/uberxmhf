@@ -542,7 +542,7 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 	 */
 	xmhf_nested_arch_x86vmx_block_ept02_flush(vcpu);
 
-	if (vmcs12_info->guest_ept_enable) {
+	if (vmcs12_info->guest_ept_root == GUEST_EPT_ROOT_INVALID) {
 		ept02_cache_line_t *cache_line = vmcs12_info->guest_ept_cache_line;
 		HALT_ON_ERRORCOND(cache_line->key == vmcs12_info->guest_ept_root);
 #ifdef __DEBUG_QEMU__

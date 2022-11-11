@@ -664,15 +664,13 @@ void xmhf_nested_arch_x86vmx_hardcode_ept(VCPU * vcpu,
 gpa_t xmhf_nested_arch_x86vmx_get_ept12(VCPU * vcpu)
 {
 	HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
-#ifdef __NESTED_VIRTUALIZATION__
 	if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
 		vmcs12_info_t *vmcs12_info;
 		vmcs12_info = xmhf_nested_arch_x86vmx_find_current_vmcs12(vcpu);
-		if (vmcs12_info->guest_ept_enable) {
+		if (vmcs12_info->guest_ept_root == GUEST_EPT_ROOT_INVALID) {
 			return vmcs12_info->guest_ept_root;
 		}
 	}
-#endif							/* __NESTED_VIRTUALIZATION__ */
 	return 0;
 }
 
