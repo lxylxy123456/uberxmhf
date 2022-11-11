@@ -99,13 +99,13 @@ static inline hpt_pa_t hpt_emhf_get_l1l2_root_pm_pa(VCPU *vcpu)
 static inline void hpt_emhf_set_l1l2_root_pm_pa(VCPU *vcpu, hpt_pa_t val)
 {
   if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    bool enabled = false;
 #ifdef __NESTED_VIRTUALIZATION__
+    bool enabled = false;
     if (val != HPTW_EMHF_EPT12_INVALID) {
       enabled = true;
     }
-#endif /* __NESTED_VIRTUALIZATION__ */
     xmhf_nested_arch_x86vmx_set_ept12(vcpu, enabled, val);
+#endif /* __NESTED_VIRTUALIZATION__ */
   } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
     HALT_ON_ERRORCOND(0 && "Not implemented");
   } else {
