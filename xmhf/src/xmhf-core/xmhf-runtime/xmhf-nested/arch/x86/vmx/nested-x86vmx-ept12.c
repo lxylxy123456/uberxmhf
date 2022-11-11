@@ -455,8 +455,8 @@ u16 xmhf_nested_arch_x86vmx_get_vpid02(VCPU * vcpu, u16 vpid12, bool *cache_hit)
 static int xmhf_nested_arch_x86vmx_walk_ept02(VCPU * vcpu,
 											  ept02_cache_line_t * cache_line,
 											  u64 guest2_paddr,
-											  u64 *pguest1_paddr,
-											  u64 *pxmhf_paddr,
+											  u64 * pguest1_paddr,
+											  u64 * pxmhf_paddr,
 											  hpt_prot_t access_type)
 {
 	ept12_ctx_t *ept12_ctx;
@@ -548,12 +548,12 @@ static int xmhf_nested_arch_x86vmx_walk_ept02(VCPU * vcpu,
 }
 
 /* Handle L2 memory access (translation with EPT02), using HPTW interface. */
-void *xmhf_nested_arch_x86vmx_access_ept02(VCPU * vcpu, void* cache_line,
+void *xmhf_nested_arch_x86vmx_access_ept02(VCPU * vcpu, void *cache_line,
 										   hpt_prot_t access_type,
 										   hpt_va_t va, size_t requested_sz,
 										   size_t *avail_sz)
 {
-	ept02_cache_line_t *line = (ept02_cache_line_t *)cache_line;
+	ept02_cache_line_t *line = (ept02_cache_line_t *) cache_line;
 	ept02_ctx_t *ept02_ctx = &line->value.ept02_ctx;
 	/* Try to walk EPT02 directly, fast if EPT02 hit */
 	void *ans = hptw_checked_access_va(&ept02_ctx->ctx, access_type, 0, va,
@@ -598,8 +598,8 @@ void *xmhf_nested_arch_x86vmx_access_ept02(VCPU * vcpu, void* cache_line,
 int xmhf_nested_arch_x86vmx_handle_ept02_exit(VCPU * vcpu,
 											  ept02_cache_line_t * cache_line,
 											  u64 guest2_paddr,
-											  u64 *pguest1_paddr,
-											  u64 *pxmhf_paddr,
+											  u64 * pguest1_paddr,
+											  u64 * pxmhf_paddr,
 											  ulong_t qualification)
 {
 	hpt_prot_t access_type = 0;
@@ -661,7 +661,7 @@ void xmhf_nested_arch_x86vmx_hardcode_ept(VCPU * vcpu,
  * Get EPT12 pointer. When L1 (not in nested virtualization), return 0. When
  * guest is not using EPT, return 0.
  */
-gpa_t xmhf_nested_arch_x86vmx_get_ept12(VCPU *vcpu)
+gpa_t xmhf_nested_arch_x86vmx_get_ept12(VCPU * vcpu)
 {
 	HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
 #ifdef __NESTED_VIRTUALIZATION__
@@ -672,7 +672,7 @@ gpa_t xmhf_nested_arch_x86vmx_get_ept12(VCPU *vcpu)
 			return vmcs12_info->guest_ept_root;
 		}
 	}
-#endif /* __NESTED_VIRTUALIZATION__ */
+#endif							/* __NESTED_VIRTUALIZATION__ */
 	return 0;
 }
 
@@ -735,4 +735,3 @@ void xmhf_nested_arch_x86vmx_unblock_ept02_flush(VCPU * vcpu)
 		vcpu->vmx_nested_ept02_flush_disable = false;
 	}
 }
-

@@ -630,12 +630,12 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 			gva_t gva = __vmx_vmreadNW(VMCSENC_info_guest_linear_address);
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
 			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
-#endif /* __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__ */
+#endif							/* __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__ */
 			xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, guest1_paddr,
 													  gva, (qualification & 7));
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
 			xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
-#endif /* __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__ */
+#endif							/* __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__ */
 		}
 		break;
 	case VMX_NESTED_EPT12_VIOLATION:
