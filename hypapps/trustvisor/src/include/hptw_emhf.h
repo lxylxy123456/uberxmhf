@@ -105,6 +105,8 @@ static inline void hpt_emhf_set_l1l2_root_pm_pa(VCPU *vcpu, hpt_pa_t val)
       enabled = true;
     }
     xmhf_nested_arch_x86vmx_set_ept12(vcpu, enabled, val);
+#else /* !__NESTED_VIRTUALIZATION__ */
+    (void)val;
 #endif /* __NESTED_VIRTUALIZATION__ */
   } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
     HALT_ON_ERRORCOND(0 && "Not implemented");
