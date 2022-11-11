@@ -668,7 +668,7 @@ bool xmhf_nested_arch_x86vmx_get_ept12(VCPU * vcpu, gpa_t * ept12)
 	if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
 		vmcs12_info_t *vmcs12_info;
 		vmcs12_info = xmhf_nested_arch_x86vmx_find_current_vmcs12(vcpu);
-		if (vmcs12_info->guest_ept_root == GUEST_EPT_ROOT_INVALID) {
+		if (vmcs12_info->guest_ept_root != GUEST_EPT_ROOT_INVALID) {
 			*ept12 = vmcs12_info->guest_ept_root;
 			return true;
 		}

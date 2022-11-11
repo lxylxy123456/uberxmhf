@@ -977,7 +977,7 @@ static void _vmcs02_to_vmcs12_control_EPT_pointer(ARG01 * arg)
 static void _rewalk_ept01_control_EPT_pointer(ARG10 * arg)
 {
 	spa_t ept02;
-	if (arg->vmcs12_info->guest_ept_root == GUEST_EPT_ROOT_INVALID) {
+	if (arg->vmcs12_info->guest_ept_root != GUEST_EPT_ROOT_INVALID) {
 		ept02_cache_line_t *cache_line;
 		bool cache_hit;
 		u64 eptp12 = arg->vmcs12->control_EPT_pointer;
