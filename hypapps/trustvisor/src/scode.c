@@ -426,7 +426,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
   u64 gcr3;
   hpt_pmo_t pal_npmo_root, pal_gpmo_root;
   hptw_emhf_checked_guest_ctx_t reg_guest_walk_ctx;
-  hptw_emhf_host_ctx_t g_hptw_reg_host_ctx;
+  hptw_emhf_host_ctx_t hptw_reg_host_ctx;
   u64 rv=1;
 
   /* set all CPUs to use the same 'reg' nested page tables,
@@ -457,7 +457,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
     }
   }
 
-  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu( &g_hptw_reg_host_ctx, vcpu) );
+  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu( &hptw_reg_host_ctx, vcpu) );
   EU_CHKN( hptw_emhf_checked_guest_ctx_init_of_vcpu( &reg_guest_walk_ctx, vcpu));
 
   gcr3 = VCPU_gcr3(vcpu);
@@ -554,7 +554,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
       .reg_prot = reg_prot_of_type(whitelist_new.scode_info.sections[i].type),
       .section_type = whitelist_new.scode_info.sections[i].type,
     };
-    scode_lend_section( &g_hptw_reg_host_ctx.super,
+    scode_lend_section( &hptw_reg_host_ctx.super,
                         &g_hptw_reg_host_l1_ctx.super,
                         &reg_guest_walk_ctx.super,
                         &whitelist_new.hptw_pal_host_ctx.super,
@@ -1071,6 +1071,8 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   eu_trace("vcpu=%#x, guest_RIP=%#lx, guest_RSP=%#lx", vcpu->id,
            VCPU_grip(vcpu), VCPU_grsp(vcpu));
   whitelist[curr].saved_pt_root_pa = hpt_emhf_get_root_pm_pa(vcpu);
+  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu(&whitelist[curr].saved_hptw_reg_host_ctx,
+                                           vcpu) );
   hpt_emhf_set_root_pm_pa( vcpu, whitelist[curr].hptw_pal_host_ctx.super.root_pa);
   VCPU_gcr3_set(vcpu, whitelist[curr].pal_gcr3);
 
@@ -1151,17 +1153,14 @@ u32 scode_unmarshall(VCPU * vcpu)
 
   int curr=scode_curr[vcpu->id];
 
-  hptw_emhf_host_ctx_t g_hptw_reg_host_ctx;
   hptw_emhf_checked_guest_ctx_t reg_guest_walk_ctx;
   u32 err=1;
-
-  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu( &g_hptw_reg_host_ctx, vcpu) );
 
   EU_CHKN( hptw_emhf_checked_guest_ctx_init( &reg_guest_walk_ctx,
                                              whitelist[curr].reg_gpt_root_pa,
                                              whitelist[curr].reg_gpt_type,
                                              HPTW_CPL3,
-                                             &g_hptw_reg_host_ctx,
+                                             &whitelist[curr].saved_hptw_reg_host_ctx,
                                              NULL));
 
   eu_trace("unmarshalling scode parameters!");
@@ -1463,8 +1462,8 @@ u32 scode_share_range(VCPU * vcpu, whitelist_entry_t *wle, u32 gva_base, u32 gva
 {
   u32 err=1;
   hptw_emhf_checked_guest_ctx_t vcpu_guest_walk_ctx;
-  hptw_emhf_host_ctx_t g_hptw_reg_host_ctx;
-  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu( &g_hptw_reg_host_ctx, vcpu) );
+  hptw_emhf_host_ctx_t hptw_reg_host_ctx;
+  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu( &hptw_reg_host_ctx, vcpu) );
   EU_CHKN( hptw_emhf_checked_guest_ctx_init_of_vcpu( &vcpu_guest_walk_ctx, vcpu));
 
   EU_CHK( wle->sections_num < TV_MAX_SECTIONS);
@@ -1478,7 +1477,7 @@ u32 scode_share_range(VCPU * vcpu, whitelist_entry_t *wle, u32 gva_base, u32 gva
     .section_type = TV_PAL_SECTION_SHARED,
   };
 
-  scode_lend_section( &g_hptw_reg_host_ctx.super,
+  scode_lend_section( &hptw_reg_host_ctx.super,
                       &g_hptw_reg_host_l1_ctx.super,
                       &vcpu_guest_walk_ctx.super,
                       &wle->hptw_pal_host_ctx.super,
