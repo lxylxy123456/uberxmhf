@@ -1001,10 +1001,15 @@ static void _rewalk_ept01_control_EPT_pointer(ARG10 * arg)
 		_workaround_kvm_216212(arg, cache_line);
 #endif							/* !__DEBUG_QEMU__ */
 	} else {
-		ept02 = arg->vcpu->vmcs.control_EPT_pointer;
-		_update_pae_pdpte(arg);
+		/*
+		 * Nothing to be done here. We treat PDPTEs are cached and do not
+		 * update them. The nested guest should invalidate TLB (e.g. mov CR0 /
+		 * CR3) to update PDPTEs.
+		 *
+		 * Note that hyapp like TrustVisor may modify control_EPT_pointer using
+		 * VMWRITE. So arg->vcpu->vmcs.control_EPT_pointer is no longer valid.
+		 */
 	}
-	__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
 }
 
 /*
