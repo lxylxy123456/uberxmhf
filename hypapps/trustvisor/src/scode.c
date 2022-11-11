@@ -1071,6 +1071,7 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   eu_trace("vcpu=%#x, guest_RIP=%#lx, guest_RSP=%#lx", vcpu->id,
            VCPU_grip(vcpu), VCPU_grsp(vcpu));
   whitelist[curr].saved_pt_root_pa = hpt_emhf_get_root_pm_pa(vcpu);
+  //whitelist[curr].saved_pt_l1l2_root_pa = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
   EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu(&whitelist[curr].saved_hptw_reg_host_ctx,
                                            vcpu) );
   hpt_emhf_set_root_pm_pa( vcpu, whitelist[curr].hptw_pal_host_ctx.super.root_pa);
@@ -1280,6 +1281,7 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
 
   /* clear the NPT permission setting in switching into scode */
   eu_trace("change NPT permission to exit PAL!");
+  //hpt_emhf_set_l1l2_root_pm_pa(vcpu, whitelist[curr].saved_pt_l1l2_root_pa);
   hpt_emhf_set_root_pm_pa(vcpu, whitelist[curr].saved_pt_root_pa);
   VCPU_gcr3_set(vcpu, whitelist[curr].gcr3);
 

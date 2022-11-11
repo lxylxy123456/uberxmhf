@@ -221,21 +221,18 @@ int hptw_emhf_host_ctx_init_of_vcpu(hptw_emhf_host_ctx_t *rv, VCPU *vcpu)
 {
   hpt_pa_t root_pa;
   hpt_type_t t;
+  hpt_pa_t root_pa12;
 
   t = hpt_emhf_get_hpt_type( vcpu);
   root_pa = hva2spa( hpt_emhf_get_l1_root_pm( vcpu));
 
-#ifdef __NESTED_VIRTUALIZATION__
-  {
-    // TODO: use xmhf_nested_arch_x86vmx_access_ept02() to increase performance
-    // However, this may require changing the structure of HPT library.
-    hpt_pa_t root_pa12 = xmhf_nested_arch_x86vmx_get_ept12(vcpu);
-    if (root_pa12 != 0) {
-      hptw_emhf_host_nested_ctx_init(rv, root_pa, root_pa12, t, NULL);
-      return 0;
-    }
+  // TODO: use xmhf_nested_arch_x86vmx_access_ept02() to increase performance
+  // However, this may require changing the structure of HPT library.
+  root_pa12 = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
+  if (root_pa12 != HPTW_EMHF_EPT12_INVALID) {
+    hptw_emhf_host_nested_ctx_init(rv, root_pa, root_pa12, t, NULL);
+    return 0;
   }
-#endif /* __NESTED_VIRTUALIZATION__ */
 
   hptw_emhf_host_ctx_init( rv, root_pa, t, NULL);
   return 0;

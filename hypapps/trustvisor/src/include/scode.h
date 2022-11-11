@@ -120,6 +120,7 @@ typedef struct whitelist_entry{
   u64       gpm_num;  /* guest parameter number */
 
   hpt_pa_t  saved_pt_root_pa; /* regular EPT / NPT root (EPT02 when L2 guest) */
+  hpt_pa_t  saved_pt_l1l2_root_pa; /* When nested virtualization, EPT12 */
   hptw_emhf_host_ctx_t saved_hptw_reg_host_ctx; /* ctx to walk EPT / NPT */
   u32 saved_exception_intercepts;
 

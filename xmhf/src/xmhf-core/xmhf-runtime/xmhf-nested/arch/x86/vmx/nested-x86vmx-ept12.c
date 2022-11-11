@@ -658,20 +658,43 @@ void xmhf_nested_arch_x86vmx_hardcode_ept(VCPU * vcpu,
 #endif							/* !__DEBUG_QEMU__ */
 
 /*
- * Get EPT12 pointer. When L1 (not in nested virtualization), return 0. When
- * guest is not using EPT, return 0.
+ * Get EPT12 pointer. When L1 (not in nested virtualization), return false.
+ * When guest is not using EPT, return false. Otherwise, return true and set
+ * ept12 to EPT12.
  */
-gpa_t xmhf_nested_arch_x86vmx_get_ept12(VCPU * vcpu)
+bool xmhf_nested_arch_x86vmx_get_ept12(VCPU * vcpu, gpa_t * ept12)
 {
 	HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
 	if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
 		vmcs12_info_t *vmcs12_info;
 		vmcs12_info = xmhf_nested_arch_x86vmx_find_current_vmcs12(vcpu);
 		if (vmcs12_info->guest_ept_root == GUEST_EPT_ROOT_INVALID) {
-			return vmcs12_info->guest_ept_root;
+			*ept12 = vmcs12_info->guest_ept_root;
+			return true;
 		}
 	}
-	return 0;
+	return false;
+}
+
+/*
+ * Set EPT12 pointer. When L1 (not in nested virtualization), enable must be
+ * false. Otherwise, enable controls whether EPT12 is active. If enable = true,
+ * ept12 becomes EPT12 pointer of the guest.
+ */
+void xmhf_nested_arch_x86vmx_set_ept12(VCPU * vcpu, bool enable, gpa_t ept12)
+{
+	HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
+	if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+		vmcs12_info_t *vmcs12_info;
+		vmcs12_info = xmhf_nested_arch_x86vmx_find_current_vmcs12(vcpu);
+		if (enable) {
+			vmcs12_info->guest_ept_root = ept12;
+		} else {
+			vmcs12_info->guest_ept_root = GUEST_EPT_ROOT_INVALID;
+		}
+	} else {
+		HALT_ON_ERRORCOND(!enable);
+	}
 }
 
 /*
