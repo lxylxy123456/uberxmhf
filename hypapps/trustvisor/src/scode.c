@@ -1075,6 +1075,7 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu(&whitelist[curr].saved_hptw_reg_host_ctx,
                                            vcpu) );
   hpt_emhf_set_root_pm_pa( vcpu, whitelist[curr].hptw_pal_host_ctx.super.root_pa);
+  hpt_emhf_set_l1l2_root_pm_pa(vcpu, HPTW_EMHF_EPT12_INVALID);
   VCPU_gcr3_set(vcpu, whitelist[curr].pal_gcr3);
 
   /*
