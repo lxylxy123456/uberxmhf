@@ -260,10 +260,6 @@ This vulnerability is fixed in `xmhf64-nest-dev 3708b0457`. Cherry-picked in
 
 Future work: implement this exploit
 
-TODO: compiler bug in xmhf64-nest-dev: `xmhf_nested_arch_x86vmx_get_ept12()`
-TODO: `// TODO: replace with hptw_checked_get_pmeo()`
-TODO: Make sure 3708b0457 works (does not break things)
-
 TODO
 TODO: `#### TrustVisor Vulnerability` above
 
