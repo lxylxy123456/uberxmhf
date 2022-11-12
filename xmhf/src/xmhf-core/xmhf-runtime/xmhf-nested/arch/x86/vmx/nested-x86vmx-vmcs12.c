@@ -933,10 +933,10 @@ static u32 _vmcs12_to_vmcs02_control_EPT_pointer(ARG10 * arg)
 		gpa_t ept12;
 		ept02_cache_line_t *cache_line;
 		bool cache_hit;
-		arg->vmcs12_info->guest_ept_root = ept12;
 		if (!xmhf_nested_arch_x86vmx_check_ept_lower_bits(eptp12, &ept12)) {
 			return VM_INST_ERRNO_VMENTRY_INVALID_CTRL;
 		}
+		arg->vmcs12_info->guest_ept_root = ept12;
 		ept02 = xmhf_nested_arch_x86vmx_get_ept02(arg->vcpu, ept12, &cache_hit,
 												  &cache_line);
 		arg->vmcs12_info->guest_ept_cache_line = cache_line;
