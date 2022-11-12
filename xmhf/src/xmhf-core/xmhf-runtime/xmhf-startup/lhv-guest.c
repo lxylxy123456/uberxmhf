@@ -914,7 +914,7 @@ void lhv_guest_main(ulong_t cpu_id)
 				lhv_guest_test_nested_user(vcpu);
 			}
 		} else {
-			/* Only one of the following will execute */
+			/* Only one of MSR or (user and nested user) will execute */
 			lhv_guest_test_msr_ls(vcpu);
 			lhv_guest_test_user(vcpu);
 			lhv_guest_test_nested_user(vcpu);

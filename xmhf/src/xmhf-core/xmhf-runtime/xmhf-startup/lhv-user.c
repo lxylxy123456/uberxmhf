@@ -231,7 +231,7 @@ void user_main(VCPU *vcpu, ulong_t arg)
 		if (eax == 0x46484d58U) {
 			user_main_pal_demo(vcpu, arg);
 		} else {
-			printf("CPU(0x%02x): can enter user mode\n", vcpu->id);
+			printf("CPU(0x%02x): can enter user mode 0x%x\n", vcpu->id, arg);
 		}
 	}
 	/* Release semaphore */
