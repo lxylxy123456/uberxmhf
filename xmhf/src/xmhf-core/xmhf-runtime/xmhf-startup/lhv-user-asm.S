@@ -60,6 +60,8 @@ exit_user_mode_asm:
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
+	movw	$__DS, %ax
+	movw	%ax, %ss
 
 	/* Epilogue */
 #ifdef __AMD64__
