@@ -260,6 +260,8 @@ This vulnerability is fixed in `xmhf64-nest-dev 3708b0457`. Cherry-picked in
 
 Future work: implement this exploit
 
+TODO: regression in Jenkins xmhf64-nest `xmhf64-nest-dev 4bfbf4523..dae21e0a6`
+
 TODO
 TODO: `#### TrustVisor Vulnerability` above
 
