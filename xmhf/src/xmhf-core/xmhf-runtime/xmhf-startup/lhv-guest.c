@@ -945,6 +945,9 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 	case 0x22:
 		handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
 		break;
+	case 0x23:
+		handle_lhv_syscall(_svm_and_vmx_getvcpu(), vector, r);
+		break;
 #ifdef __DEBUG_QEMU__
 	case 0x27:
 		/*

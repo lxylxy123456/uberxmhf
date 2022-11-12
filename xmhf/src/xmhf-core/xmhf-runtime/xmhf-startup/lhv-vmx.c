@@ -179,8 +179,8 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_guest_LDTR_selector, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_LDTR_access_rights, 0x10000);
 	// TR, should be usable for VMX to work, but not used by guest
-	vmcs_vmwrite(vcpu, VMCS_guest_TR_base, 0);	// TODO
-	vmcs_vmwrite(vcpu, VMCS_guest_TR_limit, 0);
+	vmcs_vmwrite(vcpu, VMCS_guest_TR_base, (u64)(hva_t)g_runtime_TSS[vcpu->idx]);
+	vmcs_vmwrite(vcpu, VMCS_guest_TR_limit, 0x67);
 	vmcs_vmwrite(vcpu, VMCS_guest_TR_selector, __TRSEL);
 	vmcs_vmwrite(vcpu, VMCS_guest_TR_access_rights, 0x8b);
 	//DR7
