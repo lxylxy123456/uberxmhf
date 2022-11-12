@@ -187,7 +187,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_guest_DR7, 0x400);
 	//RSP
 	{
-		vcpu->my_stack = all_guest_stack[vcpu->idx][0];
+		vcpu->my_stack = &all_guest_stack[vcpu->idx][0][PAGE_SIZE_4K];
 		vmcs_vmwrite(vcpu, VMCS_guest_RSP, (u64)(ulong_t)vcpu->my_stack);
 	}
 	//RIP
