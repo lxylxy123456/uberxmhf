@@ -660,7 +660,6 @@ u64 scode_unregister(VCPU * vcpu, u64 gvaddr)
   g64 = VCPU_g64(vcpu);
 
   eu_trace("*** scode unregister ***");
-  HALT_ON_ERRORCOND(!VCPU_nested(vcpu) && "L2 not implemented");
 
   EU_CHK( g_did_change_root_mappings );
   EU_CHK( whitelist_size != 0);
