@@ -185,15 +185,33 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 	uintptr_t pal_entry = dst_begin - src_begin + (uintptr_t) my_pal;
 	typeof(&my_pal) pal_func = (typeof(&my_pal)) pal_entry;
 	memcpy((void *)dst_begin, (void *)src_begin, code_size);
+
+	/*
+	 * Touch all pages used by PAL. If in nested virtualization (L0 = XMHF,
+	 * L1 = red hypervisor, L2 = LHV), hopefully the pages become cached in
+	 * L1's EPT.
+	 */
+	for (u32 i = 0; i < sections.num_sections; i++) {
+		for (u32 j = 0; j < sections.sections[i].page_num; j++) {
+			u64 addr = sections.sections[i].start_addr + PAGE_SIZE_4K * j;
+			volatile u8 *ptr = (volatile u8 *)(uintptr_t)addr;
+			*ptr;
+		}
+	}
+
+	/* Register PAL */
 	printf("CPU(0x%02x): starting PAL 0x%x\n", vcpu->id, arg);
 	HALT_ON_ERRORCOND(!vmcall(TV_HC_REG + arg, (uintptr_t)&sections, 0,
 							  (uintptr_t)&params, pal_entry));
+
+	/* Call PAL function */
 	HALT_ON_ERRORCOND(pal_func(0x11111111) == 0x2345bcde);
 
 	if (0 && "invalid access") {
 		printf("", *(u32*)pal_entry);
 	}
 
+	/* Unregister PAL */
 	HALT_ON_ERRORCOND(!vmcall(TV_HC_UNREG + arg, pal_entry, 0, 0, 0));
 
 	if ("valid access") {
