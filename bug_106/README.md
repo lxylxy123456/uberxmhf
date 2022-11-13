@@ -260,8 +260,79 @@ This vulnerability is fixed in `xmhf64-nest-dev 3708b0457`. Cherry-picked in
 
 Future work: implement this exploit
 
-TODO: regression in Jenkins xmhf64-nest `xmhf64-nest-dev 4bfbf4523..dae21e0a6`
+### Possible compiler problem
+
+In `xmhf64-nest-dev aefee5870`, function
+`_vmcs12_to_vmcs02_control_EPT_pointer()`, variable `ept12` is used before
+initialized. A smaller example is:
+
+```c
+void lxy_vmcs12_to_vmcs02_control_EPT_pointer(ARG10 * arg)
+{
+	spa_t ept02;
+	if (_vmx_hasctl_enable_ept(arg->ctls)) {
+		u64 eptp12 = arg->vmcs12->control_EPT_pointer;
+		gpa_t ept12;
+		ept02_cache_line_t *l;
+		bool h;
+		arg->vmcs12_info->guest_ept_root = ept12;
+		xmhf_nested_arch_x86vmx_check_ept_lower_bits(eptp12, &ept12);
+		ept02 = xmhf_nested_arch_x86vmx_get_ept02(arg->vcpu, ept12, &h, &l);
+	}
+	__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
+}
+```
+
+GCC version is `gcc (GCC) 12.2.1 20220819 (Red Hat 12.2.1-2)`.
+
+The bug caused problem when running LHV with EPT and XMHF. Fixed in
+`xmhf64-nest-dev 099e81c46`. After fixing this bug, `--lhv-opt=0xdfd` can run
+well under XMHF.
+
+Also interestingly, Jenkins was able to catch this bug as a regression in the
+`Jenkinsfile_nest` pipeline.
+
+The GCC bug is minimized to independently reproducible code `a1.c`. Compile
+command is `gcc -Wall -Werror -c a1.c`. Then minimized further to `a2.c`.
+
+Bug report text in `bug.txt`, reported bug to
+<https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107663>, tracked in `bug_076`.
+
+### Testing hypervisors other than LHV
+
+We test XMHF XMHF LHV (call nested virtualization). i.e. L2 = LHV host,
+L3 = LHV guest. Since the guest running PAL must make sure the EPT entries for
+PAL are present, we cannot enable all LHV opts.
+
+Git `lhv-dev 047695f86`, `xmhf64-nest-dev 632b179a2`. On Thinkpad,
+`./build.sh amd64 --lhv-opt 0xfbc` with smp=4 works fine.
+* 0x200 (`LHV_NO_INTERRUPT`) is used to remove interrupts because handling
+  interrupts would be too slow.
+* <del>0x1 (`LHV_USE_MSR_LOAD`) is not used because L1 will modify and
+  invalidate EPT (due to MTRR).</del>
+	* Later, looks like 0x1 (`LHV_USE_MSR_LOAD`) can be added, because MTRR
+	  does not cause flush of EPTs on other CPUs. However, MTRR is very slow.
+* 0x40 (`LHV_USER_MODE`) is not used because L1 will modify and invalidate EPT
+  (due to calling TrustVisor on L1).
+	* When this option is added, see error message:
+	  `hpt.c:804: assert failed: hpt_type_is_valid(t)`
+
+However, when only smp=1 in KVM, `--lhv-opt 0xffc` works well.
+
+Then we test the following configuration:
+* Dell
+	* XMHF amd64 (L0)
+		* Debian 11 x64 (L1)
+			* KVM
+				* Debian 11 x64 (L2)
+					* LHV
+
+See this error message:
+```
+Fatal: Halting! Condition 'hpt_pmeo_get_address(&page_reg_npmeo01) == page_reg_spa' failed, line 286, file pt.c
+```
 
 TODO
+TODO: Dell XMHF Debian KVM Debian11x64 gives: `Fatal: Halting! Condition 'hpt_pmeo_get_address(&page_reg_npmeo01) == page_reg_spa' failed, line 286, file pt.c`
 TODO: `#### TrustVisor Vulnerability` above
 

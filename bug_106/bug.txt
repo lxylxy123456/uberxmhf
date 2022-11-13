@@ -1,0 +1,62 @@
+When compiling the following function, GCC with -Wall gives no warnings. However, it looks clear to me that line 14 uses uninitialized variable declared in line 13.
+
+void func(int *p)
+{
+ if (f_a()) {
+  int v;      /* line 13 */
+  *p = v;     /* line 14 */
+  f_b(&v);
+ }
+}
+
+GCC does not output anything in stdout and stderr. I think this is a false negative: GCC fails to detect uninitialized use of variable. Expected warning message looks like:
+
+b.c: In function 'func':
+b.c:8:20: error: 'v' is used uninitialized [-Werror=uninitialized]
+    8 |                 *p = v;
+      |                 ~~~^~~
+b.c:7:21: note: 'v' declared here
+    7 |                 int v;
+      |                     ^
+cc1: all warnings being treated as errors
+
+To reproduce this bug, use the file "a.i" attached with this bug. The compile command is "gcc -c -Wall -Werror a.i".
+
+My system information can be retrieved below (output of "gcc -v -save-temps -Wall -Werror -c a.c"):
+
+Using built-in specs.
+COLLECT_GCC=gcc
+OFFLOAD_TARGET_NAMES=nvptx-none
+OFFLOAD_TARGET_DEFAULT=1
+Target: x86_64-redhat-linux
+Configured with: ../configure --enable-bootstrap --enable-languages=c,c++,fortran,objc,obj-c++,ada,go,d,lto --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=http://bugzilla.redhat.com/bugzilla --enable-shared --enable-threads=posix --enable-checking=release --enable-multilib --with-system-zlib --enable-__cxa_atexit --disable-libunwind-exceptions --enable-gnu-unique-object --enable-linker-build-id --with-gcc-major-version-only --enable-libstdcxx-backtrace --with-linker-hash-style=gnu --enable-plugin --enable-initfini-array --with-isl=/builddir/build/BUILD/gcc-12.2.1-20220819/obj-x86_64-redhat-linux/isl-install --enable-offload-targets=nvptx-none --without-cuda-driver --enable-offload-defaulted --enable-gnu-indirect-function --enable-cet --with-tune=generic --with-arch_32=i686 --build=x86_64-redhat-linux --with-build-config=bootstrap-lto --enable-link-serialization=1
+Thread model: posix
+Supported LTO compression algorithms: zlib zstd
+gcc version 12.2.1 20220819 (Red Hat 12.2.1-2) (GCC) 
+COLLECT_GCC_OPTIONS='-v' '-save-temps' '-Wall' '-Werror' '-c' '-mtune=generic' '-march=x86-64'
+ /usr/libexec/gcc/x86_64-redhat-linux/12/cc1 -E -quiet -v a.c -mtune=generic -march=x86-64 -Wall -Werror -fpch-preprocess -o a.i
+ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/12/include-fixed"
+ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/12/../../../../x86_64-redhat-linux/include"
+#include "..." search starts here:
+#include <...> search starts here:
+ /usr/lib/gcc/x86_64-redhat-linux/12/include
+ /usr/local/include
+ /usr/include
+End of search list.
+COLLECT_GCC_OPTIONS='-v' '-save-temps' '-Wall' '-Werror' '-c' '-mtune=generic' '-march=x86-64'
+ /usr/libexec/gcc/x86_64-redhat-linux/12/cc1 -fpreprocessed a.i -quiet -dumpbase a.c -dumpbase-ext .c -mtune=generic -march=x86-64 -Wall -Werror -version -o a.s
+GNU C17 (GCC) version 12.2.1 20220819 (Red Hat 12.2.1-2) (x86_64-redhat-linux)
+	compiled by GNU C version 12.2.1 20220819 (Red Hat 12.2.1-2), GMP version 6.2.1, MPFR version 4.1.0-p13, MPC version 1.2.1, isl version isl-0.18-GMP
+
+GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+GNU C17 (GCC) version 12.2.1 20220819 (Red Hat 12.2.1-2) (x86_64-redhat-linux)
+	compiled by GNU C version 12.2.1 20220819 (Red Hat 12.2.1-2), GMP version 6.2.1, MPFR version 4.1.0-p13, MPC version 1.2.1, isl version isl-0.18-GMP
+
+GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+Compiler executable checksum: 816b60f1f61bd59efac4d324ea795f15
+COLLECT_GCC_OPTIONS='-v' '-save-temps' '-Wall' '-Werror' '-c' '-mtune=generic' '-march=x86-64'
+ as -v --64 -o a.o a.s
+GNU assembler version 2.37 (x86_64-redhat-linux) using BFD version version 2.37-36.fc36
+COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/12/:/usr/libexec/gcc/x86_64-redhat-linux/12/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/12/:/usr/lib/gcc/x86_64-redhat-linux/
+LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/12/:/usr/lib/gcc/x86_64-redhat-linux/12/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/12/../../../:/lib/:/usr/lib/
+COLLECT_GCC_OPTIONS='-v' '-save-temps' '-Wall' '-Werror' '-c' '-mtune=generic' '-march=x86-64'

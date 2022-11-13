@@ -51,9 +51,7 @@ skip this error.
 This is also reproducible in Debian 11.
 
 Bug report written in `bug.txt`, attachment is `b.i`. Reported in
-<https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105100>
-
-TODO
+<https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105100>, tracked in `bug_076`.
 
 ### Compile error in Debian 11's environment
 
