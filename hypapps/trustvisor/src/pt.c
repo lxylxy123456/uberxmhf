@@ -281,7 +281,7 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
     hptw_get_pmeo(&page_reg_npmeo01,
                       reg_npm01_ctx,
                       1,
-                      page_reg_gpa);
+                      page_reg_spa);
     HALT_ON_ERRORCOND(page_reg_npmeo01.lvl==1); /* we don't handle large pages */
     HALT_ON_ERRORCOND(hpt_pmeo_get_address(&page_reg_npmeo01) == page_reg_spa);
 
