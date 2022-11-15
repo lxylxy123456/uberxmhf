@@ -480,6 +480,17 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
   /* store scode entry point */
   whitelist_new.entry_v = gventry;
   whitelist_new.entry_p = hptw_va_to_pa( &reg_guest_walk_ctx.super, gventry);
+
+  /*
+   * hptw_va_to_pa will only walk guest page table (CR3). However, when in
+   * nested virtualization, need to walk EPT12 to convert L2 physical address
+   * to L1 physical address.
+   */
+  if (whitelist_new.ept12 != HPTW_EMHF_EPT12_INVALID) {
+    whitelist_new.entry_p = hptw_va_to_pa( &hptw_reg_host_ctx.super,
+                                           whitelist_new.entry_p);
+  }
+
   eu_trace("CR3 value is %#llx, entry point vaddr is %#lx, paddr is %#lx", gcr3, whitelist_new.entry_v, whitelist_new.entry_p);
 
   /* parse parameter structure */
@@ -610,7 +621,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
 
 #ifdef __DMAP__
     /* Disable device accesses to these memory (via IOMMU) */
-	xmhf_dmaprot_invalidate_cache();
+    xmhf_dmaprot_invalidate_cache();
 #endif /* __DMAP__ */
 
   /* initialize Micro-TPM instance */
