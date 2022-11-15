@@ -449,6 +449,64 @@ bool VCPU_nested(VCPU *vcpu) {
 }
 
 /*
+ * When nested virtualization, disable external-interrupt exiting.
+ * Return whether external-interrupt exiting was enabled before calling.
+ * When not in nested virtualization, do nothing and return false.
+ */
+bool VCPU_disable_nested_interrupt_exit(VCPU *vcpu)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      u32 val = __vmx_vmread32(VMCSENC_control_VMX_pin_based);
+      if (val & (1U << VMX_PINBASED_EXTERNAL_INTERRUPT_EXITING)) {
+        val &= ~(1U << VMX_PINBASED_EXTERNAL_INTERRUPT_EXITING);
+        __vmx_vmwrite32(VMCSENC_control_VMX_pin_based, val);
+        return true;
+      }
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    return false;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    /* Not implemented */
+    HALT_ON_ERRORCOND(false);
+    return false;
+  } else {
+    HALT_ON_ERRORCOND(false);
+    return false;
+  }
+}
+
+/*
+ * When nested virtualization, restore external-interrupt exiting based on
+ * old_state. When not in nested virtualization, old_state must be false.
+ * Before calling this function, external-interrupt exiting must be disabled.
+ */
+void VCPU_enable_nested_interrupt_exit(VCPU *vcpu, bool old_state)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      if (old_state) {
+        const u32 mask = (1U << VMX_PINBASED_EXTERNAL_INTERRUPT_EXITING);
+        u32 val = __vmx_vmread32(VMCSENC_control_VMX_pin_based);
+        HALT_ON_ERRORCOND(!(val & mask));
+        val |= mask;
+        __vmx_vmwrite32(VMCSENC_control_VMX_pin_based, val);
+      }
+      return;
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    HALT_ON_ERRORCOND(old_state == false);
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    /* Not implemented */
+    HALT_ON_ERRORCOND(false);
+  } else {
+    HALT_ON_ERRORCOND(false);
+  }
+}
+
+/*
  * Get a guest register
  */
 ulong_t VCPU_reg_get(VCPU *vcpu, struct regs* r, enum CPU_Reg_Sel sel)
