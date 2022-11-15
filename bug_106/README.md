@@ -332,7 +332,32 @@ See this error message:
 Fatal: Halting! Condition 'hpt_pmeo_get_address(&page_reg_npmeo01) == page_reg_spa' failed, line 286, file pt.c
 ```
 
+From print debugging, there is
+* `hpt_pmeo_get_address(&page_reg_npmeo01) = 0x0e4d1000`
+* `page_reg_spa = 0x1830d1000`
+
+Looks like there is a typo. When walking EPT01, the virtual address
+`page_reg_gpa` (meaning L2) is used. But should use `page_reg_spa` (L0 = L1)
+should be used. Fixed in `xmhf64-nest-dev ced04d09d`.
+
+Now when running `./test_args32L2 1 1 1` on
+`Dell -> XMHF -> Debian -> KVM -> Debian x64`, see:
+```
+TV[3]:scode.c:hpt_scode_npf:1378:                  EU_CHK( ((whitelist[*curr].entry_v == rip) && (whitelist[*curr].entry_p == gpaddr))) failed
+TV[3]:scode.c:hpt_scode_npf:1378:                  Invalid entry point
+```
+
+For more debug info see serial `20221114142745`. Can see that something strange
+is happening in XMHF / TrustVisor. During scode register it says
+* `CR3 value is 0x5987801, entry point vaddr is 0xf7f7e025, paddr is 0xe4cf025`
+
+But when entering scode,
+* rip is correct: `rip = 0x00000000f7f7e025`
+* gpaddr becomes another page: `gpaddr = 0x00000001574cf025`
+* a totally different address is stored in whitelist info:
+  `whitelist[*curr].entry_v = 0x000000002907a9c0`,
+  `whitelist[*curr].entry_p = 0x000000002907a9c0`
+
 TODO
-TODO: Dell XMHF Debian KVM Debian11x64 gives: `Fatal: Halting! Condition 'hpt_pmeo_get_address(&page_reg_npmeo01) == page_reg_spa' failed, line 286, file pt.c`
 TODO: `#### TrustVisor Vulnerability` above
 
