@@ -426,6 +426,40 @@ void VCPU_gpdpte_set(VCPU *vcpu, u64 pdptes[4]) {
     }
 }
 
+/* Return Exception bitmap */
+u32 VCPU_exception_bitmap(VCPU *vcpu) {
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      return __vmx_vmread32(VMCSENC_control_exception_bitmap);
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    return vcpu->vmcs.control_exception_bitmap;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    return vcpu->vmcb_vaddr_ptr->exception_intercepts_bitmask;
+  } else {
+    HALT_ON_ERRORCOND(false);
+    return 0;
+  }
+}
+
+/* Set Exception bitmap */
+void VCPU_exception_bitmap_set(VCPU *vcpu, u32 val) {
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      __vmx_vmwrite32(VMCSENC_control_exception_bitmap, val);
+      return;
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    vcpu->vmcs.control_exception_bitmap = val;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    vcpu->vmcb_vaddr_ptr->exception_intercepts_bitmask = val;
+  } else {
+    HALT_ON_ERRORCOND(false);
+  }
+}
+
 /*
  * Return whether guest is running in L2 mode, i.e. VMX non-root. When nested
  * virtualization is not enabled, always return false.

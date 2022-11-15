@@ -1130,14 +1130,8 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   /* intercept all exceptions. (otherwise they'll result in a triple-fault,
    *   since the PAL doesn't have any exception handlers installed).
    */
-  if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    whitelist[curr].saved_exception_intercepts =
-      ((struct _svm_vmcbfields *)(vcpu->vmcb_vaddr_ptr))->exception_intercepts_bitmask;
-    ((struct _svm_vmcbfields *)(vcpu->vmcb_vaddr_ptr))->exception_intercepts_bitmask = 0xffffffff;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    whitelist[curr].saved_exception_intercepts =  vcpu->vmcs.control_exception_bitmap;
-    vcpu->vmcs.control_exception_bitmap = 0xffffffff;
-  }
+  whitelist[curr].saved_exception_intercepts = VCPU_exception_bitmap(vcpu);
+  VCPU_exception_bitmap_set(vcpu, 0xffffffffU);
 
   err=0;
  out:
@@ -1281,13 +1275,7 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
  out:
 
   /* restore exception intercept vector */
-  if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    ((struct _svm_vmcbfields *)(vcpu->vmcb_vaddr_ptr))->exception_intercepts_bitmask
-      = whitelist[curr].saved_exception_intercepts;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    vcpu->vmcs.control_exception_bitmap
-      = whitelist[curr].saved_exception_intercepts;
-  }
+  VCPU_exception_bitmap_set(vcpu, whitelist[curr].saved_exception_intercepts);
 
   /* release shared pages */
   scode_release_all_shared_pages(vcpu, &whitelist[curr]);

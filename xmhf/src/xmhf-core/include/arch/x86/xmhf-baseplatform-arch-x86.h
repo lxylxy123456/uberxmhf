@@ -446,6 +446,8 @@ void VCPU_gcr4_set(VCPU *vcpu, ulong_t cr4);
 bool VCPU_glm(VCPU *vcpu);
 bool VCPU_g64(VCPU *vcpu);
 void VCPU_gpdpte_set(VCPU *vcpu, u64 pdptes[4]);
+u32 VCPU_exception_bitmap(VCPU *vcpu);
+void VCPU_exception_bitmap_set(VCPU *vcpu, u32 val);
 bool VCPU_nested(VCPU *vcpu);
 bool VCPU_disable_nested_interrupt_exit(VCPU *vcpu);
 void VCPU_enable_nested_interrupt_exit(VCPU *vcpu, bool old_state);
