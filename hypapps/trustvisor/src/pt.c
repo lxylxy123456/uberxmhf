@@ -248,8 +248,7 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
     CHK_RV(hpt_err);
     eu_trace("got pme %016llx, level %d, type %d",
              page_reg_gpmeo.pme, page_reg_gpmeo.lvl, page_reg_gpmeo.t);
-    HALT_ON_ERRORCOND(page_reg_gpmeo.lvl==1); /* we don't handle large pages */
-    page_reg_gpa = hpt_pmeo_get_address(&page_reg_gpmeo);
+    page_reg_gpa = hpt_pmeo_va_to_pa(&page_reg_gpmeo, page_reg_gva);
 
     /* Convert gpa to spa (EPT02) */
     hpt_err = hptw_checked_get_pmeo(&page_reg_npmeo02,
@@ -296,9 +295,14 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
        tables. removing from nested page tables is sufficient */
 
     /* add access to pal guest page tables */
-    page_pal_gpmeo = page_reg_gpmeo; /* XXX SECURITY should build from scratch */
+    page_pal_gpmeo.pme = 0;
+    page_pal_gpmeo.t = page_reg_gpmeo.t;
+    page_pal_gpmeo.lvl = 1;
     hpt_pmeo_set_address(&page_pal_gpmeo, page_pal_gpa);
     hpt_pmeo_setprot    (&page_pal_gpmeo, HPT_PROTS_RWX);
+    hpt_pmeo_set_page   (&page_pal_gpmeo, true);
+    hpt_pmeo_setcache   (&page_pal_gpmeo, hpt_pmeo_getcache(&page_reg_gpmeo));
+    hpt_pmeo_setuser    (&page_pal_gpmeo, hpt_pmeo_getuser(&page_reg_gpmeo));
     hpt_err = hptw_insert_pmeo_alloc(pal_gpm_ctx,
                                          &page_pal_gpmeo,
                                          page_pal_gva);

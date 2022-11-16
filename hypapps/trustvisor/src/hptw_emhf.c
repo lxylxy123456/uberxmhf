@@ -216,7 +216,13 @@ int hptw_emhf_host_l1_ctx_init_of_vcpu(hptw_emhf_host_ctx_t *rv, VCPU *vcpu)
   return 0;
 }
 
-/* Return EPT01 when in L1, return EPT02 when in L2 */
+/*
+ * Return EPT01 when in L1, return EPT02 when in L2
+ *
+ * Note: for L2, the context is built using 2D page table walk: EPT12 + EPT01.
+ * For function calls like hptw_va_to_pa(), hptw_get_pmeo(), and
+ * hptw_checked_get_pmeo(), L1 physical address / entry is returned, not L0.
+ */
 int hptw_emhf_host_ctx_init_of_vcpu(hptw_emhf_host_ctx_t *rv, VCPU *vcpu)
 {
   hpt_pa_t root_pa;
