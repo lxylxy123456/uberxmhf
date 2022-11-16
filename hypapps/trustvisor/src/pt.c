@@ -259,7 +259,7 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
                                     page_reg_gpa);
     CHK_RV(hpt_err);
     eu_trace("got npmeo02 %016llx, level %d, type %d",
-             page_reg_gpmeo.pme, page_reg_gpmeo.lvl, page_reg_gpmeo.t);
+             page_reg_npmeo02.pme, page_reg_npmeo02.lvl, page_reg_npmeo02.t);
     HALT_ON_ERRORCOND(page_reg_npmeo02.lvl==1); /* we don't handle large pages */
     page_reg_spa = hpt_pmeo_get_address(&page_reg_npmeo02);
 
