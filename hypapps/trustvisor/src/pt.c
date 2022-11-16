@@ -200,14 +200,17 @@ int scode_clone_gdt(VCPU *vcpu,
  * lend a section of memory from a user-space process (on the commodity OS) to
  * a pal.
  *
- * In normal operations, reg_npm02_ctx and reg_npm01_ctx both operate on EPT.
- * In nested virtualization, reg_npm02_ctx is EPT02 and reg_npm01_ctx is EPT01.
- * EPT02 is dynamically computed using EPT01 and EPT12. So reg_npm02_ctx should
- * be used to convert gpa to spa. reg_npm01_ctx should be used to remove
- * guest's access to spa (EPT01 is assumed to be identity mapping).
+ * In normal operations, reg_npm02_ctx and reg_npm01_ctx both operate on EPT,
+ * and is_nested_ept is set to false. In nested virtualization where the guest
+ * uses EPT, reg_npm02_ctx is EPT02 (2 dimensional page table by combining
+ * EPT12 and EPT01) and reg_npm01_ctx is EPT01. is_nested_ept is set to True.
+ * reg_npm02_ctx should be used to convert L2 physical address to L1 physical
+ * address. reg_npm01_ctx should be used to convert L1 physical address to L0
+ * physical address. To remove a page from EPT02, use reg_npm01_ctx.
  */
 void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
                          hptw_ctx_t *reg_npm01_ctx,
+                         bool is_nested_ept,
                          hptw_ctx_t *reg_gpm_ctx,
                          hptw_ctx_t *pal_npm_ctx,
                          hptw_ctx_t *pal_gpm_ctx,
@@ -235,8 +238,7 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
     hpt_pmeo_t page_reg_gpmeo; /* reg's guest page-map-entry and lvl */
     hpt_pmeo_t page_pal_gpmeo; /* pal's guest page-map-entry and lvl */
 
-    hpt_pmeo_t page_reg_npmeo01; /* reg's nested page-map-entry and lvl */
-    hpt_pmeo_t page_reg_npmeo02; /* reg's nested page-map-entry and lvl */
+    hpt_pmeo_t page_reg_npmeo; /* reg's nested page-map-entry and lvl */
     hpt_pmeo_t page_pal_npmeo; /* pal's nested page-map-entry and lvl */
 
     /* Convert gva to gpa (guest CR3) */
@@ -246,24 +248,26 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
                                     HPTW_CPL3,
                                     page_reg_gva);
     CHK_RV(hpt_err);
-    eu_trace("got pme %016llx, level %d, type %d",
+    eu_trace("got gpme %016llx, level %d, type %d",
              page_reg_gpmeo.pme, page_reg_gpmeo.lvl, page_reg_gpmeo.t);
     page_reg_gpa = hpt_pmeo_va_to_pa(&page_reg_gpmeo, page_reg_gva);
 
-    /* Convert gpa to spa (EPT02) */
-    hpt_err = hptw_checked_get_pmeo(&page_reg_npmeo02,
-                                    reg_npm02_ctx,
-                                    section->pal_prot,
-                                    HPTW_CPL3,
-                                    page_reg_gpa);
-    CHK_RV(hpt_err);
-    eu_trace("got npmeo02 %016llx, level %d, type %d",
-             page_reg_npmeo02.pme, page_reg_npmeo02.lvl, page_reg_npmeo02.t);
-    HALT_ON_ERRORCOND(page_reg_npmeo02.lvl==1); /* we don't handle large pages */
-    page_reg_spa = hpt_pmeo_get_address(&page_reg_npmeo02);
+    /* When in nested virtualization, convert L2 address to L1 (EPT12) */
+    if (is_nested_ept) {
+      hpt_pmeo_t page_reg_npmeo12;
+      hpt_err = hptw_checked_get_pmeo(&page_reg_npmeo12,
+                                      reg_npm02_ctx,
+                                      section->pal_prot,
+                                      HPTW_CPL3,
+                                      page_reg_gpa);
+      CHK_RV(hpt_err);
+      eu_trace("got npme12 %016llx, level %d, type %d",
+               page_reg_npmeo12.pme, page_reg_npmeo12.lvl, page_reg_npmeo12.t);
+      page_reg_gpa = hpt_pmeo_va_to_pa(&page_reg_npmeo12, page_reg_gva);
+    }
 
     /* no reason to go with a different mapping */
-    page_pal_gpa = page_reg_spa;
+    page_pal_gpa = page_reg_gpa;
 
     /* check that the requested virtual address isn't already mapped
        into PAL's address space */
@@ -276,18 +280,22 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
       CHK(!hpt_pmeo_is_present(&existing_pmeo));
     }
 
-    /* Get relevant entry in EPT01 */
-    hptw_get_pmeo(&page_reg_npmeo01,
-                      reg_npm01_ctx,
-                      1,
-                      page_reg_spa);
-    HALT_ON_ERRORCOND(page_reg_npmeo01.lvl==1); /* we don't handle large pages */
-    HALT_ON_ERRORCOND(hpt_pmeo_get_address(&page_reg_npmeo01) == page_reg_spa);
+    /* Get relevant entry in EPT01 (regular EPT when not nested) */
+    hpt_err = hptw_checked_get_pmeo(&page_reg_npmeo,
+                                    reg_npm01_ctx,
+                                    section->pal_prot,
+                                    HPTW_CPL3,
+                                    page_reg_gpa);
+    CHK_RV(hpt_err);
+    eu_trace("got npme %016llx, level %d, type %d",
+             page_reg_npmeo.pme, page_reg_npmeo.lvl, page_reg_npmeo.t);
+    HALT_ON_ERRORCOND(page_reg_npmeo.lvl==1); /* EPT01 does not have large pages */
+    page_reg_spa = hpt_pmeo_va_to_pa(&page_reg_npmeo, page_reg_gpa);
 
     /* revoke access from 'reg' VM (using EPT01) */
-    hpt_pmeo_setprot(&page_reg_npmeo01, section->reg_prot);
+    hpt_pmeo_setprot(&page_reg_npmeo, section->reg_prot);
     hpt_err = hptw_insert_pmeo(reg_npm01_ctx,
-                                   &page_reg_npmeo01,
+                                   &page_reg_npmeo,
                                    page_reg_spa);
     CHK_RV(hpt_err);
 
@@ -309,7 +317,7 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
     CHK_RV(hpt_err);
 
     /* add access to pal nested page tables */
-    page_pal_npmeo = page_reg_npmeo02;
+    page_pal_npmeo = page_reg_npmeo;
     hpt_pmeo_setprot(&page_pal_npmeo, section->pal_prot);
     hpt_err = hptw_insert_pmeo_alloc(pal_npm_ctx,
                                          &page_pal_npmeo,
@@ -388,6 +396,7 @@ void scode_return_section(hptw_ctx_t *reg_npm01_ctx,
                        HPT_PROTS_NONE);
 
     /* add access to reg nested page tables */
+    // TODO: should not assume EPT01 entry is RWX
     hptw_set_prot(reg_npm01_ctx,
                        page_reg_spa,
                        HPT_PROTS_RWX);

@@ -567,6 +567,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
     };
     scode_lend_section( &hptw_reg_host_ctx.super,
                         &g_hptw_reg_host_l1_ctx.super,
+                        whitelist_new.ept12 != HPTW_EMHF_EPT12_INVALID,
                         &reg_guest_walk_ctx.super,
                         &whitelist_new.hptw_pal_host_ctx.super,
                         &whitelist_new.hptw_pal_checked_guest_ctx.super,
@@ -1484,6 +1485,7 @@ u32 scode_share_range(VCPU * vcpu, whitelist_entry_t *wle, u32 gva_base, u32 gva
 
   scode_lend_section( &hptw_reg_host_ctx.super,
                       &g_hptw_reg_host_l1_ctx.super,
+                      hpt_emhf_get_l1l2_root_pm_pa(vcpu) != HPTW_EMHF_EPT12_INVALID,
                       &vcpu_guest_walk_ctx.super,
                       &wle->hptw_pal_host_ctx.super,
                       &wle->hptw_pal_checked_guest_ctx.super,

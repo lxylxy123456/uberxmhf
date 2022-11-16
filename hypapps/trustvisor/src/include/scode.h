@@ -179,6 +179,7 @@ void init_scode(VCPU * vcpu);
 
 void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
                          hptw_ctx_t *reg_npm01_ctx,
+                         bool is_nested_ept,
                          hptw_ctx_t *reg_gpm_ctx,
                          hptw_ctx_t *pal_npm_ctx,
                          hptw_ctx_t *pal_gpm_ctx,
