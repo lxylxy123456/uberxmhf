@@ -1,0 +1,95 @@
+diff --git a/hypapps/trustvisor/src/include/tv_log.h b/hypapps/trustvisor/src/include/tv_log.h
+index 95011e971..9d2f757f6 100644
+--- a/hypapps/trustvisor/src/include/tv_log.h
++++ b/hypapps/trustvisor/src/include/tv_log.h
+@@ -48,7 +48,7 @@
+ #define TV_LOG_H
+ 
+ #ifndef EU_LOG_LVL
+-#define EU_LOG_LVL EU_WARN
++#define EU_LOG_LVL EU_TRACE
+ #endif
+ 
+ #ifndef EU_LOG_PREFIX
+diff --git a/hypapps/trustvisor/src/scode.c b/hypapps/trustvisor/src/scode.c
+index 76837beec..12e0b009d 100755
+--- a/hypapps/trustvisor/src/scode.c
++++ b/hypapps/trustvisor/src/scode.c
+@@ -492,6 +492,11 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
+   }
+ 
+   eu_trace("CR3 value is %#llx, entry point vaddr is %#lx, paddr is %#lx", gcr3, whitelist_new.entry_v, whitelist_new.entry_p);
++#define P(x) printf("LXY: %d: " #x " = 0x%016llx\n", __LINE__, (u64)(x))
++  P(&whitelist_new);
++  P(whitelist_new.entry_v);
++  P(whitelist_new.entry_p);
++#undef P
+ 
+   /* parse parameter structure */
+   EU_CHKN( parse_params_info(vcpu, &(whitelist_new.params_info), scode_pm));
+@@ -643,6 +648,13 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
+   whitelist_size ++;
+   memcpy(whitelist + i, &whitelist_new, sizeof(whitelist_entry_t));
+ 
++#define P(x) printf("LXY: %d: " #x " = 0x%016llx\n", __LINE__, (u64)(x))
++  P(i);
++  P(whitelist + i);
++  P(whitelist[i].entry_v);
++  P(whitelist[i].entry_p);
++#undef P
++
+   /*
+    * reset performance counters
+    */
+@@ -1386,6 +1398,21 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
+     /* regular code to sensitive code */
+ 
+     *curr = index;
++
++#define P(x) printf("LXY: %d: " #x " = 0x%016llx\n", __LINE__, (u64)(x))
++    P(g64);
++    P(VCPU_nested(vcpu));
++    P(ept12);
++    P(curr);
++    P(*curr);
++    P(index);
++    P(&whitelist[*curr]);
++    P(whitelist[*curr].entry_v);
++    P(whitelist[*curr].entry_p);
++    P(rip);
++    P(gpaddr);
++#undef P
++
+     EU_CHK( ((whitelist[*curr].entry_v == rip)
+              && (whitelist[*curr].entry_p == gpaddr)),
+             eu_err_e("Invalid entry point"));
+diff --git a/xmhf/src/libbaremetal/libxmhfutil/include/eulog.h b/xmhf/src/libbaremetal/libxmhfutil/include/eulog.h
+index 8416979b4..cdff631e3 100644
+--- a/xmhf/src/libbaremetal/libxmhfutil/include/eulog.h
++++ b/xmhf/src/libbaremetal/libxmhfutil/include/eulog.h
+@@ -57,7 +57,7 @@
+ #endif
+ 
+ #ifndef EU_LOG_LVL
+-#define EU_LOG_LVL EU_WARN
++#define EU_LOG_LVL EU_TRACE
+ #endif
+ 
+ #ifndef EU_LOG_PRINTLN
+diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c
+index ff30046d8..23d428aff 100644
+--- a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c
++++ b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c
+@@ -636,6 +636,12 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
+ #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
+ 			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+ #endif
++#define P(x) printf("LXY: %d: " #x " = 0x%016llx\n", __LINE__, (u64)(x))
++			P(guest2_paddr);
++			P(guest1_paddr);
++			P(xmhf_paddr);
++#undef P
++			printf("\n");
+ 			xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, guest1_paddr,
+ 													  gva, (qualification & 7));
+ #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__

@@ -358,6 +358,93 @@ But when entering scode,
   `whitelist[*curr].entry_v = 0x000000002907a9c0`,
   `whitelist[*curr].entry_p = 0x000000002907a9c0`
 
+Serial `20221115124920` contains more print debugging, see lines starting with
+"LXY". Looks like print debugging code at line 1390 - 1400 is wrong. Should
+print after the `*curr = index;` line.
+
+Fixed above and serial `20221115125525`. Can see that the problem is that
+`whitelist[?].entry_p` is wrong.
+* 0x0bfa4025 is the result during page table walk
+* 0xf7f3e025 is the gpa while XMHF calls EPT violation routine in TV
+
+In `20221115131135`, also add some prints in nested virtualization. Can see
+that `whitelist[*curr].entry_p` is incorrect. It stores L2 paddr, but should be
+L1 paddr. Need to check `scode_register()`.
+
+The problem is in use of `hptw_va_to_pa()` function. When walking the page
+tables HPT will perform 3D walk (gCR3, EPT12, EPT01), but `hptw_va_to_pa()`
+will only translate L2 virtual address to L2 physical address. TrustVisor need
+to be modified to perform another translation to L1 physical address.
+
+```
+  whitelist_new.entry_v = gventry;
+  whitelist_new.entry_p = hptw_va_to_pa( &reg_guest_walk_ctx.super, gventry);
+```
+
+Print debugging code is in `d3.diff`, not committed. Apply on
+`xmhf64-nest-dev 6a1877def`. Now the problem is `tv_app_handle_nest_exit()`,
+meaning that VMEXIT201 happens for unknown reason.
+
+`l4.diff` is used to make TrustVisor log level verbose. It can be applied to a
+lot of versions.
+
+The VMEXIT reason is 1 (External interrupt). So we need to remove
+"external-interrupt exiting" bit in "VM-execution control" during PAL. Fixed in
+`xmhf64-nest-dev 5949650da`
+
+Then see unstable VMEXIT reason 2 (triple fault). Looks like the problem
+happens when unfortunate. Maybe the bug is reproduced within running PAL demo
+10 times. The triple fault is because the exception bitmap is not set
+correctly. Fixed in `xmhf64-nest-dev 92961ac06`.
+
+The VMEXIT becomes reason 0 (exception), serial `20221115164630`. One thing to
+notice is that in 2 tries, both of them have `guest_RIP % 0x1000 = 0x1bf`.
+* `info_vmexit_interrupt_information = 0x80000b0e`
+	* The exception is 0xe (page fault), 3: Hardware exception, valid error code
+* `info_vmexit_interrupt_error_code = 0x00000004`
+	* Bit 0 (P) = 0: page is not present
+	* Bit 1 (R/W) = 0: falut due to read access
+	* Bit 2 (U/S) = 1: access in user mode
+	* Bit 3 (RSVD) = 0: CR3 etc does not set reserved bit
+	* Bit 4 (I/D) = 0: fault not due to inst fetch
+	* Bit 5 (PK) = 0: fault not due to protection keys
+	* Bit 6 (SS) = 0: fault not due to shadow stack
+	* Bit 7 (SGX) = 0: fault not due to SGX
+* `info_exit_qualification = 0x00000000f7f86114`
+	* Ref: Intel v3 says "A page fault does not update CR2. (The linear address
+	  causing the page fault is saved in the exit-qualification field.)"
+* `guest_GS_base = 0x00000000f7f86100`
+	* Is the instruction accessing segment GS?
+
+By debugging `./test_args32L2` as a process using GDB, see that the code page
+is 0xf7fbc000, and offset 0x1bf is:`0xf7fbc1bf: mov    %gs:0x14,%eax`. So our
+guess is correct. Actually this instruction is part of automatically added
+stack canary:
+```
+00002675 <pal_5_ptr>:
+    2675:	f3 0f 1e fb          	endbr32 
+    2679:	55                   	push   %ebp
+    267a:	89 e5                	mov    %esp,%ebp
+    267c:	83 ec 78             	sub    $0x78,%esp
+(handle arguments)
+    269d:	65 a1 14 00 00 00    	mov    %gs:0x14,%eax
+    26a3:	89 45 f4             	mov    %eax,-0xc(%ebp)
+    26a6:	31 c0                	xor    %eax,%eax
+(function body)
+    2779:	8b 4d f4             	mov    -0xc(%ebp),%ecx
+    277c:	65 33 0d 14 00 00 00 	xor    %gs:0x14,%ecx
+    2783:	74 05                	je     278a <pal_5_ptr+0x115>
+    2785:	e8 fc ff ff ff       	call   2786 <pal_5_ptr+0x111>
+    278a:	c9                   	leave  
+    278b:	c3                   	ret    
+```
+
+It is strange why this only causes page fault sometimes.
+
+TODO: test more
+TODO: is L1 PAL also broken?
+TODO: add compiler flag to remove stack canary
+
 TODO
 TODO: `#### TrustVisor Vulnerability` above
 
