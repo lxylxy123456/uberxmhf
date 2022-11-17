@@ -441,9 +441,30 @@ stack canary:
 
 It is strange why this only causes page fault sometimes.
 
+Actually, with the newly compiled `pal_demo` from GitHub actions, running in L1
+also produces the page faults due to access to GS segment. So `pal_demo` needs
+to be modified.
+
+Serial `20221116121251` is running TrustVisor in L2 with
+`./test_args32L2 1 1 1` for 4 times. The last time fails. This actually reveals
+another bug: `hptw_checked_get_pmeo(&page_reg_npmeo02, ...)` actually gets
+EPT12 entry, not EPT02.
+
+Serial `20221116122852` is running TrustVisor more times, and finally
+triggering the page fault. Now I think I am able to answer: Why is the page
+fault not deterministic? It is likely because I got confused while recording
+experiment results. Actually `./test_args32L2 1 ...` does not generate page
+fault. Only `./test_args32L2 4 ...` generates the page fault. By looking at
+objdump results, only `pal_5_ptr()` among the pal functions accesses GS.
+
+In `xmhf64-nest-dev 92961ac06..862b859dc`, fix the
+`hptw_checked_get_pmeo(&page_reg_npmeo02, ...)` problem. The key problem is
+that `page_reg_npmeo02` looks like EPT02 when accessing memory, but looks like
+EPT12 when converting va to pa, or accessing page table entry. Looks like now
+both bugs are fixed (GS and `hptw_checked_get_pmeo`). pal demo is still not
+stable, though.
+
 TODO: test more
-TODO: is L1 PAL also broken?
-TODO: add compiler flag to remove stack canary
 
 TODO
 TODO: `#### TrustVisor Vulnerability` above
