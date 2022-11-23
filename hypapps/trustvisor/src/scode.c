@@ -1114,6 +1114,7 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   }
 
   whitelist[curr].saved_nested_intr_exit = VCPU_disable_nested_interrupt_exit(vcpu);
+  whitelist[curr].saved_nested_timer = VCPU_disable_nested_timer_exit(vcpu);
 
   /* disable NMIs, assume regular code has NMIs enabled */
   xmhf_smpguest_nmi_block(vcpu);
@@ -1317,6 +1318,7 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
   }
 
   VCPU_enable_nested_interrupt_exit(vcpu, whitelist[curr].saved_nested_intr_exit);
+  VCPU_enable_nested_timer_exit(vcpu, whitelist[curr].saved_nested_timer);
 
   /* enable NMIs, check that scode has NMIs disabled */
   xmhf_smpguest_nmi_unblock(vcpu);

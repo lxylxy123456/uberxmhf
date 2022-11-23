@@ -451,6 +451,8 @@ void VCPU_exception_bitmap_set(VCPU *vcpu, u32 val);
 bool VCPU_nested(VCPU *vcpu);
 bool VCPU_disable_nested_interrupt_exit(VCPU *vcpu);
 void VCPU_enable_nested_interrupt_exit(VCPU *vcpu, bool old_state);
+u32 VCPU_disable_nested_timer_exit(VCPU *vcpu);
+void VCPU_enable_nested_timer_exit(VCPU *vcpu, u32 old_state);
 
 /*
  * Selector for VCPU_reg_get and VCPU_reg_set
