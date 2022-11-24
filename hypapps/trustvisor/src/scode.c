@@ -316,7 +316,7 @@ int parse_params_info(VCPU * vcpu, struct tv_pal_params* pm_info, uintptr_t pm_a
                                    sizeof(pm_info->num_params)));
   num = pm_info->num_params;
 
-  eu_trace("pm_info %#x, # of parameters is %d", pm_addr, num);
+  eu_trace("pm_info %#lx, # of parameters is %d", pm_addr, num);
   EU_CHK( num <= TV_MAX_PARAMS);
 
   addr = pm_addr + offsetof(struct tv_pal_params, params);
@@ -359,7 +359,7 @@ int memsect_info_copy_from_guest(VCPU * vcpu, struct tv_pal_sections *ps_scode_i
   rv=0;
  out:
   if(rv) {
-    eu_err("failed with params: ps_scode_info:%p gva_scode_info:%#x", ps_scode_info, gva_scode_info);
+    eu_err("failed with params: ps_scode_info:%p gva_scode_info:%#lx", ps_scode_info, gva_scode_info);
   }
   return rv;
 }
@@ -466,7 +466,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
 
   EU_CHK( whitelist_size < whitelist_max);
 
-  eu_trace("CPU(0x%02x): add to whitelist,  scode_info %#lx, scode_pm %#lx, gventry %#lx", vcpu->id, scode_info, scode_pm, gventry);
+  eu_trace("CPU(0x%02x): add to whitelist,  scode_info %#llx, scode_pm %#llx, gventry %#llx", vcpu->id, scode_info, scode_pm, gventry);
 
   /* ATTN: we should assign a ID for each registered sensitive code
    * so we know what to verify each time
@@ -491,7 +491,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
                                            whitelist_new.entry_p);
   }
 
-  eu_trace("CR3 value is %#llx, entry point vaddr is %#lx, paddr is %#lx", gcr3, whitelist_new.entry_v, whitelist_new.entry_p);
+  eu_trace("CR3 value is %#llx, EPT12 is %#llx, entry point vaddr is %#lx, paddr is %#lx", gcr3, whitelist_new.ept12, whitelist_new.entry_v, whitelist_new.entry_p);
 
   /* parse parameter structure */
   EU_CHKN( parse_params_info(vcpu, &(whitelist_new.params_info), scode_pm));
@@ -667,22 +667,25 @@ u64 scode_unregister(VCPU * vcpu, u64 gvaddr)
   u64 rv=1;
   bool g64;
   u64 gcr3;
+  u64 ept12;
 
   gcr3 = VCPU_gcr3(vcpu);
   g64 = VCPU_g64(vcpu);
+  ept12 = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
 
   eu_trace("*** scode unregister ***");
 
   EU_CHK( g_did_change_root_mappings );
   EU_CHK( whitelist_size != 0);
 
-  eu_trace("CPU(%02x): remove from whitelist gcr3 %#llx, gvaddr %#x", vcpu->id, gcr3, gvaddr);
+  eu_trace("CPU(%02x): remove from whitelist gcr3 %#llx, ept12 %#llx, gvaddr %#llx", vcpu->id, gcr3, ept12, gvaddr);
 
   for (i = 0; i < whitelist_max; i ++) {
     /* find scode with correct cr3 and entry point */
     hpt_type_t t = whitelist[i].hptw_pal_checked_guest_ctx.super.t;
     if ((whitelist[i].gcr3 == hpt_cr3_get_address(t, gcr3)) &&
         (!!g64 == !!whitelist[i].g64) &&
+        (ept12 == whitelist[i].ept12) &&
         (whitelist[i].entry_v == gvaddr))
       break;
   }
@@ -835,7 +838,7 @@ u32 scode_marshall64(VCPU * vcpu, struct regs *r)
           {
             /* put the parameter value in sensitive code stack */
             pm_tmp = pm_value;
-            eu_trace("PM %d is a integer (size %d, value %#lx)", pm_i, pm_size, pm_value);
+            eu_trace("PM %d is a integer (size %d, value %#llx)", pm_i, pm_size, pm_value);
             break;
           }
         case TV_PAL_PM_POINTER: /* pointer */
@@ -844,7 +847,7 @@ u32 scode_marshall64(VCPU * vcpu, struct regs *r)
             pm_size_sum += pm_size;
             EU_CHK( pm_size_sum <= (whitelist[curr].gpm_size*PAGE_SIZE_4K));
 
-            eu_trace("PM %d is a pointer (size %d, value %#lx)", pm_i, pm_size, pm_value);
+            eu_trace("PM %d is a pointer (size %d, value %#llx)", pm_i, pm_size, pm_value);
 
             EU_CHKN( hptw_checked_copy_va_to_va(&whitelist[curr].hptw_pal_checked_guest_ctx.super,
                                                 HPTW_CPL3,
@@ -976,7 +979,7 @@ u32 scode_marshall32(VCPU * vcpu)
           {
             /* put the parameter value in sensitive code stack */
             pm_tmp = (u32)pm_value;
-            eu_trace("PM %d is a integer (size %d, value %#lx)", pm_i, pm_size, pm_value);
+            eu_trace("PM %d is a integer (size %d, value %#llx)", pm_i, pm_size, pm_value);
             break;
           }
         case TV_PAL_PM_POINTER: /* pointer */
@@ -985,7 +988,7 @@ u32 scode_marshall32(VCPU * vcpu)
             pm_size_sum += pm_size;
             EU_CHK( pm_size_sum <= (whitelist[curr].gpm_size*PAGE_SIZE_4K));
 
-            eu_trace("PM %d is a pointer (size %d, value %#lx)", pm_i, pm_size, pm_value);
+            eu_trace("PM %d is a pointer (size %d, value %#llx)", pm_i, pm_size, pm_value);
 
             EU_CHKN( hptw_checked_copy_va_to_va(&whitelist[curr].hptw_pal_checked_guest_ctx.super,
                                                 HPTW_CPL3,
@@ -1079,7 +1082,7 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
      below in case of error) */
 
   eu_trace("change NPT permission to run PAL!");
-  eu_trace("vcpu=%#x, guest_RIP=%#lx, guest_RSP=%#lx", vcpu->id,
+  eu_trace("vcpu=%d, guest_RIP=%#lx, guest_RSP=%#lx", vcpu->id,
            VCPU_grip(vcpu), VCPU_grsp(vcpu));
   whitelist[curr].saved_pt_root_pa = hpt_emhf_get_root_pm_pa(vcpu);
   whitelist[curr].saved_pt_l1l2_root_pa = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
@@ -1179,7 +1182,7 @@ u32 scode_unmarshall(VCPU * vcpu)
 
   /* memory address for input parameter in sensitive code */
   pm_addr_base = whitelist[curr].gpmp;
-  eu_trace("parameter page base address is %#x", pm_addr_base);
+  eu_trace("parameter page base address is %#lx", pm_addr_base);
 
   /* get params number */
   pm_addr = pm_addr_base;
@@ -1228,7 +1231,7 @@ u32 scode_unmarshall(VCPU * vcpu)
                                                 sizeof(pm_value)));
             pm_addr += sizeof(pm_value);
 
-            eu_trace("PM %d is a pointer (size %d, addr %#x)", i,  pm_size, pm_value);
+            eu_trace("PM %d is a pointer (size %d, addr %#llx)", i,  pm_size, pm_value);
             /* copy data from sensitive code (param space) to guest */
             EU_CHKN( hptw_checked_copy_va_to_va( &reg_guest_walk_ctx.super,
                                                  HPTW_CPL3,
@@ -1308,7 +1311,7 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
   }
 
   /* switch back to regular stack */
-  eu_trace("switch from scode stack %#x back to regular stack %#lx", (uintptr_t)VCPU_grsp(vcpu), (uintptr_t)whitelist[curr].grsp);
+  eu_trace("switch from scode stack %#lx back to regular stack %#lx", (uintptr_t)VCPU_grsp(vcpu), (uintptr_t)whitelist[curr].grsp);
   VCPU_grsp_set(vcpu, whitelist[curr].grsp + word_size);
   whitelist[curr].grsp = (uintptr_t)-1;
 
