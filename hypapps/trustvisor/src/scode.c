@@ -1360,7 +1360,7 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
   u64 gcr3 = VCPU_gcr3(vcpu);
   uintptr_t rip = (uintptr_t)VCPU_grip(vcpu);
   bool g64;
-  u64 ept12;
+  u64 ept12 = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
   u32 err=1;
 
 #if defined(__LDN_TV_INTEGRATION__)
@@ -1370,14 +1370,13 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
   perf_ctr_timer_start(&g_tv_perf_ctrs[TV_PERF_CTR_NPF], vcpu->idx);
 
 #if !defined(__LDN_TV_INTEGRATION__)
-  eu_trace("CPU(%02x): nested page fault!(rip %#lx, gcr3 %#llx, gpaddr %#lx, errorcode %llx)",
-          vcpu->id, rip, gcr3, gpaddr, errorcode);
+  eu_trace("CPU(%02x): nested page fault!(rip %#lx, gcr3 %#llx, ept12 %#llx, gpaddr %#lx, errorcode %llx)",
+          vcpu->id, rip, gcr3, ept12, gpaddr, errorcode);
 
   EU_CHK( hpt_error_wasInsnFetch(vcpu, errorcode));
 #endif //__LDN_TV_INTEGRATION__
 
   g64 = VCPU_g64(vcpu);
-  ept12 = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
   index = scode_in_list(gcr3, rip, g64, ept12);
   if ((*curr == -1) && (index >= 0)) {
     /* regular code to sensitive code */
