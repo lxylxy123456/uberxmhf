@@ -464,8 +464,114 @@ EPT12 when converting va to pa, or accessing page table entry. Looks like now
 both bugs are fixed (GS and `hptw_checked_get_pmeo`). pal demo is still not
 stable, though.
 
-TODO: test more
+#### Assertion error `!(hpt_err)`
+
+At `xmhf64-nest-dev 862b859dc`, testing
+`Dell, XMHF, Debian, KVM, Debian, pal_demo`, sometimes see:
+```
+Fatal: Halting! Condition '!(hpt_err)' failed, line 263, file pt.c
+```
+
+This is the error of walking EPT12. This may be the fault of the guest
+hypervisor, since KVM may invalidate EPT. Currently we ignore this error.
+
+#### VMEXIT201 due to "VMX-preemption timer expired"
+
+After enabling TrustVisor debug messages, running PAL becomes slow, and see
+VMEXIT201 due to "VMX-preemption timer expired". Serial `20221123152543`.
+
+By reading Intel v3, can see that there are mainly 3 related VMCS fields:
+* "Pin-Based VM-Execution Controls" bit 6: "Activate VMX-preemption timer"
+* "VM-Exit Controls" bit 22: "Save VMX-preemption timer value"
+* "VMX-preemption timer value": 32-bit timer
+
+The correct way to virtualize this is:
+* When "Activate VMX-preemption timer" = 1, always
+  "Save VMX-preemption timer value" = 1
+* When VMEXIT202 begins, record RDTSC. When VMEXIT202 is about to end,
+  perform RDTSC and re-calculate "VMX-preemption timer value" using the TSC
+  difference.
+
+This method is complicated, and is hard to be accurate. Currently we simply
+ignore this field. It makes sense if we assume:
+* Guest hypervisors (L1) do not use this timer for time tracking
+* Guest hypervisors (L1) only uses this timer to make sure the CPU does not
+  stuck in guest mode forever.
+
+From KVM code `handle_preemption_timer()`, this assumption stands. Also
+remember that most hypervisors use external interrupts to track time.
+
+After making this assumption, the situation is:
+* If guest "Save VMX-preemption timer value" = 1, then XMHF appears to be
+  infinite speed.
+* If guest "Save VMX-preemption timer value" = 0, then it expects upper bound
+  time between VMENTRY and VMCS201. However XMHF sets upper bound time between
+  VMCS202s. This will become a problem if L2 guest generates VMCS202's
+  (e.g. EPT) forever.
+
+For now, we keep the existing implementation. For TrustVisor, we need to add
+interface to control VMX-preemption timer, similar to controlling interrupts.
+
+Fixed in `xmhf64-nest-dev ff3716218`.
+
+After fixing this, looks like "Assertion error `!(hpt_err)`" disappears. Now we
+can basically assume XMHF KVM is stable.
+
+Tested XMHF VirtualBox Debian x64, looks good.
+
+Tested XMHF VMware Debian x64, looks good.
+
+### Testing Windows as L2
+
+At `xmhf64-nest-dev ff3716218`, found 2 problems:
+* Normal configuration is `XMHF, VirtualBox, Windows 10 x86`. If add another
+  qcow2 disk (just a FAT partition, no partition table), see Virtual Box Guru
+  Meditation 1155 (triple fault) during early boot process
+* Run `XMHF, VirtualBox, Windows 10 x86, pal_demo`, see VMENTRY02 error when
+  starting pal demo.
+
+Added VMCS dumping code, git apply `v5.diff`.
+
+In serial `20221123201216`, tried to run `pal_demo` but dump all VMCS. Now the
+problem becomes Virtual Box Guru Meditation 1155. From the VMCS dump can see
+that PDPTEs are wrong. The problem is likely caused by TrustVisor code.
+```
+CPU(0x04): (0x280a) :VMCALL:guest_PDPTE0 = 0x0000000026ee9801
+CPU(0x04): (0x280c) :VMCALL:guest_PDPTE1 = 0x0000000029aea801
+CPU(0x04): (0x280e) :VMCALL:guest_PDPTE2 = 0x0000000000900801
+CPU(0x04): (0x2810) :VMCALL:guest_PDPTE3 = 0x000000002fe34801
+CPU(0x04): (0x280a) :3FAULT:guest_PDPTE0 = 0x6c62aadf26143ef2
+CPU(0x04): (0x280c) :3FAULT:guest_PDPTE1 = 0x7466ba5736342ef2
+CPU(0x04): (0x280e) :3FAULT:guest_PDPTE2 = 0xfc463a77b614aed2
+CPU(0x04): (0x2810) :3FAULT:guest_PDPTE3 = 0xfc063a37b654ae92
+```
+
+Why does not the VMENTRY fail? Likely it depends on the content of PDPTE. See
+Intel v3:
+> A VM entry that checks the validity of the PDPTEs uses the same checks that
+> are used when CR3 is loaded with
+> MOV to CR3 when PAE paging is in use.4 If MOV to CR3 would cause a
+> general-protection exception due to the
+> PDPTEs that would be loaded (e.g., because a reserved bit is set), the VM entry fails.
+
+The pal demo bug is fixed in the following 2 commits:
+* `xmhf64 ae4c24db5`: during unmarshall, use the correct context
+* `xmhf64-nest-dev 024be22d1`: do not use `ctx->pa2ptr` (unstable behavior with
+  nested EPT); use `hptw_checked_copy_from_va`.
+
+After fixing the pal demo bug, the "booting Windows 10 with extra disk and see
+Meditation 1155" bug can no longer be reproduced. So not going to worry about
+it for now.
+
+Tested XMHF VirtualBox Windows 10 PAE, looks good.
+
+### Testing Hyper-V
+
+When testing on Hyper-V, the results is not stable
+* (serial not recorded): TV "incorrect regular code EPT configuration!"
+* Serial `20221124000644`: CPU 3 (APIC 6) halts for unknow reason, blue screen
 
 TODO
+TODO: test on Windows Hyper-V
 TODO: `#### TrustVisor Vulnerability` above
 

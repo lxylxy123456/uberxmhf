@@ -1,0 +1,30 @@
+diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c
+index ff30046d8..12521d915 100644
+--- a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c
++++ b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c
+@@ -876,6 +876,7 @@ static u32 handle_vmexit20_vmcall(VCPU * vcpu, struct regs *r)
+ 		return NESTED_VMEXIT_HANDLE_201;
+ 	}
+ 	/* Quiesce, invoke hypapp */
++	xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":VMCALL:");
+ 	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+ 	if (xmhf_app_handlehypercall(vcpu, r) != APP_SUCCESS) {
+ 		printf("CPU(0x%02x): error(halt), unhandled L2 hypercall 0x%08x!\n",
+@@ -933,6 +934,7 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
+ 		 * easier. The correct behavior should be injecting the VMEXIT to
+ 		 * guest hypervisor.
+ 		 */
++		xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":VMFAIL:");
+ 		HALT_ON_ERRORCOND(0 && "Debug: guest hypervisor VM-entry failure");
+ 	}
+ 
+@@ -1065,6 +1067,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
+ 			}
+ 		}
+ 		break;
++	case 2:
++		xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":3FAULT:");
++		break;
+ 	case VMX_VMEXIT_NMI_WINDOW:
+ 		handle_behavior = handle_vmexit20_nmi_window(vcpu, vmcs12_info);
+ 		break;
