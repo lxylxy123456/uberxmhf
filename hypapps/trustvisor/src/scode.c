@@ -1098,11 +1098,12 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
 
   if (whitelist[curr].hptw_pal_checked_guest_ctx.super.t == HPT_TYPE_PAE) {
     /* For PAE paging, need to update VMCS PDPTEs manually */
-    hptw_ctx_t *ctx = &whitelist[curr].hptw_pal_host_ctx.super;
-    size_t avail_sz;
-    u64 *pdptes = ctx->pa2ptr(ctx, VCPU_gcr3(vcpu), sizeof(u64) * 4,
-                              HPT_PROTS_R, HPTW_CPL3, &avail_sz);
-    EU_CHK(avail_sz == sizeof(u64) * 4);
+    u64 pdptes[4];
+    EU_CHKN( hptw_checked_copy_from_va( &whitelist[curr].hptw_pal_host_ctx.super,
+                                        HPTW_CPL0,
+                                        pdptes,
+                                        whitelist[curr].pal_gcr3,
+                                        sizeof(pdptes)));
     VCPU_gpdpte_set(vcpu, pdptes);
   }
 
@@ -1297,11 +1298,12 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
 
   if (whitelist[curr].hptw_pal_checked_guest_ctx.super.t == HPT_TYPE_PAE) {
     /* For PAE paging, need to update VMCS PDPTEs manually */
-    hptw_ctx_t *ctx = &g_hptw_reg_host_ctx.super;
-    size_t avail_sz;
-    u64 *pdptes = ctx->pa2ptr(ctx, VCPU_gcr3(vcpu), sizeof(u64) * 4,
-                              HPT_PROTS_R, HPTW_CPL3, &avail_sz);
-    EU_CHK(avail_sz == sizeof(u64) * 4);
+    u64 pdptes[4];
+    EU_CHKN( hptw_checked_copy_from_va( &whitelist[curr].saved_hptw_reg_host_ctx.super,
+                                        HPTW_CPL0,
+                                        pdptes,
+                                        whitelist[curr].gcr3,
+                                        sizeof(pdptes)));
     VCPU_gpdpte_set(vcpu, pdptes);
   }
 
