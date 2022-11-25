@@ -132,7 +132,15 @@ void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
 
 void begin_pal_c(void) {}
 
-uintptr_t my_pal(uintptr_t arg1) {
+uintptr_t my_pal(uintptr_t arg1, uintptr_t arg2) {
+	u32 eax=0x7a567254U, ebx, ecx=arg2, edx;
+	cpuid_raw(&eax, &ebx, &ecx, &edx);
+	if (eax != 0x7a767274U) {
+		return 0xdeadbee0U;
+	}
+	if (ebx == 0xffffffffU) {
+		return 0xdeadbee1U;
+	}
 	return arg1 + 0x1234abcd;
 }
 
@@ -175,7 +183,7 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 	struct tv_pal_params params = {
 		num_params: 1,
 		params: {
-			{ TV_PAL_PM_INTEGER, 4 }
+			{ TV_PAL_PM_INTEGER, 4 }, { TV_PAL_PM_INTEGER, 4 }
 		}
 	};
 	/* Copy code */
@@ -205,7 +213,7 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 							  (uintptr_t)&params, pal_entry));
 
 	/* Call PAL function */
-	HALT_ON_ERRORCOND(pal_func(0x11111111) == 0x2345bcde);
+	HALT_ON_ERRORCOND(pal_func(0x11111111, arg) == 0x2345bcde);
 
 	if (0 && "invalid access") {
 		printf("", *(u32*)pal_entry);
@@ -225,6 +233,13 @@ void user_main(VCPU *vcpu, ulong_t arg)
 {
 	static u32 lock = 1;
 	static volatile u32 available = 3;
+	/* Test TrustVisor presence using CPUID */
+	{
+		u32 eax=0x7a567254U, ebx, ecx=arg, edx;
+		cpuid_raw(&eax, &ebx, &ecx, &edx);
+		HALT_ON_ERRORCOND(eax == 0x7a767274U && "TrustVisor not present 1");
+		HALT_ON_ERRORCOND(ebx == 0xffffffffU && "TrustVisor not present 2");
+	}
 	/* Acquire semaphore */
 	{
 		while (1) {
