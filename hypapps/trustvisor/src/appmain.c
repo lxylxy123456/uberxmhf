@@ -737,25 +737,37 @@ void tv_app_handleshutdown(VCPU *vcpu, struct regs __attribute__((unused)) *r)
 }
 
 /*
- * Activated when EAX=0x7a567254 (TrVz) and ECX=0.
- * TODO: update for nested virt.
- * Set EAX=0x7a767274 (TRVZ).
- * Set EBX=UINT_MAX if not in PAL, or whitelist_entry.id if in PAL.
- * Set ECX[0]=0 if calling process is 32-bit, 1 if 64-bit.
- * Set ECX[1-31]=undefined.
- * Set EDX=undefined.
+ * Activated when EAX=0x7a567254 (TrVz) and:
+ * * If not in nested virtualization, ECX=0.
+ * * If in nested virtualization, ECX=__VMX_HYPAPP_L2_VMCALL_MIN__.
+ * If activated:
+ * * Set EAX=0x7a767274 (TRVZ).
+ * * Set EBX=UINT_MAX if not in PAL, or whitelist_entry.id if in PAL.
+ * * Set ECX[0]=0 if calling process is 32-bit, 1 if 64-bit.
+ * * Set ECX[1]=0 if guest EPT12 not in use, 1 if EPT12 in use.
+ * * Set ECX[2-31]=undefined.
+ * * Set EDX=undefined.
  */
 u32 tv_app_handlecpuid(VCPU *vcpu, struct regs *r)
 {
-  if (r->eax == 0x7a567254U && r->ecx == 0) {
-    r->eax = 0x7a767274U;
-    r->ebx = (u32)hpt_scode_get_scode_id(vcpu);
-    r->ecx = 0U;
-    if (VCPU_g64(vcpu)) {
-      r->ecx |= (1U << 1);
+  if (r->eax == 0x7a567254U) {
+    u32 expected_ecx = 0;
+    if (VCPU_nested(vcpu)) {
+      expected_ecx = __VMX_HYPAPP_L2_VMCALL_MIN__;
     }
-    r->edx = 0U;
-    return APP_CPUID_SKIP;
+    if (r->ecx == expected_ecx) {
+      r->eax = 0x7a767274U;
+      r->ebx = (u32)hpt_scode_get_scode_id(vcpu);
+      r->ecx = 0U;
+      if (VCPU_g64(vcpu)) {
+        r->ecx |= (1U << 0);
+      }
+      if (hpt_emhf_get_l1l2_root_pm_pa(vcpu) != HPTW_EMHF_EPT12_INVALID) {
+        r->ecx |= (1U << 1);
+      }
+      r->edx = 0U;
+      return APP_CPUID_SKIP;
+    }
   }
   return APP_CPUID_CHAIN;
 }
