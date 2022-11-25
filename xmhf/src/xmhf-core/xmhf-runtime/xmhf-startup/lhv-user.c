@@ -136,10 +136,10 @@ uintptr_t my_pal(uintptr_t arg1, uintptr_t arg2) {
 	u32 eax=0x7a567254U, ebx, ecx=arg2, edx;
 	cpuid_raw(&eax, &ebx, &ecx, &edx);
 	if (eax != 0x7a767274U) {
-		return 0xdeadbee0U;
+		return 0xdeadbee1U;
 	}
 	if (ebx == 0xffffffffU) {
-		return 0xdeadbee1U;
+		return 0xdeadbee2U;
 	}
 	return arg1 + 0x1234abcd;
 }
@@ -168,6 +168,9 @@ __attribute__((__noreturn__)) void leave_user_mode(void) {
 	asm volatile ("movl $0xdeaddead, %eax; int $0x23;");
 	HALT_ON_ERRORCOND(0 && "system call returned");
 }
+
+static u32 pal_lock = 1;
+static volatile u32 pal_available = 3;
 
 static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 {
@@ -213,7 +216,19 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 							  (uintptr_t)&params, pal_entry));
 
 	/* Call PAL function */
-	HALT_ON_ERRORCOND(pal_func(0x11111111, arg) == 0x2345bcde);
+	{
+		uintptr_t ans = pal_func(0x11111111, arg);
+		if (ans != 0x2345bcde) {
+			printf("CPU(0x%02x): PAL returns incorrect result\n", vcpu->id);
+			printf("CPU(0x%02x): Expected: 0x%08lx\n", vcpu->id, 0x2345bcde);
+			printf("CPU(0x%02x): Actual:   0x%08lx\n", vcpu->id, ans);
+			spin_lock(&pal_lock);
+			printf("CPU(0x%02x): Locked pal_lock\n", vcpu->id);
+			while (1) {
+				xmhf_cpu_relax();
+			}
+		}
+	}
 
 	if (0 && "invalid access") {
 		printf("", *(u32*)pal_entry);
@@ -231,8 +246,6 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 
 void user_main(VCPU *vcpu, ulong_t arg)
 {
-	static u32 lock = 1;
-	static volatile u32 available = 3;
 	/* Test TrustVisor presence using CPUID */
 	{
 		u32 eax=0x7a567254U, ebx, ecx=arg, edx;
@@ -243,15 +256,15 @@ void user_main(VCPU *vcpu, ulong_t arg)
 	/* Acquire semaphore */
 	{
 		while (1) {
-			spin_lock(&lock);
-			if (available) {
-				available--;
-				spin_unlock(&lock);
+			spin_lock(&pal_lock);
+			if (pal_available) {
+				pal_available--;
+				spin_unlock(&pal_lock);
 				break;
 			} else {
 				u32 i;
-				spin_unlock(&lock);
-				for (i = 0; i < 4096 && !available; i++) {
+				spin_unlock(&pal_lock);
+				for (i = 0; i < 4096 && !pal_available; i++) {
 					asm volatile ("pause");		/* Save energy when waiting */
 				}
 			}
@@ -268,9 +281,9 @@ void user_main(VCPU *vcpu, ulong_t arg)
 		}
 	}
 	/* Release semaphore */
-	spin_lock(&lock);
-	available++;
-	spin_unlock(&lock);
+	spin_lock(&pal_lock);
+	pal_available++;
+	spin_unlock(&pal_lock);
 	leave_user_mode();
 }
 
