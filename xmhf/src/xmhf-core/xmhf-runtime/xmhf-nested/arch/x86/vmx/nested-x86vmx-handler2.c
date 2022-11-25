@@ -903,6 +903,12 @@ static u32 handle_vmexit20_cpuid(VCPU * vcpu, struct regs *r)
 	u32 app_ret_status = xmhf_app_handlecpuid(vcpu, r);
 	switch (app_ret_status) {
 	case APP_CPUID_SKIP:
+		/* Increase RIP since instruction is emulated */
+		{
+			ulong_t rip = __vmx_vmreadNW(VMCSENC_guest_RIP);
+			rip += __vmx_vmread32(VMCSENC_info_vmexit_instruction_length);
+			__vmx_vmwriteNW(VMCSENC_guest_RIP, rip);
+		}
 		return NESTED_VMEXIT_HANDLE_202;
 	case APP_CPUID_CHAIN:
 		return NESTED_VMEXIT_HANDLE_201;
