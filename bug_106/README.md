@@ -570,6 +570,80 @@ Tested XMHF VirtualBox Windows 10 PAE, looks good.
 When testing on Hyper-V, the results is not stable
 * (serial not recorded): TV "incorrect regular code EPT configuration!"
 * Serial `20221124000644`: CPU 3 (APIC 6) halts for unknow reason, blue screen
+* Serial `20221124115219`: similar to above, blue screen error code is
+  `SYSTEM_SERVICE_EXCEPTION`
+* Serial `20221124123051`: see EPT violation on code page due to 
+
+For BSOD, the CPUs halt probably because Windows disabled interrupts. More
+debugging shows that during BSOD, at first all APs halt. Then BSP also halts.
+Now we need to find out why BSOD happens.
+
+My guess for BSOD is that some VMEXIT201 causes the problem. However, it is
+hard to see which one.
+
+My guess for EPT violation is that some kind of antivirus program is scanning
+the memory. Notice EPT violation CR3 and scode register CR3 are not the same.
+Well, it is also possible that EPT calculation is wrong (e.g. due to 32-bit and
+64-bit integer) and the wrong page is removed from EPT01.
+
+Another observation is that I only see "scode register" and "scode unregister",
+but there is no call to scode (e.g. scode marshall) in between. Is there a
+problem with the EXE?
+* Example: run `.\test_args32L2.exe 7 1 1`, see only 3 pairs of reg/unreg.
+
+Serial `20221124132907`. Ran `.\test_args32L2.exe 7 1 1` 4 times and
+`.\test_args32L2.exe 7 7 7` 2 times, all good. Then run
+`.\test_args32L2.exe 7 70 7`, see EPT write violation. This time is CR3 the
+same as scode register.
+
+Serial `20221124141818`. Ran `.\test_args32L2.exe 7 7 7` 3 times and see the
+error during the third run. This time is CR3 different from scode register. Can
+also see that the RIP 0x7ff8d7ccf8dd is obviously not 32-bit. This means the
+antivirus theory is more likely.
+
+When Hyper-V is disabled, running XMHF Windows looks fine
+* Running pal demo for a long time does not cause problems
+* Scode is really called because see `scode_marshall()` is called
+
+Confirmed that when running XMHF Debian QEMU Debian PAL, `scode_marshall()` is
+called as expected.
+
+When running on Windows (no Hyper-V), modify pal demo to sleep infinitely
+instead of calling `scode_unregister()`. Then after a long time, see EPT
+violation. Serial `20221124150731`.
+
+The current guess is:
+* Windows has antivirus that scans the memory, so this needs to be addressed
+  in the future.
+* However, the scan is not that frequent. So maybe the problem with Hyper-V
+  happens as pal demo crashes earlier and postmortem program is scanning
+  something.
+
+Ideas
+* Monitor L1 use of invept, also L0 (related to why scode not entered)
+* Print process CR3 entries in hyper-v, also EPT (related to why invalid access)
+* Add code to pal demo and trustvisor to detect scode presence
+* For debugging, do not remove the page from regular EPT. Just add to pal EPT
+* <del>Test pal demo, add long sleep time</del> (addressed: Windows 10 will
+  break TrustVisor assumption)
+* Randomly disable Windows security features (related to antivirus theory)
+* Dump bluescreen information using BlueScreenView (3rd party freeware)
+* Dump process memory map using VMMap (provided by Microsoft software)
+* <del>Test Windows without hyper-v</del> (tested, mostly good)
+
+At this point, debugging changes are in `l6.diff`. Switching to `xmhf64` branch
+to add TrustVisor detection via CPUID.
+
+### Update PAL demo
+
+TODO: add code to pal demo and trustvisor to detect scode presence
+TODO: Monitor L1 use of invept, also L0
+TODO: Print process CR3 entries in hyper-v, also EPT
+TODO: for debugging, do not remove the page from regular EPT. Just add to pal EPT
+TODO: randomly disable Windows security features
+TODO: let TV display process memory space
+TODO: Install BlueScreenView?
+TODO: Install VMMap?
 
 TODO
 TODO: test on Windows Hyper-V
