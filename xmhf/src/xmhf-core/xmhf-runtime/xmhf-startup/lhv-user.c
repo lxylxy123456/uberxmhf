@@ -246,13 +246,6 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 
 void user_main(VCPU *vcpu, ulong_t arg)
 {
-	/* Test TrustVisor presence using CPUID */
-	{
-		u32 eax=0x7a567254U, ebx, ecx=arg, edx;
-		cpuid_raw(&eax, &ebx, &ecx, &edx);
-		HALT_ON_ERRORCOND(eax == 0x7a767274U && "TrustVisor not present 1");
-		HALT_ON_ERRORCOND(ebx == 0xffffffffU && "TrustVisor not present 2");
-	}
 	/* Acquire semaphore */
 	{
 		while (1) {
@@ -275,6 +268,11 @@ void user_main(VCPU *vcpu, ulong_t arg)
 		u32 eax, ebx, ecx, edx;
 		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
 		if (eax == 0x46484d58U) {
+			/* Test TrustVisor presence using CPUID */
+			u32 eax=0x7a567254U, ebx, ecx=arg, edx;
+			cpuid_raw(&eax, &ebx, &ecx, &edx);
+			HALT_ON_ERRORCOND(eax == 0x7a767274U && "TrustVisor not present 1");
+			HALT_ON_ERRORCOND(ebx == 0xffffffffU && "TrustVisor not present 2");
 			user_main_pal_demo(vcpu, arg);
 		} else {
 			printf("CPU(0x%02x): can enter user mode 0x%x\n", vcpu->id, arg);
