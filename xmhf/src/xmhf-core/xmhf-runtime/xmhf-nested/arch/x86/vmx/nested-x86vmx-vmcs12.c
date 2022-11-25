@@ -995,20 +995,21 @@ static void _rewalk_ept01_control_EPT_pointer(ARG10 * arg)
 			HALT_ON_ERRORCOND(stat == APP_SUCCESS);
 		}
 
-		__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
 #ifdef __DEBUG_QEMU__
 		_workaround_kvm_216212(arg, cache_line);
 #endif							/* !__DEBUG_QEMU__ */
 	} else {
 		/*
-		 * Nothing to be done here. We treat PDPTEs are cached and do not
-		 * update them. The nested guest should invalidate TLB (e.g. mov CR0 /
-		 * CR3) to update PDPTEs.
+		 * We treat PDPTEs as cached and do not update them. The nested guest
+		 * should invalidate TLB (e.g. mov CR0 / CR3) to update PDPTEs.
 		 *
-		 * Note that hyapp like TrustVisor may modify control_EPT_pointer using
-		 * VMWRITE. So arg->vcpu->vmcs.control_EPT_pointer is no longer valid.
+		 * We need to update EPTP becase hyapp like TrustVisor may modify
+		 * EPTP02. TrustVisor performs at the first call to scode_register() to
+		 * set EPT of all CPUs to be the same.
 		 */
+		ept02 = arg->vcpu->vmcs.control_EPT_pointer;
 	}
+	__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
 }
 
 /*
