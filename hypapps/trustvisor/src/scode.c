@@ -444,18 +444,22 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
       {
         size_t i;
         for( i=0 ; i<g_midtable_numentries ; i++ )  {
-          eu_trace("cpu %d setting root pm from %p to %p",
-                   i,
-                   hpt_emhf_get_l1_root_pm((VCPU *)(g_midtable[i].vcpu_vaddr_ptr)),
-                   g_reg_npmo_l1_root.pm);
-          hpt_emhf_set_l1_root_pm((VCPU *)(g_midtable[i].vcpu_vaddr_ptr),
-                                  g_reg_npmo_l1_root.pm);
+          VCPU *other_vcpu = (VCPU *)(g_midtable[i].vcpu_vaddr_ptr);
+          hpt_pm_t old = hpt_emhf_get_l1_root_pm(other_vcpu);
+          hpt_pm_t new = g_reg_npmo_l1_root.pm;
+          void *expected = &g_vmx_ept_pml4_table_buffers[i * PAGE_SIZE_4K];
+          HALT_ON_ERRORCOND((void *)old == expected);
+          eu_trace("cpu %d setting root pm from %p to %p", i, old, new);
+          hpt_emhf_set_l1_root_pm(other_vcpu, new);
         }
       }
 #endif
       g_did_change_root_mappings = true;
     }
   }
+
+  // TODO: Check used during debug. Remove when finished.
+  HALT_ON_ERRORCOND(hpt_emhf_get_l1_root_pm(vcpu) == g_reg_npmo_l1_root.pm);
 
   EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu( &hptw_reg_host_ctx, vcpu) );
   EU_CHKN( hptw_emhf_checked_guest_ctx_init_of_vcpu( &reg_guest_walk_ctx, vcpu));
