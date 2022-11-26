@@ -636,7 +636,92 @@ to add TrustVisor detection via CPUID.
 
 ### Update PAL demo
 
-TODO: add code to pal demo and trustvisor to detect scode presence
+In `xmhf64 5331f23e2..d424154e1` and `xmhf64-nest-dev a7426131c..17fbc5260`,
+update TrustVisor to respond to CPUID. When EAX=0x7a567254 (TrVz), and (if not
+nested) ECX=0 or (if nested) ECX=vmcall offset, will activate
+* EAX=0x7a767274 (TRVZ)
+* EBX=`UINT_MAX` if not in PAL, or `whitelist_entry.id` if in PAL.
+* ECX[0]=1 if 64-bit guest
+* ECX[1]=1 if EPT12 in use.
+
+The above commits also updated PAL demo to use CPUID. In `lhv-dev 88180d177`,
+also update LHV to test CPUID.
+
+The CPUID turns out to be effective.
+* Dell, XMHF, Debian, KVM (smp=4), Debian, `./test_args32L2 7 700 7`: after 858
+  tests, see PAL demo return 0xdead0002 (should be in scode, but not), and
+  after some time see XMHF assertion error with
+  `Fatal: Halting! Condition '!(hpt_err)' failed, line 263, file pt.c`
+* Thinkpad, Fedora, KVM (smp=4), XMHF, LHV (opt=0x840): PAL demo returns
+  incorrect result, likely similar to above.
+* Thinkpad, Fedora, KVM (smp=3), XMHF, LHV (opt=0x840): confirmed that
+  0xdeadbee2 is returned.
+* Thinkpad, Fedora, KVM (smp=3), XMHF, LHV (opt=0x840): sometimes also see
+  `Condition '__vmx_vmread64(VMCSENC_control_EPT_pointer) == ept02' failed`
+  in vmcs12.c at CPU 0. Using GDB see `ept = 0x1021bda8` or similar. Strange
+  because EPTP should not end with 0xda8.
+
+The meaning of the above discoveries: these are likely problems encountered by
+Hyper-V. We can now work on open source software. Also, we can work on
+lightweight software. Also, we can work on GDB.
+
+Modifying LHV arguments:
+* `lhv-opt 0x40`, KVM smp=4: can see `ept = 0x1021bda8` bug
+* `lhv-opt 0x240`, KVM smp=4: cannot reproduce the bug
+
+Then after some testing, in KVM smp=4, see both CPU 1 and CPU 2 halt on the EPT
+check (`val = __vmx_vmread64(VMCSENC_control_EPT_pointer)`:
+```
+(gdb) p/x ept02
+$7 = 0x1426901e
+(gdb) p/x val
+$8 = 0x1426801e
+(gdb) t 2
+[Switching to thread 2 (Thread 1.2)]
+#0  0x000000001021df86 in _vmcs02_to_vmcs12_control_EPT_pointer (arg=0x28f90d98 <g_cpustacks+130456>) at arch/x86/vmx/nested-x86vmx-vmcs12.c:975
+975		HALT_ON_ERRORCOND(val == ept02);
+(gdb) p/x ept02
+$9 = 0x1426901e
+(gdb) p/x val
+$10 = 0x1426701e
+(gdb) 
+```
+
+The bug is clear now. In `scode.c`, (see `g_did_change_root_mappings`) EPTs are
+changed during the first time PAL is called. This mapping change will only
+apply to `vcpu[id].vmcs.control_EPT_pointer` (i.e. VMCS01), but will not apply
+to VMCS02. So if the quiesced CPU is in L2, it will trigger the assertion
+error.
+
+This is actually a regression caused by `xmhf64-nest-dev 582c2c1fb`.
+Interestingly, I added a note in the commit saying TrustVisor may break it, but
+then I forgot. Fixed in `xmhf64-nest-dev 6f2c0c862`.
+
+### PAL not executed bug
+
+Now we investigate why TrustVisor is not executed.
+* When LHV opt=0x40, KVM smp=8, this problem is reproducible. So running
+  TrustVisor in L1 also produces this bug.
+
+Observation: this bug looks more reproducible when the XMHF boot sequence is
+slow.
+
+By debugging with KVM and GDB, see:
+* CPU 6 does not enter PAL as expected
+* CPU 6: `vcpu->vmcs.control_EPT_pointer = 0x1426501e`
+  `<g_vmx_ept_pml4_table_buffers+30>`
+	* PAL is marked as present in this EPT
+* other: `vcpu->vmcs.control_EPT_pointer = 0x1425f01e`
+  `<g_vmx_ept_pml4_table_buffers+6*4096+30>`
+	* PAL is marked as not present in this EPT
+
+This problem becomes more apparent by adding
+`HALT_ON_ERRORCOND(hpt_emhf_get_l1_root_pm(vcpu) == g_reg_npmo_l1_root.pm);`
+in `scode_register()` after changing EPTs to be the same. The assertion will
+fail. See `xmhf64-nest-dev e4ee57cf1`.
+
+TODO: check whether this is a regression
+
 TODO: Monitor L1 use of invept, also L0
 TODO: Print process CR3 entries in hyper-v, also EPT
 TODO: for debugging, do not remove the page from regular EPT. Just add to pal EPT
