@@ -236,7 +236,7 @@ CR3 from scratch. For example whitelist spec looks like:
 * param: va=0xcccc2000, pa=0x0aaa5000
 * stack: va=0xffff1000, pa=0x0aaa7000
 
-#### TrustVisor Vulnerability
+#### TrustVisor Vulnerability 1
 
 Found a possible vulnerability in TrustVisor's implementation. In `pt.c`
 function `scode_lend_section()`, permission checking is done on
@@ -720,7 +720,55 @@ This problem becomes more apparent by adding
 in `scode_register()` after changing EPTs to be the same. The assertion will
 fail. See `xmhf64-nest-dev e4ee57cf1`.
 
-TODO: check whether this is a regression
+#### TrustVisor Vulnerability 2
+
+By debugging with GDB and QEMU's savevm and loadvm, the cause of this bug is
+known:
+* The intercept handler process is
+	1. (Host RIP)
+	2. `xmhf_baseplatform_arch_x86vmx_getVMCS()`
+	3. Handle intercept
+	4. `xmhf_baseplatform_arch_x86vmx_putVMCS()`
+	5. VMRESUME
+* Suppose CPU 0 is initiating quiesce (first call to `scode_register()`). CPU 1
+  is between step 1 and 2.
+* CPU 0 sets CPU 1's `vcpu->vmcs.control_EPT_pointer = common EPTP`
+* CPU 1 at step 2 will set `vcpu->vmcs.control_EPT_pointer = CPU 1's EPTP`
+* From now on EPTP of CPU 1 is wrong
+
+During a real debug session, by dumping stack, can see CPU 1 is at
+`<xmhf_baseplatform_arch_x86vmx_getVMCS+830>` (for VMCS field 0x2012) or
+`<xmhf_baseplatform_arch_x86vmx_getVMCS+959>` (for VMCS field 0x2018). EPTP is
+VMCS field encoding 0x201a. This result supports our hypothesis.
+
+In theory, this race condition happens when nested virtualization is not
+enabled. Not sure why this problem has not been catched earlier.
+
+This should be considered another vulnerability of TrustVisor. An attacker can
+use this race condition to make CPU 0 execute PAL and CPU 1 access PAL using
+red os.
+
+Future work: implement this exploit
+
+Previous ideas
+* Manually break at first occurrence of quiesce, then watch EPTP values
+	* Exactly what we did above
+* Also consider use savevm and loadvm
+	* Exactly what we did above
+* Check whether this is a regression
+	* No
+
+To fix this bug, there are a few ways
+* Update VCPU to add a flag like `vcpu->epep01_changed`. After calling 
+  `xmhf_baseplatform_arch_x86vmx_{get,put}VMCS()`, check this flag.
+* Change the entries of the highest level to be the same (i.e. 512 PML4E's, but
+  keep EPTPs different. This is a hacky workaround.
+* Disallow changing EPTP01. Instead when changing each entry update EPT of all
+  CPUs. This is more flexible and may benefit when implementing better shadow
+  page table. This also removes the assumption of same MTRR across all CPUs.
+
+TODO: document the fixes
+TODO: fix
 
 TODO: Monitor L1 use of invept, also L0
 TODO: Print process CR3 entries in hyper-v, also EPT
@@ -732,5 +780,6 @@ TODO: Install VMMap?
 
 TODO
 TODO: test on Windows Hyper-V
-TODO: `#### TrustVisor Vulnerability` above
+TODO: `#### TrustVisor Vulnerability 1` above
+TODO: `#### TrustVisor Vulnerability 2` above
 
