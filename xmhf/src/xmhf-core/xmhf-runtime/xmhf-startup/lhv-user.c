@@ -184,7 +184,7 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 		}
 	};
 	struct tv_pal_params params = {
-		num_params: 1,
+		num_params: 2,
 		params: {
 			{ TV_PAL_PM_INTEGER, 4 }, { TV_PAL_PM_INTEGER, 4 }
 		}
