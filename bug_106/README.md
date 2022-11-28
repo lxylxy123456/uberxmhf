@@ -767,8 +767,74 @@ To fix this bug, there are a few ways
   CPUs. This is more flexible and may benefit when implementing better shadow
   page table. This also removes the assumption of same MTRR across all CPUs.
 
-TODO: document the fixes
-TODO: fix
+After thinking more on this bug, I realized that the race condition is more
+pervalent. Imagine a new feature for TrustVisor that does the following:
+* When CPU 0 performs hyper call, steal physical page 0x12345000 from red EPT01
+  and write secret info to this page.
+
+Guest's access to memory can be considered atomic. However, when walking EPT in
+software it is not. Race condition happens when
+* CPU 1 initiates access to 0x12345000 (currently contains 0s), using guestmem
+  interface
+* guestmem almost completes walking EPT01, knows gpa 0x12345000 is spa
+  0x12345000. Just before accessing spa 0x12345000
+* CPU 0 performs hyper call, quiesce all other CPUs
+* CPU 0 removes 0x12345000 from EPT01, write secret to spa 0x12345000
+* CPU 0 ends quiesce
+* CPU 1 accesses spa 0x12345000, gets the secret
+
+This scenario can also happen in TrustVisor in theory. CPU 0 needs to end
+quiesce, enter guest, enter scode (PAL), and write to the address. During this
+time CPU 1 only executes a few address and does not reach accessing spa
+0x12345000 yet.
+
+To fix this bug, options are:
+* Disallow quiescing during "critical section", meaning when walking EPT.
+	* Con: other CPUs will be delayed while waiting for quiesce
+* If EPT is changed, set a flag to require re-walking EPT.
+
+Implemented changing PML4E's in `xmhf64 a6bb99deb`.
+
+Implemented "set a flag" in `xmhf64 2faecda78`.
+
+Fixed a few bugs in `xmhf64 2faecda78..948445fcd`.
+
+Merged to development code in `xmhf64-nest-dev 09f5d0ed2`.
+
+In `xmhf64-nest-dev 09f5d0ed2..466e80ea1`, fixed a bug and implemented
+`tv_app_handle_ept02_change()`. However, noticed design issue in EPT interface.
+See below.
+
+### Need for redesigning EPT changing code
+
+We should redesign how hypapp is able to change EPT and the discernment of L1
+and L2.
+
+The trigger of this analysis is that `_rewalk_ept01_control_EPT_pointer()`
+requires complicated call to TrustVisor during scode. TrustVisor will save red
+EPT02 and red EPT12, and replace them with green EPT02 and green EPT12=invalid.
+When rewalking, current implementation need to:
+* Call TrustVisor to get saved red EPT12
+* Compute EPT02 cache line
+* Call TrustVisor to store computed red EPT02 and get green EPT02
+* Store green EPT02 to VMCS
+
+This process is complicated and not flexible. I think the problem is that EPT02
+is cache and should not be managed by TrustVisor. Instead, TrustVisor should
+modify EPT01, and XMHF needs to compute EPT02 according to the modification.
+For TrustVisor, the logic is easy since the only combinations are:
+* EPT01 = red, EPT12 = invalid (red L1)
+* EPT01 = red, EPT12 = red guest (red L2)
+* EPT01 = pal, EPT12 = invalid (green L1)
+
+The logic is generally easy when EPT12 = invalid. At that time EPT02 = EPT01.
+
+Future work
+* Review TrustVisor use of INVEPT. There are likely unnecessary calls
+* Try to support INVEPT of specific EPT01, not all EPTs
+* For EPT02 cache, tag with EPT01 and EPT12 (currently only EPT12)
+
+TODO: check whether bugs are fixed
 
 TODO: Monitor L1 use of invept, also L0
 TODO: Print process CR3 entries in hyper-v, also EPT
@@ -780,6 +846,7 @@ TODO: Install VMMap?
 
 TODO
 TODO: test on Windows Hyper-V
+TODO: redesign EPT iface, see `### Need for redesigning EPT changing code`
 TODO: `#### TrustVisor Vulnerability 1` above
 TODO: `#### TrustVisor Vulnerability 2` above
 
