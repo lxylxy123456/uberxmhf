@@ -161,6 +161,8 @@ static inline hpt_pa_t hpt_emhf_get_l1_root_pm_pa(VCPU *vcpu)
 static inline void hpt_emhf_set_l1_root_pm_pa(VCPU *vcpu, hpt_pa_t root_pa)
 {
   hpt_type_t t = hpt_emhf_get_hpt_type(vcpu);
+  /* Changing EPT01 is not supported for now */
+  HALT_ON_ERRORCOND(0 && "disabled");
   if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
     xmhf_memprot_arch_x86vmx_set_EPTP01( vcpu, hpt_eptp_set_address(t,
                                                                     xmhf_memprot_arch_x86vmx_get_EPTP01(vcpu),
@@ -179,6 +181,8 @@ static inline hpt_pm_t hpt_emhf_get_l1_root_pm(VCPU *vcpu)
 
 static inline void hpt_emhf_set_l1_root_pm(VCPU *vcpu, hpt_pm_t root)
 {
+  /* Changing EPT01 is not supported for now */
+  HALT_ON_ERRORCOND(0 && "disabled");
   hpt_emhf_set_l1_root_pm_pa( vcpu, hva2spa(root));
 }
 

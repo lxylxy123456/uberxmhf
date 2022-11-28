@@ -691,6 +691,11 @@ void xmhf_memprot_arch_x86vmx_set_EPTP(VCPU *vcpu, u64 eptp)
 u64 xmhf_memprot_arch_x86vmx_get_EPTP01(VCPU *vcpu)
 {
   HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
+  /*
+   * Changing EPT01 is not supported for now. Note that changing another CPU's
+   * EPT01 can easily cause race conditions.
+   */
+  HALT_ON_ERRORCOND(0 && "disabled");
   return vcpu->vmcs.control_EPT_pointer;
 }
 
