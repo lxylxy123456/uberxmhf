@@ -803,7 +803,7 @@ u32 tv_app_handle_ept02_change(VCPU *vcpu, gpa_t ept12, spa_t *ept02)
   (void)ept12;
   (void)ept02;
   if (hpt_scode_is_scode(vcpu)) {
-    HALT_ON_ERRORCOND(0 && "Not implemented");
+    hpt_scode_handle_root_pa_change(vcpu, ept12, ept02);
   }
   return APP_SUCCESS;
 }

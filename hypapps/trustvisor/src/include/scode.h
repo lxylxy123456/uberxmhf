@@ -172,6 +172,7 @@ u32 hpt_scode_switch_regular(VCPU * vcpu);
 u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r);
 bool hpt_scode_is_scode(VCPU * vcpu);
 int hpt_scode_get_scode_id(VCPU * vcpu);
+void hpt_scode_handle_root_pa_change(VCPU * vcpu, gpa_t ept12, spa_t *ept02);
 u32 scode_share(VCPU * vcpu, u32 scode_entry, u32 addr, u32 len);
 u32 scode_share_ranges(VCPU * vcpu, u32 scode_entry, u32 gva_base[], u32 gva_len[], u32 count);
 

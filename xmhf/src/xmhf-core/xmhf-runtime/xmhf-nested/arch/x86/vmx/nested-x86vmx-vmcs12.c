@@ -977,6 +977,8 @@ static void _rewalk_ept01_control_EPT_pointer(ARG10 * arg)
 {
 	spa_t ept02;
 	gpa_t ept12 = arg->vmcs12_info->guest_ept_root;
+	// TODO: should invoke hypapp (e.g. TrustVisor) to get the saved value of
+	// vmcs12_info->guest_ept_root.
 	if (ept12 != GUEST_EPT_ROOT_INVALID) {
 		ept02_cache_line_t *cache_line;
 		bool cache_hit;
