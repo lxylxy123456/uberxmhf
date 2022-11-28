@@ -976,28 +976,24 @@ static void _vmcs02_to_vmcs12_control_EPT_pointer(ARG01 * arg)
 static void _rewalk_ept01_control_EPT_pointer(ARG10 * arg)
 {
 	spa_t ept02;
-	if (arg->vmcs12_info->guest_ept_root != GUEST_EPT_ROOT_INVALID) {
+	gpa_t ept12 = arg->vmcs12_info->guest_ept_root;
+	if (ept12 != GUEST_EPT_ROOT_INVALID) {
 		ept02_cache_line_t *cache_line;
 		bool cache_hit;
-		u64 eptp12 = arg->vmcs12->control_EPT_pointer;
-		gpa_t ept12;
-		HALT_ON_ERRORCOND(xmhf_nested_arch_x86vmx_check_ept_lower_bits
-						  (eptp12, &ept12));
-		ept02 =
-			xmhf_nested_arch_x86vmx_get_ept02(arg->vcpu, ept12, &cache_hit,
-											  &cache_line);
-		HALT_ON_ERRORCOND(!cache_hit);
-		arg->vmcs12_info->guest_ept_cache_line = cache_line;
 
-		/* Notify hypapp about change in EPTP02 (hypapp may change ept02) */
+		// TODO: optional check, can remove
 		{
-			u32 stat = xmhf_app_handle_ept02_change(arg->vcpu, eptp12, &ept02);
-			HALT_ON_ERRORCOND(stat == APP_SUCCESS);
+			u64 eptp12 = arg->vmcs12->control_EPT_pointer;
+			gpa_t ept12_alt;
+			HALT_ON_ERRORCOND(xmhf_nested_arch_x86vmx_check_ept_lower_bits
+							  (eptp12, &ept12_alt));
+			HALT_ON_ERRORCOND(ept12_alt == ept12);
 		}
 
-#ifdef __DEBUG_QEMU__
-		_workaround_kvm_216212(arg, cache_line);
-#endif							/* !__DEBUG_QEMU__ */
+		ept02 = xmhf_nested_arch_x86vmx_get_ept02(arg->vcpu, ept12, &cache_hit,
+												  &cache_line);
+		HALT_ON_ERRORCOND(!cache_hit);
+		arg->vmcs12_info->guest_ept_cache_line = cache_line;
 	} else {
 		/*
 		 * We treat PDPTEs as cached and do not update them. The nested guest
@@ -1009,7 +1005,22 @@ static void _rewalk_ept01_control_EPT_pointer(ARG10 * arg)
 		 */
 		ept02 = arg->vcpu->vmcs.control_EPT_pointer;
 	}
+
+	/* Notify hypapp about change in EPTP02 (hypapp may change ept02) */
+	{
+		gpa_t eptp12 = arg->vmcs12->control_EPT_pointer;
+		u32 stat = xmhf_app_handle_ept02_change(arg->vcpu, eptp12, &ept02);
+		HALT_ON_ERRORCOND(stat == APP_SUCCESS);
+	}
+	/* Write updated EPT02 to VMCS */
 	__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
+
+#ifdef __DEBUG_QEMU__
+	/* For QEMU, workaround CR3 PDPTE problem */
+	if (ept12 != GUEST_EPT_ROOT_INVALID) {
+		_workaround_kvm_216212(arg, arg->vmcs12_info->guest_ept_cache_line);
+	}
+#endif							/* !__DEBUG_QEMU__ */
 }
 
 /*
