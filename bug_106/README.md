@@ -834,15 +834,92 @@ Future work
 * Try to support INVEPT of specific EPT01, not all EPTs
 * For EPT02 cache, tag with EPT01 and EPT12 (currently only EPT12)
 
-TODO: check whether bugs are fixed
+### Hyper-V BSOD
 
-TODO: Monitor L1 use of invept, also L0
-TODO: Print process CR3 entries in hyper-v, also EPT
+At `xmhf64-nest-dev cd31b87f1`, when running XMHF, Hyper-V, Windows 10, L2 PAL
+demo, see blue screen of death. When registering PAL for a long time, still see
+EPT violation (likely antivirus)
+
+Build XMHF with
+```
+./build.sh amd64 --mem 0x230000000 fast circleci O3 --ept-num 3 --ept-pool 1024 --event-logger && gr
+```
+
+BSOD reason code:
+* `SYSTEM_SERVICE_EXCEPTION` (previous run, 3 times)
+* `KERNEL_MODE_HEAP_CORRUPTION`
+* `CRITICAL_PROCESS_DIED`
+* `SYSTEM_SERVICE_EXCEPTION`
+* `HYPERVISOR_ERROR`, serial `20221128124908`
+
+BSOD address using BlueScreenView: `ntoskrnl.exe+3f71b0`.
+
+VMMap also looks useful when dealing with the antivirus problem, but not useful
+for now.
+
+Looks like running `./test_args32L2 1 * *` and `./test_args32L2 2 * *`.
+However, running `./test_args32L2 4 * *` soon triggers the problem. Behavior of
+`test_args64L2` is similar.
+
+After removing call to PAL in `test_args32L2`, the blue screen is still
+reproducible. So we guess that the bluescreen happens when PAL register /
+unregister happens frequently.
+
+From current observed behavior, looks like registering / unregistering PALs
+causes memory corruption in Windows. Then as a result Windows blue screens. I
+think actions to EPTs are still the most suspicious.
+
+TODO: What problem will happen if running pal_demo in Hyper-V virtual machine (e.g. Debian)
+TODO: register scode slowly (1 second / vmcall), see whether bug still reproducible
+
+### VirtualBox SMP problem
+
+Running virtualbox with one CPU works well. However, when I set it to 4 CPUs,
+after Debian 11 x64 in VirtualBox in Debian in XMHF boots, see XMHF assertion
+error:
+```
+HPT[3]:xmhf/src/libbaremetal/libxmhfutil/hptw.c:hptw_checked_get_pmeo:398: EU_VERIFY( hpt_pmeo_is_page(pmeo)) failed
+```
+
+This problem is not reproducible in `xmhf64-nest ef6432ebe`. So this is a
+regression.
+
+Afterwards: can no longer reproduce this problem in `xmhf64-nest-dev cd31b87f1`.
+This is strange. Since cannot reproduce, go ahead and test others first.
+
+Ideas:
+* Since KVM it too slow, get a stack trace using ud2
+* Try to reproduce in KVM?
+	* However, "KVM, Virtualbox" is already slow / not stable
+
+While experimenting on Hyper-V, also see `EU_VERIFY( hpt_pmeo_is_page(pmeo))`
+exception. Stack dump is in `20221128234304`. It is hard to trace stack because
+compiled in 64-bit and O3 optimization. Guessed call stack is:
+```
+xmhf_parteventhub_arch_x86vmx_entry
+	?: xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception
+	?: _update_nested_nmi
+	xmhf_parteventhub_arch_x86vmx_intercept_handler
+		xmhf_nested_arch_x86vmx_handle_vmexit
+			handle_vmexit20_ept_violation
+				xmhf_nested_arch_x86vmx_handle_ept02_exit
+					xmhf_nested_arch_x86vmx_walk_ept02
+						hptw_checked_get_pmeo (first call, on EPT12)
+							(hptw_checked_copy_from_va)
+							(hpt_pmeo_va_to_pa)
+							(hptw_checked_access_va)
+							(hpt_pmeo_va_to_pa)
+							abort
+```
+
+Looks like it is hard (low probability) to reproduce this bug. So for now just
+add more print debugging before `abort()` and work on the other bug.
+
+TODO: add more print debugging if VERIFY will return false in `hptw_checked_get_pmeo`
+
 TODO: for debugging, do not remove the page from regular EPT. Just add to pal EPT
 TODO: randomly disable Windows security features
 TODO: let TV display process memory space
-TODO: Install BlueScreenView?
-TODO: Install VMMap?
 
 TODO
 TODO: test on Windows Hyper-V
