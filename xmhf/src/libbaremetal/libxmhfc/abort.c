@@ -50,6 +50,7 @@
 
 __attribute__((__noreturn__)) void abort(void)
 {
+  asm volatile ("ud2");
   emhfc_abort();
   while(1);
 }
