@@ -211,9 +211,9 @@ static u64 do_TV_HC_TEST(VCPU *vcpu, struct regs *r)
 {
   (void)r;
 #ifdef __XMHF_AMD64__
-  eu_trace("CPU(0x%02x): test hypercall, rcx=0x%016x", vcpu->id, r->rcx);
+  eu_warn("CPU(0x%02x): test hypercall, rcx=0x%016x", vcpu->id, r->rcx);
 #else /* !__XMHF_AMD64__ */
-  eu_trace("CPU(0x%02x): test hypercall, ecx=0x%08x", vcpu->id, r->ecx);
+  eu_warn("CPU(0x%02x): test hypercall, ecx=0x%08x", vcpu->id, r->ecx);
 #endif /* __XMHF_AMD64__ */
   return 0;
 }
@@ -727,6 +727,29 @@ void tv_app_handleshutdown(VCPU *vcpu, struct regs __attribute__((unused)) *r)
   eu_trace("CPU(0x%02x): Shutdown intercept!", vcpu->id);
   //g_libemhf->xmhf_reboot(vcpu);
   xmhf_baseplatform_reboot(vcpu);
+}
+
+/*
+ * Activated when EAX=0x7a567254 (TrVz) and ECX=0.
+ * Set EAX=0x7a767274 (TRVZ).
+ * Set EBX=UINT_MAX if not in PAL, or whitelist_entry.id if in PAL.
+ * Set ECX[0]=0 if calling process is 32-bit, 1 if 64-bit.
+ * Set ECX[1-31]=undefined.
+ * Set EDX=undefined.
+ */
+u32 tv_app_handlecpuid(VCPU *vcpu, struct regs *r)
+{
+  if (r->eax == 0x7a567254U && r->ecx == 0) {
+    r->eax = 0x7a767274U;
+    r->ebx = (u32)hpt_scode_get_scode_id(vcpu);
+    r->ecx = 0U;
+    if (VCPU_g64(vcpu)) {
+      r->ecx |= (1U << 0);
+    }
+    r->edx = 0U;
+    return APP_CPUID_SKIP;
+  }
+  return APP_CPUID_CHAIN;
 }
 
 /* Local Variables: */

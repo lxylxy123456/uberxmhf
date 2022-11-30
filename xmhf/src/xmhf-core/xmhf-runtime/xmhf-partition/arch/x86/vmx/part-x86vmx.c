@@ -61,6 +61,10 @@ extern u64 x_gdt_start[MAX_VCPU_ENTRIES][XMHF_GDT_SIZE], x_idt_start[]; //runtim
 // * xmhf_partition_arch_x86vmx_get_xmhf_msr()
 // * xmhf_parteventhub_arch_x86vmx_handle_wrmsr()
 // * xmhf_parteventhub_arch_x86vmx_handle_rdmsr()
+#ifdef __NESTED_VIRTUALIZATION__
+// * xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02()
+// * xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12()
+#endif /* __NESTED_VIRTUALIZATION__ */
 static const u32 vmx_msr_area_msrs[] = {
 	MSR_EFER,
 	MSR_IA32_PAT,
@@ -594,6 +598,7 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	vcpu->vmx_mhv_nmi_handler_arg = SMPG_VMX_NMI_INJECT;
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_block = false;
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = 0;
+	vcpu->vmx_ept_changed = false;
 
 	//trap access to CR0 fixed 1-bits
 	// Make sure to change vmx_handle_intercept_cr0access_ug() if changing
@@ -616,6 +621,10 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	// control_CR4_mask.
 	vcpu->vmcs.control_CR4_mask = vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED0_MSR];
 	vcpu->vmcs.control_CR4_shadow = 0;
+
+#ifdef __NESTED_VIRTUALIZATION__
+	xmhf_nested_arch_x86vmx_vcpu_init(vcpu);
+#endif /* !__NESTED_VIRTUALIZATION__ */
 
 	//flush guest TLB to start with
 	xmhf_memprot_arch_x86vmx_flushmappings_localtlb(vcpu);
@@ -741,6 +750,12 @@ void __vmx_vmentry_fail_callback(ulong_t is_resume, ulong_t valid)
 				vcpu->id, inst_name);
 		break;
 	case 1:
+#ifdef __NESTED_VIRTUALIZATION__
+		if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+			xmhf_nested_arch_x86vmx_handle_vmentry_fail(vcpu, is_resume);
+			HALT_ON_ERRORCOND(0 && "Should not return");
+		}
+#endif /* !__NESTED_VIRTUALIZATION__ */
 		{
 			unsigned long code;
 			HALT_ON_ERRORCOND(__vmx_vmread(VMCSENC_info_vminstr_error, &code));

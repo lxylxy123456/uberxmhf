@@ -56,8 +56,11 @@
 #include <hpt_emhf.h>
 
 typedef struct {
+	/* guest_ctx must be the first member, see guestmem_guest_ctx_pa2ptr() */
 	hptw_ctx_t guest_ctx;
 	hptw_ctx_t host_ctx;
+	/* Pointer to vcpu->vmx_ept_changed */
+	volatile bool *vmx_ept_changed;
 } guestmem_hptw_ctx_pair_t;
 
 //XXX: FIX this
@@ -93,6 +96,13 @@ extern u32 wrmsr_safe(u32 index, u64 value);
 //----------------------------------------------------------------------
 //x86vmx SUBARCH. INTERFACES
 //----------------------------------------------------------------------
+#ifdef __AMD64__
+uintptr_t * _vmx_decode_reg(u32 gpr, VCPU *vcpu, struct regs *r);
+#elif defined(__I386__)
+uintptr_t * _vmx_decode_reg(u32 gpr, VCPU *vcpu, struct regs *r);
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
 void _vmx_inject_exception(VCPU *vcpu, u32 vector, u32 has_ec, u32 errcode);
 u64 _vmx_get_guest_efer(VCPU *vcpu);
 u32 xmhf_parteventhub_arch_x86vmx_handle_wrmsr(VCPU *vcpu, u32 index, u64 value);
