@@ -1291,7 +1291,6 @@ void mp_cstartup (VCPU *vcpu){
             printf("AP(0x%02x): Microcode clear.\n", vcpu->id);
         }
 
-#ifdef DUPLICATE_INIT_SIPI_SIPI
         printf("AP(0x%02x): Waiting for DRTM establishment...\n", vcpu->id);
 
 #ifndef __SKIP_INIT_SMP__
