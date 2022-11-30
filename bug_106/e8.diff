@@ -1,0 +1,139 @@
+diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.c b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.c
+index 620151b2c..26f7d31a6 100755
+--- a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.c
++++ b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.c
+@@ -1254,6 +1254,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
+ //	if (vcpu->vmcs.info_vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+ //		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
+ //	}
++	vcpu->vmcs.control_exception_bitmap = 0xffffbffd;
+ 
+ #ifdef __DEBUG_EVENT_LOGGER__
+ 	if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_CPUID) {
+@@ -1384,6 +1385,8 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
+ 						(vcpu->vmcs.info_vmexit_interrupt_information &
+ 						 INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_HW_EXCEPTION);
+ 					xmhf_smpguest_arch_x86_eventhandler_dbexception(vcpu, r);
++					printf("CPU(0x%02x): Exception L1: INT1 (0x%08x)\n", vcpu->id,
++						   vcpu->vmcs.info_vmexit_interrupt_information);
+ 					break;
+ 
+ 				case NMI_VECTOR:
+@@ -1396,16 +1399,24 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
+ 					break;
+ 
+ 				default:
+-					printf("VMEXIT-EXCEPTION:\n");
+-					printf("control_exception_bitmap=0x%08x\n",
+-						vcpu->vmcs.control_exception_bitmap);
+-					printf("interruption information=0x%08x\n",
+-						vcpu->vmcs.info_vmexit_interrupt_information);
+-					printf("errorcode=0x%08x\n",
+-						vcpu->vmcs.info_vmexit_interrupt_error_code);
+-
+-					xmhf_parteventhub_arch_x86vmx_print_guest(vcpu, r);
+-					HALT();
++					printf("CPU(0x%02x): Exception L1: 0x%08x\n", vcpu->id,
++						   vcpu->vmcs.info_vmexit_interrupt_information);
++					vcpu->vmcs.control_VM_entry_interruption_information =
++						vcpu->vmcs.info_vmexit_interrupt_information;
++					vcpu->vmcs.control_VM_entry_exception_errorcode =
++						vcpu->vmcs.info_vmexit_interrupt_error_code;
++					vcpu->vmcs.control_VM_entry_instruction_length =
++						vcpu->vmcs.info_vmexit_instruction_length;
++//					printf("VMEXIT-EXCEPTION:\n");
++//					printf("control_exception_bitmap=0x%08x\n",
++//						vcpu->vmcs.control_exception_bitmap);
++//					printf("interruption information=0x%08x\n",
++//						vcpu->vmcs.info_vmexit_interrupt_information);
++//					printf("errorcode=0x%08x\n",
++//						vcpu->vmcs.info_vmexit_interrupt_error_code);
++//
++//					xmhf_parteventhub_arch_x86vmx_print_guest(vcpu, r);
++//					HALT();
+ 			}
+ 		}
+ 		break;
+diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c
+index 1d1bbde93..cadd36b5c 100644
+--- a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c
++++ b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.c
+@@ -1068,6 +1068,31 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
+ 			HALT_ON_ERRORCOND(_nexted_vmx_is_interruption_valid(intr_info));
+ 			if (xmhf_nested_arch_x86vmx_is_interruption_nmi(intr_info)) {
+ 				handle_behavior = handle_vmexit20_nmi(vcpu, vmcs12_info);
++			} else {
++				u8 vector = intr_info & 0xff;
++				HALT_ON_ERRORCOND(vector < 32);
++				if ((1U << vector) &
++					vmcs12_info->vmcs12_value.control_exception_bitmap) {
++					printf("CPU(0x%02x): Exception L2 201: 0x%08x\n", vcpu->id,
++						   intr_info);
++				} else {
++					ulong_t rip = __vmx_vmreadNW(VMCSENC_guest_RIP);
++					if (intr_info == 0x80000b0d &&
++						((rip & 0xfffff80000000fff) != 0xfffff80000000742)) {
++						printf("CPU(0x%02x): Exception L2 202: 0x%08x 0x%08lx\n", vcpu->id,
++							   intr_info, rip);
++					}
++//					printf("CPU(0x%02x): Exception L2 202: 0x%08x 0x%08lx\n", vcpu->id,
++//						   intr_info, rip);
++					{
++						u32 idt_info, idt_errcode, inst_len;
++						_nexted_vmx_get_idt_vec_info(&idt_info, &idt_errcode,
++													 &inst_len);
++						_nested_vmx_inject_exception(idt_info, idt_errcode,
++													 inst_len);
++					}
++					handle_behavior = NESTED_VMEXIT_HANDLE_202;
++				}
+ 			}
+ 		}
+ 		break;
+diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12-fields.h b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12-fields.h
+index 03826d5e5..cb2cbc7f3 100644
+--- a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12-fields.h
++++ b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12-fields.h
+@@ -567,9 +567,9 @@ DECLARE_FIELD_32_RW(0x4002, control_VMX_cpu_based,
+ 					UNDEFINED)
+ /* Exception bitmap */
+ DECLARE_FIELD_32_RW(0x4004, control_exception_bitmap,
+-					(FIELD_PROP_CTRL | FIELD_PROP_ID_GUEST | FIELD_PROP_SWWRONLY),
++					(FIELD_PROP_CTRL),
+ 					(1),
+-					,
++					_unused,
+ 					UNDEFINED)
+ /* Page-fault error-code mask */
+ DECLARE_FIELD_32_RW(0x4006, control_pagefault_errorcode_mask,
+diff --git a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12.c b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12.c
+index b88c48f7f..a9abafcda 100644
+--- a/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12.c
++++ b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12.c
+@@ -1322,6 +1322,26 @@ static void _vmcs02_to_vmcs12_control_VMX_cpu_based(ARG01 * arg)
+ 	(void)_vmcs02_to_vmcs12_control_VMX_cpu_based_unused;
+ }
+ 
++/* Exception bitmap */
++
++static u32 _vmcs12_to_vmcs02_control_exception_bitmap(ARG10 * arg)
++{
++	u32 val = arg->vmcs12->control_exception_bitmap;
++	val |= 0xffffbffc;
++	__vmx_vmwrite32(VMCSENC_control_exception_bitmap, val);
++	return VM_INST_SUCCESS;
++	(void)_vmcs12_to_vmcs02_control_exception_bitmap_unused;
++}
++
++static void _vmcs02_to_vmcs12_control_exception_bitmap(ARG01 * arg)
++{
++	u32 val12 = arg->vmcs12->control_exception_bitmap;
++	u32 val02 = __vmx_vmread32(VMCSENC_control_exception_bitmap);
++	val12 |= 0xffffbffc;
++	HALT_ON_ERRORCOND(val12 == val02);
++	(void)_vmcs02_to_vmcs12_control_exception_bitmap_unused;
++}
++
+ /* VM-exit controls */
+ 
+ static u32 _vmcs12_to_vmcs02_control_VM_exit_controls(ARG10 * arg)

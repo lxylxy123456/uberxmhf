@@ -1,0 +1,45 @@
+diff --git a/xmhf/src/libbaremetal/libxmhfc/abort.c b/xmhf/src/libbaremetal/libxmhfc/abort.c
+index 4a753e2fc..acb5ad11b 100644
+--- a/xmhf/src/libbaremetal/libxmhfc/abort.c
++++ b/xmhf/src/libbaremetal/libxmhfc/abort.c
+@@ -50,6 +50,7 @@
+ 
+ __attribute__((__noreturn__)) void abort(void)
+ {
++  asm volatile ("ud2");
+   emhfc_abort();
+   while(1);
+ }
+diff --git a/xmhf/src/libbaremetal/libxmhfutil/hptw.c b/xmhf/src/libbaremetal/libxmhfutil/hptw.c
+index b97f0747e..b291aee51 100644
+--- a/xmhf/src/libbaremetal/libxmhfutil/hptw.c
++++ b/xmhf/src/libbaremetal/libxmhfutil/hptw.c
+@@ -391,6 +391,28 @@ int hptw_checked_get_pmeo(hpt_pmeo_t *pmeo,
+ 
+   EU_CHK( hpt_pmeo_is_present(pmeo));
+ 
++  if (!hpt_pmeo_is_page(pmeo)) {
++    hpt_pmeo_t pmeo_;
++    hpt_pmeo_t *pmeo = &pmeo_;
++    printf("Begin print debugging\n");
++    printf("PD: fps = %p %p %p\n", ctx->gzp, ctx->pa2ptr, ctx->ptr2pa);
++    printf("PD: root_pa = 0x%016llx\n", ctx->root_pa);
++    printf("PD: t = %d", ctx->t);
++    printf("PD: va:0x%llx access_type %lld cpl:%d\n",
++           va, access_type, cpl);
++    EU_CHKN( hptw_get_root( ctx, &pmo));
++    do {
++      printf("PD: pmo t:%d pm:%p lvl:%d\n",
++             pmo.t, pmo.pm, pmo.lvl);
++      hpt_pm_get_pmeo_by_va( pmeo, &pmo, va);
++      EU_CHK_W(((access_type & hpt_pmeo_getprot(pmeo)) == access_type)
++             && (cpl == HPTW_CPL0 || hpt_pmeo_getuser(pmeo)),
++             printf("PDW: req-priv:%lld req-cpl:%d priv:%lld user-accessible:%d",
++                      access_type, cpl, hpt_pmeo_getprot(pmeo), hpt_pmeo_getuser(pmeo)));
++    } while (hptw_next_lvl(ctx, &pmo, va));
++    printf("End print debugging\n");
++  }
++
+   /* exiting loop means hptw_next_lvl failed, which means either the
+    * current pmeo is a page, or the current pmeo is not present.
+    * however, we should have already returned if not present, so pmeo

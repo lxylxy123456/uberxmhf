@@ -915,7 +915,44 @@ xmhf_parteventhub_arch_x86vmx_entry
 Looks like it is hard (low probability) to reproduce this bug. So for now just
 add more print debugging before `abort()` and work on the other bug.
 
-TODO: add more print debugging if VERIFY will return false in `hptw_checked_get_pmeo`
+See `p7.diff`, can be applied to `xmhf64-nest-dev cd31b87f1`.
+
+### Hyper-V BSOD 2
+
+Now continue working on the Hyper-V BSOD problem.
+
+By modifying `xmhf_parteventhub_arch_x86vmx_intercept_handler()`, can see that
+no L1 exceptions (other than page fault and `#DB`) are generated before BSOD.
+
+After enabling L2 exceptions, see a lot of `#GP` exceptions at RIP
+0xfffff8006b85f742 or 0xfffff8075505d742 (due to ASLR). Need to remove these
+from the log or Windows takes forever to boot. Use
+`(rip & 0xfffff80000000fff) != 0xfffff80000000742`. However, even if logs are
+not printed, it still takes forever to boot Windows. So change exception bitmap
+from 0xffffbffd to 0xffff9ffd.
+
+In Dell's BIOS configuration, can only enable 1 CPU. This bug also happens in
+this scenario.
+
+Looks like there are also a lot of `#DE` exceptions at 0xfffff80282a4f604. So
+change L2 exception bitmap from 0xffff9ffd to 0xffff9ffc. At this point,
+Windows can boot. But there are no exceptions captured before BSOD. After BSOD,
+see exception 0x80000603 at RIP=0xfffff80602bff050 (probably Windows wants to
+reboot, but XMHF doesn't).
+
+However, if we add `#GP` to exception bitmap, it takes too long for Windows to
+boot. So give up catching exceptions. Changes made until now are `e8.diff`
+applied on `xmhf64-nest-dev cd31b87f1`.
+
+In ThinkPad, Fedora, KVM, XMHF, Hyper-V, Windows 10, cannot easily reproduce
+because too slow for Window 10 to boot.
+
+### Merge PR 20
+
+At this time, merged PR 20 <https://github.com/lxylxy123456/uberxmhf/pull/20>.
+So `xmhf64-nest` branch becomes `xmhf64` (contains nested virtualization code,
+controlled by macro). `xmhf64-nest-dev` becomes `xmhf64-nest` (contains L2
+TrustVisor code). `xmhf64-nest-dev` will be used for development purpose.
 
 TODO: for debugging, do not remove the page from regular EPT. Just add to pal EPT
 TODO: randomly disable Windows security features
