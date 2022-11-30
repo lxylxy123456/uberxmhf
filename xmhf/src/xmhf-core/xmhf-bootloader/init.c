@@ -1184,11 +1184,11 @@ void cstartup(multiboot_info_t *mbi){
     //setup vcpus
     setupvcpus(cpu_vendor, midtable, midtable_numentries);
 
-#ifdef DUPLICATE_INIT_SIPI_SIPI
+#ifndef __SKIP_INIT_SMP__
     //wakeup all APs
     if(midtable_numentries > 1)
         wakeupAPs();
-#endif /* DUPLICATE_INIT_SIPI_SIPI */
+#endif /* __SKIP_INIT_SMP__ */
 
     //fall through and enter mp_cstartup via init_core_lowlevel_setup
     init_core_lowlevel_setup();
@@ -1228,12 +1228,14 @@ void svm_clear_microcode(VCPU *vcpu){
 }
 
 
-#ifdef DUPLICATE_INIT_SIPI_SIPI
+#ifndef __SKIP_INIT_SMP__
 u32 cpus_active=0; //number of CPUs that are awake, should be equal to
 //midtable_numentries -1 if all went well with the
 //MP startup protocol
 u32 lock_cpus_active=1; //spinlock to access the above
-#endif /* DUPLICATE_INIT_SIPI_SIPI */
+#elif defined(__DRT__)
+	#error "__SKIP_INIT_SMP__ not supported when __DRT__"
+#endif /* __SKIP_INIT_SMP__ */
 
 
 //------------------------------------------------------------------------------
@@ -1260,7 +1262,7 @@ void mp_cstartup (VCPU *vcpu){
 
         printf("BSP(0x%02x): Rallying APs...\n", vcpu->id);
 
-#ifdef DUPLICATE_INIT_SIPI_SIPI
+#ifndef __SKIP_INIT_SMP__
         //increment a CPU to account for the BSP
         spin_lock(&lock_cpus_active);
         cpus_active++;
@@ -1271,8 +1273,7 @@ void mp_cstartup (VCPU *vcpu){
         while (cpus_active < midtable_numentries) {
             xmhf_cpu_relax();
         }
-#endif /* DUPLICATE_INIT_SIPI_SIPI */
-
+#endif /* __SKIP_INIT_SMP__ */
 
         //put all APs in INIT state
 
@@ -1290,14 +1291,14 @@ void mp_cstartup (VCPU *vcpu){
             printf("AP(0x%02x): Microcode clear.\n", vcpu->id);
         }
 
-#ifdef DUPLICATE_INIT_SIPI_SIPI
         printf("AP(0x%02x): Waiting for DRTM establishment...\n", vcpu->id);
 
+#ifndef __SKIP_INIT_SMP__
         //update the AP startup counter
         spin_lock(&lock_cpus_active);
         cpus_active++;
         spin_unlock(&lock_cpus_active);
-#endif /* DUPLICATE_INIT_SIPI_SIPI */
+#endif /* __SKIP_INIT_SMP__ */
 
         /*
          * Note: calling printf() here may lead to deadlock. After BSP
