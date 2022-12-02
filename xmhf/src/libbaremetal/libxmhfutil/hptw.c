@@ -563,6 +563,26 @@ int hptw_checked_copy_va_to_va(hptw_ctx_t *dst_ctx,
   return rv;
 }
 
+static void xxd(uintptr_t start, uintptr_t end) {
+	if ((start & 0xf) != 0 || (end & 0xf) != 0) {
+		printf("xxd assertion failed");
+		while (1) {
+			asm volatile ("hlt");
+		}
+	}
+	for (uintptr_t i = start; i < end; i += 0x10) {
+		printf("XXD: %08lx: ", i);
+		for (uintptr_t j = 0; j < 0x10; j++) {
+			if (j & 1) {
+				printf("%02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
+			} else {
+				printf(" %02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
+			}
+		}
+		printf("\n");
+	}
+}
+
 /*
  * Set memory for virtual address (dst_va_base), assuming privilege level at
  * (cpl) when reading / writing.
@@ -591,6 +611,15 @@ int hptw_checked_memset_va(hptw_ctx_t *ctx,
                                         len-set,
                                         &to_set));
     eu_trace("got pointer %p, size %d", dst, to_set);
+    {
+      unsigned char *a = dst + to_set;
+      assert(to_set == 4096);
+      if (a[-1] != 0x90 || a[-2] != 0x90 || a[-3] != 0x90 || a[-4] != 0x90) {
+        xxd((ulong_t)dst, (ulong_t)dst + to_set);
+        assert(0);
+      }
+    }
+    printf("got pointer %p, size %d\n", dst, to_set);
     memset(dst, c, to_set);
     set += to_set;
   }
