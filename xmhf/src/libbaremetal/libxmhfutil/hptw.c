@@ -596,6 +596,11 @@ int hptw_checked_memset_va(hptw_ctx_t *ctx,
 {
   size_t set=0;
   int rv=1;
+  bool flag = true;
+  if (cpl == 9) {
+    flag = false;
+    cpl = 0;
+  }
   eu_trace("hptw_checked_memset_va entering");
 
   while(set < len) {
@@ -620,7 +625,9 @@ int hptw_checked_memset_va(hptw_ctx_t *ctx,
       }
     }
     printf("got pointer %p, size %d\n", dst, to_set);
-    memset(dst, c, to_set);
+    if (flag) {
+      memset(dst, c, to_set);
+    }
     set += to_set;
   }
   eu_trace("hptw_checked_memset_va returning");
