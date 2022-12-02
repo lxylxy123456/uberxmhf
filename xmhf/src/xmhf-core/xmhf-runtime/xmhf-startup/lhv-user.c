@@ -79,6 +79,7 @@ static void set_user_mode_page_table(void)
 	spin_unlock(&lock);
 }
 
+/* arg indicates VMCALL EAX offset. Used by pal_demo code during nested virt */
 void enter_user_mode(VCPU *vcpu, ulong_t arg)
 {
 	uintptr_t stack_top = ((uintptr_t) user_stack[vcpu->idx]) + PAGE_SIZE_4K;
@@ -131,7 +132,15 @@ void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
 
 void begin_pal_c(void) {}
 
-uintptr_t my_pal(uintptr_t arg1) {
+uintptr_t my_pal(uintptr_t arg1, uintptr_t arg2) {
+	u32 eax=0x7a567254U, ebx, ecx=arg2, edx;
+	cpuid_raw(&eax, &ebx, &ecx, &edx);
+	if (eax != 0x7a767274U) {
+		return 0xdeadbee1U;
+	}
+	if (ebx == 0xffffffffU) {
+		return 0xdeadbee2U;
+	}
 	return arg1 + 0x1234abcd;
 }
 
@@ -160,6 +169,9 @@ __attribute__((__noreturn__)) void leave_user_mode(void) {
 	HALT_ON_ERRORCOND(0 && "system call returned");
 }
 
+static u32 pal_lock = 1;
+static volatile u32 pal_available = 3;
+
 static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 {
 	struct tv_pal_sections sections = {
@@ -172,9 +184,9 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 		}
 	};
 	struct tv_pal_params params = {
-		num_params: 1,
+		num_params: 2,
 		params: {
-			{ TV_PAL_PM_INTEGER, 4 }
+			{ TV_PAL_PM_INTEGER, 4 }, { TV_PAL_PM_INTEGER, 4 }
 		}
 	};
 	/* Copy code */
@@ -184,41 +196,68 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 	uintptr_t pal_entry = dst_begin - src_begin + (uintptr_t) my_pal;
 	typeof(&my_pal) pal_func = (typeof(&my_pal)) pal_entry;
 	memcpy((void *)dst_begin, (void *)src_begin, code_size);
-	printf("CPU(0x%02x): starting PAL\n", vcpu->id);
-	HALT_ON_ERRORCOND(!vmcall(
-		TV_HC_REG, (uintptr_t)&sections, 0, (uintptr_t)&params, pal_entry));
-	HALT_ON_ERRORCOND(pal_func(0x11111111) == 0x2345bcde);
+
+	/*
+	 * Touch all pages used by PAL. If in nested virtualization (L0 = XMHF,
+	 * L1 = red hypervisor, L2 = LHV), hopefully the pages become cached in
+	 * L1's EPT.
+	 */
+	for (u32 i = 0; i < sections.num_sections; i++) {
+		for (u32 j = 0; j < sections.sections[i].page_num; j++) {
+			u64 addr = sections.sections[i].start_addr + PAGE_SIZE_4K * j;
+			volatile u8 *ptr = (volatile u8 *)(uintptr_t)addr;
+			*ptr;
+		}
+	}
+
+	/* Register PAL */
+	printf("CPU(0x%02x): starting PAL 0x%x\n", vcpu->id, arg);
+	HALT_ON_ERRORCOND(!vmcall(TV_HC_REG + arg, (uintptr_t)&sections, 0,
+							  (uintptr_t)&params, pal_entry));
+
+	/* Call PAL function */
+	{
+		uintptr_t ans = pal_func(0x11111111, arg);
+		if (ans != 0x2345bcde) {
+			printf("CPU(0x%02x): PAL returns incorrect result\n", vcpu->id);
+			printf("CPU(0x%02x): Expected: 0x%08lx\n", vcpu->id, 0x2345bcde);
+			printf("CPU(0x%02x): Actual:   0x%08lx\n", vcpu->id, ans);
+			spin_lock(&pal_lock);
+			printf("CPU(0x%02x): Locked pal_lock\n", vcpu->id);
+			while (1) {
+				xmhf_cpu_relax();
+			}
+		}
+	}
 
 	if (0 && "invalid access") {
 		printf("", *(u32*)pal_entry);
 	}
 
-	HALT_ON_ERRORCOND(!vmcall(TV_HC_UNREG, pal_entry, 0, 0, 0));
+	/* Unregister PAL */
+	HALT_ON_ERRORCOND(!vmcall(TV_HC_UNREG + arg, pal_entry, 0, 0, 0));
 
 	if ("valid access") {
 		printf("", *(u32*)pal_entry);
 	}
 
-	printf("CPU(0x%02x): completed PAL\n", vcpu->id);
-	(void)arg;
+	printf("CPU(0x%02x): completed PAL 0x%x\n", vcpu->id, arg);
 }
 
 void user_main(VCPU *vcpu, ulong_t arg)
 {
-	static u32 lock = 1;
-	static volatile u32 available = 3;
 	/* Acquire semaphore */
 	{
 		while (1) {
-			spin_lock(&lock);
-			if (available) {
-				available--;
-				spin_unlock(&lock);
+			spin_lock(&pal_lock);
+			if (pal_available) {
+				pal_available--;
+				spin_unlock(&pal_lock);
 				break;
 			} else {
 				u32 i;
-				spin_unlock(&lock);
-				for (i = 0; i < 4096 && !available; i++) {
+				spin_unlock(&pal_lock);
+				for (i = 0; i < 4096 && !pal_available; i++) {
 					asm volatile ("pause");		/* Save energy when waiting */
 				}
 			}
@@ -229,15 +268,20 @@ void user_main(VCPU *vcpu, ulong_t arg)
 		u32 eax, ebx, ecx, edx;
 		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
 		if (eax == 0x46484d58U) {
+			/* Test TrustVisor presence using CPUID */
+			u32 eax=0x7a567254U, ebx, ecx=arg, edx;
+			cpuid_raw(&eax, &ebx, &ecx, &edx);
+			HALT_ON_ERRORCOND(eax == 0x7a767274U && "TrustVisor not present 1");
+			HALT_ON_ERRORCOND(ebx == 0xffffffffU && "TrustVisor not present 2");
 			user_main_pal_demo(vcpu, arg);
 		} else {
-			printf("CPU(0x%02x): can enter user mode\n", vcpu->id);
+			printf("CPU(0x%02x): can enter user mode 0x%x\n", vcpu->id, arg);
 		}
 	}
 	/* Release semaphore */
-	spin_lock(&lock);
-	available++;
-	spin_unlock(&lock);
+	spin_lock(&pal_lock);
+	pal_available++;
+	spin_unlock(&pal_lock);
 	leave_user_mode();
 }
 

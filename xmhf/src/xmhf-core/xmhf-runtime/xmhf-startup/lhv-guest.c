@@ -581,6 +581,31 @@ static void lhv_guest_test_user(VCPU *vcpu)
 	}
 }
 
+/* Test running TrustVisor in L2 */
+static void lhv_guest_test_nested_user_vmexit_handler(VCPU *vcpu,
+													  struct regs *r,
+													  vmexit_info_t *info)
+{
+	if (info->vmexit_reason != VMX_VMEXIT_VMCALL) {
+		return;
+	}
+	(void)vcpu;
+	(void)r;
+	HALT_ON_ERRORCOND(0 && "VMEXIT not allowed");
+}
+
+static void lhv_guest_test_nested_user(VCPU *vcpu)
+{
+	if (__LHV_OPT__ & LHV_NESTED_USER_MODE) {
+		HALT_ON_ERRORCOND(!(__LHV_OPT__ & LHV_NO_EFLAGS_IF));
+		vcpu->vmexit_handler_override =
+			lhv_guest_test_nested_user_vmexit_handler;
+		// asm volatile ("vmcall" : : "a"(0x4c4150ffU));
+		enter_user_mode(vcpu, 0x4c415000U);
+		vcpu->vmexit_handler_override = NULL;
+	}
+}
+
 /* Test MSR bitmap */
 #define MSR_TEST_NORMAL	0x2900b05d
 #define MSR_TEST_VMEXIT	0xf6d7a004
@@ -886,11 +911,13 @@ void lhv_guest_main(ulong_t cpu_id)
 				printf("CPU(0x%02x): leave LHV barrier\n", vcpu->id);
 			} else {
 				lhv_guest_test_user(vcpu);
+				lhv_guest_test_nested_user(vcpu);
 			}
 		} else {
-			/* Only one of the following will execute */
+			/* Only one of MSR or (user and nested user) will execute */
 			lhv_guest_test_msr_ls(vcpu);
 			lhv_guest_test_user(vcpu);
+			lhv_guest_test_nested_user(vcpu);
 		}
 		lhv_guest_test_ept(vcpu);
 		lhv_guest_switch_ept(vcpu);
@@ -917,6 +944,9 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 		break;
 	case 0x22:
 		handle_timer_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
+		break;
+	case 0x23:
+		handle_lhv_syscall(_svm_and_vmx_getvcpu(), vector, r);
 		break;
 #ifdef __DEBUG_QEMU__
 	case 0x27:
