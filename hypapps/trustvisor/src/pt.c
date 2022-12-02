@@ -239,7 +239,7 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
     hpt_pmeo_t page_pal_gpmeo; /* pal's guest page-map-entry and lvl */
 
     hpt_pmeo_t page_reg_npmeo; /* reg's nested page-map-entry and lvl */
-//    hpt_pmeo_t page_pal_npmeo; /* pal's nested page-map-entry and lvl */
+    hpt_pmeo_t page_pal_npmeo; /* pal's nested page-map-entry and lvl */
 
     /* Convert gva to gpa (guest CR3) */
     hpt_err = hptw_checked_get_pmeo(&page_reg_gpmeo,
@@ -317,13 +317,12 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
     CHK_RV(hpt_err);
 
     /* add access to pal nested page tables */
-    (void)pal_npm_ctx;
-//    page_pal_npmeo = page_reg_npmeo;
-//    hpt_pmeo_setprot(&page_pal_npmeo, section->pal_prot);
-//    hpt_err = hptw_insert_pmeo_alloc(pal_npm_ctx,
-//                                         &page_pal_npmeo,
-//                                         page_pal_gpa);
-//    CHK_RV(hpt_err);
+    page_pal_npmeo = page_reg_npmeo;
+    hpt_pmeo_setprot(&page_pal_npmeo, section->pal_prot);
+    hpt_err = hptw_insert_pmeo_alloc(pal_npm_ctx,
+                                         &page_pal_npmeo,
+                                         page_pal_gpa);
+    CHK_RV(hpt_err);
 
 #ifdef __DMAP__
     /* Disable device accesses to these memory (via IOMMU) */
@@ -374,20 +373,19 @@ void scode_return_section(hptw_ctx_t *reg_npm01_ctx,
        that a page is readable in a PAL's npt iff it is not readable in the guest npt
        or other PALs' npts.
     */
-    (void)pal_npm_ctx;
-//    {
-//      hpt_prot_t effective_prots;
-//      bool user_accessible=false;
-//      effective_prots = hptw_get_effective_prots(pal_npm_ctx,
-//                                                      page_pal_gpa,
-//                                                      &user_accessible);
-//      CHK(effective_prots & HPT_PROTS_R);
-//    }
-//
-//    /* revoke access from 'pal' VM */
-//    hptw_set_prot(pal_npm_ctx,
-//                       page_pal_gpa,
-//                       HPT_PROTS_NONE);
+    {
+      hpt_prot_t effective_prots;
+      bool user_accessible=false;
+      effective_prots = hptw_get_effective_prots(pal_npm_ctx,
+                                                      page_pal_gpa,
+                                                      &user_accessible);
+      CHK(effective_prots & HPT_PROTS_R);
+    }
+
+    /* revoke access from 'pal' VM */
+    hptw_set_prot(pal_npm_ctx,
+                       page_pal_gpa,
+                       HPT_PROTS_NONE);
 
     /* scode_lend_section leaves reg guest page tables intact, so no
        need to restore anything in them here. */
