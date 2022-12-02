@@ -107,14 +107,6 @@ int * scode_curr = NULL;
 
 void scode_release_all_shared_pages(VCPU *vcpu, whitelist_entry_t* entry);
 
-void lxy_test(size_t i, int line) {
-  for(size_t j = 1; j < whitelist[i].sections_num; j++) {
-    printf("Test %d\n", line);
-    hptw_checked_memset_va( &whitelist[i].hptw_pal_checked_guest_ctx.super, 9, whitelist[i].sections[j].pal_gva, 0, whitelist[i].sections[j].size);
-    printf("Test pass %d\n", line);
-  }
-}
-
 /* search scode in whitelist */
 int scode_in_list(u64 gcr3, uintptr_t gvaddr, bool g64, u64 ept12)
 {
@@ -711,8 +703,6 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
     }
   }
 
-  lxy_test(i, __LINE__);
-
   rv=0;
  out:
   /* FIXME clean-up in case of error */
@@ -764,8 +754,6 @@ u64 scode_unregister(VCPU * vcpu, u64 gvaddr)
    * manual accounting to track accurately (i.e., account for calls to
    * free). */
   /* eu_perf("total mem mallocd: %u", heapmem_get_used_size()); */
-
-  lxy_test(i, __LINE__);
 
   /* restore permissions for remapped sections */
   for(j = 0; j < whitelist[i].sections_num; j++) {
