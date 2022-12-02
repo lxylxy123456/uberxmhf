@@ -65,8 +65,8 @@
 /* #define EU_DOWNCAST(vctx, t) assert(((t)vctx)->magic == t ## _MAGIC), (t)vctx */
 
 bool g_did_change_root_mappings = false;
-hpt_pmo_t g_reg_npmo_l1_root;
-hptw_emhf_host_ctx_t g_hptw_reg_host_l1_ctx;
+hpt_pmo_t g_reg_npmo_root;
+hptw_emhf_host_ctx_t g_hptw_reg_host_ctx;
 
 /* this is the return address we push onto the stack when entering the
    pal. We return to the reg world on a nested page fault on
@@ -438,8 +438,8 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
   */
   {
     if (!g_did_change_root_mappings) {
-      hpt_emhf_get_l1_root_pmo(vcpu, &g_reg_npmo_l1_root);
-      EU_CHKN( hptw_emhf_host_l1_ctx_init_of_vcpu( &g_hptw_reg_host_l1_ctx, vcpu) );
+      hpt_emhf_get_root_pmo(vcpu, &g_reg_npmo_root);
+      EU_CHKN( hptw_emhf_host_l1_ctx_init_of_vcpu( &g_hptw_reg_host_ctx, vcpu) );
       /*
        * 20221127: before, TrustVisor will for all VCPU change
        * vcpu->vmcs.control_EPT_pointer to current CPU's EPTP. However, this
@@ -472,22 +472,22 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
         size_t i;
         for( i=0 ; i<g_midtable_numentries ; i++ )  {
           VCPU *other_vcpu = (VCPU *)(g_midtable[i].vcpu_vaddr_ptr);
-          hpt_pm_t old = hpt_emhf_get_l1_root_pm(other_vcpu);
-          hpt_pm_t new = g_reg_npmo_l1_root.pm;
+          hpt_pm_t old = hpt_emhf_get_root_pm(other_vcpu);
+          hpt_pm_t new = g_reg_npmo_root.pm;
           void *expected = &g_vmx_ept_pml4_table_buffers[i * PAGE_SIZE_4K];
           HALT_ON_ERRORCOND((void *)old == expected);
           eu_trace("cpu %d setting root pm from %p to %p", i, old, new);
           if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
             HALT_ON_ERRORCOND(0 && "do not modify another CPU's EPT");
           }
-          hpt_emhf_set_l1_root_pm(other_vcpu, new);
+          hpt_emhf_set_root_pm(other_vcpu, new);
         }
       }
 #endif
       {
         size_t i;
         hpt_pmo_t pmo;
-        hptw_get_pmo(&pmo, &g_hptw_reg_host_l1_ctx.super, 4, 0);
+        hptw_get_pmo(&pmo, &g_hptw_reg_host_ctx.super, 4, 0);
         for( i=0 ; i<g_midtable_numentries ; i++ )  {
           VCPU *vcpu_other = (VCPU *)(g_midtable[i].vcpu_vaddr_ptr);
           hptw_emhf_host_ctx_t ctx_other;
@@ -559,8 +559,8 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
   whitelist_new.reg_gpt_root_pa = hpt_emhf_get_guest_root_pm_pa( vcpu);
   whitelist_new.reg_gpt_type = hpt_emhf_get_guest_hpt_type( vcpu);
   pal_npmo_root = (hpt_pmo_t) {
-    .t = g_reg_npmo_l1_root.t,
-    .lvl = g_reg_npmo_l1_root.lvl,
+    .t = g_reg_npmo_root.t,
+    .lvl = g_reg_npmo_root.lvl,
     .pm = pagelist_get_zeroedpage(whitelist_new.npl),
   };
   pal_gpmo_root = (hpt_pmo_t) {
@@ -615,7 +615,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
       .section_type = whitelist_new.scode_info.sections[i].type,
     };
     scode_lend_section( &hptw_reg_host_ctx.super,
-                        &g_hptw_reg_host_l1_ctx.super,
+                        &g_hptw_reg_host_ctx.super,
                         whitelist_new.ept12 != HPTW_EMHF_EPT12_INVALID,
                         &reg_guest_walk_ctx.super,
                         &whitelist_new.hptw_pal_host_ctx.super,
@@ -771,7 +771,7 @@ u64 scode_unregister(VCPU * vcpu, u64 gvaddr)
       HALT_ON_ERRORCOND(!err);
     }
 
-    scode_return_section( &g_hptw_reg_host_l1_ctx.super,
+    scode_return_section( &g_hptw_reg_host_ctx.super,
                           &whitelist[i].hptw_pal_host_ctx.super,
                           &whitelist[i].hptw_pal_checked_guest_ctx.super,
                           &whitelist[i].sections[j]);
@@ -1546,7 +1546,7 @@ void scode_release_all_shared_pages(VCPU *vcpu, whitelist_entry_t* wle)
       i >= 0 && wle->sections[i].section_type == TV_PAL_SECTION_SHARED;
       i--) {
     eu_trace("returning shared section num %d at 0x%08llx", i, wle->sections[i].pal_gva);
-    scode_return_section( &g_hptw_reg_host_l1_ctx.super,
+    scode_return_section( &g_hptw_reg_host_ctx.super,
                           &wle->hptw_pal_host_ctx.super,
                           &wle->hptw_pal_checked_guest_ctx.super,
                           &wle->sections[i]);
@@ -1575,7 +1575,7 @@ u32 scode_share_range(VCPU * vcpu, whitelist_entry_t *wle, u32 gva_base, u32 gva
   };
 
   scode_lend_section( &hptw_reg_host_ctx.super,
-                      &g_hptw_reg_host_l1_ctx.super,
+                      &g_hptw_reg_host_ctx.super,
                       hpt_emhf_get_l1l2_root_pm_pa(vcpu) != HPTW_EMHF_EPT12_INVALID,
                       &vcpu_guest_walk_ctx.super,
                       &wle->hptw_pal_host_ctx.super,

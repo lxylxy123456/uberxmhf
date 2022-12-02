@@ -673,38 +673,12 @@ u64 xmhf_memprot_arch_x86vmx_get_EPTP(VCPU *vcpu)
  * Set EPT pointer. When nested virtualization, set EPT01.
  *
  * Note: when nested virtualization is enabled, the CPU needs to call
- * xmhf_nested_arch_x86vmx_flush_ept02() to make sure that EPT02 entries are
+ * xmhf_nested_arch_x86vmx_flush_ept02() to make sure that EPT02 settings are
  * updated according to the change in EPT01. Currently in TrustVisor this EPT02
  * flushing function is called later during flushing EPT01 TLB.
  */
 void xmhf_memprot_arch_x86vmx_set_EPTP(VCPU *vcpu, u64 eptp)
 {
-  HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
-  vcpu->vmcs.control_EPT_pointer = eptp;
-}
-
-/* Get EPT pointer. When nested virtualization, get EPT01. */
-u64 xmhf_memprot_arch_x86vmx_get_EPTP01(VCPU *vcpu)
-{
-  HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
-  return vcpu->vmcs.control_EPT_pointer;
-}
-
-/*
- * Set EPT pointer. When nested virtualization, set EPT01.
- *
- * Note: when nested virtualization is enabled, the CPU needs to call
- * xmhf_nested_arch_x86vmx_flush_ept02() to make sure that EPT02 entries are
- * updated according to the change in EPT01. Currently in TrustVisor this EPT02
- * flushing function is called later during flushing EPT01 TLB.
- */
-void xmhf_memprot_arch_x86vmx_set_EPTP01(VCPU *vcpu, u64 eptp)
-{
-  /*
-   * Changing EPT01 is not supported for now. Note that changing another CPU's
-   * EPT01 can easily cause race conditions.
-   */
-  HALT_ON_ERRORCOND(0 && "disabled");
   HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
   vcpu->vmcs.control_EPT_pointer = eptp;
 }
