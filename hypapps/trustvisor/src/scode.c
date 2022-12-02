@@ -760,15 +760,15 @@ u64 scode_unregister(VCPU * vcpu, u64 gvaddr)
     /* zero the contents of any sections that are writable by the PAL, and not readable by the reg guest */
     if ((whitelist[i].sections[j].pal_prot & HPT_PROTS_W)
         && !(whitelist[i].sections[j].reg_prot & HPT_PROTS_R)) {
-//      int err;
-//      eu_trace("zeroing section %d", j);
-//      err = hptw_checked_memset_va( &whitelist[i].hptw_pal_checked_guest_ctx.super,
-//                                    HPTW_CPL3,
-//                                    whitelist[i].sections[j].pal_gva, 0, whitelist[i].sections[j].size);
-//      /* should only fail if insufficient permissions in the guest
-//         page tables, which TV constructed and the PAL should not have
-//         been able to modify */
-//      HALT_ON_ERRORCOND(!err);
+      int err;
+      eu_trace("zeroing section %d", j);
+      err = hptw_checked_memset_va( &whitelist[i].hptw_pal_checked_guest_ctx.super,
+                                    HPTW_CPL3,
+                                    whitelist[i].sections[j].pal_gva, 0, whitelist[i].sections[j].size);
+      /* should only fail if insufficient permissions in the guest
+         page tables, which TV constructed and the PAL should not have
+         been able to modify */
+      HALT_ON_ERRORCOND(!err);
     }
 
     scode_return_section( &g_hptw_reg_host_l1_ctx.super,
