@@ -662,28 +662,24 @@ u32 xmhf_memprot_arch_x86vmx_getprot(VCPU *vcpu, u64 gpa){
   return prottype;
 }
 
-/* Get EPT pointer. When nested virtualization, get EPT02. */
+/* Get EPT pointer. When nested virtualization, get EPT01. */
 u64 xmhf_memprot_arch_x86vmx_get_EPTP(VCPU *vcpu)
 {
   HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
-#ifdef __NESTED_VIRTUALIZATION__
-  if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
-    return __vmx_vmread64(VMCSENC_control_EPT_pointer);
-  }
-#endif /* __NESTED_VIRTUALIZATION__ */
   return vcpu->vmcs.control_EPT_pointer;
 }
 
-/* Set EPT pointer. When nested virtualization, set EPT02. */
+/*
+ * Set EPT pointer. When nested virtualization, set EPT01.
+ *
+ * Note: when nested virtualization is enabled, the CPU needs to call
+ * xmhf_nested_arch_x86vmx_flush_ept02() to make sure that EPT02 entries are
+ * updated according to the change in EPT01. Currently in TrustVisor this EPT02
+ * flushing function is called later during flushing EPT01 TLB.
+ */
 void xmhf_memprot_arch_x86vmx_set_EPTP(VCPU *vcpu, u64 eptp)
 {
   HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
-#ifdef __NESTED_VIRTUALIZATION__
-  if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
-    __vmx_vmwrite64(VMCSENC_control_EPT_pointer, eptp);
-    return;
-  }
-#endif /* __NESTED_VIRTUALIZATION__ */
   vcpu->vmcs.control_EPT_pointer = eptp;
 }
 
