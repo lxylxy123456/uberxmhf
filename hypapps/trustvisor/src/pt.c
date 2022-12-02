@@ -263,7 +263,7 @@ void scode_lend_section( hptw_ctx_t *reg_npm02_ctx,
       CHK_RV(hpt_err);
       eu_trace("got npme12 %016llx, level %d, type %d",
                page_reg_npmeo12.pme, page_reg_npmeo12.lvl, page_reg_npmeo12.t);
-      page_reg_gpa = hpt_pmeo_va_to_pa(&page_reg_npmeo12, page_reg_gva);
+      page_reg_gpa = hpt_pmeo_va_to_pa(&page_reg_npmeo12, page_reg_gpa);
     }
 
     /* no reason to go with a different mapping */
