@@ -61,7 +61,6 @@ u32 tv_app_handlecpuid(VCPU *vcpu, struct regs *r);
 #ifdef __NESTED_VIRTUALIZATION__
 u32 tv_app_handle_nest_entry(VCPU *vcpu, struct regs *r);
 u32 tv_app_handle_nest_exit(VCPU *vcpu, struct regs *r);
-u32 tv_app_handle_ept02_change(VCPU *vcpu, gpa_t ept12, spa_t *ept02);
 #endif /* __NESTED_VIRTUALIZATION__ */
 
 #endif

@@ -95,10 +95,5 @@ u32 xmhf_app_handle_nest_exit(VCPU *vcpu, struct regs *r)
 {
   return tv_app_handle_nest_exit(vcpu, r);
 }
-
-u32 xmhf_app_handle_ept02_change(VCPU *vcpu, gpa_t ept12, spa_t *ept02)
-{
-  return tv_app_handle_ept02_change(vcpu, ept12, ept02);
-}
 #endif /* __NESTED_VIRTUALIZATION__ */
 
