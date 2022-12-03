@@ -799,9 +799,6 @@ u32 tv_app_handle_nest_exit(VCPU *vcpu, struct regs *r)
 
 u32 tv_app_handle_ept02_change(VCPU *vcpu, gpa_t ept12, spa_t *ept02)
 {
-  // TODO: if current CPU is running scode, swap EPT02 with TV's value.
-  (void)ept12;
-  (void)ept02;
   if (hpt_scode_is_scode(vcpu)) {
     hpt_scode_handle_root_pa_change(vcpu, ept12, ept02);
   }
