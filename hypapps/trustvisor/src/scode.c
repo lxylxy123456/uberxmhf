@@ -1511,30 +1511,6 @@ int hpt_scode_get_scode_id(VCPU * vcpu)
   return scode_curr[vcpu->id];
 }
 
-/* For Intel, handle EPT02 change */
-void hpt_scode_handle_root_pa_change(VCPU * vcpu, gpa_t ept12, spa_t *ept02)
-{
-  int curr = scode_curr[vcpu->id];
-  (void)ept12;
-  HALT_ON_ERRORCOND(curr != -1);
-  /*
-   * TODO: the value of input ept02 is incorrect because it is computed with
-   * EPT12 = invalid, though EPT12 in red OS may be different. ept02 is not
-   * saved for now and the call to xmhf_memprot_flushmappings_alltlb() in
-   * hpt_scode_switch_regular() is expected to force recomputing EPT02.
-   *
-   * To fix this problem, either:
-   * 1. In _rewalk_ept01_control_EPT_pointer(), invoke hypapp to get the saved
-   *    EPT12 value, instead of using arg->vmcs12_info->guest_ept_root.
-   * 2. Redesign how hypapp changes EPT of XMHF. Let hypapp change EPT01 and
-   *    EPT12. Let XMHF update EPT02. (Currently hypapp is changing EPT02 and
-   *    EPT12).
-   */
-  *ept02 = hpt_eptp_set_address(hpt_emhf_get_hpt_type(vcpu),
-                                *ept02,
-                                whitelist[curr].hptw_pal_host_ctx.super.root_pa);
-}
-
 /* caller is responsible for flushing TLB */
 void scode_release_all_shared_pages(VCPU *vcpu, whitelist_entry_t* wle)
 {
