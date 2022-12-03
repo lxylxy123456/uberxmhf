@@ -1,4 +1,4 @@
-static void xxd(u32 start, u32 end) {
+static void xxd(uintptr_t start, uintptr_t end) {
 	if ((start & 0xf) != 0 || (end & 0xf) != 0) {
 		HALT_ON_ERRORCOND(0);
 		//printf("xxd assertion failed");
@@ -6,9 +6,9 @@ static void xxd(u32 start, u32 end) {
 		//	asm volatile ("hlt");
 		//}
 	}
-	for (u32 i = start; i < end; i += 0x10) {
-		printf("XXD: %08x: ", i);
-		for (u32 j = 0; j < 0x10; j++) {
+	for (uintptr_t i = start; i < end; i += 0x10) {
+		printf("XXD: %08lx: ", i);
+		for (uintptr_t j = 0; j < 0x10; j++) {
 			if (j & 1) {
 				printf("%02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
 			} else {

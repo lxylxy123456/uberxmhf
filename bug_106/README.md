@@ -954,13 +954,137 @@ So `xmhf64-nest` branch becomes `xmhf64` (contains nested virtualization code,
 controlled by macro). `xmhf64-nest-dev` becomes `xmhf64-nest` (contains L2
 TrustVisor code). `xmhf64-nest-dev` will be used for development purpose.
 
-TODO: for debugging, do not remove the page from regular EPT. Just add to pal EPT
-TODO: randomly disable Windows security features
-TODO: let TV display process memory space
+### Hyper-V BSOD 3
+
+Continue working on the Hyper-V problem. In
+`xmhf64-nest-dev 87bf47c74..5c938e6bb`, removed some TrustVisor code and the
+bug disappears. Can bisect the changes
+* `87bf47c74`: bad
+* `5c938e6bb`: good
+* `8efbd33da`: good
+* `4e9d498c6`: bad
+
+From `8efbd33da..4e9d498c6`, can see that the problem happens while zeroing PAL
+pages during scode unregister using `hptw_checked_memset_va()`.
+
+By printing the page memset'ed in `hptw_checked_memset_va()`, see that in
+Hyper-V an unrelated page is printed. In Linux it should be full of 0x90's.
+
+Wrote a test in `xmhf64-nest-dev 8b048373e` to fail earlier. Debian and Debian
+KVM Debian pass the test. Hyper-V fails.
+
+Git `xmhf64-nest-dev 7f3ba91f2`, serial `20221202121534`. Observation is that
+Hyper-V uses large pages. For example, Debian KVM Debian is:
+```
+TV[0]:pt.c:scode_lend_section:222:                 Mapping from 00000000f7ef1000 to 00000000f7ef1000, size 4096, pal_prot 3
+TV[0]:pt.c:scode_lend_section:251:                 got gpme 000000000d394867, level 1, type 2
+TV[0]:pt.c:scode_lend_section:264:                 got npme12 0010000174194c77, level 1, type 3
+TV[0]:pt.c:scode_lend_section:290:                 got npme 0000000174194037, level 1, type 3
+```
+
+However, Hyper-V is:
+```
+TV[0]:pt.c:scode_lend_section:222:                 Mapping from 00000000006f0000 to 00000000006f0000, size 4096, pal_prot 3
+TV[0]:pt.c:scode_lend_section:251:                 got gpme 0800000191d09867, level 1, type 2
+TV[0]:pt.c:scode_lend_section:264:                 got npme12 00000001800007b7, level 3, type 3
+TV[0]:pt.c:scode_lend_section:290:                 got npme 00000001806f0037, level 1, type 3
+```
+
+Actually this shows the bug.
+```
+l2gva = 00000000006f0000
+l2cr3 = 0800000191d09867, 4K page
+l2gpa = 0000000191d09000 (high=l2cr3, low=l2gva)
+ept12 = 00000001800007b7, 1G page
+l1gpa = 00000001806f0000 (high=ept12, low=l2gva) (should be low=l2gpa)
+ept01 = 00000001806f0037, 4K page
+l0spa = 00000001806f0000 (same as l1gpa)
+```
+
+There is a typo in `scode_lend_section()` when calling `hpt_pmeo_va_to_pa()`.
+Should use offset of l2gpa, but used l2gva. Not sure why the code worked
+before. Fixed in `xmhf64-nest 2d2e3b5d8`
+
+`nested-x86vmx-ept12.c` has similar logic, but it does not have this typo:
+```
+	guest1_paddr = hpt_pmeo_va_to_pa(&pmeo12, guest2_paddr);
+	xmhf_paddr = hpt_pmeo_va_to_pa(&pmeo01, guest1_paddr);
+```
+
+Now running on Hyper-V is basically good.
+
+Ideas
+* For debugging, do not remove the page from regular EPT. Just add to pal EPT
+	* Tried this and found the bug
+* Randomly disable Windows security features
+	* Not related to BSOD, but helpful for antivirus problem
+* Let TV display process memory space
+	* Did not try this. Helpful for antivirus problem
+
+### Redesign EPT iface
+
+This section is continuing `### Need for redesigning EPT changing code`.
+
+Plans:
+1. Change behavior of `xmhf_memprot_arch_x86vmx_set_EPTP()`
+2. Test
+3. Remove duplicated functions, search `_l1_`, `EPT01`
+4. Change `scode_lend_section()` back
+5. Distinguish changing EPTP (should not flush TLB) and change EPT01 entry
+6. Remove unneeded calls of `xmhf_memprot_flushmappings_alltlb`
+
+After the change at step 1, I realized that there are more problems during
+testing. The problem happens because there are VMCS fields with property
+`FIELD_PROP_GPADDR`.
+
+The crash logic is
+* scode register
+* switch to scode
+* switch to scode calls EPT flush
+* When processing EPT flush, `xmhf_nested_arch_x86vmx_rewalk_ept01()` is called
+* For `FIELD_PROP_GPADDR` fields, XMHF requires them to be in EPT. However they
+  are not because EPT is switched to PAL
+
+This means current design may have security implications. Currently TrustVisor
+changes EPT02. So `FIELD_PROP_GPADDR` can be considered side channels that can
+access memory bypassing TrustVisor's EPT. This may lead to one PAL reading
+memory of red OS / another PAL.
+
+There are 2 ways to fix this
+1. Disable VMCS features so that no `FIELD_PROP_GPADDR` fields are used.
+2. Mark `FIELD_PROP_GPADDR` pages as read-only
+3. Copy content of `FIELD_PROP_GPADDR` pages for VMCS used by PAL
+
+Currently going to implement 1. I think 2 and 3 are too complicated and maybe
+impossible to implement cleanly. Implemented in `xmhf64-nest f1abd43d4`, but
+bug not fixed yet because `nested-x86vmx-vmcs12.c` uses `arg->ctls` = VMCS12 to
+test whether a feature is used. It should use VMCS02 instead.
+
+In `xmhf64 bc3674567..5e86cb84c`, use `arg->ctls` = VMCS12. Now looks good
+* Dell, XMHF, Debian, KVM, Debian, PAL demo: good
+* Dell, XMHF, Debian, VirtualBox, Debian, PAL demo: good
+* Dell, XMHF, Hyper-V, Windows 10, PAL demo: good
+
+TODO: when running a lot of PAL demo in Windows, see `Fatal: Halting! Condition 'nmi_pending && !vmcs12_info->guest_block_nmi' failed, line 486, file arch/x86/vmx/nested-x86vmx-handler2.c`
+TODO: run lhv-nmi test on real hardware
+
+TODO: rename `hptw_emhf_host_ctx_init_of_vcpu`
+```
+TODO:   hptw_emhf_host_ctx_init_of_vcpu	6
+TODO:   hptw_emhf_host_l1_ctx_init_of_vcpu	4
+TODO:   hptw_emhf_checked_guest_ctx_init_of_vcpu	8
+```
+
+TODO: remove duplicated functions, search `_l1_`, `EPT01`
+TODO: change `scode_lend_section` back
+TODO: remove unneeded `xmhf_memprot_flushmappings_alltlb`
+TODO: distinguish changing EPTP (should not flush TLB) and change EPT01 entry
 
 TODO
-TODO: test on Windows Hyper-V
 TODO: redesign EPT iface, see `### Need for redesigning EPT changing code`
+TODO: Windows antivirus problem
+TODO:  randomly disable Windows security features
+TODO:  let TV display process memory space
 TODO: `#### TrustVisor Vulnerability 1` above
 TODO: `#### TrustVisor Vulnerability 2` above
 
