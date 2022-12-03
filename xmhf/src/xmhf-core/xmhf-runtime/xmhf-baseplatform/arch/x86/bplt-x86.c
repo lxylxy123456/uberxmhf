@@ -614,6 +614,104 @@ void VCPU_enable_nested_timer_exit(VCPU *vcpu, u32 old_state)
 }
 
 /*
+ * When nested virtualization, disable features that use physical memory bitmap.
+ * Return state encoding whether features were enabled before the call. When
+ * not in nested virtualization, do nothing and return 0.
+ *
+ * Features to be disabled:
+ * VMX_PROCBASED_USE_IO_BITMAPS (control_IO_BitmapA_address)
+ * VMX_SECPROCBASED_ENABLE_PML (control_PML_address)
+ * VMX_PROCBASED_USE_TPR_SHADOW (control_virtual_APIC_address)
+ * VMX_SECPROCBASED_VIRTUALIZE_X2APIC_MODE (Use TPR shadow = 0)
+ * VMX_SECPROCBASED_APIC_REGISTER_VIRTUALIZATION (Use TPR shadow = 0)
+ * VMX_SECPROCBASED_VIRTUAL_INTERRUPT_DELIVERY (Use TPR shadow = 0)
+ * VMX_SECPROCBASED_VIRTUALIZE_APIC_ACCESS (control_APIC_access_address)
+ * VMX_SECPROCBASED_ENABLE_VM_FUNCTIONS (control_VM_function_controls)
+ * VMX_SECPROCBASED_VMCS_SHADOWING (control_VMREAD_bitmap_address)
+ * VMX_SECPROCBASED_EPT_VIOLATION_VE (control_virt_exception_info_address)
+ *
+ * Features to be enabled:
+ * VMX_PROCBASED_UNCONDITIONAL_IO_EXITING (I/O bitmaps = 0)
+ */
+
+#define _MASK_PROC \
+    ((1 << VMX_PROCBASED_USE_IO_BITMAPS) | \
+     (1 << VMX_PROCBASED_USE_TPR_SHADOW) | \
+     (1 << VMX_PROCBASED_UNCONDITIONAL_IO_EXITING))
+#define _MASK_SECP \
+    ((1 << VMX_SECPROCBASED_ENABLE_PML) | \
+     (1 << VMX_SECPROCBASED_VIRTUALIZE_X2APIC_MODE) | \
+     (1 << VMX_SECPROCBASED_APIC_REGISTER_VIRTUALIZATION) | \
+     (1 << VMX_SECPROCBASED_VIRTUAL_INTERRUPT_DELIVERY) | \
+     (1 << VMX_SECPROCBASED_VIRTUALIZE_APIC_ACCESS) | \
+     (1 << VMX_SECPROCBASED_ENABLE_VM_FUNCTIONS) | \
+     (1 << VMX_SECPROCBASED_VMCS_SHADOWING) | \
+     (1 << VMX_SECPROCBASED_EPT_VIOLATION_VE))
+
+_Static_assert((_MASK_PROC & _MASK_SECP) == 0, "Bit conflict");
+
+u32 VCPU_disable_memory_bitmap(VCPU *vcpu)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      u32 val_proc = __vmx_vmread32(VMCSENC_control_VMX_cpu_based);
+      u32 val_secp = __vmx_vmread32(VMCSENC_control_VMX_seccpu_based);
+      u32 ans = (val_proc & _MASK_PROC) | (val_secp & _MASK_SECP);
+      val_proc &= ~_MASK_PROC;
+      val_proc |= (1 << VMX_PROCBASED_UNCONDITIONAL_IO_EXITING);
+      val_secp &= ~_MASK_SECP;
+      __vmx_vmwrite32(VMCSENC_control_VMX_cpu_based, val_proc);
+      __vmx_vmwrite32(VMCSENC_control_VMX_seccpu_based, val_secp);
+      return ans;
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    return 0;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    /* Not implemented */
+    HALT_ON_ERRORCOND(false);
+    return 0;
+  } else {
+    HALT_ON_ERRORCOND(false);
+    return 0;
+  }
+}
+
+/*
+ * When nested virtualization, restore features that use physical memory bitmap.
+ * When not in nested virtualization, old_state must be 0.
+ * Before calling this function, the features must be disabled.
+ */
+void VCPU_enable_memory_bitmap(VCPU *vcpu, u32 old_state)
+{
+  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+#ifdef __NESTED_VIRTUALIZATION__
+    if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+      u32 val_proc = __vmx_vmread32(VMCSENC_control_VMX_cpu_based);
+      u32 val_secp = __vmx_vmread32(VMCSENC_control_VMX_seccpu_based);
+      val_proc &= ~(1 << VMX_PROCBASED_UNCONDITIONAL_IO_EXITING);
+      HALT_ON_ERRORCOND((val_proc & _MASK_PROC) == 0);
+      HALT_ON_ERRORCOND((val_secp & _MASK_SECP) == 0);
+      val_proc |= (old_state & _MASK_PROC);
+      val_secp |= (old_state & _MASK_SECP);
+      __vmx_vmwrite32(VMCSENC_control_VMX_cpu_based, val_proc);
+      __vmx_vmwrite32(VMCSENC_control_VMX_seccpu_based, val_secp);
+      return;
+    }
+#endif /* __NESTED_VIRTUALIZATION__ */
+    HALT_ON_ERRORCOND(old_state == 0);
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    /* Not implemented */
+    HALT_ON_ERRORCOND(false);
+  } else {
+    HALT_ON_ERRORCOND(false);
+  }
+}
+
+#undef _MASK_PROC
+#undef _MASK_SECP
+
+/*
  * Get a guest register
  */
 ulong_t VCPU_reg_get(VCPU *vcpu, struct regs* r, enum CPU_Reg_Sel sel)

@@ -125,6 +125,7 @@ typedef struct whitelist_entry{
   u32 saved_exception_intercepts;
   bool saved_nested_intr_exit; /* Save VCPU_disable_nested_interrupt_exit() */
   u32 saved_nested_timer; /* Save VCPU_disable_nested_timer_exit() */
+  u32 saved_nested_mem_bitmap; /* Save VCPU_disable_memory_bitmap() */
 
   tv_pal_section_int_t sections[TV_MAX_SECTIONS];
   size_t sections_num;

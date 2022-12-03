@@ -210,7 +210,7 @@ int hptw_emhf_host_l1_ctx_init_of_vcpu(hptw_emhf_host_ctx_t *rv, VCPU *vcpu)
   hpt_type_t t;
 
   t = hpt_emhf_get_hpt_type( vcpu);
-  root_pa = hva2spa( hpt_emhf_get_l1_root_pm( vcpu));
+  root_pa = hva2spa( hpt_emhf_get_root_pm( vcpu));
 
   hptw_emhf_host_ctx_init( rv, root_pa, t, NULL);
   return 0;
@@ -230,7 +230,7 @@ int hptw_emhf_host_ctx_init_of_vcpu(hptw_emhf_host_ctx_t *rv, VCPU *vcpu)
   hpt_pa_t root_pa12;
 
   t = hpt_emhf_get_hpt_type( vcpu);
-  root_pa = hva2spa( hpt_emhf_get_l1_root_pm( vcpu));
+  root_pa = hva2spa( hpt_emhf_get_root_pm( vcpu));
 
   // TODO: use xmhf_nested_arch_x86vmx_access_ept02() to increase performance
   // However, this may require changing the structure of HPT library.

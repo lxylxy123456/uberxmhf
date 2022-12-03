@@ -172,10 +172,8 @@ void xmhf_memprot_arch_x86vmx_flushmappings(VCPU *vcpu); //flush hardware page t
 void xmhf_memprot_arch_x86vmx_flushmappings_localtlb(VCPU *vcpu);
 void xmhf_memprot_arch_x86vmx_setprot(VCPU *vcpu, u64 gpa, u32 prottype); //set protection for a given physical memory address
 u32 xmhf_memprot_arch_x86vmx_getprot(VCPU *vcpu, u64 gpa); //get protection for a given physical memory address
-u64 xmhf_memprot_arch_x86vmx_get_EPTP(VCPU *vcpu); // get or set EPTP (only valid on Intel)
+u64 xmhf_memprot_arch_x86vmx_get_EPTP(VCPU *vcpu); // get or set EPTP01 (only valid on Intel)
 void xmhf_memprot_arch_x86vmx_set_EPTP(VCPU *vcpu, u64 eptp);
-u64 xmhf_memprot_arch_x86vmx_get_EPTP01(VCPU *vcpu); // get or set EPTP01 (only valid on Intel)
-void xmhf_memprot_arch_x86vmx_set_EPTP01(VCPU *vcpu, u64 eptp);
 
 //VMX EPT PML4 table buffers
 extern u8 g_vmx_ept_pml4_table_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
