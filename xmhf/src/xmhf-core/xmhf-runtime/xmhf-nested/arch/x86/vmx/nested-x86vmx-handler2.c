@@ -483,6 +483,12 @@ static u32 handle_vmexit20_nmi_window(VCPU * vcpu, vmcs12_info_t * vmcs12_info)
 			 * We must need to deliver NMI VMEXIT to L1, otherwise NMI
 			 * windowing bit in VMCS02 is wrong.
 			 */
+			if (!(nmi_pending && !vmcs12_info->guest_block_nmi)) {
+				printf("CPU(0x%02x): nmi_pending = %d\n", vcpu->id, nmi_pending);
+				printf("CPU(0x%02x): vcpu->vmx_guest_nmi_cfg.guest_nmi_block = %d\n", vcpu->id, vcpu->vmx_guest_nmi_cfg.guest_nmi_block);
+				printf("CPU(0x%02x): vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = %d\n", vcpu->id, vcpu->vmx_guest_nmi_cfg.guest_nmi_pending);
+				HALT_ON_ERRORCOND(nmi_pending && !vmcs12_info->guest_block_nmi);
+			}
 			HALT_ON_ERRORCOND(nmi_pending && !vmcs12_info->guest_block_nmi);
 			/* Let the following code change the VMEXIT reason to NMI */
 			return NESTED_VMEXIT_HANDLE_201_NMI_INTERRUPT;
