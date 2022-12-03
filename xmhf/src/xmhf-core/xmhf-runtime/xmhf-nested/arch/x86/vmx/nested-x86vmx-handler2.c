@@ -487,6 +487,9 @@ static u32 handle_vmexit20_nmi_window(VCPU * vcpu, vmcs12_info_t * vmcs12_info)
 				printf("CPU(0x%02x): nmi_pending = %d\n", vcpu->id, nmi_pending);
 				printf("CPU(0x%02x): vcpu->vmx_guest_nmi_cfg.guest_nmi_block = %d\n", vcpu->id, vcpu->vmx_guest_nmi_cfg.guest_nmi_block);
 				printf("CPU(0x%02x): vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = %d\n", vcpu->id, vcpu->vmx_guest_nmi_cfg.guest_nmi_pending);
+				printf("CPU(0x%02x): vmcs12_info->guest_block_nmi = %d\n", vcpu->id, vmcs12_info->guest_block_nmi);
+				xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":NMI_WINDOW:");
+				xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
 				HALT_ON_ERRORCOND(nmi_pending && !vmcs12_info->guest_block_nmi);
 			}
 			HALT_ON_ERRORCOND(nmi_pending && !vmcs12_info->guest_block_nmi);
