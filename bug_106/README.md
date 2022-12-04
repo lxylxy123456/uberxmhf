@@ -869,8 +869,10 @@ From current observed behavior, looks like registering / unregistering PALs
 causes memory corruption in Windows. Then as a result Windows blue screens. I
 think actions to EPTs are still the most suspicious.
 
-TODO: What problem will happen if running pal_demo in Hyper-V virtual machine (e.g. Debian)
-TODO: register scode slowly (1 second / vmcall), see whether bug still reproducible
+Untried ideas
+* What problem will happen if running pal_demo in Hyper-V virtual machine (e.g.
+  Debian)
+* Register scode slowly (1 second / vmcall), see whether bug still reproducible
 
 ### VirtualBox SMP problem
 
@@ -1060,28 +1062,117 @@ impossible to implement cleanly. Implemented in `xmhf64-nest f1abd43d4`, but
 bug not fixed yet because `nested-x86vmx-vmcs12.c` uses `arg->ctls` = VMCS12 to
 test whether a feature is used. It should use VMCS02 instead.
 
-In `xmhf64 bc3674567..5e86cb84c`, use `arg->ctls` = VMCS12. Now looks good
+In `xmhf64 bc3674567..5e86cb84c`, use `arg->ctls` = VMCS12. Now small tests
+look good
 * Dell, XMHF, Debian, KVM, Debian, PAL demo: good
 * Dell, XMHF, Debian, VirtualBox, Debian, PAL demo: good
 * Dell, XMHF, Hyper-V, Windows 10, PAL demo: good
+* Dell, XMHF, lhv-nmi: good
 
-TODO: when running a lot of PAL demo in Windows, see `Fatal: Halting! Condition 'nmi_pending && !vmcs12_info->guest_block_nmi' failed, line 486, file arch/x86/vmx/nested-x86vmx-handler2.c`
-TODO: run lhv-nmi test on real hardware
+However, when running a lot of PAL demo in Windows, see assertion error in
+`nested-x86vmx-handler2.c`: `nmi_pending && !vmcs12_info->guest_block_nmi`
 
-TODO: rename `hptw_emhf_host_ctx_init_of_vcpu`
+However, this bug is extremely rare and only reproduced once. Added some print
+debugging code in `xmhf64-nest-dev 4d5ad01d4` and forget about it for now.
+
+Sometimes see Windows bluescreen due to `CLOCK_WATCHDOG_TIMEOUT`. Ignore this
+issue for now. Iirc the hardware may freeze sometimes.
+
+Then we remove `xmhf_app_handle_ept02_change()` because EPT02 is no longer
+managed by hypapps.
+
+### Assertion `nmi_pending && !vmcs12_info->guest_block_nmi`
+
+The assertion error `nmi_pending && !vmcs12_info->guest_block_nmi` becomes
+reproducible again. There is
 ```
-TODO:   hptw_emhf_host_ctx_init_of_vcpu	6
-TODO:   hptw_emhf_host_l1_ctx_init_of_vcpu	4
-TODO:   hptw_emhf_checked_guest_ctx_init_of_vcpu	8
+CPU(0x04): nmi_pending = 0
+CPU(0x04): vcpu->vmx_guest_nmi_cfg.guest_nmi_block = 1
+CPU(0x04): vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = 1
 ```
 
-TODO: remove duplicated functions, search `_l1_`, `EPT01`
-TODO: change `scode_lend_section` back
-TODO: remove unneeded `xmhf_memprot_flushmappings_alltlb`
-TODO: distinguish changing EPTP (should not flush TLB) and change EPT01 entry
+After some code review, see that this bug happens because
+`xmhf_smpguest_arch_x86vmx_nmi_block()` does not distinguish L1 and L2.
+
+Fixed later.
+
+### XMHF locking design
+
+Now I feel that it may be a bad decision to use NMI, because it is difficult to
+be disabled.
+
+From <https://www.kernel.org/doc/html/v5.0/kernel-hacking/locking.html>, looks
+like Linux has 3 types of locks:
+* `spin_lock_irq()`: disable interrupt and spin lock
+* `spin_lock()`: spin lock
+* `mutex_lock()`: lock can sleep
+
+In XMHF, `mutex_lock()` is impossible because there are no threads.
+
+In XMYF, `spin_lock_irq()` is also very difficult because it is hard to disable
+NMI. If normal interrupts were used instead, we need (possibly) slightly more
+complicated code to handle interrupts, but we can easily disable interrupts
+when not convenient. Also, we can disable interrupts just after VMENTRY / just
+before VMEXIT (however, NMIs for guest are still not disabled). This is
+impossible if we use NMI.
+
+Well, actually we worked around this problem. Originally printf() during
+quiesce code will cause deadlock. So we grab printf lock before quiesce. Notice
+that in XMHF quiesce is always synchronous. So conclusion: use a spin lock
+(e.g. printf lock) to synchronize between "interrupt other cores" (e.g.
+quiesce) and "not convenient" (e.g. in the middle of printf()).
+
+### Possible race condition in APIC access after scode register
+
+Currently `vmx_lapic_changemapping()` assumes multiple CPUs use different EPTs.
+However, TrustVisor will change this after the first scode register. This can
+lead to a race condition: while one CPU is accessing APIC, XMHF adds the entry
+to EPT, then another CPU may access APIC without trapping to XMHF.
+
+The implication is that APIC access should be done through instruction
+emulation, not temporarily adding entry to EPT and instruction stepping.
+
+Currently this is not an issue because `vmx_lapic_changemapping()` is only
+called during guest OS booting. We can assume that at that time PALs are not
+started.
+
+### Changing TLB flush interface
+
+In `xmhf64-nest c05ba18a8`, changed TLB flushing interface. Now
+`xmhf_memprot_flushmappings_alltlb` and `xmhf_memprot_flushmappings_localtlb`
+take a flag argument to indicate which is changed.
+* If EPT entry is changed, the normal flushing happens.
+* If only EPT MT bits in entries are changed, no need to touch EPT02
+* If EPTP changes, no need to perform INVEPT, no need to invalidate all EPT02s
+
+After the change, looks like PAL demo runs faster
+
+Completed tasks
+* Remove unneeded `xmhf_memprot_flushmappings_alltlb`
+* Distinguish changing EPTP (should not flush TLB) and change EPT01 entry
+
+### Assertion `nmi_pending && !vmcs12_info->guest_block_nmi` 2
+
+Fixed `xmhf_smpguest_arch_x86vmx_nmi_block()` in `xmhf64-nest a945272fe`.
+
+For unknown reason, when running PAL demo test in Hyper-V, sometimes see
+Windows get stuck for a long time (e.g. 20 seconds). May it be related to the
+VMX preemption timer? Maybe it relates to how Hyper-V keeps track of time.
+
+Before the `a945272fe` fix, it is more likely to see `CLOCK_WATCHDOG_TIMEOUT`
+BSOD than `nmi_pending && !vmcs12_info->guest_block_nmi` assertion error. So it
+is hard to check whether the fix works. For now test a lot of times.
+
+Test is 2 threads in Windows Hyper-V: `./test_args64L2 3 70000000 7` and
+`./test_args32L2 4 70000000 7`. Results over multiple runs:
+* `EU_CHK( hpt_error_wasInsnFetch(vcpu, errorcode)) failed` (antivirus problem)
+* `EU_CHK( hpt_error_wasInsnFetch(vcpu, errorcode)) failed` (antivirus problem)
+* `EU_CHK( hpt_error_wasInsnFetch(vcpu, errorcode)) failed` (antivirus problem)
+* `EU_CHK( hpt_error_wasInsnFetch(vcpu, errorcode)) failed` (antivirus problem)
 
 TODO
-TODO: redesign EPT iface, see `### Need for redesigning EPT changing code`
+TODO: check Hyper-V VMX preemption timer settings.
+TODO: write summary about changes to TrustVisor, merge (squash)
 TODO: Windows antivirus problem
 TODO:  randomly disable Windows security features
 TODO:  let TV display process memory space
