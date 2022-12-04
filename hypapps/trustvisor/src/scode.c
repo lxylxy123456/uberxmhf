@@ -1414,10 +1414,14 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
           vcpu->id, rip, gcr3, ept12, gpaddr, errorcode);
 
   if (!hpt_error_wasInsnFetch(vcpu, errorcode)) {
-    printf("\n");
-    xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
-    printf("invalid access caught\n");
-    printf("\n");
+    if (0) {
+	    printf("\n");
+		xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
+		printf("invalid access caught\n");
+		printf("\n");
+    } else {
+    	printf("!");
+    }
     return 0;
   }
 
