@@ -86,15 +86,7 @@ void xmhf_nested_arch_x86vmx_handle_vmread(VCPU *vcpu, struct regs *r);
 void xmhf_nested_arch_x86vmx_handle_vmwrite(VCPU *vcpu, struct regs *r);
 void xmhf_nested_arch_x86vmx_handle_vmxoff(VCPU *vcpu, struct regs *r);
 void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU *vcpu, struct regs *r);
-
-void xmhf_nested_arch_x86vmx_update_nested_nmi(VCPU * vcpu);
-void *xmhf_nested_arch_x86vmx_access_ept02(VCPU * vcpu, void* cache_line,
-										   hpt_prot_t access_type,
-										   hpt_va_t va, size_t requested_sz,
-										   size_t *avail_sz);
-bool xmhf_nested_arch_x86vmx_get_ept12(VCPU * vcpu, gpa_t * ept12);
-void xmhf_nested_arch_x86vmx_set_ept12(VCPU * vcpu, bool enable, gpa_t ept12);
-void xmhf_nested_arch_x86vmx_flush_ept02(VCPU *vcpu, u32 flags);
+void xmhf_nested_arch_x86vmx_flush_ept02(VCPU *vcpu);
 
 #endif	//__ASSEMBLY__
 

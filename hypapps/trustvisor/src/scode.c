@@ -64,7 +64,6 @@
 
 /* #define EU_DOWNCAST(vctx, t) assert(((t)vctx)->magic == t ## _MAGIC), (t)vctx */
 
-bool g_did_change_root_mappings = false;
 hpt_pmo_t g_reg_npmo_root;
 hptw_emhf_host_ctx_t g_hptw_reg_host_ctx;
 
@@ -108,7 +107,7 @@ int * scode_curr = NULL;
 void scode_release_all_shared_pages(VCPU *vcpu, whitelist_entry_t* entry);
 
 /* search scode in whitelist */
-int scode_in_list(u64 gcr3, uintptr_t gvaddr, bool g64, u64 ept12)
+int scode_in_list(u64 gcr3, uintptr_t gvaddr, u32 g64)
 {
   size_t i, j;
 
@@ -116,8 +115,7 @@ int scode_in_list(u64 gcr3, uintptr_t gvaddr, bool g64, u64 ept12)
     {
       hpt_type_t t = whitelist[i].hptw_pal_checked_guest_ctx.super.t;
       if ((hpt_cr3_get_address(t, gcr3) == whitelist[i].gcr3) &&
-          (!!g64 == !!whitelist[i].g64) &&
-          (ept12 == whitelist[i].ept12)) {
+          (g64 == whitelist[i].g64)) {
         for( j=0 ; j<(u32)(whitelist[i].scode_info.num_sections) ; j++ )  {
           if( (gvaddr >= whitelist[i].scode_info.sections[j].start_addr) &&
               (gvaddr < ((whitelist[i].scode_info.sections[j].start_addr)+((whitelist[i].scode_info.sections[j].page_num)<<PAGE_SHIFT_4K)))  )  {
@@ -133,7 +131,7 @@ int scode_in_list(u64 gcr3, uintptr_t gvaddr, bool g64, u64 ept12)
   return -1;
 }
 
-static whitelist_entry_t* find_scode_by_entry(u64 gcr3, uintptr_t gv_entry, bool g64, u64 ept12)
+static whitelist_entry_t* find_scode_by_entry(u64 gcr3, uintptr_t gv_entry, u32 g64)
 {
   size_t i;
 
@@ -142,8 +140,7 @@ static whitelist_entry_t* find_scode_by_entry(u64 gcr3, uintptr_t gv_entry, bool
       /* find scode with correct cr3 and entry point */
       hpt_type_t t = whitelist[i].hptw_pal_checked_guest_ctx.super.t;
       if ((whitelist[i].gcr3 == hpt_cr3_get_address(t, gcr3)) &&
-          (!!g64 == !!whitelist[i].g64) &&
-          (ept12 == whitelist[i].ept12) &&
+          (g64 == whitelist[i].g64) &&
           (whitelist[i].entry_v == gv_entry))
         return &whitelist[i];
     }
@@ -263,11 +260,11 @@ void init_scode(VCPU * vcpu)
   /* initialize heap memory */
   mem_init();
 
-  EU_VERIFY(whitelist = malloc(WHITELIST_LIMIT));
+  whitelist = malloc(WHITELIST_LIMIT);
   eu_trace("alloc %dKB mem for scode_list at %lx!", (WHITELIST_LIMIT/1024), (unsigned long)whitelist);
-  EU_VERIFY(scode_pfn_bitmap = (unsigned char *)malloc(PFN_BITMAP_LIMIT));
+  scode_pfn_bitmap = (unsigned char *)malloc(PFN_BITMAP_LIMIT);
   eu_trace("alloc %dKB mem for pfn_bitmap at %lx!", (PFN_BITMAP_LIMIT/1024), (unsigned long)scode_pfn_bitmap);
-  EU_VERIFY(scode_pfn_bitmap_2M = (unsigned short *)malloc(PFN_BITMAP_2M_LIMIT));
+  scode_pfn_bitmap_2M = (unsigned short *)malloc(PFN_BITMAP_2M_LIMIT);
   eu_trace("alloc %dKB mem for pfn_bitmap_2M at %lx!", (PFN_BITMAP_LIMIT/1024), (unsigned long)scode_pfn_bitmap_2M);
 
   memset(whitelist, 0, WHITELIST_LIMIT);
@@ -285,7 +282,7 @@ void init_scode(VCPU * vcpu)
     if ( g_midtable[inum].cpu_lapic_id > max)
       max = g_midtable[inum].cpu_lapic_id;
   }
-  EU_VERIFY(scode_curr = malloc((max+1) * sizeof(*scode_curr)));
+  scode_curr = malloc((max+1) * sizeof(*scode_curr));
   memset(scode_curr, 0xFF, ((max+1) * sizeof(*scode_curr)));
 
 #ifdef __DRT__
@@ -316,7 +313,7 @@ int parse_params_info(VCPU * vcpu, struct tv_pal_params* pm_info, uintptr_t pm_a
                                    sizeof(pm_info->num_params)));
   num = pm_info->num_params;
 
-  eu_trace("pm_info %#lx, # of parameters is %d", pm_addr, num);
+  eu_trace("pm_info %#x, # of parameters is %d", pm_addr, num);
   EU_CHK( num <= TV_MAX_PARAMS);
 
   addr = pm_addr + offsetof(struct tv_pal_params, params);
@@ -359,7 +356,7 @@ int memsect_info_copy_from_guest(VCPU * vcpu, struct tv_pal_sections *ps_scode_i
   rv=0;
  out:
   if(rv) {
-    eu_err("failed with params: ps_scode_info:%p gva_scode_info:%#lx", ps_scode_info, gva_scode_info);
+    eu_err("failed with params: ps_scode_info:%p gva_scode_info:%#x", ps_scode_info, gva_scode_info);
   }
   return rv;
 }
@@ -418,6 +415,7 @@ int memsect_info_register(VCPU * vcpu, struct tv_pal_sections *ps_scode_info, wh
   return rv;
 }
 
+
 /* register scode in whitelist */
 u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
 {
@@ -426,7 +424,6 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
   u64 gcr3;
   hpt_pmo_t pal_npmo_root, pal_gpmo_root;
   hptw_emhf_checked_guest_ctx_t reg_guest_walk_ctx;
-  hptw_emhf_host_ctx_t hptw_reg_host_ctx;
   u64 rv=1;
 
   /* set all CPUs to use the same 'reg' nested page tables,
@@ -437,9 +434,11 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
      to set up their EPTs and call xmhf_app_main.
   */
   {
-    if (!g_did_change_root_mappings) {
+    static bool did_change_root_mappings=false;
+
+    if (!did_change_root_mappings) {
       hpt_emhf_get_root_pmo(vcpu, &g_reg_npmo_root);
-      EU_CHKN( hptw_emhf_host_l1_ctx_init_of_vcpu( &g_hptw_reg_host_ctx, vcpu) );
+      hptw_emhf_host_ctx_init_of_vcpu( &g_hptw_reg_host_ctx, vcpu);
       /*
        * 20221127: before, TrustVisor will for all VCPU change
        * vcpu->vmcs.control_EPT_pointer to current CPU's EPTP. However, this
@@ -471,16 +470,15 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
       {
         size_t i;
         for( i=0 ; i<g_midtable_numentries ; i++ )  {
-          VCPU *other_vcpu = (VCPU *)(g_midtable[i].vcpu_vaddr_ptr);
-          hpt_pm_t old = hpt_emhf_get_root_pm(other_vcpu);
-          hpt_pm_t new = g_reg_npmo_root.pm;
-          void *expected = &g_vmx_ept_pml4_table_buffers[i * PAGE_SIZE_4K];
-          HALT_ON_ERRORCOND((void *)old == expected);
-          eu_trace("cpu %d setting root pm from %p to %p", i, old, new);
+          eu_trace("cpu %d setting root pm from %p to %p",
+                  i,
+                  hpt_emhf_get_root_pm((VCPU *)(g_midtable[i].vcpu_vaddr_ptr)),
+                  g_reg_npmo_root.pm);
           if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
             HALT_ON_ERRORCOND(0 && "do not modify another CPU's EPT");
           }
-          hpt_emhf_set_root_pm(other_vcpu, new);
+          hpt_emhf_set_root_pm((VCPU *)(g_midtable[i].vcpu_vaddr_ptr),
+                               g_reg_npmo_root.pm);
         }
       }
 #endif
@@ -495,18 +493,17 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
           if (i == vcpu->idx) {
             continue;
           }
-          hptw_emhf_host_l1_ctx_init_of_vcpu(&ctx_other, vcpu_other);
+          hptw_emhf_host_ctx_init_of_vcpu(&ctx_other, vcpu_other);
           hptw_get_pmo(&pmo_other, &ctx_other.super, 4, 0);
           eu_trace("cpu %d copying PML4E 0x%016lx from 0x%016lx", i,
                    (uintptr_t)pmo_other.pm, (uintptr_t)pmo.pm);
           memcpy(pmo_other.pm, pmo.pm, PAGE_SIZE_4K);
         }
       }
-      g_did_change_root_mappings = true;
+      did_change_root_mappings = true;
     }
   }
 
-  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu( &hptw_reg_host_ctx, vcpu) );
   EU_CHKN( hptw_emhf_checked_guest_ctx_init_of_vcpu( &reg_guest_walk_ctx, vcpu));
 
   gcr3 = VCPU_gcr3(vcpu);
@@ -515,7 +512,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
 
   EU_CHK( whitelist_size < whitelist_max);
 
-  eu_trace("CPU(0x%02x): add to whitelist,  scode_info %#llx, scode_pm %#llx, gventry %#llx", vcpu->id, scode_info, scode_pm, gventry);
+  eu_trace("CPU(0x%02x): add to whitelist,  scode_info %#lx, scode_pm %#lx, gventry %#lx", vcpu->id, scode_info, scode_pm, gventry);
 
   /* ATTN: we should assign a ID for each registered sensitive code
    * so we know what to verify each time
@@ -523,24 +520,12 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
   whitelist_new.id = 0;
   whitelist_new.g64 = VCPU_g64(vcpu);
   whitelist_new.gcr3 = gcr3; /* Will clear lower bits for CR3 later */
-  whitelist_new.ept12 = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
   whitelist_new.grsp = (uintptr_t)-1;
 
   /* store scode entry point */
   whitelist_new.entry_v = gventry;
   whitelist_new.entry_p = hptw_va_to_pa( &reg_guest_walk_ctx.super, gventry);
-
-  /*
-   * hptw_va_to_pa will only walk guest page table (CR3). However, when in
-   * nested virtualization, need to walk EPT12 to convert L2 physical address
-   * to L1 physical address.
-   */
-  if (whitelist_new.ept12 != HPTW_EMHF_EPT12_INVALID) {
-    whitelist_new.entry_p = hptw_va_to_pa( &hptw_reg_host_ctx.super,
-                                           whitelist_new.entry_p);
-  }
-
-  eu_trace("CR3 value is %#llx, EPT12 is %#llx, entry point vaddr is %#lx, paddr is %#lx", gcr3, whitelist_new.ept12, whitelist_new.entry_v, whitelist_new.entry_p);
+  eu_trace("CR3 value is %#llx, entry point vaddr is %#lx, paddr is %#lx", gcr3, whitelist_new.entry_v, whitelist_new.entry_p);
 
   /* parse parameter structure */
   EU_CHKN( parse_params_info(vcpu, &(whitelist_new.params_info), scode_pm));
@@ -614,9 +599,7 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
       .reg_prot = reg_prot_of_type(whitelist_new.scode_info.sections[i].type),
       .section_type = whitelist_new.scode_info.sections[i].type,
     };
-    scode_lend_section( &hptw_reg_host_ctx.super,
-                        &g_hptw_reg_host_ctx.super,
-                        whitelist_new.ept12 != HPTW_EMHF_EPT12_INVALID,
+    scode_lend_section( &g_hptw_reg_host_ctx.super,
                         &reg_guest_walk_ctx.super,
                         &whitelist_new.hptw_pal_host_ctx.super,
                         &whitelist_new.hptw_pal_checked_guest_ctx.super,
@@ -663,8 +646,11 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
                                                 VCPU_gcr3( vcpu), /* XXX should build trusted cr3 from scratch */
                                                 whitelist_new.hptw_pal_checked_guest_ctx.super.root_pa);
 
-  /* flush TLB for page table modifications to take effect. */
-  xmhf_memprot_flushmappings_alltlb(vcpu, MEMP_FLUSHTLB_ENTRY);
+  /*
+   * flush TLB for page table modifications to take effect.
+   * make sure other CPUs also flush the TLB after quiesce.
+   */
+  xmhf_memprot_flushmappings_alltlb(vcpu);
 
 #ifdef __DMAP__
   /* Disable device accesses to these memory (via IOMMU) */
@@ -711,27 +697,23 @@ u64 scode_unregister(VCPU * vcpu, u64 gvaddr)
 {
   size_t i, j;
   u64 rv=1;
-  bool g64;
+  u32 g64;
   u64 gcr3;
-  u64 ept12;
 
   gcr3 = VCPU_gcr3(vcpu);
   g64 = VCPU_g64(vcpu);
-  ept12 = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
 
   eu_trace("*** scode unregister ***");
 
-  EU_CHK( g_did_change_root_mappings );
   EU_CHK( whitelist_size != 0);
 
-  eu_trace("CPU(%02x): remove from whitelist gcr3 %#llx, ept12 %#llx, gvaddr %#llx", vcpu->id, gcr3, ept12, gvaddr);
+  eu_trace("CPU(%02x): remove from whitelist gcr3 %#llx, gvaddr %#x", vcpu->id, gcr3, gvaddr);
 
   for (i = 0; i < whitelist_max; i ++) {
     /* find scode with correct cr3 and entry point */
     hpt_type_t t = whitelist[i].hptw_pal_checked_guest_ctx.super.t;
     if ((whitelist[i].gcr3 == hpt_cr3_get_address(t, gcr3)) &&
-        (!!g64 == !!whitelist[i].g64) &&
-        (ept12 == whitelist[i].ept12) &&
+        (g64 == whitelist[i].g64) &&
         (whitelist[i].entry_v == gvaddr))
       break;
   }
@@ -773,8 +755,11 @@ u64 scode_unregister(VCPU * vcpu, u64 gvaddr)
                           &whitelist[i].hptw_pal_checked_guest_ctx.super,
                           &whitelist[i].sections[j]);
   }
-  /* flush TLB for page table modifications to take effect. */
-  xmhf_memprot_flushmappings_alltlb(vcpu, MEMP_FLUSHTLB_ENTRY);
+  /*
+   * flush TLB for page table modifications to take effect.
+   * make sure other CPUs also flush the TLB after quiesce.
+   */
+  xmhf_memprot_flushmappings_alltlb(vcpu);
 
   /* delete entry from scode whitelist */
   /* CRITICAL SECTION in MP scenario: need to quiesce other CPUs or at least acquire spinlock */
@@ -881,7 +866,7 @@ u32 scode_marshall64(VCPU * vcpu, struct regs *r)
           {
             /* put the parameter value in sensitive code stack */
             pm_tmp = pm_value;
-            eu_trace("PM %d is a integer (size %d, value %#llx)", pm_i, pm_size, pm_value);
+            eu_trace("PM %d is a integer (size %d, value %#lx)", pm_i, pm_size, pm_value);
             break;
           }
         case TV_PAL_PM_POINTER: /* pointer */
@@ -890,7 +875,7 @@ u32 scode_marshall64(VCPU * vcpu, struct regs *r)
             pm_size_sum += pm_size;
             EU_CHK( pm_size_sum <= (whitelist[curr].gpm_size*PAGE_SIZE_4K));
 
-            eu_trace("PM %d is a pointer (size %d, value %#llx)", pm_i, pm_size, pm_value);
+            eu_trace("PM %d is a pointer (size %d, value %#lx)", pm_i, pm_size, pm_value);
 
             EU_CHKN( hptw_checked_copy_va_to_va(&whitelist[curr].hptw_pal_checked_guest_ctx.super,
                                                 HPTW_CPL3,
@@ -1022,7 +1007,7 @@ u32 scode_marshall32(VCPU * vcpu)
           {
             /* put the parameter value in sensitive code stack */
             pm_tmp = (u32)pm_value;
-            eu_trace("PM %d is a integer (size %d, value %#llx)", pm_i, pm_size, pm_value);
+            eu_trace("PM %d is a integer (size %d, value %#lx)", pm_i, pm_size, pm_value);
             break;
           }
         case TV_PAL_PM_POINTER: /* pointer */
@@ -1031,7 +1016,7 @@ u32 scode_marshall32(VCPU * vcpu)
             pm_size_sum += pm_size;
             EU_CHK( pm_size_sum <= (whitelist[curr].gpm_size*PAGE_SIZE_4K));
 
-            eu_trace("PM %d is a pointer (size %d, value %#llx)", pm_i, pm_size, pm_value);
+            eu_trace("PM %d is a pointer (size %d, value %#lx)", pm_i, pm_size, pm_value);
 
             EU_CHKN( hptw_checked_copy_va_to_va(&whitelist[curr].hptw_pal_checked_guest_ctx.super,
                                                 HPTW_CPL3,
@@ -1068,7 +1053,7 @@ u32 scode_marshall32(VCPU * vcpu)
 
 
 
-//switch from regular code to sensitive code
+//todo: switch from regular code to sensitive code
 u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
 {
   int curr=scode_curr[vcpu->id];
@@ -1082,7 +1067,6 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   perf_ctr_timer_start(&g_tv_perf_ctrs[TV_PERF_CTR_SWITCH_SCODE], vcpu->idx);
 
   eu_trace("*** to scode ***");
-  EU_CHK( g_did_change_root_mappings );
 
   spin_lock(&(whitelist[curr].pal_running_lock));
   whitelist[curr].pal_running_vcpu_id=vcpu->id;
@@ -1125,27 +1109,25 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
      below in case of error) */
 
   eu_trace("change NPT permission to run PAL!");
-  eu_trace("vcpu=%d, guest_RIP=%#lx, guest_RSP=%#lx", vcpu->id,
+  eu_trace("vcpu=%#x, guest_RIP=%#lx, guest_RSP=%#lx", vcpu->id,
            VCPU_grip(vcpu), VCPU_grsp(vcpu));
-  whitelist[curr].saved_pt_root_pa = hpt_emhf_get_root_pm_pa(vcpu);
-  whitelist[curr].saved_pt_l1l2_root_pa = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
-  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu(&whitelist[curr].saved_hptw_reg_host_ctx,
-                                           vcpu) );
   hpt_emhf_set_root_pm_pa( vcpu, whitelist[curr].hptw_pal_host_ctx.super.root_pa);
-  hpt_emhf_set_l1l2_root_pm_pa(vcpu, HPTW_EMHF_EPT12_INVALID);
   VCPU_gcr3_set(vcpu, whitelist[curr].pal_gcr3);
 
-  /* notify XMHF about change in EPTP (may flush shadow EPT) */
-  xmhf_memprot_flushmappings_localtlb(vcpu, MEMP_FLUSHTLB_EPTP);
+  /*
+   * flush TLB for page table modifications to take effect.
+   * make sure other CPUs also flush the TLB after quiesce.
+   * TODO: this may be unnecessary. Review and see whether can remove.
+   */
+  xmhf_memprot_flushmappings_alltlb(vcpu);
 
   if (whitelist[curr].hptw_pal_checked_guest_ctx.super.t == HPT_TYPE_PAE) {
     /* For PAE paging, need to update VMCS PDPTEs manually */
-    u64 pdptes[4];
-    EU_CHKN( hptw_checked_copy_from_va( &whitelist[curr].hptw_pal_host_ctx.super,
-                                        HPTW_CPL0,
-                                        pdptes,
-                                        whitelist[curr].pal_gcr3,
-                                        sizeof(pdptes)));
+    hptw_ctx_t *ctx = &whitelist[curr].hptw_pal_host_ctx.super;
+    size_t avail_sz;
+    u64 *pdptes = ctx->pa2ptr(ctx, VCPU_gcr3(vcpu), sizeof(u64) * 4,
+                              HPT_PROTS_R, HPTW_CPL3, &avail_sz);
+    EU_CHK(avail_sz == sizeof(u64) * 4);
     VCPU_gpdpte_set(vcpu, pdptes);
   }
 
@@ -1155,10 +1137,6 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
     EU_CHK((rflags & EFLAGS_IF) == EFLAGS_IF);
     VCPU_grflags_set(vcpu, rflags & ~EFLAGS_IF);
   }
-
-  whitelist[curr].saved_nested_intr_exit = VCPU_disable_nested_interrupt_exit(vcpu);
-  whitelist[curr].saved_nested_timer = VCPU_disable_nested_timer_exit(vcpu);
-  whitelist[curr].saved_nested_mem_bitmap = VCPU_disable_memory_bitmap(vcpu);
 
   /* disable NMIs, assume regular code has NMIs enabled */
   xmhf_smpguest_nmi_block(vcpu);
@@ -1176,8 +1154,14 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   /* intercept all exceptions. (otherwise they'll result in a triple-fault,
    *   since the PAL doesn't have any exception handlers installed).
    */
-  whitelist[curr].saved_exception_intercepts = VCPU_exception_bitmap(vcpu);
-  VCPU_exception_bitmap_set(vcpu, 0xffffffffU);
+  if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    whitelist[curr].saved_exception_intercepts =
+      ((struct _svm_vmcbfields *)(vcpu->vmcb_vaddr_ptr))->exception_intercepts_bitmask;
+    ((struct _svm_vmcbfields *)(vcpu->vmcb_vaddr_ptr))->exception_intercepts_bitmask = 0xffffffff;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+    whitelist[curr].saved_exception_intercepts =  vcpu->vmcs.control_exception_bitmap;
+    vcpu->vmcs.control_exception_bitmap = 0xffffffff;
+  }
 
   err=0;
  out:
@@ -1210,11 +1194,12 @@ u32 scode_unmarshall(VCPU * vcpu)
   hptw_emhf_checked_guest_ctx_t reg_guest_walk_ctx;
   u32 err=1;
 
+
   EU_CHKN( hptw_emhf_checked_guest_ctx_init( &reg_guest_walk_ctx,
                                              whitelist[curr].reg_gpt_root_pa,
                                              whitelist[curr].reg_gpt_type,
                                              HPTW_CPL3,
-                                             &whitelist[curr].saved_hptw_reg_host_ctx,
+                                             &g_hptw_reg_host_ctx,
                                              NULL));
 
   eu_trace("unmarshalling scode parameters!");
@@ -1222,7 +1207,7 @@ u32 scode_unmarshall(VCPU * vcpu)
 
   /* memory address for input parameter in sensitive code */
   pm_addr_base = whitelist[curr].gpmp;
-  eu_trace("parameter page base address is %#lx", pm_addr_base);
+  eu_trace("parameter page base address is %#x", pm_addr_base);
 
   /* get params number */
   pm_addr = pm_addr_base;
@@ -1271,7 +1256,7 @@ u32 scode_unmarshall(VCPU * vcpu)
                                                 sizeof(pm_value)));
             pm_addr += sizeof(pm_value);
 
-            eu_trace("PM %d is a pointer (size %d, addr %#llx)", i,  pm_size, pm_value);
+            eu_trace("PM %d is a pointer (size %d, addr %#x)", i,  pm_size, pm_value);
             /* copy data from sensitive code (param space) to guest */
             EU_CHKN( hptw_checked_copy_va_to_va( &reg_guest_walk_ctx.super,
                                                  HPTW_CPL3,
@@ -1309,7 +1294,6 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
   eu_trace("************************************");
   eu_trace("***** switch to regular code  ******");
   eu_trace("************************************");
-  EU_CHK( g_did_change_root_mappings );
 
   /* marshalling parameters back to regular code */
   EU_CHKN( scode_unmarshall(vcpu));
@@ -1321,33 +1305,41 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
  out:
 
   /* restore exception intercept vector */
-  VCPU_exception_bitmap_set(vcpu, whitelist[curr].saved_exception_intercepts);
+  if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
+    ((struct _svm_vmcbfields *)(vcpu->vmcb_vaddr_ptr))->exception_intercepts_bitmask
+      = whitelist[curr].saved_exception_intercepts;
+  } else if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
+    vcpu->vmcs.control_exception_bitmap
+      = whitelist[curr].saved_exception_intercepts;
+  }
 
   /* release shared pages */
   scode_release_all_shared_pages(vcpu, &whitelist[curr]);
 
   /* clear the NPT permission setting in switching into scode */
   eu_trace("change NPT permission to exit PAL!");
-  hpt_emhf_set_l1l2_root_pm_pa(vcpu, whitelist[curr].saved_pt_l1l2_root_pa);
-  hpt_emhf_set_root_pm_pa(vcpu, whitelist[curr].saved_pt_root_pa);
+  hpt_emhf_set_root_pm(vcpu, g_reg_npmo_root.pm);
   VCPU_gcr3_set(vcpu, whitelist[curr].gcr3);
 
-  /* notify XMHF about change in EPTP (may flush shadow EPT) */
-  xmhf_memprot_flushmappings_localtlb(vcpu, MEMP_FLUSHTLB_EPTP);
+  /*
+   * flush TLB for page table modifications to take effect.
+   * make sure other CPUs also flush the TLB after quiesce.
+   * TODO: this may be unnecessary. Review and see whether can remove.
+   */
+  xmhf_memprot_flushmappings_alltlb(vcpu);
 
   if (whitelist[curr].hptw_pal_checked_guest_ctx.super.t == HPT_TYPE_PAE) {
     /* For PAE paging, need to update VMCS PDPTEs manually */
-    u64 pdptes[4];
-    EU_CHKN( hptw_checked_copy_from_va( &whitelist[curr].saved_hptw_reg_host_ctx.super,
-                                        HPTW_CPL0,
-                                        pdptes,
-                                        whitelist[curr].gcr3,
-                                        sizeof(pdptes)));
+    hptw_ctx_t *ctx = &g_hptw_reg_host_ctx.super;
+    size_t avail_sz;
+    u64 *pdptes = ctx->pa2ptr(ctx, VCPU_gcr3(vcpu), sizeof(u64) * 4,
+                              HPT_PROTS_R, HPTW_CPL3, &avail_sz);
+    EU_CHK(avail_sz == sizeof(u64) * 4);
     VCPU_gpdpte_set(vcpu, pdptes);
   }
 
   /* switch back to regular stack */
-  eu_trace("switch from scode stack %#lx back to regular stack %#lx", (uintptr_t)VCPU_grsp(vcpu), (uintptr_t)whitelist[curr].grsp);
+  eu_trace("switch from scode stack %#x back to regular stack %#lx", (uintptr_t)VCPU_grsp(vcpu), (uintptr_t)whitelist[curr].grsp);
   VCPU_grsp_set(vcpu, whitelist[curr].grsp + word_size);
   whitelist[curr].grsp = (uintptr_t)-1;
 
@@ -1357,10 +1349,6 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
     EU_CHK((rflags & EFLAGS_IF) == 0);
     VCPU_grflags_set(vcpu, rflags | EFLAGS_IF);
   }
-
-  VCPU_enable_memory_bitmap(vcpu, whitelist[curr].saved_nested_mem_bitmap);
-  VCPU_enable_nested_timer_exit(vcpu, whitelist[curr].saved_nested_timer);
-  VCPU_enable_nested_interrupt_exit(vcpu, whitelist[curr].saved_nested_intr_exit);
 
   /* enable NMIs, check that scode has NMIs disabled */
   xmhf_smpguest_nmi_unblock(vcpu);
@@ -1399,8 +1387,7 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
   int * curr=&(scode_curr[vcpu->id]);
   u64 gcr3 = VCPU_gcr3(vcpu);
   uintptr_t rip = (uintptr_t)VCPU_grip(vcpu);
-  bool g64;
-  u64 ept12 = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
+  u32 g64;
   u32 err=1;
 
 #if defined(__LDN_TV_INTEGRATION__)
@@ -1410,14 +1397,14 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
   perf_ctr_timer_start(&g_tv_perf_ctrs[TV_PERF_CTR_NPF], vcpu->idx);
 
 #if !defined(__LDN_TV_INTEGRATION__)
-  eu_trace("CPU(%02x): nested page fault!(rip %#lx, gcr3 %#llx, ept12 %#llx, gpaddr %#lx, errorcode %llx)",
-          vcpu->id, rip, gcr3, ept12, gpaddr, errorcode);
+  eu_trace("CPU(%02x): nested page fault!(rip %#lx, gcr3 %#llx, gpaddr %#lx, errorcode %llx)",
+          vcpu->id, rip, gcr3, gpaddr, errorcode);
 
   EU_CHK( hpt_error_wasInsnFetch(vcpu, errorcode));
 #endif //__LDN_TV_INTEGRATION__
 
   g64 = VCPU_g64(vcpu);
-  index = scode_in_list(gcr3, rip, g64, ept12);
+  index = scode_in_list(gcr3, rip, g64);
   if ((*curr == -1) && (index >= 0)) {
     /* regular code to sensitive code */
 
@@ -1479,12 +1466,6 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
   return err;
 }
 
-/* Return whether current CPU is running scode */
-bool hpt_scode_is_scode(VCPU * vcpu)
-{
-  return (scode_curr[vcpu->id]) != -1;
-}
-
 /* Return ID of the scode current CPU is running, or -1 if not running scode */
 int hpt_scode_get_scode_id(VCPU * vcpu)
 {
@@ -1517,8 +1498,6 @@ u32 scode_share_range(VCPU * vcpu, whitelist_entry_t *wle, u32 gva_base, u32 gva
 {
   u32 err=1;
   hptw_emhf_checked_guest_ctx_t vcpu_guest_walk_ctx;
-  hptw_emhf_host_ctx_t hptw_reg_host_ctx;
-  EU_CHKN( hptw_emhf_host_ctx_init_of_vcpu( &hptw_reg_host_ctx, vcpu) );
   EU_CHKN( hptw_emhf_checked_guest_ctx_init_of_vcpu( &vcpu_guest_walk_ctx, vcpu));
 
   EU_CHK( wle->sections_num < TV_MAX_SECTIONS);
@@ -1532,9 +1511,7 @@ u32 scode_share_range(VCPU * vcpu, whitelist_entry_t *wle, u32 gva_base, u32 gva
     .section_type = TV_PAL_SECTION_SHARED,
   };
 
-  scode_lend_section( &hptw_reg_host_ctx.super,
-                      &g_hptw_reg_host_ctx.super,
-                      hpt_emhf_get_l1l2_root_pm_pa(vcpu) != HPTW_EMHF_EPT12_INVALID,
+  scode_lend_section( &g_hptw_reg_host_ctx.super,
                       &vcpu_guest_walk_ctx.super,
                       &wle->hptw_pal_host_ctx.super,
                       &wle->hptw_pal_checked_guest_ctx.super,
@@ -1551,20 +1528,21 @@ u32 scode_share_ranges(VCPU * vcpu, u32 scode_entry, u32 gva_base[], u32 gva_len
 {
   size_t i;
   whitelist_entry_t* entry;
-  bool g64;
-  u64 ept12;
+  u32 g64;
   u32 err=1;
 
   g64 = VCPU_g64(vcpu);
-  ept12 = hpt_emhf_get_l1l2_root_pm_pa(vcpu);
-  EU_CHK( entry = find_scode_by_entry(VCPU_gcr3(vcpu), scode_entry, g64, ept12));
+  EU_CHK( entry = find_scode_by_entry(VCPU_gcr3(vcpu), scode_entry, g64));
 
   for(i=0; i<count; i++) {
     EU_CHKN( scode_share_range(vcpu, entry, gva_base[i], gva_len[i]));
   }
 
-  /* flush TLB for page table modifications to take effect. */
-  xmhf_memprot_flushmappings_alltlb(vcpu, MEMP_FLUSHTLB_ENTRY);
+  /*
+   * flush TLB for page table modifications to take effect.
+   * make sure other CPUs also flush the TLB after quiesce.
+   */
+  xmhf_memprot_flushmappings_alltlb(vcpu);
 
   err=0;
 out:
