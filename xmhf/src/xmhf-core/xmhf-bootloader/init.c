@@ -122,44 +122,6 @@ void dealwithMP(void){
     }
 }
 
-
-//---microsecond delay----------------------------------------------------------
-void udelay(u32 usecs){
-    u8 val;
-    u32 latchregval;
-
-    //enable 8254 ch-2 counter
-    val = inb(0x61);
-    val &= 0x0d; //turn PC speaker off
-    val |= 0x01; //turn on ch-2
-    outb(val, 0x61);
-
-    //program ch-2 as one-shot
-    outb(0xB0, 0x43);
-
-    //compute appropriate latch register value depending on usecs
-    latchregval = ((u64)1193182 * usecs) / 1000000;
-
-    HALT_ON_ERRORCOND(latchregval < (1 << 16));
-
-    //write latch register to ch-2
-    val = (u8)latchregval;
-    outb(val, 0x42);
-    val = (u8)((u32)latchregval >> (u32)8);
-    outb(val , 0x42);
-
-    //wait for countdown
-    while (!(inb(0x61) & 0x20)) {
-        xmhf_cpu_relax();
-    }
-
-    //disable ch-2 counter
-    val = inb(0x61);
-    val &= 0x0c;
-    outb(val, 0x61);
-}
-
-
 //---INIT IPI routine-----------------------------------------------------------
 void send_init_ipi_to_all_APs(void) {
     u32 eax, edx;
@@ -176,7 +138,7 @@ void send_init_ipi_to_all_APs(void) {
     //send INIT
     printf("Sending INIT IPI to all APs...\n");
     *icr = 0x000c4500UL;
-    udelay(10000);
+    xmhf_baseplatform_arch_x86_udelay(10000);
     //wait for command completion
     while (--timeout > 0 && ((*icr) & 0x00001000U)) {
         xmhf_cpu_relax();
@@ -959,7 +921,7 @@ void wakeupAPs(void){
     //send INIT
     printf("Sending INIT IPI to all APs...");
     *icr = 0x000c4500UL;
-    udelay(10000);
+    xmhf_baseplatform_arch_x86_udelay(10000);
     //wait for command completion
     while ((*icr) & 0x1000U) {
         xmhf_cpu_relax();
@@ -972,7 +934,7 @@ void wakeupAPs(void){
         for(i=0; i < 2; i++){
             printf("Sending SIPI-%u...", i);
             *icr = 0x000c4610UL;
-            udelay(200);
+            xmhf_baseplatform_arch_x86_udelay(200);
             //wait for command completion
             while ((*icr) & 0x1000U) {
                 xmhf_cpu_relax();
@@ -1017,6 +979,7 @@ bool svm_prepare_tpm(void) {
 void cstartup(multiboot_info_t *mbi){
     module_t *mod_array;
     u32 mods_count;
+    size_t sl_rt_nonzero_size;
 
     /* parse command line */
     memset(g_cmdline, '\0', sizeof(g_cmdline));
@@ -1095,7 +1058,8 @@ void cstartup(multiboot_info_t *mbi){
 
     //find highest 2MB aligned physical memory address that the hypervisor
     //binary must be moved to
-    sl_rt_size = mod_array[0].mod_end - mod_array[0].mod_start;
+    sl_rt_nonzero_size = mod_array[0].mod_end - mod_array[0].mod_start;
+    sl_rt_size = sl_rt_nonzero_size;
 
 #ifdef __SKIP_RUNTIME_BSS__
     {
@@ -1122,7 +1086,8 @@ void cstartup(multiboot_info_t *mbi){
     }
 
     //relocate the hypervisor binary to the above calculated address
-    memmove((void*)hypervisor_image_baseaddress, (void*)mod_array[0].mod_start, sl_rt_size);
+    HALT_ON_ERRORCOND(sl_rt_nonzero_size <= sl_rt_size);
+    memmove((void*)hypervisor_image_baseaddress, (void*)mod_array[0].mod_start, sl_rt_nonzero_size);
 
     HALT_ON_ERRORCOND(sl_rt_size > 0x200000); /* 2M */
 
@@ -1213,9 +1178,11 @@ void cstartup(multiboot_info_t *mbi){
     //setup vcpus
     setupvcpus(cpu_vendor, midtable, midtable_numentries);
 
+#ifndef __SKIP_INIT_SMP__
     //wakeup all APs
     if(midtable_numentries > 1)
         wakeupAPs();
+#endif /* __SKIP_INIT_SMP__ */
 
     //fall through and enter mp_cstartup via init_core_lowlevel_setup
     init_core_lowlevel_setup();
@@ -1255,10 +1222,14 @@ void svm_clear_microcode(VCPU *vcpu){
 }
 
 
+#ifndef __SKIP_INIT_SMP__
 u32 cpus_active=0; //number of CPUs that are awake, should be equal to
 //midtable_numentries -1 if all went well with the
 //MP startup protocol
 u32 lock_cpus_active=1; //spinlock to access the above
+#elif defined(__DRT__)
+	#error "__SKIP_INIT_SMP__ not supported when __DRT__"
+#endif /* __SKIP_INIT_SMP__ */
 
 
 //------------------------------------------------------------------------------
@@ -1283,6 +1254,7 @@ void mp_cstartup (VCPU *vcpu){
 
         printf("BSP(0x%02x): Rallying APs...\n", vcpu->id);
 
+#ifndef __SKIP_INIT_SMP__
         //increment a CPU to account for the BSP
         spin_lock(&lock_cpus_active);
         cpus_active++;
@@ -1293,7 +1265,7 @@ void mp_cstartup (VCPU *vcpu){
         while (cpus_active < midtable_numentries) {
             xmhf_cpu_relax();
         }
-
+#endif /* __SKIP_INIT_SMP__ */
 
         //put all APs in INIT state
 
@@ -1313,10 +1285,12 @@ void mp_cstartup (VCPU *vcpu){
 
         printf("AP(0x%02x): Waiting for DRTM establishment...\n", vcpu->id);
 
+#ifndef __SKIP_INIT_SMP__
         //update the AP startup counter
         spin_lock(&lock_cpus_active);
         cpus_active++;
         spin_unlock(&lock_cpus_active);
+#endif /* __SKIP_INIT_SMP__ */
 
         /*
          * Note: calling printf() here may lead to deadlock. After BSP

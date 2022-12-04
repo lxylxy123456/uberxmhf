@@ -137,38 +137,149 @@
 #define INTERCEPT_VMMCALL         0x28
 #define INTERCEPT_EXCEPTIONS      0x29
 
-#define VMX_VMEXIT_EXCEPTION      0
-#define VMX_VMEXIT_INVLPG         14
-#define VMX_VMEXIT_NMI_WINDOW     8
-#define VMX_VMEXIT_MONITOR_TRAP   37
-
-#define VMX_VMEXIT_CRX_ACCESS 0x1C
+/* Exception or non-maskable interrupt (NMI) */
+#define VMX_VMEXIT_EXCEPTION            0
+/* External interrupt */
+#define VMX_VMEXIT_EXT_INTERRUPT        1
+/* Triple fault */
+#define VMX_VMEXIT_TRIPLE_FAULT         2
+/* INIT signal. An INIT signal arrived */
+#define VMX_VMEXIT_INIT                 3
+/* Start-up IPI (SIPI) */
+#define VMX_VMEXIT_SIPI                 4
+/* I/O system-management interrupt (SMI) */
+#define VMX_VMEXIT_IO_SMI               5
+/* Other SMI */
+#define VMX_VMEXIT_OTHER_SMI            6
+/* Interrupt window */
+#define VMX_VMEXIT_INTERRUPT_WINDOW     7
+/* NMI window */
+#define VMX_VMEXIT_NMI_WINDOW           8
+/* Task switch */
+#define VMX_VMEXIT_TASKSWITCH           9
+/* CPUID */
+#define VMX_VMEXIT_CPUID                10
+/* GETSEC */
+#define VMX_VMEXIT_GETSEC               11
+/* HLT */
+#define VMX_VMEXIT_HLT                  12
+/* INVD */
+#define VMX_VMEXIT_INVD                 13
+/* INVLPG */
+#define VMX_VMEXIT_INVLPG               14
+/* RDPMC */
+#define VMX_VMEXIT_RDPMC                15
+/* RDTSC */
+#define VMX_VMEXIT_RDTSC                16
+/* RSM */
+#define VMX_VMEXIT_RSM                  17
+/* VMCALL */
+#define VMX_VMEXIT_VMCALL               18
+/* VMCLEAR */
+#define VMX_VMEXIT_VMCLEAR              19
+/* VMLAUNCH */
+#define VMX_VMEXIT_VMLAUNCH             20
+/* VMPTRLD */
+#define VMX_VMEXIT_VMPTRLD              21
+/* VMPTRST */
+#define VMX_VMEXIT_VMPTRST              22
+/* VMREAD */
+#define VMX_VMEXIT_VMREAD               23
+/* VMRESUME */
+#define VMX_VMEXIT_VMRESUME             24
+/* VMWRITE */
+#define VMX_VMEXIT_VMWRITE              25
+/* VMXOFF */
+#define VMX_VMEXIT_VMXOFF               26
+/* VMXON */
+#define VMX_VMEXIT_VMXON                27
+/* Control-register accesses */
+#define VMX_VMEXIT_CRX_ACCESS           28
+/* MOV DR */
+#define VMX_VMEXIT_MOV_DR               29
+/* I/O instruction */
+#define VMX_VMEXIT_IOIO                 30
+/* RDMSR */
+#define VMX_VMEXIT_RDMSR                31
+/* WRMSR */
+#define VMX_VMEXIT_WRMSR                32
+/* VM-entry failure due to invalid guest state */
+#define VMX_VMEXIT_EMTRY_FAIL_GUEST_ST  33
+/* VM-entry failure due to MSR loading */
+#define VMX_VMEXIT_ENTRY_FAIL_MSR       34
+/* Not defined basic exit reason: 35 */
+#define VMX_VMEXIT_UNDEFINED35          35
+/* MWAIT */
+#define VMX_VMEXIT_MWAIT                36
+/* Monitor trap flag */
+#define VMX_VMEXIT_MONITOR_TRAP         37
+/* Not defined basic exit reason: 38 */
+#define VMX_VMEXIT_UNDEFINED38          38
+/* MONITOR */
+#define VMX_VMEXIT_MONITOR              39
+/* PAUSE */
+#define VMX_VMEXIT_PAUSE                40
+/* VM-entry failure due to machine-check event */
+#define VMX_VMEXIT_ENTRY_FAIL_MC        41
+/* Not defined basic exit reason: 42 */
+#define VMX_VMEXIT_UNDEFINED42          42
+/* TPR below threshold */
+#define VMX_VMEXIT_TPR_BELOW_THRESHOLD  43
+/* APIC access */
+#define VMX_VMEXIT_APIC_ACCESS          44
+/* Virtualized EOI */
+#define VMX_VMEXIT_VIRTUALIZED_EOI      45
+/* Access to GDTR or IDTR */
+#define VMX_VMEXIT_ACCESS_GDTR_IDTR     46
+/* Access to LDTR or TR */
+#define VMX_VMEXIT_ACCESS_LDTR_TR       47
+/* EPT violation */
+#define VMX_VMEXIT_EPT_VIOLATION        48
+/* EPT misconfiguration */
+#define VMX_VMEXIT_EPT_MISCONFIGURATION 49
+/* INVEPT */
+#define VMX_VMEXIT_INVEPT               50
+/* RDTSCP */
+#define VMX_VMEXIT_RDTSCP               51
+/* VMX-preemption timer expired */
+#define VMX_VMEXIT_PREEMPTION_TIMER     52
+/* INVVPID */
+#define VMX_VMEXIT_INVVPID              53
+/* WBINVD or WBNOINVD */
+#define VMX_VMEXIT_WBINVD               54
+/* XSETBV */
+#define VMX_VMEXIT_XSETBV               55
+/* APIC write */
+#define VMX_VMEXIT_APIC_WRITE           56
+/* RDRAND */
+#define VMX_VMEXIT_RDRAND               57
+/* INVPCID */
+#define VMX_VMEXIT_INVPCID              58
+/* VMFUNC */
+#define VMX_VMEXIT_VMFUNC               59
+/* ENCLS */
+#define VMX_VMEXIT_ENCLS                60
+/* RDSEED */
+#define VMX_VMEXIT_RDSEED               61
+/* Page-modification log full */
+#define VMX_VMEXIT_PAGE_MODIF_LOG_FULL  62
+/* XSAVES */
+#define VMX_VMEXIT_XSAVES               63
+/* XRSTORS */
+#define VMX_VMEXIT_XRSTORS              64
+/* Not defined basic exit reason: 65 */
+#define VMX_VMEXIT_UNDEFINED65          65
+/* SPP-related event */
+#define VMX_VMEXIT_SPP                  66
+/* UMWAIT */
+#define VMX_VMEXIT_UMWAIT               67
+/* TPAUSE */
+#define VMX_VMEXIT_TPAUSE               68
+/* LOADIWKEY */
+#define VMX_VMEXIT_LOADIWKEY            69
 
 #define VMX_CRX_ACCESS_FROM	0x1
 #define VMX_CRX_ACCESS_TO		0x0
-
-#define VMX_VMEXIT_CR3_READ 28
-#define VMX_VMEXIT_CR3_WRITE  28
-#define VMX_VMEXIT_CR0_SEL_WRITE 28
-#define VMX_VMEXIT_CR4_WRITE 28
-#define VMX_VMEXIT_CRX_READWRITE 28
-#define VMX_VMEXIT_MSR_READ   31
-#define VMX_VMEXIT_MSR_WRITE 32
-#define VMX_VMEXIT_IOIO 30
-#define VMX_VMEXIT_VMCALL 18
-#define VMX_VMEXIT_HLT 12
-#define VMX_VMEXIT_INVLPG 14
-#define VMX_VMEXIT_RDMSR	0x1f
-#define VMX_VMEXIT_WRMSR	0x20
-#define VMX_VMEXIT_CPUID	0x0a
-#define VMX_VMEXIT_INIT   0x3
-#define VMX_VMEXIT_EPT_VIOLATION  0x30
-#define VMX_VMEXIT_TASKSWITCH	0x9
-#define	VMX_VMEXIT_WBINVD		54
-#define VMX_VMEXIT_XSETBV		55
-
-#define VMX_VMEXIT_EPT_VIOLATON	48
-#define VMX_VMEXIT_EPT_MISCONFIGURATION 49
 
 //VMEXIT_IOIO defines
 #define	IO_SIZE_BYTE	0x0
@@ -385,177 +496,25 @@ typedef struct msr_entry {
 
 
 //VMX VMCS fields
+enum _vmcs_encodings {
+#define DECLARE_FIELD_16(encoding, name, ...) \
+  VMCSENC_##name = encoding,
+#define DECLARE_FIELD_64(...) DECLARE_FIELD_16(__VA_ARGS__)
+#define DECLARE_FIELD_32(...) DECLARE_FIELD_16(__VA_ARGS__)
+#define DECLARE_FIELD_NW(...) DECLARE_FIELD_16(__VA_ARGS__)
+#include "_vmx_vmcs_fields.h"
+};
+
 struct _vmx_vmcsfields {
-#if defined(__NESTED_PAGING__)
-  //16-bit control fields
-  u16       control_vpid;
-#endif
-  // Natural 32-bit Control fields
-  u32       control_VMX_pin_based;
-  u32       control_VMX_cpu_based;
-//#if defined(__NESTED_PAGING__)
-  u32       control_VMX_seccpu_based;
-//#endif
-  u32       control_exception_bitmap;
-  u32       control_pagefault_errorcode_mask;
-  u32       control_pagefault_errorcode_match;
-  u32       control_CR3_target_count;
-  u32       control_VM_exit_controls;
-  u32       control_VM_exit_MSR_store_count;
-  u32       control_VM_exit_MSR_load_count;
-  u32       control_VM_entry_controls;
-  u32       control_VM_entry_MSR_load_count;
-  u32       control_VM_entry_interruption_information;
-  u32       control_VM_entry_exception_errorcode;
-  u32       control_VM_entry_instruction_length;
-  u32       control_Task_PRivilege_Threshold;
-  // Natural 64-bit Control fields
-  ulong_t   control_CR0_mask;
-  ulong_t   control_CR4_mask;
-  ulong_t   control_CR0_shadow;
-  ulong_t   control_CR4_shadow;
-#ifndef __DEBUG_QEMU__
-  ulong_t   control_CR3_target0;
-  ulong_t   control_CR3_target1;
-  ulong_t   control_CR3_target2;
-  ulong_t   control_CR3_target3;
-#endif /* !__DEBUG_QEMU__ */
-  // Full 64-bit Control fields
-  u64       control_IO_BitmapA_address;
-  u64       control_IO_BitmapB_address;
-  u64       control_MSR_Bitmaps_address;
-  u64       control_VM_exit_MSR_store_address;
-  u64       control_VM_exit_MSR_load_address;
-  u64       control_VM_entry_MSR_load_address;
-#ifndef __DEBUG_QEMU__
-  u64       control_Executive_VMCS_pointer;
-#endif /* !__DEBUG_QEMU__ */
-  u64       control_TSC_offset;
-  u64       control_virtual_APIC_page_address;
-#if defined(__NESTED_PAGING__)
-  u64       control_EPT_pointer;
-#endif
-  u64       control_XSS_exiting_bitmap;
-  // Natural 64-bit Host-State fields
-  ulong_t   host_CR0;
-  ulong_t   host_CR3;
-  ulong_t   host_CR4;
-  ulong_t   host_FS_base;
-  ulong_t   host_GS_base;
-  ulong_t   host_TR_base;
-  ulong_t   host_GDTR_base;
-  ulong_t   host_IDTR_base;
-  ulong_t   host_SYSENTER_ESP;
-  ulong_t   host_SYSENTER_EIP;
-  ulong_t   host_RSP;
-  ulong_t   host_RIP;
-  // Natural 32-bit Host-State fields
-  u32       host_SYSENTER_CS;
-  // Natural 16-bit Host-State fields
-  u16       host_ES_selector;
-  u16       host_CS_selector;
-  u16       host_SS_selector;
-  u16       host_DS_selector;
-  u16       host_FS_selector;
-  u16       host_GS_selector;
-  u16       host_TR_selector;
-  // Natural 64-bit Guest-State fields
-  ulong_t   guest_CR0;
-  ulong_t   guest_CR3;
-  ulong_t   guest_CR4;
-  ulong_t   guest_ES_base;
-  ulong_t   guest_CS_base;
-  ulong_t   guest_SS_base;
-  ulong_t   guest_DS_base;
-  ulong_t   guest_FS_base;
-  ulong_t   guest_GS_base;
-  ulong_t   guest_LDTR_base;
-  ulong_t   guest_TR_base;
-  ulong_t   guest_GDTR_base;
-  ulong_t   guest_IDTR_base;
-  ulong_t   guest_DR7;
-  ulong_t   guest_RSP;
-  ulong_t   guest_RIP;
-  ulong_t   guest_RFLAGS;
-  ulong_t   guest_pending_debug_x;
-  ulong_t   guest_SYSENTER_ESP;
-  ulong_t   guest_SYSENTER_EIP;
-  // Natural 32-bit Guest-State fields
-  u32       guest_ES_limit;
-  u32       guest_CS_limit;
-  u32       guest_SS_limit;
-  u32       guest_DS_limit;
-  u32       guest_FS_limit;
-  u32       guest_GS_limit;
-  u32       guest_LDTR_limit;
-  u32       guest_TR_limit;
-  u32       guest_GDTR_limit;
-  u32       guest_IDTR_limit;
-  u32       guest_ES_access_rights;
-  u32       guest_CS_access_rights;
-  u32       guest_SS_access_rights;
-  u32       guest_DS_access_rights;
-  u32       guest_FS_access_rights;
-  u32       guest_GS_access_rights;
-  u32       guest_LDTR_access_rights;
-  u32       guest_TR_access_rights;
-  u32       guest_interruptibility;
-  u32       guest_activity_state;
-#ifndef __DEBUG_QEMU__
-  u32       guest_SMBASE;
-#endif /* !__DEBUG_QEMU__ */
-  u32       guest_SYSENTER_CS;
-  // Natural 16-bit Guest-State fields
-  u16       guest_ES_selector;
-  u16       guest_CS_selector;
-  u16       guest_SS_selector;
-  u16       guest_DS_selector;
-  u16       guest_FS_selector;
-  u16       guest_GS_selector;
-  u16       guest_LDTR_selector;
-  u16       guest_TR_selector;
-  // Full 64-bit Guest-State fields
-  u64       guest_VMCS_link_pointer;
-  u64       guest_IA32_DEBUGCTL;
-#if defined(__NESTED_PAGING__)
-  u64       guest_paddr;
-  u64       guest_PDPTE0;
-  u64       guest_PDPTE1;
-  u64       guest_PDPTE2;
-  u64       guest_PDPTE3;
-#endif
-  //Read-Only Fields
-  u32       info_vminstr_error;
-  u32       info_vmexit_reason;
-  u32       info_vmexit_interrupt_information;
-  u32       info_vmexit_interrupt_error_code;
-  u32       info_IDT_vectoring_information;
-  u32       info_IDT_vectoring_error_code;
-  u32       info_vmexit_instruction_length;
-  u32       info_vmx_instruction_information;
-  ulong_t   info_exit_qualification;
-#ifndef __DEBUG_QEMU__
-  ulong_t   info_IO_RCX;
-  ulong_t   info_IO_RSI;
-  ulong_t   info_IO_RDI;
-  ulong_t   info_IO_RIP;
-#endif /* !__DEBUG_QEMU__ */
-  ulong_t   info_guest_linear_address;
-};
-
-
-struct _vmx_vmcsrofields_encodings	{
- unsigned int  encoding;
- unsigned int  fieldoffset;
- unsigned int  membersize;
- unsigned int  exist;
-};
-
-struct _vmx_vmcsrwfields_encodings	{
- unsigned int  encoding;
- unsigned int  fieldoffset;
- unsigned int  membersize;
- unsigned int  exist;
+#define DECLARE_FIELD_16(encoding, name, ...) \
+  u16 name;
+#define DECLARE_FIELD_64(encoding, name, ...) \
+  u64 name;
+#define DECLARE_FIELD_32(encoding, name, ...) \
+  u32 name;
+#define DECLARE_FIELD_NW(encoding, name, ...) \
+  ulong_t name;
+#include "_vmx_vmcs_fields.h"
 };
 
 /* VM-Entry Interruption-Information Field */
@@ -613,23 +572,35 @@ static inline u32 __vmx_vmclear(u64 vmcs){
                        "2: \r\n"
     : "=m" (status)
     : "m"(vmcs)
-    : "cc"
-  );
+    : "cc");
   return status;
 }
 
 static inline u32 __vmx_vmptrld(u64 vmcs){
   u32 status;
-  __asm__ __volatile__("vmptrld %1 \r\n"
-                       "jbe 1f \r\n"
-                       "movl $1, %0 \r\n"
-                       "jmp 2f \r\n"
-                       "1: movl $0, %0 \r\n"
-                       "2: \r\n"
+  __asm__ __volatile__("vmptrld %1        \r\n"
+                       "jbe  1f           \r\n"
+                       "movl $1, %0       \r\n"
+                       "jmp  2f           \r\n"
+                       "1: movl $0, %0    \r\n"
+                       "2:                \r\n"
     : "=m" (status)
     : "m"(vmcs)
-    : "cc"
-  );
+    : "cc");
+  return status;
+}
+
+static inline u32 __vmx_vmptrst(u64 *vmcs){
+  u32 status;
+  __asm__ __volatile__("vmptrst %1        \r\n"
+                       "jbe  1f           \r\n"
+                       "movl $1, %0       \r\n"
+                       "jmp  2f           \r\n"
+                       "1: movl $0, %0    \r\n"
+                       "2:                \r\n"
+    : "=m" (status), "=m"(*vmcs)
+    :
+    : "cc");
   return status;
 }
 

@@ -104,6 +104,7 @@
 #define CR4_LA57		0x1000	/* enable 5-level paging */
 #define CR4_VMXE		0x2000  /* enable VMX */
 #define CR4_SMXE		0x4000  /* enable SMX */
+#define CR4_PCIDE	(1UL << 17)	// PCID-Enable Bit
 #define CR4_OSXSAVE	(1UL << 18)	// XSAVE and Processor Extended States Enable bit
 
 //CPUID related
@@ -279,11 +280,20 @@ typedef struct {
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
 
-#define cpuid(op, eax, ebx, ecx, edx)		\
-({						\
-  __asm__ __volatile__("cpuid"				\
+/* Perform CPUID(EAX=op, ECX=0), write results to *eax, *ebx, *ecx, *edx */
+#define cpuid(op, eax, ebx, ecx, edx)								\
+({																	\
+  __asm__ __volatile__("cpuid"										\
           :"=a"(*(eax)), "=b"(*(ebx)), "=c"(*(ecx)), "=d"(*(edx))	\
-          :"0"(op), "2" (0));			\
+          :"0"(op), "2" (0));										\
+})
+
+/* Perform CPUID(EAX=*eax, ECX=*ecx), write results to *eax, *ebx, *ecx, *edx */
+#define cpuid_raw(eax, ebx, ecx, edx)								\
+({																	\
+  __asm__ __volatile__("cpuid"										\
+          :"=a"(*(eax)), "=b"(*(ebx)), "=c"(*(ecx)), "=d"(*(edx))	\
+          :"0"(*(eax)), "2" (*(ecx)));								\
 })
 
 static inline unsigned int cpuid_eax(unsigned int op)
