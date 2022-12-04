@@ -742,7 +742,7 @@ static void xmhf_nested_arch_x86vmx_flush_ept02_effect(VCPU * vcpu, u32 flags)
 void xmhf_nested_arch_x86vmx_flush_ept02(VCPU * vcpu, u32 flags)
 {
 	if (vcpu->vmx_nested_ept02_flush_disable) {
-		vcpu->vmx_nested_ept02_flush_visited = flags;
+		vcpu->vmx_nested_ept02_flush_visited |= flags;
 	} else {
 		xmhf_nested_arch_x86vmx_flush_ept02_effect(vcpu, flags);
 	}
