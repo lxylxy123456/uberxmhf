@@ -103,7 +103,7 @@ static void vmx_lapic_changemapping(VCPU *vcpu, u32 lapic_paddr, u32 new_lapic_p
 
   pts[lapic_page] = value;
 
-  xmhf_memprot_arch_x86vmx_flushmappings(vcpu);
+  xmhf_memprot_arch_x86vmx_flushmappings_localtlb(vcpu, MEMP_FLUSHTLB_ENTRY);
 #endif //__XMHF_VERIFICATION__
 }
 //----------------------------------------------------------------------
@@ -674,7 +674,7 @@ u32 xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(VCPU *vcpu) {
 
 		// Flush EPT TLB, if instructed so
 		if(g_vmx_flush_all_tlb_signal) {
-			xmhf_memprot_flushmappings_localtlb(vcpu);
+			xmhf_memprot_flushmappings_localtlb(vcpu, g_vmx_flush_all_tlb_signal);
 		}
 
 		spin_lock(&g_vmx_lock_quiesce_resume_counter);

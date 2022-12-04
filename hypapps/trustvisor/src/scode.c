@@ -663,11 +663,8 @@ u64 scode_register(VCPU *vcpu, u64 scode_info, u64 scode_pm, u64 gventry)
                                                 VCPU_gcr3( vcpu), /* XXX should build trusted cr3 from scratch */
                                                 whitelist_new.hptw_pal_checked_guest_ctx.super.root_pa);
 
-  /*
-   * flush TLB for page table modifications to take effect.
-   * make sure other CPUs also flush the TLB after quiesce.
-   */
-  xmhf_memprot_flushmappings_alltlb(vcpu);
+  /* flush TLB for page table modifications to take effect. */
+  xmhf_memprot_flushmappings_alltlb(vcpu, MEMP_FLUSHTLB_ENTRY);
 
 #ifdef __DMAP__
   /* Disable device accesses to these memory (via IOMMU) */
@@ -776,11 +773,8 @@ u64 scode_unregister(VCPU * vcpu, u64 gvaddr)
                           &whitelist[i].hptw_pal_checked_guest_ctx.super,
                           &whitelist[i].sections[j]);
   }
-  /*
-   * flush TLB for page table modifications to take effect.
-   * make sure other CPUs also flush the TLB after quiesce.
-   */
-  xmhf_memprot_flushmappings_alltlb(vcpu);
+  /* flush TLB for page table modifications to take effect. */
+  xmhf_memprot_flushmappings_alltlb(vcpu, MEMP_FLUSHTLB_ENTRY);
 
   /* delete entry from scode whitelist */
   /* CRITICAL SECTION in MP scenario: need to quiesce other CPUs or at least acquire spinlock */
@@ -1141,12 +1135,8 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   hpt_emhf_set_l1l2_root_pm_pa(vcpu, HPTW_EMHF_EPT12_INVALID);
   VCPU_gcr3_set(vcpu, whitelist[curr].pal_gcr3);
 
-  /*
-   * flush TLB for page table modifications to take effect.
-   * make sure other CPUs also flush the TLB after quiesce.
-   * TODO: this may be unnecessary. Review and see whether can remove.
-   */
-  xmhf_memprot_flushmappings_alltlb(vcpu);
+  /* notify XMHF about change in EPTP (may flush shadow EPT) */
+  xmhf_memprot_flushmappings_localtlb(vcpu, MEMP_FLUSHTLB_EPTP);
 
   if (whitelist[curr].hptw_pal_checked_guest_ctx.super.t == HPT_TYPE_PAE) {
     /* For PAE paging, need to update VMCS PDPTEs manually */
@@ -1342,18 +1332,8 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
   hpt_emhf_set_root_pm_pa(vcpu, whitelist[curr].saved_pt_root_pa);
   VCPU_gcr3_set(vcpu, whitelist[curr].gcr3);
 
-  /*
-   * flush TLB for page table modifications to take effect.
-   * make sure other CPUs also flush the TLB after quiesce.
-   * TODO: this may be unnecessary. Review and see whether can remove.
-   *
-   * TODO: at this time flushing TLB is mandatory for nested virtualization.
-   * In hpt_scode_handle_root_pa_change(), the old value of ept02 is incorrect
-   * and is not stored. So whitelist[curr].saved_pt_root_pa (i.e. saved EPT02)
-   * above is incorrect. This TLB flushing will force nested virtualization to
-   * recompute EPT02.
-   */
-  xmhf_memprot_flushmappings_alltlb(vcpu);
+  /* notify XMHF about change in EPTP (may flush shadow EPT) */
+  xmhf_memprot_flushmappings_localtlb(vcpu, MEMP_FLUSHTLB_EPTP);
 
   if (whitelist[curr].hptw_pal_checked_guest_ctx.super.t == HPT_TYPE_PAE) {
     /* For PAE paging, need to update VMCS PDPTEs manually */
@@ -1583,11 +1563,8 @@ u32 scode_share_ranges(VCPU * vcpu, u32 scode_entry, u32 gva_base[], u32 gva_len
     EU_CHKN( scode_share_range(vcpu, entry, gva_base[i], gva_len[i]));
   }
 
-  /*
-   * flush TLB for page table modifications to take effect.
-   * make sure other CPUs also flush the TLB after quiesce.
-   */
-  xmhf_memprot_flushmappings_alltlb(vcpu);
+  /* flush TLB for page table modifications to take effect. */
+  xmhf_memprot_flushmappings_alltlb(vcpu, MEMP_FLUSHTLB_ENTRY);
 
   err=0;
 out:

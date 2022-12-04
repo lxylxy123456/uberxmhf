@@ -1099,7 +1099,6 @@ static void _rewalk_ept01_control_EPT_pointer(ARG10 * arg)
 		bool cache_hit;
 		ept02 = xmhf_nested_arch_x86vmx_get_ept02(arg->vcpu, ept12, &cache_hit,
 												  &cache_line);
-		HALT_ON_ERRORCOND(!cache_hit);
 		arg->vmcs12_info->guest_ept_cache_line = cache_line;
 	} else {
 		/*
@@ -1111,6 +1110,7 @@ static void _rewalk_ept01_control_EPT_pointer(ARG10 * arg)
 		 * set EPT of all CPUs to be the same.
 		 */
 		ept02 = arg->vcpu->vmcs.control_EPT_pointer;
+		_update_pae_pdpte(arg);
 	}
 
 	/* Write updated EPT02 to VMCS */

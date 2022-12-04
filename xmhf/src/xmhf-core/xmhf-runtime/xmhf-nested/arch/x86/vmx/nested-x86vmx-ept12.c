@@ -707,10 +707,12 @@ void xmhf_nested_arch_x86vmx_set_ept12(VCPU * vcpu, bool enable, gpa_t ept12)
  * This function is what xmhf_nested_arch_x86vmx_flush_ept02() does when no
  * blocking occurs.
  */
-static void xmhf_nested_arch_x86vmx_flush_ept02_effect(VCPU * vcpu)
+static void xmhf_nested_arch_x86vmx_flush_ept02_effect(VCPU * vcpu, u32 flags)
 {
-	LRU_SET_INVALIDATE_ALL(&ept02_cache[vcpu->id]);
-	xmhf_nested_arch_x86vmx_clear_all_vmcs12_ept02(vcpu);
+	if ((flags & MEMP_FLUSHTLB_ENTRY) != 0) {
+		LRU_SET_INVALIDATE_ALL(&ept02_cache[vcpu->id]);
+		xmhf_nested_arch_x86vmx_clear_all_vmcs12_ept02(vcpu);
+	}
 
 	/*
 	 * If L2 (nested guest) is running, the VMCS02 fields that depend on EPT01
@@ -720,7 +722,8 @@ static void xmhf_nested_arch_x86vmx_flush_ept02_effect(VCPU * vcpu)
 	 * vmcs12_info->guest_ept_cache_line invalid. We need to create new EPT02
 	 * to make it valid. This also applies to the EPT pointer in VMCS02.
 	 */
-	if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+	if ((vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) &&
+		((flags & (MEMP_FLUSHTLB_EPTP | MEMP_FLUSHTLB_ENTRY)) != 0)) {
 		vmcs12_info_t *vmcs12_info;
 		vmcs12_info = xmhf_nested_arch_x86vmx_find_current_vmcs12(vcpu);
 		/* Re-compute VMCS fields that depend on EPT01 */
@@ -733,13 +736,15 @@ static void xmhf_nested_arch_x86vmx_flush_ept02_effect(VCPU * vcpu)
  * This function is designed to be called in NMI handlers. Its effect will be
  * delayed until call to xmhf_nested_arch_x86vmx_unblock_ept02_flush() if
  * xmhf_nested_arch_x86vmx_block_ept02_flush() has been called.
+ *
+ * Flags is same as the value passed to xmhf_memprot_flushmappings_*().
  */
-void xmhf_nested_arch_x86vmx_flush_ept02(VCPU * vcpu)
+void xmhf_nested_arch_x86vmx_flush_ept02(VCPU * vcpu, u32 flags)
 {
 	if (vcpu->vmx_nested_ept02_flush_disable) {
-		vcpu->vmx_nested_ept02_flush_visited = true;
+		vcpu->vmx_nested_ept02_flush_visited = flags;
 	} else {
-		xmhf_nested_arch_x86vmx_flush_ept02_effect(vcpu);
+		xmhf_nested_arch_x86vmx_flush_ept02_effect(vcpu, flags);
 	}
 }
 
@@ -756,9 +761,10 @@ void xmhf_nested_arch_x86vmx_unblock_ept02_flush(VCPU * vcpu)
 	HALT_ON_ERRORCOND(vcpu->vmx_nested_ept02_flush_disable);
 	vcpu->vmx_nested_ept02_flush_disable = false;
 	while (vcpu->vmx_nested_ept02_flush_visited) {
-		vcpu->vmx_nested_ept02_flush_visited = false;
+		u32 flags = vcpu->vmx_nested_ept02_flush_visited;
+		vcpu->vmx_nested_ept02_flush_visited = 0;
 		vcpu->vmx_nested_ept02_flush_disable = true;
-		xmhf_nested_arch_x86vmx_flush_ept02_effect(vcpu);
+		xmhf_nested_arch_x86vmx_flush_ept02_effect(vcpu, flags);
 		vcpu->vmx_nested_ept02_flush_disable = false;
 	}
 }
