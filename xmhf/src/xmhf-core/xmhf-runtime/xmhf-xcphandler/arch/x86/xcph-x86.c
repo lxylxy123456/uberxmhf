@@ -212,10 +212,6 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
                 break;
             }
 
-            {
-                extern void *emhfc_putchar_linelock_arg;
-                spin_unlock(emhfc_putchar_linelock_arg);
-            }
             /* Print exception and halt */
             printf("[%02x]: unhandled exception %d (0x%x), halting!\n",
                     vcpu->id, vector, vector);
