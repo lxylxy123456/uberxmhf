@@ -277,6 +277,14 @@ static void _update_nested_nmi(VCPU * vcpu, vmcs12_info_t * vmcs12_info)
 	}
 }
 
+/* Call _update_nested_nmi() from where vmcs12_info is unknown. */
+void xmhf_nested_arch_x86vmx_update_nested_nmi(VCPU * vcpu)
+{
+	vmcs12_info_t *vmcs12_info;
+	vmcs12_info = xmhf_nested_arch_x86vmx_find_current_vmcs12(vcpu);
+	_update_nested_nmi(vcpu, vmcs12_info);
+}
+
 /*
  * Perform VMENTRY. Never returns if succeed. If controls / host state check
  * fails, return error code for _vmx_nested_vm_fail().
