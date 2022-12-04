@@ -64,6 +64,9 @@
 #define MEMP_PROT_MAXVALUE		(MEMP_PROT_NOTPRESENT+MEMP_PROT_PRESENT+MEMP_PROT_READONLY+MEMP_PROT_READWRITE+MEMP_PROT_NOEXECUTE+MEMP_PROT_EXECUTE)
 
 // flush TLB flags
+// These flags need to satisfy 2 properties:
+// 1. flags can be logically or'ed (used in xmhf_nested_arch_x86vmx_flush_ept02)
+// 2. when flags = 0, nothing is done
 #define MEMP_FLUSHTLB_EPTP		1	// EPTP changed
 #define MEMP_FLUSHTLB_ENTRY		2	// Entries in EPT changed
 #define MEMP_FLUSHTLB_MT_ENTRY	4	// Entries changed, but only EPT MT bits
