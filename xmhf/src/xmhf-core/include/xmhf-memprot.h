@@ -63,6 +63,11 @@
 #define MEMP_PROT_NOEXECUTE		(32) // page no-execute
 #define MEMP_PROT_MAXVALUE		(MEMP_PROT_NOTPRESENT+MEMP_PROT_PRESENT+MEMP_PROT_READONLY+MEMP_PROT_READWRITE+MEMP_PROT_NOEXECUTE+MEMP_PROT_EXECUTE)
 
+// flush TLB flags
+#define MEMP_FLUSHTLB_EPTP		1	// EPTP changed
+#define MEMP_FLUSHTLB_ENTRY		2	// Entries in EPT changed
+#define MEMP_FLUSHTLB_MT_ENTRY	4	// Entries changed, but only EPT MT bits
+
 //----------------------------------------------------------------------
 //exported DATA
 //----------------------------------------------------------------------
@@ -90,14 +95,13 @@ u64 * xmhf_memprot_get_lvl4_pagemap_address(VCPU *vcpu);
 //get default root page map address
 u64 * xmhf_memprot_get_default_root_pagemap_address(VCPU *vcpu);
 
-//flush hardware page table mappings (TLB)
-void xmhf_memprot_flushmappings(VCPU *vcpu);
+//flush the TLB of all nested page tables in the current core.
+//flags is bitwise or of MEMP_FLUSHTLB_* macros. 0 is effectively NOP.
+void xmhf_memprot_flushmappings_localtlb(VCPU *vcpu, u32 flags);
 
-//flush the TLB of all nested page tables in the current core
-void xmhf_memprot_flushmappings_localtlb(VCPU *vcpu);
-
-// flush the TLB of all nested page tables in all cores
-void xmhf_memprot_flushmappings_alltlb(VCPU *vcpu);
+//flush the TLB of all nested page tables in all cores (need quiesce).
+//flags is bitwise or of MEMP_FLUSHTLB_* macros. 0 is effectively NOP.
+void xmhf_memprot_flushmappings_alltlb(VCPU *vcpu, u32 flags);
 
 //set protection for a given physical memory address
 void xmhf_memprot_setprot(VCPU *vcpu, u64 gpa, u32 prottype);
@@ -141,11 +145,8 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_read(VCPU *vcpu, u32 msr, u64 *val);
 //handle WRMSR on MTRRs
 u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val);
 
-//flush hardware page table mappings (TLB)
-void xmhf_memprot_arch_flushmappings(VCPU *vcpu);
-
 //flush the TLB of all nested page tables in the current core
-void xmhf_memprot_arch_flushmappings_localtlb(VCPU *vcpu);
+void xmhf_memprot_arch_flushmappings_localtlb(VCPU *vcpu, u32 flags);
 
 //set protection for a given physical memory address
 void xmhf_memprot_arch_setprot(VCPU *vcpu, u64 gpa, u32 prottype);
@@ -168,8 +169,7 @@ bool xmhf_arch_get_machine_paddr_range(spa_t* machine_base_spa, spa_t* machine_l
 //----------------------------------------------------------------------
 
 void xmhf_memprot_arch_x86vmx_initialize(VCPU *vcpu);	//initialize memory protection for a core
-void xmhf_memprot_arch_x86vmx_flushmappings(VCPU *vcpu); //flush hardware page table mappings (TLB)
-void xmhf_memprot_arch_x86vmx_flushmappings_localtlb(VCPU *vcpu);
+void xmhf_memprot_arch_x86vmx_flushmappings_localtlb(VCPU *vcpu, u32 flags); // flush TLB in current CPU
 void xmhf_memprot_arch_x86vmx_setprot(VCPU *vcpu, u64 gpa, u32 prottype); //set protection for a given physical memory address
 u32 xmhf_memprot_arch_x86vmx_getprot(VCPU *vcpu, u64 gpa); //get protection for a given physical memory address
 u64 xmhf_memprot_arch_x86vmx_get_EPTP(VCPU *vcpu); // get or set EPTP01 (only valid on Intel)

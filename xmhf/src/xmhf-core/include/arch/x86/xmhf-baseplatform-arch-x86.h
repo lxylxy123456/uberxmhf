@@ -312,9 +312,10 @@ typedef struct _vcpu {
   volatile bool vmx_nested_ept02_flush_disable;
   /*
    * Whether a call to xmhf_nested_arch_x86vmx_flush_ept02() arrived during
-   * vmx_nested_ept02_flush_disable = true.
+   * vmx_nested_ept02_flush_disable = true. This field records the flags passed
+   * to xmhf_memprot_flushmappings_*().
    */
-  volatile bool vmx_nested_ept02_flush_visited;
+  volatile u32 vmx_nested_ept02_flush_visited;
 #endif /* __NESTED_VIRTUALIZATION__ */
 } VCPU;
 

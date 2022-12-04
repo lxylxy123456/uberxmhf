@@ -92,7 +92,7 @@ void *xmhf_nested_arch_x86vmx_access_ept02(VCPU * vcpu, void* cache_line,
 										   size_t *avail_sz);
 bool xmhf_nested_arch_x86vmx_get_ept12(VCPU * vcpu, gpa_t * ept12);
 void xmhf_nested_arch_x86vmx_set_ept12(VCPU * vcpu, bool enable, gpa_t ept12);
-void xmhf_nested_arch_x86vmx_flush_ept02(VCPU *vcpu);
+void xmhf_nested_arch_x86vmx_flush_ept02(VCPU *vcpu, u32 flags);
 
 #endif	//__ASSEMBLY__
 
