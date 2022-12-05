@@ -1170,12 +1170,75 @@ Test is 2 threads in Windows Hyper-V: `./test_args64L2 3 70000000 7` and
 * `EU_CHK( hpt_error_wasInsnFetch(vcpu, errorcode)) failed` (antivirus problem)
 * `EU_CHK( hpt_error_wasInsnFetch(vcpu, errorcode)) failed` (antivirus problem)
 
-TODO
-TODO: check Hyper-V VMX preemption timer settings.
-TODO: write summary about changes to TrustVisor, merge (squash)
-TODO: Windows antivirus problem
-TODO:  randomly disable Windows security features
-TODO:  let TV display process memory space
-TODO: `#### TrustVisor Vulnerability 1` above
-TODO: `#### TrustVisor Vulnerability 2` above
+Serial `20221204121125` shows VMCS dump during Hyper-V. Fields related to VMX
+preemption timer are:
+```
+CPU(0x00): (0x4000) :VMCS02:control_VMX_pin_based = 0x0000003f
+	Activate VMX-preemption timer = 0
+CPU(0x00): (0x4002) :VMCS02:control_VMX_cpu_based = 0xa6206dfa
+CPU(0x00): (0x400c) :VMCS02:control_VM_exit_controls = 0x0103efff
+CPU(0x00): :VMCS12:control_VMX_pin_based = 0x0000003f
+	Activate VMX-preemption timer = 0
+CPU(0x00): :VMCS12:control_VMX_cpu_based = 0xb6206dfa
+CPU(0x00): :VMCS12:control_VM_exit_controls = 0x0103efff
+```
+
+Looks like VMX preemption timer is not enabled. So we ignore the
+`CLOCK_WATCHDOG_TIMEOUT` BSOD for now.
+
+### TrustVisor change summary
+
+High level design
+* When playing with page tables, hypapp needs to handle EPT12.
+	* For TrustVisor, PAL needs to disable EPT12 for the guest.
+	* When walking page table (L2 guest physical -> XMHF physical), need to
+	  walk EPT12, then EPT01.
+* After hypapp changes EPT01 / EPT12, XMHF automatically merge them to EPT02.
+* When flushing TLB, hypapp specifies flag to indicate which is changed.
+* Do not change EPTP (due to race condition discovered)
+* When not quiescing, software walk of EPT may need to retry if
+  `vcpu->vmx_ept_changed = true`
+
+New events hypapp need to handle:
+* `tv_app_handle_nest_entry`: guest transition from L1 to L2
+* `tv_app_handle_nest_exit`: guest transition from L2 to L1
+
+New XMHF interfaces for hypapp:
+* `VCPU_nested`: return whether CPU in nested virtualization
+* `xmhf_nested_arch_x86vmx_get_ept12`: get / set EPT12
+* `VCPU_disable_nested_interrupt_exit`: disable external interrupt exiting
+* `VCPU_disable_nested_timer_exit`: disable VMX preemption timer
+* `VCPU_disable_memory_bitmap`: disable features that use physical memory bitmap
+
+Modified XMHF interfaces for hypapp:
+* `VCPU_*`: if running in nested virtualization, will return L2 state
+* `xmhf_memprot_flushmappings`: removed
+* `xmhf_memprot_flushmappings_localtlb`: flush current CPU's TLB, added flags
+* `xmhf_memprot_flushmappings_alltlb`: flush current CPU's TLB, added flags
+
+Created <https://github.com/lxylxy123456/uberxmhf/pull/21> and squash merged
+manually. Before merge: `xmhf64 5e86cb84c`, `xmhf64-nest ba802997e`. After
+merge: `xmhf64 c3cc6146b`. (GitHub merges to `dbc905e7e`, but I forgot to turn
+on squash merging).
+
+At this time `xmhf64`, `xmhf64-nest`, and `xmhf64-nest-dev` have the same
+content. Will likely no longer maintain `xmhf64-nest` and `xmhf64-nest-dev`.
+
+## Fix
+
+`lhv 83723a519..68afc420f`
+* Support running TrustVisor in L2
+
+`lhv-dev a41a04b0c..0d1fce092`
+
+`xmhf64 28ce646f2..c3cc6146b`
+* Update PAL demo to change VMCALL EAX offset
+
+`xmhf64-nest 9ba342c98..e4023293d`
+* Support running TrustVisor in L2
+
+`xmhf64-nest-dev 186e6588f..5c85b507a`
+
+`xmhf64-dev ???..fb8de8d4c`
+* Merge `xmhf64-nest` and `xmhf64-nest-dev` to `xmhf64-dev`
 
