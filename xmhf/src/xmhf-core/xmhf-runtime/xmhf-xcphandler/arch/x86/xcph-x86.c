@@ -146,10 +146,18 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
         break;
 
 	case 0x20:
+		if (pic_spurious(0) != 0) {
+			emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
+			HALT_ON_ERRORCOND(0);
+		}
 		handle_timer_interrupt(vcpu, vector, 0);
 		break;
 
 	case 0x21:
+		if (pic_spurious(1) != 0) {
+			emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
+			HALT_ON_ERRORCOND(0);
+		}
 		handle_keyboard_interrupt(vcpu, vector, 0);
 		break;
 
@@ -177,6 +185,10 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
 		 * Note that calling printf() here will deadlock if the interrupted
 		 * code is already calling printf().
 		 */
+		if (pic_spurious(7) != 1) {
+			emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
+			HALT_ON_ERRORCOND(0);
+		}
 		break;
 #endif /* __DEBUG_QEMU__ */
 
