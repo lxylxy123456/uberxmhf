@@ -296,6 +296,66 @@ Breakpoint 2, 0x0010d9db in PEpE ()
 On Nov 1, the lmm bug and IRQ 7 possible bug are reported to staff-410. Will
 track updates in `bug_076`.
 
+### Pathos bug fix
+
+On Dec 4, received reply from 15410 course staff.
+
+I submitted a patck for lmm kernel panic. Using the course staff's
+recommendation, `lmm_add_free()` will ignore block size smaller than 64 KiB.
+
+As for the spurious IRQ, looks like Pathos is wrong. I think
+<https://wiki.osdev.org/8259_PIC#Spurious_IRQs> is the correct way to handle
+the spurious interrupts. We need to query PIC to see whether the IRQ is
+spurious.
+
+The code that works in XMHF is:
+```c
+#define PIC1_CMD                    0x20
+#define PIC_READ_ISR                0x0b
+
+{
+	outb(PIC_READ_ISR, PIC1_CMD);
+	x = inb(PIC1_CMD);
+	if (x & (1U << 7)) {
+		// not spurious
+	}
+}
+```
+
+Using Pebbles kernel macros, it should be
+```
+PIC_READ_ISR = 0xb = READ_IS_ONRD | OCW_TEMPLATE | READ_NEXT_RD;
+PIC1_CMD = MASTER_ICW
+```
+
+Reference: Intel 8259A data sheet
+> The ISR can be read, when, prior to the RD pulse, a
+> Read Register Command is issued with OCW3 (RR
+> = 1, RIS = 1).
+
+Implemented it in `lhv 15aa10892`. Basically when seeing an interrupt, the ISR
+should check whether the interrupt is spurious. If so, it should not send EOI.
+In LHV code, this is hard coded to expected return value of `pic_spurious()`.
+
+Formatted patch, tested on P3 and P4. When testing looks like there are also
+spurious interrupts on IRQ 5 (LPT2). So just register IDT entries for all 16
+IRQs.
+
+I did some print debugging regarding interrupts seen by my P3:
+* At each timer tick, there is a timer interrupt (IRQ 0, IDT vector 32,
+  `pic_spurious(0) = 0`), then a spurious interrupt (IRQ 7, IDT vector 39,
+  `pic_spurious(7) = 1`).
+* When I press the keyboard (connected to PC via USB), around 10 spurious
+  interrupts (IRQ 7, `pic_spurious(7) = 1`) are generated. In the middle are
+  the 2 keyboard interrupts (IRQ 1, `pic_spurious(1) = 0`, one for key press
+  and one for key release).
+* When I move the mouse (connected to PC via USB), I see some spurious
+  interrupts. No other interrupts related to the mouse are generated.
+* Sometimes when I am typing on the keyboard very fast, I see strange IRQ 5,
+  where `pic_spurious(5) = 0` (i.e. NOT spurious). This bug is reproducible
+  when I set PIT period to 1 ms, but not reproducible when period is 50 ms.
+  Looks like not reproducible when PIT period is 10 ms.
+
 ## Fix
 
 `lhv ce69c270c..83723a519`
