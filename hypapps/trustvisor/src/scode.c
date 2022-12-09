@@ -1413,18 +1413,6 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
   eu_trace("CPU(%02x): nested page fault!(rip %#lx, gcr3 %#llx, ept12 %#llx, gpaddr %#lx, errorcode %llx)",
           vcpu->id, rip, gcr3, ept12, gpaddr, errorcode);
 
-  if (!hpt_error_wasInsnFetch(vcpu, errorcode)) {
-    if (0) {
-	    printf("\n");
-		xmhf_baseplatform_arch_x86vmx_dump_vcpu(vcpu);
-		printf("invalid access caught\n");
-		printf("\n");
-    } else {
-    	printf("!");
-    }
-    return 0;
-  }
-
   EU_CHK( hpt_error_wasInsnFetch(vcpu, errorcode));
 #endif //__LDN_TV_INTEGRATION__
 

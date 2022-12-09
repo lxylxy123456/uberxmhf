@@ -6,12 +6,6 @@
 #include "caller.h"
 #include "trustvisor.h"
 
-#ifdef WINDOWS
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
-
 void call_pal(uintptr_t a, uintptr_t b) {
 	uintptr_t b2 = b;
 	// Construct struct tv_pal_params
@@ -24,16 +18,6 @@ void call_pal(uintptr_t a, uintptr_t b) {
 	};
 	// Register scode
 	void *entry = register_pal(&params, my_pal, begin_pal_c, end_pal_c, 1);
-	printf("pal registered\n");
-	while (1) {
-		printf("z");
-		fflush(stdout);
-#ifdef WINDOWS
-		Sleep(1000);
-#else
-		sleep(1);
-#endif
-	}
 	typeof(my_pal) *func = (typeof(my_pal) *)entry;
 	// Call function
 	printf("With PAL:\n");
