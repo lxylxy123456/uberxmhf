@@ -182,6 +182,15 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 			 */
 			r->ecx |= (1U << 31);
 #endif /* !__UPDATE_INTEL_UCODE__ */
+#ifdef __HIDE_XSETBV__
+			/*
+			 * Clear XSETBV capability.
+			 * When XSETBV is supported, nested hypervisors may need to execute
+			 * this instruction during each VMEXIT / VMENTRY. So removing
+			 * XSETBV capability may make nested virtualization faster.
+			 */
+			r->ecx &= ~(1U << 26);
+#endif /* __HIDE_XSETBV__ */
 		}
 #ifdef __I386__
 		/*
