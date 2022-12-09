@@ -152,6 +152,16 @@ AS_IF([test "x${enable_update_intel_ucode}" != "xno"],
       [UPDATE_INTEL_UCODE=y],
       [UPDATE_INTEL_UCODE=n])
 
+# Hide XSETBV features (may make nested virtualization faster)
+AC_SUBST([HIDE_XSETBV])
+AC_ARG_ENABLE([hide_xsetbv],
+        AS_HELP_STRING([--enable-hide-xsetbv@<:@=yes|no@:>@],
+                [remove XSETBV support from CPUID]),
+                , [enable_hide_xsetbv=no])
+AS_IF([test "x${enable_hide_xsetbv}" != "xno"],
+      [HIDE_XSETBV=y],
+      [HIDE_XSETBV=n])
+
 AC_SUBST([SKIP_RUNTIME_BSS])
 AC_ARG_ENABLE([skip_runtime_bss],
         AS_HELP_STRING([--enable-skip-runtime-bss@<:@=yes|no@:>@],
