@@ -72,6 +72,9 @@ static const u32 vmx_msr_area_msrs[] = {
 //count of critical MSRs that need to be saved/restored across VM switches
 static const unsigned int vmx_msr_area_msrs_count = (sizeof(vmx_msr_area_msrs)/sizeof(vmx_msr_area_msrs[0]));
 
+/* MSR bitmap for each CPU if supported by VMX */
+static u8 vmx_msr_bitmaps[MAX_VCPU_ENTRIES][PAGE_SIZE_4K] __attribute__((aligned(PAGE_SIZE_4K)));
+
 /*
  * Check whether msr is XMHF-managed (in VMCS MSR load / store area).
  * If yes, the MSR's index is written to index and true is returned.
@@ -331,8 +334,127 @@ static void	_vmx_int15_initializehook(VCPU *vcpu){
 	}
 }
 
+// Set msr to cause VMEXIT when read or write in bitmap
+static void set_msrbitmap(u8 *bitmap, u32 msr) {
+	u32 bit_num;
+	u32 bit_offset;
+	u32 byte_offset;
+	if (msr < 0x2000U) {
+		bit_num = msr;
+	} else if (0xc0000000U <= msr && msr < 0xc0002000U) {
+		bit_num = msr - 0xc0000000U;
+	} else {
+		return;
+	}
+	byte_offset = bit_num / 8;
+	bit_offset = bit_num % 8;
+	/* Set read bit */
+	bitmap[byte_offset] |= (1U << bit_offset);
+	/* Set write bit */
+	bitmap[byte_offset + 2048] |= (1U << bit_offset);
+}
+
+// Set msr to not cause VMEXIT when read or write in bitmap
+static void clear_msrbitmap(u8 *bitmap, u32 msr) {
+	u32 bit_num;
+	u32 bit_offset;
+	u32 byte_offset;
+	if (msr < 0x2000U) {
+		bit_num = msr;
+	} else if (0xc0000000U <= msr && msr < 0xc0002000U) {
+		bit_num = msr - 0xc0000000U;
+	} else {
+		return;
+	}
+	byte_offset = bit_num / 8;
+	bit_offset = bit_num % 8;
+	/* Clear read bit */
+	bitmap[byte_offset] &= ~(1U << bit_offset);
+	/* Clear write bit */
+	bitmap[byte_offset + 2048] &= ~(1U << bit_offset);
+}
+
+// Initialize vmx_msr_bitmaps for the current VCPU
+// Based on xmhf_parteventhub_arch_x86vmx_handle_wrmsr() and
+// xmhf_parteventhub_arch_x86vmx_handle_rdmsr()
+static void vmx_prepare_msr_bitmap(VCPU *vcpu) {
+	u8 *bitmap = vmx_msr_bitmaps[vcpu->idx];
+	set_msrbitmap(bitmap, IA32_MTRR_DEF_TYPE);
+	set_msrbitmap(bitmap, IA32_MTRR_FIX64K_00000);
+	set_msrbitmap(bitmap, IA32_MTRR_FIX16K_80000);
+	set_msrbitmap(bitmap, IA32_MTRR_FIX16K_A0000);
+	set_msrbitmap(bitmap, IA32_MTRR_FIX4K_C0000);
+	set_msrbitmap(bitmap, IA32_MTRR_FIX4K_C8000);
+	set_msrbitmap(bitmap, IA32_MTRR_FIX4K_D0000);
+	set_msrbitmap(bitmap, IA32_MTRR_FIX4K_D8000);
+	set_msrbitmap(bitmap, IA32_MTRR_FIX4K_E0000);
+	set_msrbitmap(bitmap, IA32_MTRR_FIX4K_E8000);
+	set_msrbitmap(bitmap, IA32_MTRR_FIX4K_F0000);
+	set_msrbitmap(bitmap, IA32_MTRR_FIX4K_F8000);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSBASE0);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSMASK0);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSBASE1);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSMASK1);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSBASE2);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSMASK2);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSBASE3);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSMASK3);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSBASE4);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSMASK4);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSBASE5);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSMASK5);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSBASE6);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSMASK6);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSBASE7);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSMASK7);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSBASE8);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSMASK8);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSBASE9);
+	set_msrbitmap(bitmap, IA32_MTRR_PHYSMASK9);
+	set_msrbitmap(bitmap, IA32_BIOS_UPDT_TRIG);
+	set_msrbitmap(bitmap, IA32_X2APIC_ICR);
+#ifdef __NESTED_VIRTUALIZATION__
+	set_msrbitmap(bitmap, IA32_VMX_BASIC_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_PINBASED_CTLS_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_PROCBASED_CTLS_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_EXIT_CTLS_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_ENTRY_CTLS_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_MISC_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_CR0_FIXED0_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_CR0_FIXED1_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_CR4_FIXED0_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_CR4_FIXED1_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_VMCS_ENUM_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_PROCBASED_CTLS2_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_EPT_VPID_CAP_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_TRUE_PINBASED_CTLS_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_TRUE_PROCBASED_CTLS_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_TRUE_EXIT_CTLS_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_TRUE_ENTRY_CTLS_MSR);
+	set_msrbitmap(bitmap, IA32_VMX_VMFUNC_MSR);
+	// Note: IA32_VMX_VMFUNC_MSR temporarily not supported
+	//set_msrbitmap(bitmap, IA32_VMX_VMFUNC_MSR);
+#endif /* !__NESTED_VIRTUALIZATION__ */
+}
+
+// Remove IA32_X2APIC_ICR from vmx_msr_bitmaps for the current VCPU. This
+// function is intended to be called after SMP guest bootup completes.
+void xmhf_partition_arch_x86vmx_clear_msrbitmap_x2apic_icr(VCPU *vcpu) {
+	u8 *bitmap = vmx_msr_bitmaps[vcpu->idx];
+	clear_msrbitmap(bitmap, IA32_X2APIC_ICR);
+}
+
 //--initunrestrictedguestVMCS: initializes VMCS for unrestricted guest ---------
 void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
+	//setup default VMX controls
+	vmx_ctls_t vmx_ctls = {
+		.pinbased_ctls = (u32)vcpu->vmx_pinbased_ctls,
+		.procbased_ctls = (u32)vcpu->vmx_procbased_ctls,
+		.procbased_ctls2 = (u32)vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR],
+		.exit_ctls = (u32)vcpu->vmx_exit_ctls,
+		.entry_ctls = (u32)vcpu->vmx_entry_ctls,
+	};
+
 	//setup host state
 	vcpu->vmcs.host_CR0 = read_cr0();
 	vcpu->vmcs.host_CR4 = read_cr4();
@@ -388,12 +510,6 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	vcpu->vmcs.host_GS_base = rdmsr64(IA32_MSR_GS_BASE);
 #endif
 
-	//setup default VMX controls
-	vcpu->vmcs.control_VMX_pin_based = vcpu->vmx_pinbased_ctls;
-	vcpu->vmcs.control_VMX_cpu_based = vcpu->vmx_procbased_ctls;
-	vcpu->vmcs.control_VM_exit_controls = vcpu->vmx_exit_ctls;
-	vcpu->vmcs.control_VM_entry_controls = vcpu->vmx_entry_ctls;
-
 #ifdef __AMD64__
 	/*
 	 * For amd64, set the Host address-space size (bit 9) in
@@ -401,7 +517,7 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	 * allowed.
 	 */
 	HALT_ON_ERRORCOND(_vmx_hasctl_vmexit_host_address_space_size(&vcpu->vmx_caps));
-	vcpu->vmcs.control_VM_exit_controls |= (1U << VMX_VMEXIT_HOST_ADDRESS_SPACE_SIZE);
+	_vmx_setctl_vmexit_host_address_space_size(&vmx_ctls);
 #elif !defined(__I386__)
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) */
@@ -415,7 +531,7 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
         u64 addr = hva2spa( ((void*)vcpu->vmx_vaddr_iobitmap + PAGE_SIZE_4K) );
 	    vcpu->vmcs.control_IO_BitmapB_address = addr;
     }
-	vcpu->vmcs.control_VMX_cpu_based |= (1U << VMX_PROCBASED_USE_IO_BITMAPS);
+    _vmx_setctl_use_io_bitmaps(&vmx_ctls);
 
 	//Critical MSR load/store
 	{
@@ -454,12 +570,12 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 
 		//guest MSR load on entry, store on exit
 		{
-		    u64 addr = (u32)hva2spa((void*)vcpu->vmx_vaddr_msr_area_guest);
+		    u64 addr = hva2spa((void*)vcpu->vmx_vaddr_msr_area_guest);
 		    vcpu->vmcs.control_VM_entry_MSR_load_address=addr;
 		}
 		vcpu->vmcs.control_VM_entry_MSR_load_count=vmx_msr_area_msrs_count;
 		{
-		    u64 addr = (u32)hva2spa((void*)vcpu->vmx_vaddr_msr_area_guest);
+		    u64 addr = hva2spa((void*)vcpu->vmx_vaddr_msr_area_guest);
 		    vcpu->vmcs.control_VM_exit_MSR_store_address=addr;
 		}
 		vcpu->vmcs.control_VM_exit_MSR_store_count=vmx_msr_area_msrs_count;
@@ -564,35 +680,40 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	vcpu->vmcs.guest_SS_access_rights = 0x93; //present, system, read-write accessed
 
 	//activate secondary processor controls
-	vcpu->vmcs.control_VMX_seccpu_based = vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR];
-	vcpu->vmcs.control_VMX_cpu_based |= (1U << VMX_PROCBASED_ACTIVATE_SECONDARY_CONTROLS);
+	_vmx_setctl_activate_secondary_controls(&vmx_ctls);
 
 	//setup unrestricted guest
-	vcpu->vmcs.control_VMX_seccpu_based |= (1U << VMX_SECPROCBASED_UNRESTRICTED_GUEST);
+	_vmx_setctl_unrestricted_guest(&vmx_ctls);
 
 	//allow INVPCID (used by Debian 11)
 	if (_vmx_hasctl_enable_invpcid(&vcpu->vmx_caps)) {
-		vcpu->vmcs.control_VMX_seccpu_based |= (1U << VMX_SECPROCBASED_ENABLE_INVPCID);
+		_vmx_setctl_enable_invpcid(&vmx_ctls);
 	}
 
 	//allow RDTSCP (used by Debian 11)
 	if (_vmx_hasctl_enable_rdtscp(&vcpu->vmx_caps)) {
-		vcpu->vmcs.control_VMX_seccpu_based |= (1U << VMX_SECPROCBASED_ENABLE_RDTSCP);
+		_vmx_setctl_enable_rdtscp(&vmx_ctls);
 	}
 
 	//allow XSAVES/XRSTORS (provided by Dell OptiPlex 7050, used by Debian 11)
 	if (_vmx_hasctl_enable_xsaves_xrstors(&vcpu->vmx_caps)) {
-		vcpu->vmcs.control_VMX_seccpu_based |= (1U << VMX_SECPROCBASED_ENABLE_XSAVES_XRSTORS);
+		_vmx_setctl_enable_xsaves_xrstors(&vmx_ctls);
 		// Set the "XSS-exiting bitmap" to 0 to prevent VMEXIT
 		vcpu->vmcs.control_XSS_exiting_bitmap = 0ULL;
+	}
+
+	if (_vmx_hasctl_use_msr_bitmaps(&vcpu->vmx_caps)) {
+		_vmx_setctl_use_msr_bitmaps(&vmx_ctls);
+		vmx_prepare_msr_bitmap(vcpu);
+		vcpu->vmcs.control_MSR_Bitmaps_address = hva2spa(vmx_msr_bitmaps[vcpu->idx]);
 	}
 
 	//setup VMCS link pointer
 	vcpu->vmcs.guest_VMCS_link_pointer = (u64)0xFFFFFFFFFFFFFFFFULL;
 
 	//setup NMI intercept for core-quiescing
-	vcpu->vmcs.control_VMX_pin_based |= (1U << VMX_PINBASED_NMI_EXITING);
-	vcpu->vmcs.control_VMX_pin_based |= (1U << VMX_PINBASED_VIRTUAL_NMIS);
+	_vmx_setctl_nmi_exiting(&vmx_ctls);
+	_vmx_setctl_virtual_nmis(&vmx_ctls);
 	vcpu->vmx_mhv_nmi_enable = true;
 	vcpu->vmx_mhv_nmi_visited = 0;
 	vcpu->vmx_mhv_nmi_handler_arg = SMPG_VMX_NMI_INJECT;
@@ -622,12 +743,22 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	vcpu->vmcs.control_CR4_mask = vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED0_MSR];
 	vcpu->vmcs.control_CR4_shadow = 0;
 
+	//write VMX controls to VMCS
+	vcpu->vmcs.control_VMX_pin_based = vmx_ctls.pinbased_ctls;
+	vcpu->vmcs.control_VMX_cpu_based = vmx_ctls.procbased_ctls;
+	vcpu->vmcs.control_VMX_seccpu_based = vmx_ctls.procbased_ctls2;
+	vcpu->vmcs.control_VM_exit_controls = vmx_ctls.exit_ctls;
+	vcpu->vmcs.control_VM_entry_controls = vmx_ctls.entry_ctls;
+
 #ifdef __NESTED_VIRTUALIZATION__
 	xmhf_nested_arch_x86vmx_vcpu_init(vcpu);
 #endif /* !__NESTED_VIRTUALIZATION__ */
 
 	//flush guest TLB to start with
-	xmhf_memprot_arch_x86vmx_flushmappings_localtlb(vcpu);
+	{
+		u32 flags = MEMP_FLUSHTLB_EPTP | MEMP_FLUSHTLB_ENTRY | MEMP_FLUSHTLB_MT_ENTRY;
+		xmhf_memprot_arch_x86vmx_flushmappings_localtlb(vcpu, flags);
+	}
 }
 
 
