@@ -50,6 +50,7 @@ void handle_timer_interrupt(VCPU *vcpu, int vector, int guest);
 
 /* lhv-pic.c */
 void pic_init(void);
+int pic_spurious(unsigned char irq);
 
 /* lhv-keyboard.c */
 void handle_keyboard_interrupt(VCPU *vcpu, int vector, int guest);

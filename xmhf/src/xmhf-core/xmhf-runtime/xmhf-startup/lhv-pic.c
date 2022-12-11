@@ -29,3 +29,18 @@ void pic_init(void)
 	outb (0, MASTER_OCW);
 }
 
+/*
+ * Return 1 if spurious, 0 if not, -1 if irq is wrong.
+ */
+int pic_spurious(unsigned char irq)
+{
+	if (irq <= 7) {
+		outb(READ_IS_ONRD | OCW_TEMPLATE | READ_NEXT_RD, MASTER_ICW);
+		return (inb(MASTER_ICW) & (1 << irq)) == 0;
+	} else if (irq <= 15) {
+		outb(READ_IS_ONRD | OCW_TEMPLATE | READ_NEXT_RD, SLAVE_ICW);
+		return (inb(SLAVE_ICW) & (1 << (irq - 8))) == 0;
+	} else {
+		return -1;
+	}
+}
