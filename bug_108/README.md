@@ -27,5 +27,18 @@ So we are not going to remove XSETBV.
 Newer hardware supports MSR bitmap. XMHF should use it to reduce VMEXIT101 due
 to WRMSR / RDMSR.
 
-TODO
+In `xmhf64 3b6e54256..3105d1d27`, implement MSR bitmap. Also when SMP boot of
+guest is done, remove `IA32_X2APIC_ICR` VMEXIT.
+
+Note that when nested virtualization, XMHF still intercepts all MSR VMEXITs.
+This is because to implement correctly, we need to set VMCS12 MSR bitmap as
+readonly in EPT. However, this requires techniques similar to shadow paging.
+
+After the changes, event logger output is much slower because there are less
+VMEXITs.
+
+## Fix
+
+`xmhf64 3b6e54256..3105d1d27`
+* Use MSR bitmaps during L1 operations to speed up XMHF
 

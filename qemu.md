@@ -27,3 +27,26 @@ Entry point of secure loader
 * `b *0x10003080`; `c`
 * `symbol-file -o 0x10000000 .../sl_syms.exe`: load symbols
 
+### VT-d
+
+Follow <https://wiki.qemu.org/Features/VT-d> to add IOMMU to KVM
+
+Full arguments from QEMU wiki:
+```sh
+qemu-system-x86_64 -machine q35,accl=kvm,kernel-irqchip=split -m 2G \
+                   -device intel-iommu,intremap=on \
+                   -netdev user,id=net0 \
+                   -device e1000,netdev=net0 \
+                   $IMAGE_PATH
+```
+
+Key arguments: `-machine q35 -device intel-iommu`
+
+When running with XMHF, see KVM I/O error `KVM_GET_PIT2`. So need to add
+`--win-bios`.
+
+So the final arguments to add to QEMU are:
+```
+-machine q35 -device intel-iommu --win-bios
+```
+
