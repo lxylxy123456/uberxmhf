@@ -299,6 +299,9 @@ This page will be used to track various bugs reported to QEMU / KVM
 	  "[PATCH v5 03/15] KVM: nVMX: Inject #UD if VMXON is attempted with
 	   incompatible CR0/CR4", time Tue,  7 Jun 2022 21:35:52 +0000
 	* Tested the fix and realized that fix is incorrect
+	* Fix sent by email, from Sean Christopherson <seanjc@google.com>, title
+	  "[PATCH] KVM: nVMX: Inject #GP, not #UD, if "generic" VMXON CR0/CR4 check
+	  fails", time Thu, 6 Oct 2022 15:23:51 +0000
 * `bug_078`: Linux stucks when using x2APIC on HP 840
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216045>
 * `bug_077`: XMHF booting Windows results in "kvm run failed Input/output error"
@@ -312,7 +315,11 @@ This page will be used to track various bugs reported to QEMU / KVM
 * `bug_087`: KVM and Bochs incorrect behavior on nested NMI
 	* TODO: not reported yet
 * `bug_105`: Pathos kernel panic in LMM
-	* Private email
+	* Private email with 15410 instructor, patch donated to CMU
+	* <https://github.com/OSPreservProject/oskit/issues/1>
+		* <https://github.com/OSPreservProject/oskit/pull/2>
+		* Bug report sent to oskit-users@cs.utah.edu and csl-dist@cs.utah.edu
+			* However these emails are no longer valid
 * `bug_058`: GCC `-Werror=stringop-overflow=` false positive
 	* <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105100>
 * `bug_106`: GCC `-Werror=uninitialized` false negative
