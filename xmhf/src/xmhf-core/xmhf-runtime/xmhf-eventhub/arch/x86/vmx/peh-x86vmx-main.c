@@ -1282,17 +1282,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		//xmhf-core and hypapp intercepts
 		//--------------------------------------------------------------
 
-		case VMX_VMEXIT_TRIPLE_FAULT:
-			printf("CPU(0x%02x): Going to reset due to triple fault\n", vcpu->id);
-#ifdef __AMD64__
-			asm volatile ("pushq $0; pushq $0; lidt (%rsp); ud2;");
-#elif defined(__I386__)
-			asm volatile ("pushl $0; pushl $0; lidt (%esp); ud2;");
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif
-			HALT_ON_ERRORCOND(0);
-
 		case VMX_VMEXIT_VMCALL:{
 			//if INT 15h E820 hypercall, then let the xmhf-core handle it
 			if(vcpu->vmcs.guest_CS_base == (VMX_UG_E820HOOK_CS << 4) &&
