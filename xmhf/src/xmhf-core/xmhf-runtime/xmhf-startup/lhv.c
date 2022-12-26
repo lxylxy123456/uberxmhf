@@ -1,79 +1,11 @@
 #include <xmhf.h>
 #include <lhv.h>
 
-#ifndef __AMD64__
-#error "Only AMD64 supported"
-#endif
-
-u64 lxy_key;
-
-void check_page(u64 pa) {
-	if (pa < 0x1000000) {
-		return;
-	}
-	if (pa % 0x1000000 != 0) {
-		return;
-	}
-
-	{
-		unsigned char *p = (unsigned char *)(uintptr_t)pa;
-		printf("  0x%016llx: %08x %08x %016llx\n", pa, *(u32 *)(p + 0), *(u32 *)(p + 4), *(u64 *)(p + 8));
-		p[0] = 0x58;
-		p[1] = 0x4d;
-		p[2] = 0x48;
-		p[3] = 0x46;
-		*(u32 *)(p + 4) = pa >> 24;
-		*(u64 *)(p + 8) = lxy_key;
-	}
-}
-
-void exploit(VCPU *vcpu) {
-	if (!vcpu->isbsp) {
-		HALT();
-		return;
-	}
-
-	printf("Number of E820 entries = %u\n", rpb->XtVmmE820NumEntries);
-	lxy_key = rdtsc64();
-
-	for(int i=0; i < (int)rpb->XtVmmE820NumEntries; i++){
-		u64 baseaddr = (((u64)g_e820map[i].baseaddr_high << 32) |
-						g_e820map[i].baseaddr_low);
-		u64 length = (((u64)g_e820map[i].length_high << 32) |
-					  g_e820map[i].length_low);
-		if (g_e820map[i].type != 1) {
-			continue;
-		}
-		while (baseaddr % PA_PAGE_SIZE_4K != 0 && length > 0) {
-			baseaddr += 1;
-			length -= 1;
-		}
-		length = PA_PAGE_ALIGN_4K(length);
-		printf("Available: 0x%016llx, 0x%016llx\n", baseaddr, length);
-		for (u64 j = baseaddr; j < baseaddr + length; j += PA_PAGE_SIZE_4K) {
-			check_page(j);
-		}
-	}
-
-	wbinvd();
-	printf("WBINVD complete, lxy_key = 0x%016llx\n", lxy_key);
-
-	for (int i = 0; i < 0x10000000; i++) {
-		asm volatile ("pause");
-	}
-
-	printf("Restarting");
-	asm volatile ("pushq $0; pushq $0; lidt (%rsp); ud2;");
-
-	HALT();
-}
-
 void lhv_main(VCPU *vcpu)
 {
 	console_vc_t vc;
 	console_get_vc(&vc, vcpu->idx, 0);
 	console_clear(&vc);
-	exploit(vcpu);
 	if (vcpu->isbsp) {
 		console_cursor_clear();
 		// asm volatile ("int $0xf8");
