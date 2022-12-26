@@ -21,6 +21,7 @@ C_SOURCES += lhv-guest.c
 C_SOURCES += lhv-user.c
 
 C_SOURCES += ./arch/x86/rntm-x86-data.c
+C_SOURCES += ./arch/x86/rntm-x86-dmap.c
 
 # targets
 include ../runtime.mk

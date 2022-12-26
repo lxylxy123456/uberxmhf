@@ -106,6 +106,7 @@ OBJECTS_PRECOMPILED += ./xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-reboot.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/runtime.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/rntm-data.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-data.o
+OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-dmap.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-console.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-timer.o
