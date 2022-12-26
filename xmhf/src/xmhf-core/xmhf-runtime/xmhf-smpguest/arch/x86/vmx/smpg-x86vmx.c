@@ -103,7 +103,7 @@ static void vmx_lapic_changemapping(VCPU *vcpu, u32 lapic_paddr, u32 new_lapic_p
 
   pts[lapic_page] = value;
 
-  xmhf_memprot_arch_x86vmx_flushmappings(vcpu);
+  xmhf_memprot_arch_x86vmx_flushmappings_localtlb(vcpu, MEMP_FLUSHTLB_ENTRY);
 #endif //__XMHF_VERIFICATION__
 }
 //----------------------------------------------------------------------
@@ -400,6 +400,7 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_dbexception(VCPU *vcpu, struct regs 
   if(delink_lapic_interception){
     printf("%s: delinking LAPIC interception since all cores have SIPI\n", __FUNCTION__);
 	vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_MAP);
+	xmhf_partition_arch_x86vmx_clear_msrbitmap_x2apic_icr(vcpu);
   }else{
 	vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_UNMAP);
   }
@@ -456,6 +457,7 @@ int xmhf_smpguest_arch_x86vmx_eventhandler_x2apic_icrwrite(VCPU *vcpu, u64 value
 			 */
 			printf("%s: delinking LAPIC interception since all cores have SIPI\n", __FUNCTION__);
 			vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_MAP);
+			xmhf_partition_arch_x86vmx_clear_msrbitmap_x2apic_icr(vcpu);
 		}
 		return 1;
 	default:
@@ -674,7 +676,7 @@ u32 xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(VCPU *vcpu) {
 
 		// Flush EPT TLB, if instructed so
 		if(g_vmx_flush_all_tlb_signal) {
-			xmhf_memprot_flushmappings_localtlb(vcpu);
+			xmhf_memprot_flushmappings_localtlb(vcpu, g_vmx_flush_all_tlb_signal);
 		}
 
 		spin_lock(&g_vmx_lock_quiesce_resume_counter);
@@ -1002,6 +1004,13 @@ void xmhf_smpguest_arch_x86vmx_nmi_block(VCPU *vcpu)
 	/* Set NMI block bit in VCPU */
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_block = true;
 
+#ifdef __NESTED_VIRTUALIZATION__
+	if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+		xmhf_nested_arch_x86vmx_update_nested_nmi(vcpu);
+		return;
+	}
+#endif /* __NESTED_VIRTUALIZATION__ */
+
 	/* Remove NMI windowing bit in VMCS as needed */
 	xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(
 		vcpu, &vcpu->vmcs.control_VMX_cpu_based);
@@ -1017,6 +1026,13 @@ void xmhf_smpguest_arch_x86vmx_nmi_unblock(VCPU *vcpu)
 
 	/* Clear NMI block bit in VCPU */
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_block = false;
+
+#ifdef __NESTED_VIRTUALIZATION__
+	if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+		xmhf_nested_arch_x86vmx_update_nested_nmi(vcpu);
+		return;
+	}
+#endif /* __NESTED_VIRTUALIZATION__ */
 
 	/* Set NMI windowing bit in VMCS as needed */
 	xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(

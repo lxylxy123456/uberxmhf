@@ -58,7 +58,7 @@ SL_BASE="0x8000000"
 NO_RT_BSS="n"
 NO_BL_HASH="n"
 NO_INIT_SMP="y"
-NV="y"
+NV="n"
 EPT_NUM="8"
 EPT_POOL="512"
 OPT=""
@@ -276,6 +276,8 @@ fi
 CONF+=("--with-lhv-opt=$LHV_OPT")
 
 if [ "$NV" == "y" ]; then
+	echo "Error: nested virtualization not supported in LHV."
+	false
 	CONF+=("--enable-nested-virtualization")
 	CONF+=("--with-vmx-nested-max-active-ept=$EPT_NUM")
 	CONF+=("--with-vmx-nested-ept02-page-pool-size=$EPT_POOL")
