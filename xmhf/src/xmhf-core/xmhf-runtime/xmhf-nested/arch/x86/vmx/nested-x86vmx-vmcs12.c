@@ -487,7 +487,10 @@ static void _vmcs12_to_vmcs02_flip_bits(vmx_ctls_t * ctls02)
 	/* XMHF needs to activate secondary controls because of EPT */
 	_vmx_setctl_activate_secondary_controls(ctls02);
 #ifdef __VMX_NESTED_MSR_BITMAP__
-	/* XMHF does not use MSR bitmaps, but nested hypervisor may use them. */
+	/*
+	 * Nested hypervisor may use MSR bitmaps (VMCS12 = 1), but XMHF does not
+	 * use them during nested virtualization (VMCS02 = 0).
+	 */
 	_vmx_clearctl_use_msr_bitmaps(ctls02);
 #endif							/* __VMX_NESTED_MSR_BITMAP__ */
 	/*
@@ -885,7 +888,13 @@ static u32 _vmcs12_to_vmcs02_control_MSR_Bitmaps_address(ARG10 * arg)
 		HALT_ON_ERRORCOND(PA_PAGE_ALIGNED_4K
 						  (arg->vmcs12->control_MSR_Bitmaps_address));
 	}
-	/* XMHF never uses MSR bitmaps, so set VMCS02 to invalid value */
+	/*
+	 * XMHF does not use MSR bitmaps in VMCS02, so set to invalid value.
+	 *
+	 * Note: use MSR bitmaps in VMCS02, XMHF needs to merge VMCS01 and VMCS12.
+	 * It also needs to set MSR bitmaps in VMCS12 as read-only, so it can pick
+	 * up changes when the guest updates MSR bitmaps in VMCS12.
+	 */
 	__vmx_vmwrite64(VMCSENC_control_MSR_Bitmaps_address, UINT64_MAX);
 	return VM_INST_SUCCESS;
 	(void)arg;
@@ -991,7 +1000,7 @@ static void _vmcs02_to_vmcs12_control_posted_interrupt_desc_address(ARG01 * arg)
 
 /* EPT pointer */
 
-static void _update_pae_pdpte(ARG10 * arg)
+static void _update_pae_pdpte(ARG10 * arg, uintptr_t guest_CR3)
 {
 	/*
 	 * Assume guest does not enable EPT. Check whether guest is in PAE. If so,
@@ -1010,7 +1019,7 @@ static void _update_pae_pdpte(ARG10 * arg)
 	if (pae) {
 		/* Walk EPT and retrieve values for guest_PDPTE* */
 		u64 pdptes[4];
-		u64 addr = arg->vmcs12->guest_CR3 & ~0x1FUL;
+		u64 addr = guest_CR3 & ~0x1FUL;
 		guestmem_copy_gp2h(arg->ctx_pair, 0, pdptes, addr, sizeof(pdptes));
 		__vmx_vmwrite64(VMCSENC_guest_PDPTE0, pdptes[0]);
 		__vmx_vmwrite64(VMCSENC_guest_PDPTE1, pdptes[1]);
@@ -1032,9 +1041,12 @@ static void _workaround_kvm_216212(ARG10 * arg, ept02_cache_line_t * cache_line)
 	 * guest2_paddr = CR3.
 	 */
 	extern bool is_in_kvm;
-	if (is_in_kvm && arg->vmcs12->guest_CR3 != 0) {
-		xmhf_nested_arch_x86vmx_hardcode_ept(arg->vcpu, cache_line,
-											 arg->vmcs12->guest_CR3);
+	if (is_in_kvm) {
+		uintptr_t guest_CR3 = __vmx_vmreadNW(VMCSENC_guest_CR3);
+		if (guest_CR3 != 0) {
+			xmhf_nested_arch_x86vmx_hardcode_ept(arg->vcpu, cache_line,
+												 guest_CR3);
+		}
 	}
 }
 #endif							/* !__DEBUG_QEMU__ */
@@ -1064,7 +1076,7 @@ static u32 _vmcs12_to_vmcs02_control_EPT_pointer(ARG10 * arg)
 		/* Guest does not use EPT, just use XMHF's EPT */
 		arg->vmcs12_info->guest_ept_root = GUEST_EPT_ROOT_INVALID;
 		ept02 = arg->vcpu->vmcs.control_EPT_pointer;
-		_update_pae_pdpte(arg);
+		_update_pae_pdpte(arg, arg->vmcs12->guest_CR3);
 	}
 	__vmx_vmwrite64(VMCSENC_control_EPT_pointer, ept02);
 	return VM_INST_SUCCESS;
@@ -1102,15 +1114,16 @@ static void _rewalk_ept01_control_EPT_pointer(ARG10 * arg)
 		arg->vmcs12_info->guest_ept_cache_line = cache_line;
 	} else {
 		/*
-		 * We treat PDPTEs as cached and do not update them. The nested guest
-		 * should invalidate TLB (e.g. mov CR0 / CR3) to update PDPTEs.
-		 *
 		 * We need to update EPTP becase hyapp like TrustVisor may modify
 		 * EPTP02. TrustVisor performs at the first call to scode_register() to
 		 * set EPT of all CPUs to be the same.
 		 */
 		ept02 = arg->vcpu->vmcs.control_EPT_pointer;
-		_update_pae_pdpte(arg);
+		/*
+		 * Do not use VMCS12 guest_CR3, because VCPU_gcr3_set() changes only
+		 * VMCS02 guest_CR3 (e.g. used by TrustVisor).
+		 */
+		_update_pae_pdpte(arg, __vmx_vmreadNW(VMCSENC_guest_CR3));
 	}
 
 	/* Write updated EPT02 to VMCS */
