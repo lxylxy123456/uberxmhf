@@ -130,6 +130,15 @@ void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
 
 /* Below are for pal_demo */
 
+static u8 pal_demo_code[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+__attribute__((aligned(PAGE_SIZE_4K)));
+static u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+__attribute__((aligned(PAGE_SIZE_4K)));
+static u8 pal_demo_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+__attribute__((aligned(PAGE_SIZE_4K)));
+static u8 pal_demo_param[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+__attribute__((aligned(PAGE_SIZE_4K)));
+
 void begin_pal_c(void) {}
 
 uintptr_t my_pal(uintptr_t arg1, uintptr_t arg2) {
@@ -144,19 +153,18 @@ uintptr_t my_pal(uintptr_t arg1, uintptr_t arg2) {
 	}
 #endif
 	(void)arg2;
-	return arg1 + 0x1234abcd;
+	if (arg1 == 0) {
+		*(uintptr_t *)pal_demo_data[0] = arg2;
+		return 0x1234abcd;
+	} else if (arg1 == 1) {
+		return *(uintptr_t *)pal_demo_data[0];
+	} else {
+		return 0xdeadbee3;
+	}
+	//return arg1 + 0x1234abcd;
 }
 
 void end_pal_c(void) {}
-
-static u8 pal_demo_code[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__((aligned(PAGE_SIZE_4K)));
-static u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__((aligned(PAGE_SIZE_4K)));
-static u8 pal_demo_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__((aligned(PAGE_SIZE_4K)));
-static u8 pal_demo_param[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__((aligned(PAGE_SIZE_4K)));
 
 static inline uintptr_t vmcall(uintptr_t eax, uintptr_t ecx, uintptr_t edx,
 								uintptr_t esi, uintptr_t edi) {
@@ -291,9 +299,9 @@ static void user_main_pal_demo_2(VCPU *vcpu, ulong_t arg)
 							  (uintptr_t)&params, pal_entry));
 
 	/* Call PAL function */
-	{
-		uintptr_t ans = pal_func(0x11111111, 0);
-		if (ans != 0x2345bcde) {
+	if (arg == 0) {
+		uintptr_t ans = pal_func(0, 0x2d8e64ca);
+		if (ans != 0x1234abcd) {
 			printf("CPU(0x%02x): PAL returns incorrect result\n", vcpu->id);
 			printf("CPU(0x%02x): Expected: 0x%08lx\n", vcpu->id, 0x2345bcde);
 			printf("CPU(0x%02x): Actual:   0x%08lx\n", vcpu->id, ans);
@@ -303,6 +311,10 @@ static void user_main_pal_demo_2(VCPU *vcpu, ulong_t arg)
 				xmhf_cpu_relax();
 			}
 		}
+	} else {
+		uintptr_t ans = pal_func(1, 0);
+		printf("CPU(0x%02x): Expected: 0x%08lx\n", vcpu->id, 0x2d8e64ca);
+		printf("CPU(0x%02x): Ans:      0x%08lx\n", vcpu->id, ans);
 	}
 
 	if (0 && "invalid access") {
