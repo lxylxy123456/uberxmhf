@@ -133,6 +133,7 @@ void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
 void begin_pal_c(void) {}
 
 uintptr_t my_pal(uintptr_t arg1, uintptr_t arg2) {
+#if 0
 	u32 eax=0x7a567254U, ebx, ecx=arg2, edx;
 	cpuid_raw(&eax, &ebx, &ecx, &edx);
 	if (eax != 0x7a767274U) {
@@ -141,6 +142,8 @@ uintptr_t my_pal(uintptr_t arg1, uintptr_t arg2) {
 	if (ebx == 0xffffffffU) {
 		return 0xdeadbee2U;
 	}
+#endif
+	(void)arg2;
 	return arg1 + 0x1234abcd;
 }
 
@@ -267,12 +270,13 @@ void user_main(VCPU *vcpu, ulong_t arg)
 	{
 		u32 eax, ebx, ecx, edx;
 		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
-		if (eax == 0x46484d58U) {
+		//if (eax == 0x46484d58U) {
+		if (1) {
 			/* Test TrustVisor presence using CPUID */
 			u32 eax=0x7a567254U, ebx, ecx=arg, edx;
 			cpuid_raw(&eax, &ebx, &ecx, &edx);
-			HALT_ON_ERRORCOND(eax == 0x7a767274U && "TrustVisor not present 1");
-			HALT_ON_ERRORCOND(ebx == 0xffffffffU && "TrustVisor not present 2");
+			//HALT_ON_ERRORCOND(eax == 0x7a767274U && "TrustVisor not present 1");
+			//HALT_ON_ERRORCOND(ebx == 0xffffffffU && "TrustVisor not present 2");
 			user_main_pal_demo(vcpu, arg);
 		} else {
 			printf("CPU(0x%02x): can enter user mode 0x%x\n", vcpu->id, arg);
