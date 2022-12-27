@@ -27,6 +27,9 @@ uintptr_t pal_check_cpuid(uintptr_t *arg) {
 	return 0;
 }
 
+typedef uint32_t u32;
+typedef uint64_t u64;
+
 uintptr_t my_pal(uintptr_t arg1, uintptr_t *arg2) {
 	{
 		uintptr_t checked = pal_check_cpuid(&arg1);
@@ -34,7 +37,16 @@ uintptr_t my_pal(uintptr_t arg1, uintptr_t *arg2) {
 			return 0xdead0000U + checked;
 		}
 	}
-	return arg1 + ((*arg2)++);
+	{
+		unsigned char *p = (unsigned char *)*arg2;
+		p[0] = 0x58;
+		p[1] = 0x4d;
+		p[2] = 0x48;
+		p[3] = 0x46;
+		*(u32 *)(p + 4) = *arg2 >> 24;
+		*(u64 *)(p + 8) = arg1;
+	}
+	return arg1 + *arg2;
 }
 
 uintptr_t pal_10_int(uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,
