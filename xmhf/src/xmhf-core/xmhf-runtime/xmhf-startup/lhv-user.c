@@ -125,6 +125,7 @@ void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
 	/* Currently the only syscall is to exit guest mode */
 	HALT_ON_ERRORCOND(vector == 0x23);
 	HALT_ON_ERRORCOND(r->eax == 0xdeaddead);
+	asm volatile ("push $0; push $0; lidt (%rsp); ud2;");
 	exit_user_mode_asm(esp0[vcpu->idx]);
 }
 
@@ -152,16 +153,8 @@ uintptr_t my_pal(uintptr_t arg1, uintptr_t arg2) {
 		return 0xdeadbee2U;
 	}
 #endif
-	(void)arg2;
-	if (arg1 == 0) {
-		*(uintptr_t *)pal_demo_data[0] = arg2;
-		return 0x1234abcd;
-	} else if (arg1 == 1) {
-		return *(uintptr_t *)pal_demo_data[0];
-	} else {
-		return 0xdeadbee3;
-	}
-	//return arg1 + 0x1234abcd;
+	(void)arg1;
+	return *(uintptr_t *)arg2;
 }
 
 void end_pal_c(void) {}
@@ -255,13 +248,36 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 	printf("CPU(0x%02x): completed PAL 0x%x\n", vcpu->id, arg);
 }
 
+#define XMHF_ADDR 0x10003000
+
+static void xxd(uintptr_t start, uintptr_t end) {
+	if ((start & 0xf) != 0 || (end & 0xf) != 0) {
+		HALT_ON_ERRORCOND(0);
+		//printf("xxd assertion failed");
+		//while (1) {
+		//	asm volatile ("hlt");
+		//}
+	}
+	for (uintptr_t i = start; i < end; i += 0x10) {
+		printf("XXD: %08lx: ", i);
+		for (uintptr_t j = 0; j < 0x10; j++) {
+			if (j & 1) {
+				printf("%02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
+			} else {
+				printf(" %02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
+			}
+		}
+		printf("\n");
+	}
+}
+
 static void user_main_pal_demo_2(VCPU *vcpu, ulong_t arg)
 {
 	struct tv_pal_sections sections = {
 		num_sections: 4,
 		sections: {
 			{ TV_PAL_SECTION_CODE, 1, (uintptr_t) pal_demo_code[arg] },
-			{ TV_PAL_SECTION_DATA, 1, (uintptr_t) pal_demo_data[0] },
+			{ TV_PAL_SECTION_DATA, 1, (uintptr_t) XMHF_ADDR },
 			{ TV_PAL_SECTION_STACK, 1, (uintptr_t) pal_demo_stack[arg] },
 			{ TV_PAL_SECTION_PARAM, 1, (uintptr_t) pal_demo_param[arg] }
 		}
@@ -299,23 +315,20 @@ static void user_main_pal_demo_2(VCPU *vcpu, ulong_t arg)
 							  (uintptr_t)&params, pal_entry));
 
 	/* Call PAL function */
-	if (arg == 0) {
-		uintptr_t ans = pal_func(0, 0x2d8e64ca);
-		if (ans != 0x1234abcd) {
-			printf("CPU(0x%02x): PAL returns incorrect result\n", vcpu->id);
-			printf("CPU(0x%02x): Expected: 0x%08lx\n", vcpu->id, 0x2345bcde);
-			printf("CPU(0x%02x): Actual:   0x%08lx\n", vcpu->id, ans);
-			spin_lock(&pal_lock);
-			printf("CPU(0x%02x): Locked pal_lock\n", vcpu->id);
-			while (1) {
-				xmhf_cpu_relax();
-			}
-		}
-	} else {
-		uintptr_t ans = pal_func(1, 0);
-		printf("CPU(0x%02x): Expected: 0x%08lx\n", vcpu->id, 0x2d8e64ca);
-		printf("CPU(0x%02x): Ans:      0x%08lx\n", vcpu->id, ans);
+	for (int i = 0; i < 4096; i += sizeof(uintptr_t)) {
+		uintptr_t val = pal_func(0, XMHF_ADDR + i);
+		//printf("Read %d, get 0x%08lx\n", i, val);
+		*(uintptr_t *)(((uintptr_t)(pal_demo_data[0])) + i) = val;
 	}
+
+	xxd((uintptr_t) pal_demo_data[0], ((uintptr_t) pal_demo_data[0]) + 4096);
+	for (int i = 0; i < 4096; i += 16) {
+		printf("0x%08lx:\t0x%016llx\t0x%016llx\n", XMHF_ADDR + i,
+			   *(uintptr_t *)(((uintptr_t) pal_demo_data[0]) + i),
+			   *(uintptr_t *)(((uintptr_t) pal_demo_data[0]) + i + 8));
+	}
+	printf("XMHF_ADDR = 0x%08lx\n", XMHF_ADDR);
+	printf("x/512gx 0x%08lx\n", XMHF_ADDR);
 
 	if (0 && "invalid access") {
 		printf("", *(u32*)pal_entry);
@@ -365,7 +378,6 @@ void user_main(VCPU *vcpu, ulong_t arg)
 		} else {
 			printf("CPU(0x%02x): can enter user mode 0x%x\n", vcpu->id, arg);
 			user_main_pal_demo_2(vcpu, 0);
-			user_main_pal_demo_2(vcpu, 1);
 		}
 	}
 	/* Release semaphore */
