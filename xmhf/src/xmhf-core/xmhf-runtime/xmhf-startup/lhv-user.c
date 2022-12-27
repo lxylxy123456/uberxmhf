@@ -247,6 +247,78 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 	printf("CPU(0x%02x): completed PAL 0x%x\n", vcpu->id, arg);
 }
 
+static void user_main_pal_demo_2(VCPU *vcpu, ulong_t arg)
+{
+	struct tv_pal_sections sections = {
+		num_sections: 4,
+		sections: {
+			{ TV_PAL_SECTION_CODE, 1, (uintptr_t) pal_demo_code[arg] },
+			{ TV_PAL_SECTION_DATA, 1, (uintptr_t) pal_demo_data[0] },
+			{ TV_PAL_SECTION_STACK, 1, (uintptr_t) pal_demo_stack[arg] },
+			{ TV_PAL_SECTION_PARAM, 1, (uintptr_t) pal_demo_param[arg] }
+		}
+	};
+	struct tv_pal_params params = {
+		num_params: 2,
+		params: {
+			{ TV_PAL_PM_INTEGER, 4 }, { TV_PAL_PM_INTEGER, 4 }
+		}
+	};
+	/* Copy code */
+	uintptr_t src_begin = (uintptr_t) begin_pal_c;
+	uintptr_t dst_begin = (uintptr_t) pal_demo_code[arg];
+	uintptr_t code_size = (uintptr_t) end_pal_c - src_begin;
+	uintptr_t pal_entry = dst_begin - src_begin + (uintptr_t) my_pal;
+	typeof(&my_pal) pal_func = (typeof(&my_pal)) pal_entry;
+	memcpy((void *)dst_begin, (void *)src_begin, code_size);
+
+	/*
+	 * Touch all pages used by PAL. If in nested virtualization (L0 = XMHF,
+	 * L1 = red hypervisor, L2 = LHV), hopefully the pages become cached in
+	 * L1's EPT.
+	 */
+//	for (u32 i = 0; i < sections.num_sections; i++) {
+//		for (u32 j = 0; j < sections.sections[i].page_num; j++) {
+//			u64 addr = sections.sections[i].start_addr + PAGE_SIZE_4K * j;
+//			volatile u8 *ptr = (volatile u8 *)(uintptr_t)addr;
+//			*ptr;
+//		}
+//	}
+
+	/* Register PAL */
+	printf("CPU(0x%02x): starting PAL 0x%x\n", vcpu->id, arg);
+	HALT_ON_ERRORCOND(!vmcall(TV_HC_REG, (uintptr_t)&sections, 0,
+							  (uintptr_t)&params, pal_entry));
+
+	/* Call PAL function */
+	{
+		uintptr_t ans = pal_func(0x11111111, 0);
+		if (ans != 0x2345bcde) {
+			printf("CPU(0x%02x): PAL returns incorrect result\n", vcpu->id);
+			printf("CPU(0x%02x): Expected: 0x%08lx\n", vcpu->id, 0x2345bcde);
+			printf("CPU(0x%02x): Actual:   0x%08lx\n", vcpu->id, ans);
+			spin_lock(&pal_lock);
+			printf("CPU(0x%02x): Locked pal_lock\n", vcpu->id);
+			while (1) {
+				xmhf_cpu_relax();
+			}
+		}
+	}
+
+	if (0 && "invalid access") {
+		printf("", *(u32*)pal_entry);
+	}
+
+//	/* Unregister PAL */
+//	HALT_ON_ERRORCOND(!vmcall(TV_HC_UNREG, pal_entry, 0, 0, 0));
+
+//	if ("valid access") {
+//		printf("", *(u32*)pal_entry);
+//	}
+
+	printf("CPU(0x%02x): completed PAL 0x%x\n", vcpu->id, arg);
+}
+
 void user_main(VCPU *vcpu, ulong_t arg)
 {
 	/* Acquire semaphore */
@@ -271,7 +343,7 @@ void user_main(VCPU *vcpu, ulong_t arg)
 		u32 eax, ebx, ecx, edx;
 		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
 		//if (eax == 0x46484d58U) {
-		if (1) {
+		if (0) {
 			/* Test TrustVisor presence using CPUID */
 			u32 eax=0x7a567254U, ebx, ecx=arg, edx;
 			cpuid_raw(&eax, &ebx, &ecx, &edx);
@@ -280,6 +352,8 @@ void user_main(VCPU *vcpu, ulong_t arg)
 			user_main_pal_demo(vcpu, arg);
 		} else {
 			printf("CPU(0x%02x): can enter user mode 0x%x\n", vcpu->id, arg);
+			user_main_pal_demo_2(vcpu, 0);
+			user_main_pal_demo_2(vcpu, 1);
 		}
 	}
 	/* Release semaphore */
