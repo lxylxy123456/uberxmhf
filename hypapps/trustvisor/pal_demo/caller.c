@@ -187,8 +187,6 @@ void enable_keyboard_interrupt(void) {
 #endif /* WINDOWS */
 }
 
-void *g_data;
-
 /*
  * Auto-register a PAL
  * params: parameters description for TrustVisor
@@ -213,7 +211,6 @@ void *register_pal(struct tv_pal_params *params, void *entry, void *begin_pal,
 			{ TV_PAL_SECTION_PARAM, 1, (uintptr_t) param }
 		}
 	};
-	g_data = data;
 	for (uint32_t i = 0; i < sections.num_sections; i++) {
 		struct tv_pal_section *a = &(sections.sections[i]);
 		assert(a->start_addr);
