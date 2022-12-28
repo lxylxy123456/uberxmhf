@@ -730,8 +730,8 @@ u32 tv_app_handleintercept_portaccess(VCPU *vcpu, struct regs __attribute__((unu
 
 void tv_app_handleshutdown(VCPU *vcpu, struct regs __attribute__((unused)) *r)
 {
-  // TODO: can we do `started_business = 0;`?
   eu_trace("CPU(0x%02x): Shutdown intercept!", vcpu->id);
+  hpt_scode_destroy_all();
   //g_libemhf->xmhf_reboot(vcpu);
   xmhf_baseplatform_reboot(vcpu);
 }
@@ -787,10 +787,8 @@ u32 tv_app_handle_nest_exit(VCPU *vcpu, struct regs *r)
 {
   (void)r;
   if (hpt_scode_is_scode(vcpu)) {
-#ifdef __NESTED_VIRTUALIZATION__
     extern void xmhf_nested_arch_x86vmx_vmread_all(VCPU * vcpu, char *prefix);
     xmhf_nested_arch_x86vmx_vmread_all(vcpu, ":VMCS02:");
-#endif /* __NESTED_VIRTUALIZATION__ */
     eu_err("CPU(0x%02x): tv_app_handle_nest_exit in scode, Halt!", vcpu->id);
     HALT();
   }
