@@ -130,19 +130,9 @@ void handle_lhv_syscall(VCPU *vcpu, int vector, struct regs *r)
 
 /* Below are for pal_demo */
 
-static u8 pal_demo_code[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__((aligned(PAGE_SIZE_4K)));
-static u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__((aligned(PAGE_SIZE_4K)));
-static u8 pal_demo_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__((aligned(PAGE_SIZE_4K)));
-static u8 pal_demo_param[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
-__attribute__((aligned(PAGE_SIZE_4K)));
-
 void begin_pal_c(void) {}
 
 uintptr_t my_pal(uintptr_t arg1, uintptr_t arg2) {
-#if 0
 	u32 eax=0x7a567254U, ebx, ecx=arg2, edx;
 	cpuid_raw(&eax, &ebx, &ecx, &edx);
 	if (eax != 0x7a767274U) {
@@ -151,13 +141,19 @@ uintptr_t my_pal(uintptr_t arg1, uintptr_t arg2) {
 	if (ebx == 0xffffffffU) {
 		return 0xdeadbee2U;
 	}
-#endif
-	(void)arg2;
-	*(uintptr_t *)(pal_demo_data[0]) = (uintptr_t)0xcd6eca440993336fULL;
 	return arg1 + 0x1234abcd;
 }
 
 void end_pal_c(void) {}
+
+static u8 pal_demo_code[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+__attribute__((aligned(PAGE_SIZE_4K)));
+static u8 pal_demo_data[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+__attribute__((aligned(PAGE_SIZE_4K)));
+static u8 pal_demo_stack[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+__attribute__((aligned(PAGE_SIZE_4K)));
+static u8 pal_demo_param[MAX_VCPU_ENTRIES][PAGE_SIZE_4K]
+__attribute__((aligned(PAGE_SIZE_4K)));
 
 static inline uintptr_t vmcall(uintptr_t eax, uintptr_t ecx, uintptr_t edx,
 								uintptr_t esi, uintptr_t edi) {
@@ -239,87 +235,16 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 	}
 
 	/* Unregister PAL */
-	//HALT_ON_ERRORCOND(!vmcall(TV_HC_UNREG + arg, pal_entry, 0, 0, 0));
+	HALT_ON_ERRORCOND(!vmcall(TV_HC_UNREG + arg, pal_entry, 0, 0, 0));
 
-	//if ("valid access") {
-	//	printf("", *(u32*)pal_entry);
-	//}
+	if ("valid access") {
+		printf("", *(u32*)pal_entry);
+	}
 
 	printf("CPU(0x%02x): completed PAL 0x%x\n", vcpu->id, arg);
 }
 
 void user_main(VCPU *vcpu, ulong_t arg)
-{
-	HALT_ON_ERRORCOND(arg == 0);
-	printf("CPU(0x%02x): enter %s\n", vcpu->id, __func__);
-
-	if (vcpu->idx >= 2) {
-		leave_user_mode();
-	}
-
-	{
-		/* 1. BSP wait for AP */
-		static const int sync_num = 1;
-		static bool signal = false;
-		if (vcpu->isbsp) {
-			printf("CPU(0x%02x): waiting for sync %d\n", vcpu->id, sync_num);
-			while (!signal) {
-				xmhf_cpu_relax();
-			}
-			printf("CPU(0x%02x): waited for  sync %d\n", vcpu->id, sync_num);
-		} else {
-			printf("CPU(0x%02x): signalling  sync %d\n", vcpu->id, sync_num);
-			signal = true;
-		}
-	}
-
-	{
-		/* 2. BSP wait for sometime */
-		if (vcpu->isbsp) {
-			printf("CPU(0x%02x): waiting for time\n", vcpu->id);
-			for (u32 i = 0; i < 0x400000; i++) {
-				xmhf_cpu_relax();
-			}
-			printf("CPU(0x%02x): waited for  time\n", vcpu->id);
-		}
-	}
-
-	{
-		/* 3. BSP call PAL */
-		if (vcpu->isbsp) {
-			user_main_pal_demo(vcpu, arg);
-		}
-	}
-
-	{
-		/* 4. AP run CPUID forever, wait for BSP */
-		static const int sync_num = 2;
-		static bool signal = false;
-		if (vcpu->isbsp) {
-			printf("CPU(0x%02x): signalling  sync %d\n", vcpu->id, sync_num);
-			signal = true;
-		} else {
-			printf("CPU(0x%02x): waiting for sync %d\n", vcpu->id, sync_num);
-			while (!signal) {
-				u32 eax = 0, ebx, ecx, edx;
-				cpuid_raw(&eax, &ebx, &ecx, &edx);
-			}
-			printf("CPU(0x%02x): waited for  sync %d\n", vcpu->id, sync_num);
-		}
-	}
-
-	{
-		/* 5. AP access BSP's PAL data */
-		if (!vcpu->isbsp) {
-			printf("CPU(0x%02x): accessing PAL\n", vcpu->id);
-			printf("CPU(0x%02x): 0x%08lx\n", vcpu->id, *(uintptr_t *)(pal_demo_data[0]));
-		}
-	}
-
-	leave_user_mode();
-}
-
-void user_main_old(VCPU *vcpu, ulong_t arg)
 {
 	/* Acquire semaphore */
 	{
@@ -342,13 +267,12 @@ void user_main_old(VCPU *vcpu, ulong_t arg)
 	{
 		u32 eax, ebx, ecx, edx;
 		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
-		//if (eax == 0x46484d58U) {
-		if (1) {
+		if (eax == 0x46484d58U) {
 			/* Test TrustVisor presence using CPUID */
 			u32 eax=0x7a567254U, ebx, ecx=arg, edx;
 			cpuid_raw(&eax, &ebx, &ecx, &edx);
-			//HALT_ON_ERRORCOND(eax == 0x7a767274U && "TrustVisor not present 1");
-			//HALT_ON_ERRORCOND(ebx == 0xffffffffU && "TrustVisor not present 2");
+			HALT_ON_ERRORCOND(eax == 0x7a767274U && "TrustVisor not present 1");
+			HALT_ON_ERRORCOND(ebx == 0xffffffffU && "TrustVisor not present 2");
 			user_main_pal_demo(vcpu, arg);
 		} else {
 			printf("CPU(0x%02x): can enter user mode 0x%x\n", vcpu->id, arg);
