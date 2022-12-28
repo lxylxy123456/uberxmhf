@@ -214,6 +214,115 @@ because `xmhf_runtime_shutdown()` is not called during reboot.
 
 ### 3. TrustVisor Vulnerability 1
 
-TODO: 3. `bug_106` "TrustVisor Vulnerability 1": break memory integrity of guest OS
+This vulnerability breaks the guest OS's security. We use Linux to share mmap
+pages. It is probably similar to dirty COW's exploit?
+
+Looks like I got it reversed. In `bug_106`, I said that permission checking is
+done on
+1. Guest CR3 satisfies `section->reg_prot`
+2. XMHF EPT satisfies `section->pal_prot`
+
+However, actually it is
+1. XMHF EPT satisfies `section->reg_prot`
+2. Guest CR3 satisfies `section->pal_prot`
+
+```
+250      /* check that this VM is allowed to access this system-physical mem */
+251      {
+252        hpt_prot_t effective_prots;
+253        bool user_accessible=false;
+254        effective_prots = hptw_get_effective_prots(reg_npm_ctx,
+255                                                        page_reg_gpa,
+256                                                        &user_accessible);
+257        CHK((effective_prots & section->reg_prot) == section->reg_prot);
+258        CHK(user_accessible);
+259      }
+260  
+261      /* check that this guest process is allowed to access this guest-physical mem */
+262      {
+263        hpt_prot_t effective_prots;
+264        bool user_accessible=false;
+265        effective_prots = hptw_get_effective_prots(reg_gpm_ctx,
+266                                                        page_reg_gva,
+267                                                        &user_accessible);
+268        eu_trace("got reg gpt prots:0x%x, user:%d",
+269                 (u32)effective_prots, (int)user_accessible);
+270        CHK((effective_prots & section->pal_prot) == section->pal_prot);
+271        CHK(user_accessible);
+272      }
+```
+
+So now we are not attacking guest OS (e.g. Linux). We are going to attack
+XMHF / TrustVisor. We can probably use this to access XMHF or another PAL's
+memory.
+
+Use `xmhf64 28ce646f2` (version before development on `bug_106`). Develop
+exploit on LHV. For some reason on new Thinkpad and `xmhf64 28ce646f2` and
+`./build.sh amd64 fast`, there is the x2apic problem found in `bug_078`
+(reported in <https://bugzilla.kernel.org/show_bug.cgi?id=216045>. Need to add
+`--no-x2apic`. However, in `xmhf64 0230ac339` (latest version), the bug is
+gone. Is the bug related to the speed to process interrupts?
+
+In `lhv-dev 4fed16b7a`, make LHV able to run (the main problem is that XMHF64
+does not support nested virtualization at that time; also need to remove
+TrustVisor CPUID detection code). Use `./build.sh amd64 --lhv-opt 0x240 && gr`
+and run with 1 CPU.
+
+In `lhv-dev b5ee238ca`, able to read data from another PAL.
+1. Register PAL 0
+2. Run PAL 0, store to data section
+3. Register PAL 1, which shares data section with PAL 0
+4. Run PAL 1, read from data section, see PAL 0's data
+
+Output looks like
+```
+TV[0]:scode.c:hpt_scode_switch_regular:1308:       stack pointer before exiting scode is 0x82f3de0
+TV[0]:scode.c:hpt_scode_switch_regular:1315:       released pal_running lock!
+CPU(0x00): Expected: 0x2d8e64ca
+CPU(0x00): Ans:      0x2d8e64ca
+CPU(0x00): completed PAL 0x1
+
+Fatal: Halting! Condition '0 && "Returned from user mode"' failed, line 47, file lhv.c
+```
+
+If `xmhf64 0230ac339` is used instead, this bug is no longer exploitable.
+Registering PAL 1 will result in error.
+
+#### Read XMHF memory
+
+In `lhv-dev 3e5bc0f75`, demonstrate that this bug also allows a PAL to access
+XMHF memory. The exploit simply dumps 4K memory at macro `XMHF_ADDR`. This is a
+severe security impact.
+
+#### Reproduce in Linux
+
+In `lhv-dev 71d8b1fd6`, modify PAL demo to reproduce this bug in Linux. Output
+looks like
+```
+$ ./main
+Mmap: 1 0x7f428c93f000 1
+Mmap: 2 0x7f428c915000 1
+Mmap: 4 0x7f428c914000 1
+Mmap: 3 0x7f428c913000 1
+
+Mmap: 1 0x7f428c912000 1
+Mmap: 2 0x7f428c911000 1
+Mmap: 3 0x7f428c738000 1
+
+ ans1 = 0xf00df00d
+ ans2 = 0x178e324a
+$ 
+```
+
+`0x178e324a` is hardcoded secret in `main.c`.
+
+The exploits of this bug are in `lhv-dev 56ffcd0b1..71d8b1fd6`.
+
+### 4. "TrustVisor Vulnerability 2": race condition when changing EPTP
+
+To exploit this bug, still use `xmhf64 28ce646f2` (version before development
+on `bug_106`). We need one CPU quickly performing VMEXIT's and VMENTRY's, and
+another CPU register the first PAL. We still need to use LHV.
+
 TODO: 4. `bug_106` "TrustVisor Vulnerability 2": race condition when changing EPTP
 
