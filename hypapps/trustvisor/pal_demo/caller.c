@@ -113,7 +113,7 @@ static int lock_and_touch_page(void *addr, size_t len) {
 }
 
 /* Call VirtualAlloc on Windows and mmap on Linux */
-static void *mmap_wrap(size_t length) {
+void *mmap_wrap(size_t length) {
 #ifdef WINDOWS
 	DWORD prot = PAGE_EXECUTE_READWRITE;
 	DWORD va_flags = MEM_COMMIT | MEM_RESERVE;
@@ -196,7 +196,7 @@ void enable_keyboard_interrupt(void) {
  * return: relocated entry point
  */
 void *register_pal(struct tv_pal_params *params, void *entry, void *begin_pal,
-					void *end_pal, int verbose) {
+					void *end_pal, int verbose, void **pstack) {
 	// Call mmap(), construct struct tv_pal_sections
 	void *code = mmap_wrap(PAGE_SIZE);
 	void *data = mmap_wrap(PAGE_SIZE);
@@ -207,7 +207,7 @@ void *register_pal(struct tv_pal_params *params, void *entry, void *begin_pal,
 		sections: {
 			{ TV_PAL_SECTION_CODE, 1, (uintptr_t) code },
 			{ TV_PAL_SECTION_DATA, 1, (uintptr_t) data },
-			{ TV_PAL_SECTION_STACK, 1, (uintptr_t) stack },
+			{ TV_PAL_SECTION_STACK, 1, (uintptr_t) ((*pstack) ? (*pstack) : stack) },
 			{ TV_PAL_SECTION_PARAM, 1, (uintptr_t) param }
 		}
 	};
@@ -215,6 +215,9 @@ void *register_pal(struct tv_pal_params *params, void *entry, void *begin_pal,
 		struct tv_pal_section *a = &(sections.sections[i]);
 		assert(a->start_addr);
 		// Lock and touch page (prevent page getting swapping)
+		if (a->start_addr == (uintptr_t)(*pstack)) {
+			continue;
+		}
 		void *start = (void *)(uintptr_t)(a->start_addr);
 		size_t size = PAGE_SIZE * a->page_num;
 		assert(!lock_and_touch_page(start, size));
@@ -270,7 +273,7 @@ void *register_pal(struct tv_pal_params *params, void *entry, void *begin_pal,
 	pal_record->pal_entry = pal_entry;
 	pal_record->mmap_code = code;
 	pal_record->mmap_data = data;
-	pal_record->mmap_stack = stack;
+	pal_record->mmap_stack = (*pstack) ? (*pstack) : stack;
 	pal_record->mmap_param = param;
 #ifdef TRANSLATE
 	pal_record->mmap_code2 = code2;
@@ -283,6 +286,9 @@ void *register_pal(struct tv_pal_params *params, void *entry, void *begin_pal,
 	// Register scode
 	assert(!vmcall(TV_HC_REG, (uintptr_t)&sections, 0, (uintptr_t)params,
 					pal_entry));
+	if ((*pstack) == 0) {
+		*pstack = stack;
+	}
 	return user_entry;
 }
 
