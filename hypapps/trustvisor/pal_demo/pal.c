@@ -28,18 +28,13 @@ uintptr_t pal_check_cpuid(uintptr_t *arg) {
 }
 
 uintptr_t my_pal(uintptr_t arg1, uintptr_t *arg2) {
-	if (0) {
+	{
 		uintptr_t checked = pal_check_cpuid(&arg1);
 		if (checked) {
 			return 0xdead0000U + checked;
 		}
 	}
-	if (arg1 == 0) {
-		return *(uintptr_t *)(*arg2);
-	} else {
-		*(uintptr_t *)(*arg2) = arg1;
-		return 0xf00df00d;
-	}
+	return arg1 + ((*arg2)++);
 }
 
 uintptr_t pal_10_int(uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,
