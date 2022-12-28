@@ -43,10 +43,9 @@ void lhv_main(VCPU *vcpu)
 		asm volatile ("sti");
 	}
 
-	for (int i = 0; i < 10; i++) {
-		enter_user_mode(vcpu, 0);
-	}
-	HALT_ON_ERRORCOND(0 && "Returned from user mode");
+	enter_user_mode(vcpu, 0);
+	printf("CPU(0x%02x): Returned from user mode\n", vcpu->id);
+	HALT();
 
 	/* Start VT related things */
 	lhv_vmx_main(vcpu);
