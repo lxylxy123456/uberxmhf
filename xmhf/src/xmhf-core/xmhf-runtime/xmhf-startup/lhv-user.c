@@ -50,8 +50,7 @@ static void set_user_mode_page_table(void)
 			paddr += PAGE_SIZE_4K;
 		}
 		paddr = 0;
-		for (i = 0;
-			 i < PA_PAGE_ALIGN_UP_NOCHK_4K(MAX_PHYS_ADDR) >> PAGE_SHIFT_4K;
+		for (i = 0; i < PA_PAGE_ALIGN_UP_4K(MAX_PHYS_ADDR) >> PAGE_SHIFT_4K;
 			 i++) {
 			user_pt[i] = 7 | paddr;
 			paddr += PAGE_SIZE_4K;
