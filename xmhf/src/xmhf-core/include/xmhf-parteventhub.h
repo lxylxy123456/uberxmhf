@@ -59,8 +59,8 @@ typedef struct {
 	/* guest_ctx must be the first member, see guestmem_guest_ctx_pa2ptr() */
 	hptw_ctx_t guest_ctx;
 	hptw_ctx_t host_ctx;
-	/* Pointer to vcpu->vmx_ept_changed */
-	volatile bool *vmx_ept_changed;
+	/* Pointer to vcpu */
+	VCPU *vcpu;
 } guestmem_hptw_ctx_pair_t;
 
 //XXX: FIX this
@@ -110,6 +110,10 @@ u32 xmhf_parteventhub_arch_x86vmx_handle_rdmsr(VCPU *vcpu, u32 index, u64 *value
 void xmhf_parteventhub_arch_x86vmx_entry(void);
 u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r);
 void guestmem_init(VCPU *vcpu, guestmem_hptw_ctx_pair_t *ctx_pair);
+void guestmem_write_lock(VCPU *vcpu);
+void guestmem_write_unlock(VCPU *vcpu);
+void guestmem_read_lock(VCPU *vcpu);
+void guestmem_read_unlock(VCPU *vcpu);
 void guestmem_copy_gv2h(guestmem_hptw_ctx_pair_t *ctx_pair, hptw_cpl_t cpl,
 						void *dst, hpt_va_t src, size_t len);
 void guestmem_copy_gp2h(guestmem_hptw_ctx_pair_t *ctx_pair, hptw_cpl_t cpl,
