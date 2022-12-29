@@ -273,10 +273,10 @@ typedef struct _vcpu {
 
   /*
    * When this flag is set, the CPU is walking EPT using software. Change to
-   * EPT and quiesce are temporarily disabled. See peh-x86vmx-guestmem.c for
-   details.
+   * EPT and quiesce are temporarily disabled. See memp-x86vmx-eptlock.c for
+   * details.
    */
-  volatile bool vmx_guestmem_reading;
+  volatile bool vmx_eptlock_reading;
 
   //guest state fields
   u32 vmx_guest_unrestricted;   //this is 1 if the CPU VMX implementation supports unrestricted guest execution
