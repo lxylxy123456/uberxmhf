@@ -324,5 +324,56 @@ To exploit this bug, still use `xmhf64 28ce646f2` (version before development
 on `bug_106`). We need one CPU quickly performing VMEXIT's and VMENTRY's, and
 another CPU register the first PAL. We still need to use LHV.
 
-TODO: 4. `bug_106` "TrustVisor Vulnerability 2": race condition when changing EPTP
+For simplicity, change log level from `EU_TRACE` to
+`#define EU_LOG_LVL EU_ERR`.
+
+In `lhv-dev 3542d8908`, modify LHV to exploit this vulnerability. This is not
+deterministic, so need to try a few times. The output looks like:
+
+```
+CPU(0x01): enter user_main
+CPU(0x00): enter user_main
+CPU(0x01): signalling  sync 1
+CPU(0x00): waiting for sync 1
+CPU(0x01): waiting for sync 2
+CPU(0x00): waited for  sync 1
+CPU(0x00): waiting for time
+CPU(0x00): waited for  time
+CPU(0x00): starting PAL 0x0
+CPU(0x00): completed PAL 0x0
+CPU(0x00): signalling  sync 2
+CPU(0x01): waited for  sync 2
+CPU(0x01): accessing PAL
+CPU(0x01): 0xcd6eca440993336f
+CPU(0x00): Returned from user mode
+CPU(0x01): Returned from user mode
+```
+
+`0xcd6eca440993336f` is hardcoded secret in `lhv.c`.
+
+Reproducible sometimes on QEMU:
+* xmhf: `./build.sh amd64 fast --no-x2apic && gr`
+* lhv: `./build.sh amd64 --lhv-opt 0x240 && gr`
+* qemu: `./bios-qemu.sh --gdb 2198 -d build64 +1 -d build64lhv +1 -smp 2`
+
+Reproducible sometimes on Dell 7050:
+* xmhf: `./build.sh amd64 fast --no-x2apic --mem 0x230000000 && gr`
+* lhv: `./build.sh amd64 --lhv-opt 0x240 --mem 0x230000000 && gr`
+* log: fail fail pass pass fail pass pass fail
+	* fail = exploit not reproducible
+	* pass = exploit reproducible
+
+## Fix
+
+`xmhf64 acadeccf0..0230ac339`
+* Fix DRT memory leak using `TXT.CMD.SECRETS`
+* Add barrier to `xmhf_runtime_shutdown()`
+* Destroy registered TrustVisor memory when shutdown
+
+`lhv-dev e94c95a72..e0228ffe7`
+* Test memory leak in incorrect shutdown (`e94c95a72..4868c7a21`)
+* Exploit memory leak of unclean shutdown in Linux (`9c5550761..29eb66b88`)
+* Exploit "TrustVisor Vulnerability 1" in LHV (`56ffcd0b1..3e5bc0f75`)
+* Exploit "TrustVisor Vulnerability 1" in Linux (`3e5bc0f75..71d8b1fd6`)
+* Exploit "TrustVisor Vulnerability 2" in LHV (`3d424cda5..3542d8908`)
 
