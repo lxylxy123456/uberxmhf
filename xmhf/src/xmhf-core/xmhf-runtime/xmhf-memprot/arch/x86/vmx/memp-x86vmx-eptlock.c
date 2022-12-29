@@ -76,13 +76,36 @@
  *   memprot_x86vmx_eptlock_write_lock() and
  *   memprot_x86vmx_eptlock_write_unlock().
  * * When quiescing, hold the write lock to prevent deadlocking.
+ *
+ * Lock design:
+ *
+ * Each CPU may only lock once at a time, so the number of threads is constant.
+ * We want to impose minimum overhead on readers when there are no writers.
+ *
+ * Global variable g_eptlock_write_lock to make sure there are only 1 writer at
+ * a time. The writer uses g_eptlock_write_pending to signal to readers to stop
+ * reading, so the waiting time of a writer is bounded. Each reader uses
+ * vcpu->vmx_eptlock_reading to let the writer know the reader is in critical
+ * section.
+ *
+ * Critical section analysis:
+ * * Mutual exclusion: writer sets g_eptlock_write_pending when locking. If
+ *   reader is in critical section, then vcpu->vmx_eptlock_reading must be
+ *   true. Writer will wait for reader to exit critical section.
+ * * Progress: after writer sets g_eptlock_write_pending, no more readers will
+ *   enter critical section. Then writer enters critical section and release
+ *   lock.
+ * * Bounded waiting: when there are too many writers, readers may starve.
+ *   However this problem also exists if the writer quiesces the readers.
  */
 
 /* Spin lock to make sure there are only 1 writer */
 static volatile u32 g_eptlock_write_lock = 1;
 
+/* Global flag to indicate a write is waiting / writing */
 static volatile bool g_eptlock_write_pending = false;
 
+/* Acquire writer lock (modify EPT entries) */
 void memprot_x86vmx_eptlock_write_lock(VCPU *vcpu)
 {
 	(void)vcpu;
@@ -99,6 +122,7 @@ void memprot_x86vmx_eptlock_write_lock(VCPU *vcpu)
 	mb();
 }
 
+/* Release writer lock */
 void memprot_x86vmx_eptlock_write_unlock(VCPU *vcpu)
 {
 	(void)vcpu;
@@ -108,6 +132,7 @@ void memprot_x86vmx_eptlock_write_unlock(VCPU *vcpu)
 	spin_unlock(&g_eptlock_write_lock);
 }
 
+/* Acquire reader lock (access EPT entries) */
 void memprot_x86vmx_eptlock_read_lock(VCPU *vcpu)
 {
 	mb();
@@ -129,6 +154,7 @@ void memprot_x86vmx_eptlock_read_lock(VCPU *vcpu)
 	mb();
 }
 
+/* Release reader lock */
 void memprot_x86vmx_eptlock_read_unlock(VCPU *vcpu)
 {
 	mb();
