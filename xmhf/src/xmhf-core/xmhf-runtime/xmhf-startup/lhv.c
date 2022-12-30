@@ -34,7 +34,7 @@ void lhv_main(VCPU *vcpu)
 			uintptr_t ax = 0x12345678U;
 			flag = true;
 			mb();
-			asm volatile("xchg %0, %1" : "+r"(ax), "+m"(*ptr));
+			asm volatile("lock xchg %0, %1" : "+r"(ax), "+m"(*ptr));
 			mb();
 			HALT_ON_ERRORCOND(ax == 0);
 			count0++;
@@ -53,7 +53,7 @@ void lhv_main(VCPU *vcpu)
 	case 1:
 		while (1) {
 			uintptr_t ax = 0;
-			asm volatile("xchg %0, %1" : "+r"(ax), "+m"(*ptr));
+			asm volatile("lock xchg %0, %1" : "+r"(ax), "+m"(*ptr));
 			mb();
 			if (ax) {
 				mb();
@@ -69,7 +69,7 @@ void lhv_main(VCPU *vcpu)
 	case 2:
 		while (1) {
 			uintptr_t ax = 0;
-			asm volatile("xchg %0, %1" : "+r"(ax), "+m"(*ptr));
+			asm volatile("lock xchg %0, %1" : "+r"(ax), "+m"(*ptr));
 			mb();
 			if (ax) {
 				mb();
