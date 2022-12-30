@@ -1,0 +1,87 @@
+Kernel version: 6.0.14-300.fc37.x86_64
+Summary: KVM instruction emulation breaks LOCK instruction atomicity when CMPXCHG fails
+
+Host CPU model: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+Host kernel version: 6.0.14-300.fc37.x86_64
+Host kernel arch: x86_64
+Guest: a system level software (called LHV) I wrote myself, 32-bits, compressed and attached as c.img.xz.
+QEMU command line: qemu-system-i386 -m 256M -smp 4 -enable-kvm -serial stdio -drive media=disk,file=c.img
+The problem does not go away if using -machine kernel_irqchip=off
+The problem goes away if -accel tcg is used (also remove -enable-kvm)
+
+Actual behavior: serial port shows a few lines, then stops. Example:
+
+...
+counts:	count0	count1	count2	count0-count1+count2
+counts:	1	0	1	0
+counts:	2	1	1	0
+counts:	3	2	1	0
+counts:	4	2	3	-1
+counts:	5	3	4	-2
+counts:	6	3	5	-2
+counts:	7	4	6	-3
+counts:	8	4	7	-3
+counts:	9	4	8	-3
+counts:	10	5	8	-3
+(no more outputs due to deadlock)
+
+Expected behaivor (reproducible using TCG): serial port shows:
+
+...
+counts:	count0	count1	count2	count0-count1+count2
+counts:	1	0	1	0
+counts:	2	1	1	0
+counts:	3	1	2	0
+counts:	4	2	2	0
+counts:	5	2	3	0
+counts:	6	3	3	0
+counts:	7	3	4	0
+counts:	8	4	4	0
+counts:	9	5	4	0
+counts:	10	5	5	0
+counts:	11	5	6	0
+counts:	12	6	6	0
+counts:	13	7	6	0
+...
+
+Explanation:
+
+See the following for source code, line 5 - 89:
+
+https://github.com/lxylxy123456/uberxmhf/blob/b5935eaf8aab38ce1933da1c1be22dcf1b992eaf/xmhf/src/xmhf-core/xmhf-runtime/xmhf-startup/lhv.c#L5
+
+My code performs the following experiment repeatedly on 3 CPUs:
+
+* Initially, "ptr" at address 0xb8000 (VGA memory mapped I/O) is set to 0
+* CPU 0 writes 0x12345678 to ptr, then increases counter "count0".
+* In an infinite loop, CPU 1 tries exchanges ptr with register EAX (contains 0) using the XCHG instruction. If CPU 1 sees 0x12345678, it increases counter "count1".
+* CPU 2's behavior is similar to CPU 1, except it increases counter "count2" when it sees 0x12345678.
+
+Ideally, after each experiment there should always be count1 + count2 = count0. However, in KVM, there may be count1 + count2 > count0. This because CPU 0 writes 0x12345678 to ptr once, but CPU 1 and CPU 2 both get 0x12345678 in XCHG. Note that XCHG instruction always implements the locking protocol.
+
+There is also a deadlock after running the experiment a few times. However I am not trying to explain it for now.
+
+Guessed cause:
+
+I guess that KVM emulates the XCHG instruction that accesses 0xb8000. The call stack should be:
+
+...
+ x86_emulate_instruction (arch/x86/kvm/x86.c)
+  x86_emulate_insn (arch/x86/kvm/emulate.c)
+   writeback (arch/x86/kvm/emulate.c)
+    segmented_cmpxchg (arch/x86/kvm/emulate.c)
+     emulator_cmpxchg_emulated (arch/x86/kvm/x86.c, ctxt->ops->cmpxchg_emulated)
+      emulator_try_cmpxchg_user (arch/x86/kvm/x86.c)
+       ...
+        CMPXCHG instruction
+
+Suppose CPU 2 wants to write 0 to ptr using writeback(), and expecting ptr to already contain 0x13245678. However, CPU 1 changes the content of ptr to 0. So
+* The CMPXCHG instruction fails (clears ZF).
+* emulator_try_cmpxchg_user returns 1.
+* emulator_cmpxchg_emulated() returns X86EMUL_CMPXCHG_FAILED.
+* segmented_cmpxchg() returns X86EMUL_CMPXCHG_FAILED.
+* writeback() returns X86EMUL_CMPXCHG_FAILED.
+* x86_emulate_insn() returns EMULATION_OK.
+
+Thus, I think the root cause of this bug is that x86_emulate_insn() ignores the X86EMUL_CMPXCHG_FAILED error. The correct behavior should be retrying the emulation using the updated value (similar to load-linked/store-conditional).
+
