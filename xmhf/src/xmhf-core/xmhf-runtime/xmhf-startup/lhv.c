@@ -29,6 +29,7 @@ void lhv_main(VCPU *vcpu)
 	}
 	switch (vcpu->idx) {
 	case 0:
+		printf("counts:\tcount0\tcount1\tcount2\tcount0-count1+count2\n");
 		while (1) {
 			uintptr_t ax = 0x12345678U;
 			flag = true;
@@ -43,9 +44,8 @@ void lhv_main(VCPU *vcpu)
 			}
 			mb();
 			if (count0 % MOD == 0) {
-				printf("counts: %llu = %llu - (%llu = %llu + %llu)\n",
-					   count0 - (count1 + count2), count0, count1 + count2,
-					   count1, count2);
+				printf("counts:\t%llu\t%llu\t%llu\t%lld\n", count0, count1,
+					   count2, count0 - (count1 + count2));
 			}
 			mb();
 		}
