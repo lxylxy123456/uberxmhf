@@ -59,5 +59,20 @@ Will track status in `bug_076`. Bug report text in `kvm.txt`, image in
 
 ### XMHF
 
+In XMHF, we are not expecting to implement as many instructions as in Xen.
+The information flow can be represented as:
+* `peh -> emulator`: please emulate ADDL instruction
+* `emulator -> memory`: please read address 0x12345678
+* `memory -> emulator`: read data 0x0
+* `emulator -> memory`: please write 0x1 to 0x12345678
+* `memory -> emulator`: written
+
+In KVM there are function pointers for the emulator to communicate to other
+components, such as `ctxt->ops->cmpxchg_emulated`. Here I am planning to use
+normal function calls. It should be easy to replace the function calls with
+function pointer calls later.
+
+
+
 TODO
 
