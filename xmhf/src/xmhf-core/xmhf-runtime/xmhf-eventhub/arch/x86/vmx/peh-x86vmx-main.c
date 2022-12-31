@@ -769,6 +769,9 @@ static void _vmx_handle_intercept_eptviolation(VCPU *vcpu, struct regs *r){
 
 	//check if EPT violation is due to LAPIC interception
 	if(vcpu->isbsp && (gpa >= g_vmx_lapic_base) && (gpa < (g_vmx_lapic_base + PAGE_SIZE_4K)) ){
+		// TODO: emulate_instruction() is not compatible with _optimize_x86vmx_intercept_handler()
+		emulate_instruction(vcpu);
+		// TODO: remove xmhf_smpguest_arch_x86_eventhandler_hwpgtblviolation()
 		xmhf_smpguest_arch_x86_eventhandler_hwpgtblviolation(vcpu, (u32)gpa, errorcode);
 	}else{ //no, pass it to hypapp
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__

@@ -9,6 +9,7 @@ C_SOURCES =  ./arch/x86/svm/peh-x86svm-main.c
 C_SOURCES += ./arch/x86/vmx/peh-x86vmx-main.c
 C_SOURCES += ./arch/x86/vmx/peh-x86-safemsr.c
 C_SOURCES += ./arch/x86/vmx/peh-x86vmx-guestmem.c
+C_SOURCES += ./arch/x86/vmx/peh-x86vmx-emulation.c
 ifeq ($(UPDATE_INTEL_UCODE), y)
 C_SOURCES += ./arch/x86/vmx/peh-x86vmx-ucode.c
 C_SOURCES += ./arch/x86/vmx/peh-x86vmx-ucode-data.c
