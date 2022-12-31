@@ -49,15 +49,50 @@
 // author: Eric Li (xiaoyili@andrew.cmu.edu)
 #include <xmhf.h>
 
+#define INST_LEN_MAX 15
+
+/*
+ * Read memory from virtual address space.
+ * For normal memory, exec=false. For instruction execution, exec=true.
+ */
+static void read_memory_gv(guestmem_hptw_ctx_pair_t *ctx_pair, hptw_cpl_t cpl,
+						   void *dst, hpt_va_t src, size_t len, bool exec)
+{
+	VCPU *vcpu = ctx_pair->vcpu;
+	memprot_x86vmx_eptlock_read_lock(vcpu);
+
+	/* TODO: Segmentation: logical address -> linear address */
+	/* TODO: Paging: linear address -> physical address  */
+	//hptw_checked_copy_from_va(ctx, cpl, dst, src, len) == 0;
+
+	if (vcpu->vmcs.guest_CR0 & CR0_PG) {
+		guestmem_copy_gv2h(ctx_pair, cpl, dst, src, len);
+	}
+	memprot_x86vmx_eptlock_read_unlock(vcpu);
+}
+
+static void write_memory_gv(guestmem_hptw_ctx_pair_t *ctx_pair, hptw_cpl_t cpl,
+							hpt_va_t dst, void *src, size_t len)
+{
+	(void)ctx_pair;
+	(void)cpl;
+	(void)dst;
+	(void)src;
+	(void)len;
+	HALT_ON_ERRORCOND(0 && "TODO");
+}
+
 // TODO: doc
-void emulate_instruction(VCPU * vcpu) {
+void emulate_instruction(VCPU * vcpu)
+{
 	guestmem_hptw_ctx_pair_t ctx_pair;
 	guestmem_init(vcpu, &ctx_pair);
 	{
-		char inst[32] = {};
+		char inst[INST_LEN_MAX] = {};
 		uintptr_t rip = vcpu->vmcs.guest_RIP;
 		u32 inst_len = vcpu->vmcs.info_vmexit_instruction_length;
-		HALT_ON_ERRORCOND(inst_len < sizeof(inst));
+		HALT_ON_ERRORCOND(inst_len < INST_LEN_MAX);
+		// TODO: use read_memory_gv
 		if (vcpu->vmcs.guest_CR0 & CR0_PG) {
 			guestmem_copy_gv2h(&ctx_pair, 0, inst, rip, inst_len);
 		} else {
