@@ -57,6 +57,45 @@ The bug is reported in <https://bugzilla.kernel.org/show_bug.cgi?id=216867>.
 Will track status in `bug_076`. Bug report text in `kvm.txt`, image in
 `c.img.gz`.
 
+#### Unaligned memory access
+
+It becomes challenging to support LOCK CMPXCHG8B. There are no alignment
+requirements for LOCK and CMPXCHG8B (there is for CMPXCHG16B, though). So it
+is possible for the memory access to cross page boundary.
+
+We can make 2 physical pages form a ring in virtual address:
+* PA=0xaaaa0000, VA=0xbbbb0000
+* PA=0xaaaa1000, VA=0xbbbb1000
+* PA=0xaaaa0000, VA=0xbbbb2000
+
+Then we can access each 4 byte aligned address, but access size is 8 bytes:
+* VA=0xbbbb0000, 0xbbbb0004, 0xbbbb0008, ..., 0xbbbb0ff8
+* VA=0xbbbb0ffc: this access crosses page boundary
+* VA=0xbbbb1000, 0xbbbb1004, 0xbbbb1008, ..., 0xbbbb1ff8
+* VA=0xbbbb1ffc: this access crosses page boundary
+
+To implement this correctly, the CMPXCHG instruction in KVM needs to access 2
+pages at once. So KVM needs to be able to map these 2 pages consecutively in
+both orders. This becomes a challenge for XMHF because all guest memory are
+identity mapped.
+
+Looks like KVM does not emulate this case at all. KVM simply implements the
+access as normal memory write. See `emulator_cmpxchg_emulated()`:
+
+```c
+6429  	/*
+6430  	 * Emulate the atomic as a straight write to avoid #AC if SLD is
+6431  	 * enabled in the host and the access splits a cache line.
+6432  	 */
+6433  	if (boot_cpu_has(X86_FEATURE_SPLIT_LOCK_DETECT))
+6434  		page_line_mask = ~(cache_line_size() - 1);
+6435  	else
+6436  		page_line_mask = PAGE_MASK;
+6437  
+6438  	if (((gpa + bytes - 1) & page_line_mask) != (gpa & page_line_mask))
+6439  		goto emul_write;
+```
+
 ### XMHF
 
 In XMHF, we are not expecting to implement as many instructions as in Xen.
@@ -72,7 +111,9 @@ components, such as `ctxt->ops->cmpxchg_emulated`. Here I am planning to use
 normal function calls. It should be easy to replace the function calls with
 function pointer calls later.
 
+In `xmhf64 839937397..d11e8b841`, check segment limit and permissions in
+`_vmx_decode_seg()`.
 
-
-TODO
+TODO: check whether other hypervisors have the KVM bug
+TODO: 
 
