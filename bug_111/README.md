@@ -115,5 +115,6 @@ In `xmhf64 839937397..d11e8b841`, check segment limit and permissions in
 `_vmx_decode_seg()`.
 
 TODO: check whether other hypervisors have the KVM bug
-TODO: 
+TODO: implement instruction emulation (deprecated)
+TODO: merge `_vmx_decode_seg()` implementation
 
