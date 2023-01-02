@@ -113,7 +113,7 @@ spa_t guestmem_gpa2spa_page(guestmem_hptw_ctx_pair_t *ctx_pair,
 spa_t guestmem_gpa2spa_size(guestmem_hptw_ctx_pair_t *ctx_pair,
 							gpa_t guest_addr, size_t size);
 
-void emulate_instruction(VCPU * vcpu);
+void emulate_instruction(VCPU * vcpu, struct regs *r);
 
 #ifdef __UPDATE_INTEL_UCODE__
 void handle_intel_ucode_update(VCPU *vcpu, u64 update_data);

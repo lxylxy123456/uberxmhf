@@ -59,6 +59,7 @@ typedef enum cpu_segment_t {
 	CPU_SEG_DS,
 	CPU_SEG_FS,
 	CPU_SEG_GS,
+	CPU_SEG_UNKNOWN,
 } cpu_segment_t;
 
 /* Environment used to access memory */
@@ -70,6 +71,115 @@ typedef struct mem_access_env_t {
 	hpt_prot_t mode;
 	hptw_cpl_t cpl;
 } mem_access_env_t;
+
+/* Information about instruction prefixes */
+typedef struct prefix_t {
+	bool lock;
+	bool repe;
+	bool repne;
+	cpu_segment_t seg;
+	bool opsize;
+	bool addrsize;
+	struct {
+		union {
+			u8 b : 1;
+			u8 x : 1;
+			u8 r : 1;
+			u8 w : 1;
+			u8 four : 4;
+		};
+		u8 raw;
+	} rex;
+} prefix_t;
+
+#define PREFIX_INFO_INITIALIZER \
+	{ false, false, false, CPU_SEG_UNKNOWN, false, false, { .raw=0 } }
+
+/* ModR/M */
+typedef union modrm_t {
+	struct {
+		u8 rm : 3;
+		u8 regop : 3;
+		u8 mod : 2;
+	};
+	u8 raw;
+} modrm_t;
+
+/* SIB */
+typedef union sib_t {
+	struct {
+		u8 base : 3;
+		u8 index : 3;
+		u8 scale : 2;
+	};
+	u8 raw;
+} sib_t;
+
+/* Instruction postfixes (bytes after opcode) */
+typedef struct postfix_t {
+	modrm_t modrm;
+	sib_t sib;
+	union {
+		unsigned char *displacement;
+		u8 *displacement1;
+		u16 *displacement2;
+		u32 *displacement4;
+		u64 *displacement8;
+	};
+	union {
+		unsigned char *immediate;
+		u8 *immediate1;
+		u16 *immediate2;
+		u32 *immediate4;
+		u64 *immediate8;
+	};
+} postfix_t;
+
+typedef struct emu_env_t {
+	VCPU * vcpu;
+	struct regs *r;
+	guestmem_hptw_ctx_pair_t ctx_pair;
+	bool g64;
+	bool cs_d;
+	u8 *pinst;
+	u32 pinst_len;
+	prefix_t prefix;
+	postfix_t postfix;
+	cpu_segment_t seg;
+} emu_env_t;
+
+/*
+ * Handle access of special memory.
+ * Interface similar to hptw_checked_access_va.
+ */
+static void access_special_memory(void *hva, hpt_prot_t access_type,
+								  hptw_cpl_t cpl, gpa_t gpa,
+								  size_t requested_sz, size_t *avail_sz)
+{
+	if ((gpa & PAGE_MASK_4K) == g_vmx_lapic_base) {
+		HALT_ON_ERRORCOND(requested_sz == 4);
+		HALT_ON_ERRORCOND(gpa % 4 == 0);
+		HALT_ON_ERRORCOND(cpl == 0);
+		*avail_sz = 4;
+		switch (gpa & ADDR64_PAGE_OFFSET_4K) {
+		case 0x300:
+			HALT_ON_ERRORCOND(0 && "Not implemented (LAPIC)");
+			break;
+		case 0x310:
+			HALT_ON_ERRORCOND(0 && "Not implemented (LAPIC)");
+			break;
+		default:
+			if (access_type & HPT_PROT_WRITE_MASK) {
+				*(u32 *)gpa = *(u32 *)hva;
+			} else {
+				*(u32 *)hva = *(u32 *)gpa;
+			}
+			break;
+		}
+	} else {
+		HALT_ON_ERRORCOND(0);
+	}
+}
 
 /*
  * Given a segment index, translate logical address to linear address.
@@ -205,6 +315,7 @@ static void access_memory_gv(guestmem_hptw_ctx_pair_t * ctx_pair,
 	while (copied < env->size) {
 		hpt_va_t gva = lin_addr + copied;
 		size_t size = env->size - copied;
+		size_t old_size;
 		hpt_va_t gpa;
 		void *hva;
 
@@ -221,11 +332,13 @@ static void access_memory_gv(guestmem_hptw_ctx_pair_t * ctx_pair,
 		}
 
 		/* Guest physical address -> hypervisor physical address */
+		old_size = size;
 		hva = hptw_checked_access_va(&ctx_pair->host_ctx, env->mode, env->cpl,
 									 gpa, size, &size);
 		if (hva == NULL) {
 			/* Memory not in EPT, need special treatment */
-			HALT_ON_ERRORCOND(0);
+			access_special_memory(env->haddr + copied, env->mode, env->cpl, gpa,
+								  old_size, &size);
 			copied += size;
 		} else {
 			/* Perform normal memory access */
@@ -241,27 +354,629 @@ static void access_memory_gv(guestmem_hptw_ctx_pair_t * ctx_pair,
 	memprot_x86vmx_eptlock_read_unlock(vcpu);
 }
 
-// TODO: doc
-void emulate_instruction(VCPU * vcpu)
+/* Given register index, return its pointer */
+static void *get_reg_ptr(emu_env_t * emu_env, enum CPU_Reg_Sel index,
+						 size_t size)
 {
-	guestmem_hptw_ctx_pair_t ctx_pair;
-	guestmem_init(vcpu, &ctx_pair);
-	{
-		char inst[INST_LEN_MAX] = {};
-		uintptr_t rip = vcpu->vmcs.guest_RIP;
-		u32 inst_len = vcpu->vmcs.info_vmexit_instruction_length;
-		HALT_ON_ERRORCOND(inst_len < INST_LEN_MAX);
-		{
-			mem_access_env_t env = {
-				.haddr = inst,
-				.gaddr = rip,
-				.seg = CPU_SEG_CS,
-				.size = inst_len,
-				.mode = HPT_PROT_EXEC_MASK,
-				.cpl = vcpu->vmcs.guest_CS_selector & 3,
-			};
-			access_memory_gv(&ctx_pair, &env);
-		}
-		printf("CPU(0x%02x): emulation %d 0x%llx\n", vcpu->id, inst_len, *(u64 *)inst);
+	if (size == 8) {
+		HALT_ON_ERRORCOND(0 && "Not implemented");
+		// Note: in 32-bit mode, AH CH DH BH are different
+		// Note: in 64-bit mode, AH CH DH BH are different
 	}
+	switch (index) {
+		case CPU_REG_AX: return &emu_env->r->eax;
+		case CPU_REG_CX: return &emu_env->r->ecx;
+		case CPU_REG_DX: return &emu_env->r->edx;
+		case CPU_REG_BX: return &emu_env->r->ebx;
+		case CPU_REG_SP: return &emu_env->vcpu->vmcs.guest_RSP;
+		case CPU_REG_BP: return &emu_env->r->ebp;
+		case CPU_REG_SI: return &emu_env->r->esi;
+		case CPU_REG_DI: return &emu_env->r->edi;
+#ifdef __AMD64__
+		case CPU_REG_R8: return &emu_env->r->r8;
+		case CPU_REG_R9: return &emu_env->r->r9;
+		case CPU_REG_R10: return &emu_env->r->r10;
+		case CPU_REG_R11: return &emu_env->r->r11;
+		case CPU_REG_R12: return &emu_env->r->r12;
+		case CPU_REG_R13: return &emu_env->r->r13;
+		case CPU_REG_R14: return &emu_env->r->r14;
+		case CPU_REG_R15: return &emu_env->r->r15;
+#elif !defined(__I386__)
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) */
+		default: HALT_ON_ERRORCOND(0 && "Invalid register");
+	}
+}
+
+/* Return whether the operand size is 32 bits */
+static size_t get_operand_size(emu_env_t * emu_env)
+{
+	if (emu_env->prefix.rex.w) {
+		return 64;
+	}
+	if (emu_env->prefix.opsize) {
+		return emu_env->cs_d ? 16 : 32;
+	} else {
+		return emu_env->cs_d ? 32 : 16;
+	}
+}
+
+/* Return whether the operand size is 32 bits */
+static size_t get_address_size(emu_env_t * emu_env)
+{
+	if (emu_env->g64) {
+		return emu_env->prefix.addrsize ? 32 : 64;
+	}
+	if (emu_env->prefix.addrsize) {
+		return emu_env->cs_d ? 16 : 32;
+	} else {
+		return emu_env->cs_d ? 32 : 16;
+	}
+}
+
+/* Return reg of ModRM, adjusted by REX prefix */
+static u8 get_modrm_reg(emu_env_t * emu_env)
+{
+	HALT_ON_ERRORCOND(!emu_env->prefix.rex.four && "Not implemented");
+	return emu_env->postfix.modrm.regop;
+}
+
+/* Return rm of ModRM, adjusted by REX prefix */
+static u8 get_modrm_rm(emu_env_t * emu_env)
+{
+	HALT_ON_ERRORCOND(!emu_env->prefix.rex.four && "Not implemented");
+	return emu_env->postfix.modrm.rm;
+}
+
+/* Return index of SIB, adjusted by REX prefix */
+static u8 get_sib_index(emu_env_t * emu_env)
+{
+	HALT_ON_ERRORCOND(!emu_env->prefix.rex.four && "Not implemented");
+	return emu_env->postfix.sib.index;
+}
+
+/* Return base of SIB, adjusted by REX prefix */
+static u8 get_sib_base(emu_env_t * emu_env)
+{
+	HALT_ON_ERRORCOND(!emu_env->prefix.rex.four && "Not implemented");
+	return emu_env->postfix.sib.base;
+}
+
+/* Return hypervisor memory address containing the register */
+static void *eval_modrm_reg(emu_env_t * emu_env)
+{
+	size_t operand_size = get_operand_size(emu_env);
+	return get_reg_ptr(emu_env, get_modrm_reg(emu_env), operand_size);
+}
+
+/*
+ * Compute segment used for memory reference.
+ * Ref: SDM volume 1, Table 3-5. Default Segment Selection Rules.
+ */
+static void compute_segment(emu_env_t * emu_env, enum CPU_Reg_Sel index)
+{
+	HALT_ON_ERRORCOND(emu_env->seg == CPU_SEG_UNKNOWN);
+	if (emu_env->prefix.seg != CPU_SEG_UNKNOWN) {
+		emu_env->seg = emu_env->prefix.seg;
+	} else if (index == CPU_REG_BP || index == CPU_REG_SP) {
+		emu_env->seg = CPU_SEG_SS;
+	} else {
+		emu_env->seg = CPU_SEG_DS;
+	}
+}
+
+/*
+ * If memory, return true and store guest memory address to addr.
+ * If register, return false and store hypervisor memory address to addr.
+ */
+static bool eval_modrm_addr(emu_env_t * emu_env, uintptr_t *addr)
+{
+	HALT_ON_ERRORCOND(get_address_size(emu_env) == 32 && "Not implemented");
+	if (emu_env->postfix.modrm.mod == 3) {
+		size_t operand_size = get_operand_size(emu_env);
+		void *ans = get_reg_ptr(emu_env, get_modrm_rm(emu_env), operand_size);
+		*addr = (uintptr_t)ans;
+		return false;
+	}
+
+	/* Compute register / SIB */
+	if (get_modrm_rm(emu_env) == 4) {
+		HALT_ON_ERRORCOND(0 && "Not implemented (SIB)");
+		//*addr = ???;
+		get_sib_base(emu_env);
+		get_sib_index(emu_env);
+	} else if (get_modrm_rm(emu_env) == 5 && emu_env->postfix.modrm.mod == 0) {
+		*addr = 0;
+	} else {
+		u8 rm = get_modrm_rm(emu_env);
+		*addr = *(u32 *)get_reg_ptr(emu_env, rm, get_address_size(emu_env));
+		compute_segment(emu_env, rm);
+	}
+
+	/* Compute displacement */
+	switch (emu_env->postfix.modrm.mod) {
+	case 0:
+		if (get_modrm_rm(emu_env) == 5) {
+			*addr += *(int32_t *)emu_env->postfix.displacement;
+		}
+		break;
+	case 1:
+		*addr += (int32_t)*(int8_t *)emu_env->postfix.displacement;
+		break;
+	case 2:
+		*addr += *(int32_t *)emu_env->postfix.displacement;
+		break;
+	default:
+		HALT_ON_ERRORCOND(0 && "Invalid value");
+	}
+
+	return true;
+}
+
+/*
+ * Read prefixes of instruction.
+ * prefix should be initialized with PREFIX_INFO_INITIALIZER.
+ */
+static void parse_prefix(emu_env_t * emu_env)
+{
+	/* Group 1 - 4 */
+	while (1) {
+		HALT_ON_ERRORCOND(emu_env->pinst_len > 0);
+		switch (emu_env->pinst[0]) {
+			case 0x26: emu_env->prefix.seg = CPU_SEG_ES; break;
+			case 0x2e: emu_env->prefix.seg = CPU_SEG_CS; break;
+			case 0x36: emu_env->prefix.seg = CPU_SEG_SS; break;
+			case 0x3e: emu_env->prefix.seg = CPU_SEG_DS; break;
+			case 0x64: emu_env->prefix.seg = CPU_SEG_FS; break;
+			case 0x65: emu_env->prefix.seg = CPU_SEG_GS; break;
+			case 0x66: emu_env->prefix.opsize = true; break;
+			case 0x67: emu_env->prefix.addrsize = true; break;
+			case 0xf0: emu_env->prefix.lock = true; break;
+			case 0xf2: emu_env->prefix.repne = true; break;
+			case 0xf3: emu_env->prefix.repe = true; break;
+			default: return;
+		}
+		emu_env->pinst++;
+		emu_env->pinst_len--;
+	}
+	/* REX */
+	if (emu_env->g64 && (emu_env->pinst[0] & 0xf0) == 0x40) {
+		emu_env->prefix.rex.raw = emu_env->pinst[0];
+		emu_env->pinst++;
+		emu_env->pinst_len--;
+		HALT_ON_ERRORCOND(emu_env->pinst_len > 0);
+	}
+}
+
+/* Parse parts of an instruction after the opcode */
+static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
+						  size_t displacement_len, size_t immediate_len)
+{
+
+#define SET_DISP(x) \
+	do { \
+		HALT_ON_ERRORCOND(displacement_len == 0); \
+		displacement_len = (x); \
+	} while (0)
+
+#define SET_SIB(x) \
+	do { \
+		HALT_ON_ERRORCOND(!has_sib); \
+		has_sib = (x); \
+	} while (0)
+
+	if (has_modrm) {
+		HALT_ON_ERRORCOND(emu_env->pinst_len >= 1);
+		emu_env->postfix.modrm.raw = emu_env->pinst[0];
+		emu_env->pinst++;
+		emu_env->pinst_len--;
+
+		switch (emu_env->postfix.modrm.mod) {
+		case 0:
+			switch (get_address_size(emu_env)) {
+			case 16:
+				if (get_modrm_rm(emu_env) == 6) {
+					SET_DISP(2);
+				}
+				break;
+			case 32:
+				if (get_modrm_rm(emu_env) == 4) {
+					HALT_ON_ERRORCOND(!has_sib);
+					has_sib = true;
+				} else if (get_modrm_rm(emu_env) == 5) {
+					SET_DISP(4);
+				}
+				break;
+			case 64:
+				HALT_ON_ERRORCOND(0 && "Not implemented");
+				break;
+			default:
+				HALT_ON_ERRORCOND(0 && "Invalid value");
+			}
+			break;
+		case 1:
+			SET_DISP(1);
+			HALT_ON_ERRORCOND(get_address_size(emu_env) != 64 && "Not implemented");
+			if (get_address_size(emu_env) != 16 && get_modrm_rm(emu_env) == 4) {
+				SET_SIB(true);
+			}
+			break;
+		case 2:
+			SET_DISP(get_address_size(emu_env) / 8);
+			HALT_ON_ERRORCOND(get_address_size(emu_env) != 64 && "Not implemented");
+			if (get_address_size(emu_env) != 16 && get_modrm_rm(emu_env) == 4) {
+				SET_SIB(true);
+			}
+			break;
+		case 3:
+			break;
+		default:
+			HALT_ON_ERRORCOND(0 && "Invalid value");
+		}
+		if (get_address_size(emu_env) == 32 &&
+			emu_env->postfix.modrm.mod != 3 &&
+			get_modrm_rm(emu_env) == 4) {
+			has_sib = true;
+		}
+	}
+	if (has_sib) {
+		HALT_ON_ERRORCOND(emu_env->pinst_len >= 1);
+		emu_env->postfix.sib.raw = emu_env->pinst[0];
+		emu_env->pinst++;
+		emu_env->pinst_len--;
+	}
+	if (displacement_len > 0) {
+		HALT_ON_ERRORCOND(emu_env->pinst_len >= displacement_len);
+		emu_env->postfix.displacement = emu_env->pinst;
+		emu_env->pinst += displacement_len;
+		emu_env->pinst_len -= displacement_len;
+	}
+	if (immediate_len > 0) {
+		HALT_ON_ERRORCOND(emu_env->pinst_len >= immediate_len);
+		emu_env->postfix.immediate = emu_env->pinst;
+		emu_env->pinst += immediate_len;
+		emu_env->pinst_len -= immediate_len;
+	}
+	HALT_ON_ERRORCOND(emu_env->pinst_len == 0);
+
+#undef SET_DISP
+#undef SET_SIB
+
+}
+
+/* Parse first byte of opcode */
+static void parse_opcode_one(emu_env_t * emu_env)
+{
+	HALT_ON_ERRORCOND(emu_env->pinst_len > 0);
+	emu_env->pinst++;
+	emu_env->pinst_len--;
+	switch (emu_env->pinst[-1]) {
+	case 0x00: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x01: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x02: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x03: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x04: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x05: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x06: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x07: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x08: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x09: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x10: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x11: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x12: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x13: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x14: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x15: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x16: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x17: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x18: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x19: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x20: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x21: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x22: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x23: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x24: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x25: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x26: HALT_ON_ERRORCOND(0 && "Prefix operand"); break;
+	case 0x27: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x28: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x29: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x2a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x2b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x2c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x2d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x2e: HALT_ON_ERRORCOND(0 && "Prefix operand"); break;
+	case 0x2f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x30: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x31: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x32: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x33: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x34: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x35: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x36: HALT_ON_ERRORCOND(0 && "Prefix operand"); break;
+	case 0x37: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x38: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x39: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x3a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x3b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x3c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x3d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x3e: HALT_ON_ERRORCOND(0 && "Prefix operand"); break;
+	case 0x3f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x40: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x41: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x42: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x43: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x44: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x45: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x46: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x47: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x48: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x49: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x50: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x51: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x52: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x53: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x54: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x55: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x56: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x57: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x58: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x59: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x60: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x61: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x62: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x63: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x64: HALT_ON_ERRORCOND(0 && "Prefix operand"); break;
+	case 0x65: HALT_ON_ERRORCOND(0 && "Prefix operand"); break;
+	case 0x66: HALT_ON_ERRORCOND(0 && "Prefix operand"); break;
+	case 0x67: HALT_ON_ERRORCOND(0 && "Prefix operand"); break;
+	case 0x68: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x69: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x70: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x71: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x72: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x73: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x74: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x75: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x76: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x77: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x78: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x79: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x80: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x81: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x82: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x83: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x84: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x85: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x86: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x87: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x88: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x89: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x8a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x8b:
+		HALT_ON_ERRORCOND(!emu_env->prefix.lock && "Not implemented");
+		HALT_ON_ERRORCOND(!emu_env->prefix.repe && "Not implemented");
+		HALT_ON_ERRORCOND(!emu_env->prefix.repne && "Not implemented");
+		parse_postfix(emu_env, true, false, 0, 0);
+		{
+			size_t operand_size = get_operand_size(emu_env);
+			uintptr_t rm;	/* r */
+			void *reg = eval_modrm_reg(emu_env);	/* w */
+			if (eval_modrm_addr(emu_env, &rm)) {
+				mem_access_env_t env = {
+					.haddr = reg,
+					.gaddr = rm,
+					.seg = emu_env->seg,
+					.size = operand_size / 8,
+					.mode = HPT_PROT_READ_MASK,
+					.cpl = emu_env->vcpu->vmcs.guest_CS_selector & 3,
+				};
+				access_memory_gv(&emu_env->ctx_pair, &env);
+			} else {
+				memcpy(reg, (void *)rm, operand_size / 8);
+			}
+		}
+		break;
+	case 0x8c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x8d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x8e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x8f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x90: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x91: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x92: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x93: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x94: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x95: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x96: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x97: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x98: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x99: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xaa: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xab: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xac: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xad: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xae: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xaf: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xba: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xbb: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xbc: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xbd: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xbe: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xbf: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xca: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xcb: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xcc: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xcd: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xce: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xcf: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xda: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xdb: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xdc: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xdd: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xde: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xdf: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xea: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xeb: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xec: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xed: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xee: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xef: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf0: HALT_ON_ERRORCOND(0 && "Prefix operand"); break;
+	case 0xf1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf2: HALT_ON_ERRORCOND(0 && "Prefix operand"); break;
+	case 0xf3: HALT_ON_ERRORCOND(0 && "Prefix operand"); break;
+	case 0xf4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xfa: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xfb: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xfc: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xfd: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xfe: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xff: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	default:
+		HALT_ON_ERRORCOND(0 && "Not implemented");
+	}
+}
+
+/*
+ * Emulate instruction by changing the VMCS values.
+ * Currently XMHF will crash if the instruction is invalid.
+ */
+void emulate_instruction(VCPU * vcpu, struct regs *r)
+{
+	emu_env_t emu_env = { .prefix=PREFIX_INFO_INITIALIZER };
+	u8 inst[INST_LEN_MAX] = {};
+	uintptr_t rip = vcpu->vmcs.guest_RIP;
+	u32 inst_len = vcpu->vmcs.info_vmexit_instruction_length;
+
+	emu_env.vcpu = vcpu;
+	emu_env.r = r;
+	guestmem_init(vcpu, &emu_env.ctx_pair);
+	emu_env.g64 = VCPU_g64(vcpu);
+	emu_env.cs_d = !!(vcpu->vmcs.guest_CS_access_rights & (1 << 14));
+	emu_env.seg = CPU_SEG_UNKNOWN;
+
+	/* Fetch instruction */
+	HALT_ON_ERRORCOND(inst_len < INST_LEN_MAX);
+	{
+		mem_access_env_t env = {
+			.haddr = inst,
+			.gaddr = rip,
+			.seg = CPU_SEG_CS,
+			.size = inst_len,
+			.mode = HPT_PROT_EXEC_MASK,
+			.cpl = vcpu->vmcs.guest_CS_selector & 3,
+		};
+		access_memory_gv(&emu_env.ctx_pair, &env);
+	}
+	printf("CPU(0x%02x): emulation: %d 0x%llx\n", vcpu->id, inst_len,
+		   *(u64 *)inst);
+
+	/* Parse prefix and opcode */
+	emu_env.pinst = inst;
+	emu_env.pinst_len = inst_len;
+
+	parse_prefix(&emu_env);
+	parse_opcode_one(&emu_env);
+
+	// TODO: Should not increase RIP if string instrcution
+	HALT_ON_ERRORCOND(!emu_env.prefix.repe && !emu_env.prefix.repne);
+	vcpu->vmcs.guest_RIP += inst_len;
 }
