@@ -168,18 +168,16 @@ static void access_special_memory(VCPU * vcpu, void *hva,
 		HALT_ON_ERRORCOND(gpa % 4 == 0);
 		HALT_ON_ERRORCOND(cpl == 0);
 		*avail_sz = 4;
-		switch (gpa & ADDR64_PAGE_OFFSET_4K) {
-		case LAPIC_ICR_LOW:
+		if ((gpa & ADDR64_PAGE_OFFSET_4K) == LAPIC_ICR_LOW &&
+			(access_type & HPT_PROT_WRITE_MASK)) {
 			xmhf_smpguest_arch_x86vmx_eventhandler_icrlowwrite(vcpu,
 															   *(u32 *)hva);
-			break;
-		default:
+		} else {
 			if (access_type & HPT_PROT_WRITE_MASK) {
 				*(u32 *)(uintptr_t)gpa = *(u32 *)hva;
 			} else {
 				*(u32 *)hva = *(u32 *)(uintptr_t)gpa;
 			}
-			break;
 		}
 	} else {
 		HALT_ON_ERRORCOND(0);
