@@ -532,7 +532,7 @@ static uintptr_t eval_sib_addr(emu_env_t * emu_env)
 		scaled_index <<= (1 << emu_env->postfix.sib.scale);
 	}
 
-	if (!(emu_env->postfix.modrm.mod == 0 && bs % 8 == 5)) {
+	if (!(emu_env->postfix.modrm.mod == 0 && bs % 8 == CPU_REG_BP)) {
 		zero_extend(&base, get_reg_ptr(emu_env, bs, address_size),
 					sizeof(base), address_size);
 		compute_segment(emu_env, bs);
@@ -561,9 +561,9 @@ static bool eval_modrm_addr(emu_env_t * emu_env, uintptr_t *addr)
 	}
 
 	/* Compute register / SIB */
-	if (get_modrm_rm(emu_env) % 8 == 4) {
+	if (get_modrm_rm(emu_env) % 8 == CPU_REG_SP) {
 		*addr = eval_sib_addr(emu_env);
-	} else if (get_modrm_rm(emu_env) % 8 == 5 &&
+	} else if (get_modrm_rm(emu_env) % 8 == CPU_REG_BP &&
 			   emu_env->postfix.modrm.mod == 0) {
 		HALT_ON_ERRORCOND(address_size != BIT_SIZE_64 &&
 						  "Not implemented (RIP relative addressing)");
@@ -664,7 +664,7 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 				break;
 			case BIT_SIZE_32:	/* fallthrough */
 			case BIT_SIZE_64:
-				if (get_modrm_rm(emu_env) % 8 == 5) {
+				if (get_modrm_rm(emu_env) % 8 == CPU_REG_BP) {
 					SET_DISP(BIT_SIZE_32);
 				}
 				break;
@@ -687,7 +687,7 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 		/* Compute whether SIB is present */
 		if (emu_env->postfix.modrm.mod != 3 &&
 			get_address_size(emu_env) != BIT_SIZE_16 &&
-			get_modrm_rm(emu_env) % 8 == 4) {
+			get_modrm_rm(emu_env) % 8 == CPU_REG_SP) {
 			SET_SIB(true);
 		}
 	}
@@ -698,7 +698,8 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 		emu_env->pinst_len--;
 
 		/* Compute displacement if mod=0, base=5 */
-		if (emu_env->postfix.modrm.mod == 0 && get_sib_base(emu_env) % 8 == 5) {
+		if (emu_env->postfix.modrm.mod == 0 &&
+			get_sib_base(emu_env) % 8 == CPU_REG_BP) {
 			SET_DISP(BIT_SIZE_32);
 		}
 	}
