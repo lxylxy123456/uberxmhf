@@ -584,7 +584,8 @@ static bool eval_modrm_addr(emu_env_t * emu_env, uintptr_t *addr)
 		*addr += displacement;
 	}
 
-	// TODO: truncate to address size // TODO
+	/* Truncate result to address size */
+	zero_extend(addr, addr, sizeof(*addr), address_size);
 
 	return true;
 }
