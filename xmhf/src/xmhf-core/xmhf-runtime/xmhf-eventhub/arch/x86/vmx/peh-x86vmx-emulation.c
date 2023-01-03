@@ -175,9 +175,9 @@ static void access_special_memory(VCPU * vcpu, void *hva,
 			break;
 		default:
 			if (access_type & HPT_PROT_WRITE_MASK) {
-				*(u32 *)gpa = *(u32 *)hva;
+				*(u32 *)(uintptr_t)gpa = *(u32 *)hva;
 			} else {
-				*(u32 *)hva = *(u32 *)gpa;
+				*(u32 *)hva = *(u32 *)(uintptr_t)gpa;
 			}
 			break;
 		}
