@@ -11,6 +11,14 @@ u64 count0 = 0;
 u64 count1 = 0;
 u64 count2 = 0;
 
+/*
+
+Convert to other hypervisors' formats
+ qemu-img convert -f raw -O vmdk grub/c.img grub/c.vmdk
+ qemu-img convert -f raw -O vhdx grub/c.img grub/c.vhdx
+
+*/
+
 void lhv_main(VCPU *vcpu)
 {
 	{
@@ -46,6 +54,11 @@ void lhv_main(VCPU *vcpu)
 			if (count0 % MOD == 0) {
 				printf("counts:\t%llu\t%llu\t%llu\t%lld\n", count0, count1,
 					   count2, count0 - (count1 + count2));
+				if (count0 == (count1 + count2)) {
+					(*(u8 *)0xb8030)++;
+				} else {
+					(*(u8 *)0xb80d0)++;
+				}
 			}
 			mb();
 		}
@@ -61,8 +74,11 @@ void lhv_main(VCPU *vcpu)
 				mb();
 				flag = false;
 				mb();
+				(*(u8 *)0xb8050)++;
+				mb();
 			} else {
 				xmhf_cpu_relax();
+				(*(u8 *)0xb80f0)++;
 			}
 		}
 		break;
@@ -77,8 +93,11 @@ void lhv_main(VCPU *vcpu)
 				mb();
 				flag = false;
 				mb();
+				(*(u8 *)0xb8060)++;
+				mb();
 			} else {
 				xmhf_cpu_relax();
+				(*(u8 *)0xb8100)++;
 			}
 		}
 		break;
