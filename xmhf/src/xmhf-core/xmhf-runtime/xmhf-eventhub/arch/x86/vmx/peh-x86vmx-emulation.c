@@ -150,6 +150,8 @@ typedef struct emu_env_t {
 	prefix_t prefix;
 	postfix_t postfix;
 	cpu_segment_t seg;
+	size_t displacement_len;
+	size_t immediate_len;
 } emu_env_t;
 
 /*
@@ -548,33 +550,11 @@ static bool eval_modrm_addr(emu_env_t * emu_env, uintptr_t *addr)
 	}
 
 	/* Compute displacement */
-	switch (emu_env->postfix.modrm.mod) {
-	case 0:
-		if (get_modrm_rm(emu_env) % 8 == 5) {
-			uintptr_t displacement;
-			sign_extend(&displacement, emu_env->postfix.displacement,
-						sizeof(displacement), BIT_SIZE_32);
-			*addr += displacement;
-		}
-		break;
-	case 1:
-		{
-			uintptr_t displacement;
-			sign_extend(&displacement, emu_env->postfix.displacement,
-						sizeof(displacement), BIT_SIZE_8);
-			*addr += displacement;
-		}
-		break;
-	case 2:
-		{
-			uintptr_t displacement;
-			sign_extend(&displacement, emu_env->postfix.displacement,
-						sizeof(displacement), BIT_SIZE_32);
-			*addr += displacement;
-		}
-		break;
-	default:
-		HALT_ON_ERRORCOND(0 && "Invalid value");
+	if (emu_env->displacement_len) {
+		uintptr_t displacement;
+		sign_extend(&displacement, emu_env->postfix.displacement,
+					sizeof(displacement), emu_env->displacement_len);
+		*addr += displacement;
 	}
 
 	return true;
@@ -700,6 +680,9 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 		emu_env->pinst_len -= immediate_len;
 	}
 	HALT_ON_ERRORCOND(emu_env->pinst_len == 0);
+
+	emu_env->displacement_len = displacement_len;
+	emu_env->immediate_len = immediate_len;
 
 #undef SET_DISP
 #undef SET_SIB
