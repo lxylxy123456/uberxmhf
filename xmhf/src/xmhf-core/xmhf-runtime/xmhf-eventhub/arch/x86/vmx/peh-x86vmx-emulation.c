@@ -735,6 +735,329 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 
 }
 
+/* Parse second byte of opcode starting with 0x0f */
+static void parse_opcode_two_0f(emu_env_t * emu_env)
+{
+	u8 opcode;
+	HALT_ON_ERRORCOND(emu_env->pinst_len > 0);
+	opcode = emu_env->pinst[0];
+	emu_env->pinst++;
+	emu_env->pinst_len--;
+	switch (opcode) {
+	case 0x00: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x01: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x02: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x03: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x04: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x05: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x06: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x07: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x08: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x09: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x10: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x11: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x12: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x13: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x14: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x15: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x16: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x17: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x18: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x19: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x1f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x20: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x21: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x22: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x23: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x24: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x25: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x26: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x27: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x28: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x29: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x2a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x2b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x2c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x2d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x2e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x2f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x30: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x31: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x32: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x33: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x34: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x35: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x36: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x37: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x38: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x39: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x3a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x3b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x3c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x3d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x3e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x3f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x40: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x41: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x42: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x43: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x44: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x45: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x46: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x47: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x48: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x49: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x4f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x50: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x51: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x52: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x53: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x54: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x55: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x56: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x57: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x58: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x59: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x5f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x60: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x61: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x62: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x63: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x64: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x65: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x66: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x67: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x68: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x69: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x6f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x70: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x71: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x72: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x73: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x74: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x75: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x76: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x77: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x78: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x79: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x7f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x80: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x81: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x82: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x83: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x84: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x85: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x86: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x87: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x88: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x89: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x8a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x8b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x8c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x8d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x8e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x8f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x90: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x91: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x92: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x93: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x94: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x95: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x96: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x97: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x98: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x99: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9b: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x9f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xaa: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xab: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xac: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xad: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xae: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xaf: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xb9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xba:	/* BT/BTS/BTR/BTC Ev, Ib */
+		// TODO: LOCK is not implemented
+		emu_env->prefix.lock = true;
+		HALT_ON_ERRORCOND(!emu_env->prefix.repe && "Not implemented");
+		HALT_ON_ERRORCOND(!emu_env->prefix.repne && "Not implemented");
+		parse_postfix(emu_env, true, false, 0, 1);
+		{
+			size_t operand_size = get_operand_size(emu_env);
+			u8 imm = *emu_env->postfix.immediate1;
+			u8 bit = imm % (operand_size * 8);
+			uintptr_t rm;	/* r, w */
+			uintptr_t value;
+			if (eval_modrm_addr(emu_env, &rm)) {
+				/* Read */
+				mem_access_env_t env = {
+					.haddr = &value,
+					.gaddr = rm,
+					.seg = emu_env->seg,
+					.size = operand_size,
+					.mode = HPT_PROT_READ_MASK,
+					.cpl = emu_env->vcpu->vmcs.guest_CS_selector & 3,
+				};
+				access_memory_gv(&emu_env->ctx_pair, &env);
+				/* Store */
+				if ((value >> bit) & 1) {
+					emu_env->vcpu->vmcs.guest_RFLAGS |= EFLAGS_CF;
+				} else {
+					emu_env->vcpu->vmcs.guest_RFLAGS &= ~EFLAGS_CF;
+				}
+				/* Modify */
+				switch (emu_env->postfix.modrm.regop) {
+				case 4:	/* BT */
+					break;
+				case 5:	/* BTS */
+					value |= (1UL << bit);
+					break;
+				case 6:	/* BTR */
+					value &= ~(1UL << bit);
+					break;
+				case 7:	/* BTC */
+					value ^= (1UL << bit);
+					break;
+				default:
+					HALT_ON_ERRORCOND(0 && "Undefined opcode");
+				}
+				/* Write */
+				env.mode = HPT_PROT_WRITE_MASK;
+				access_memory_gv(&emu_env->ctx_pair, &env);
+			} else {
+				HALT_ON_ERRORCOND(0 && "Not implemented");
+			}
+		}
+		break;
+	case 0xbb: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xbc: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xbd: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xbe: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xbf: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xca: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xcb: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xcc: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xcd: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xce: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xcf: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xd9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xda: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xdb: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xdc: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xdd: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xde: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xdf: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xe9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xea: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xeb: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xec: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xed: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xee: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xef: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xf9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xfa: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xfb: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xfc: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xfd: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xfe: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xff: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	default:
+		HALT_ON_ERRORCOND(0 && "Invalid opcode");
+		break;
+	}
+}
+
 /* Parse first byte of opcode */
 static void parse_opcode_one(emu_env_t * emu_env)
 {
@@ -759,7 +1082,9 @@ static void parse_opcode_one(emu_env_t * emu_env)
 	case 0x0c: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x0d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x0e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
-	case 0x0f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x0f:	/* 2-byte escape */
+		parse_opcode_two_0f(emu_env);
+		break;
 	case 0x10: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x11: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x12: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
@@ -950,10 +1275,10 @@ static void parse_opcode_one(emu_env_t * emu_env)
 	case 0x9d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x9e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x9f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
-	case 0xa0: /* MOV AL, Ob */
-	case 0xa1: /* MOV rAX, Ov */
-	case 0xa2: /* MOV Ob, AL */
-	case 0xa3: /* MOV Ov, rAX */
+	case 0xa0:	/* MOV AL, Ob */
+	case 0xa1:	/* MOV rAX, Ov */
+	case 0xa2:	/* MOV Ob, AL */
+	case 0xa3:	/* MOV Ov, rAX */
 		HALT_ON_ERRORCOND(!emu_env->prefix.lock && "Not implemented");
 		HALT_ON_ERRORCOND(!emu_env->prefix.repe && "Not implemented");
 		HALT_ON_ERRORCOND(!emu_env->prefix.repne && "Not implemented");
@@ -1102,7 +1427,8 @@ static void parse_opcode_one(emu_env_t * emu_env)
 	case 0xfe: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0xff: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	default:
-		HALT_ON_ERRORCOND(0 && "Not implemented");
+		HALT_ON_ERRORCOND(0 && "Invalid opcode");
+		break;
 	}
 }
 
