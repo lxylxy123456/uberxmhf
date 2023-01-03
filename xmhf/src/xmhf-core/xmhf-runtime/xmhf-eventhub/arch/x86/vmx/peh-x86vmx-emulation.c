@@ -167,7 +167,7 @@ static void access_special_memory(VCPU * vcpu, void *hva,
 		HALT_ON_ERRORCOND(cpl == 0);
 		*avail_sz = 4;
 		switch (gpa & ADDR64_PAGE_OFFSET_4K) {
-		case 0x300:
+		case LAPIC_ICR_LOW:
 			xmhf_smpguest_arch_x86vmx_eventhandler_icrlowwrite(vcpu,
 															   *(u32 *)hva);
 			break;
@@ -916,7 +916,7 @@ static void parse_opcode_one(emu_env_t * emu_env)
 				imm = (int64_t)*(int32_t *)emu_env->postfix.immediate4;
 				pimm = &imm;
 			} else {
-				pimm = &emu_env->postfix.immediate;
+				pimm = emu_env->postfix.immediate;
 			}
 			if (eval_modrm_addr(emu_env, &rm)) {
 				mem_access_env_t env = {
