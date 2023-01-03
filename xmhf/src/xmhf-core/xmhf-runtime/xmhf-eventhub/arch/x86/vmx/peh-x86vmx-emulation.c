@@ -644,13 +644,13 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 			switch (get_address_size(emu_env)) {
 			case BIT_SIZE_16:
 				if (get_modrm_rm(emu_env) == 6) {
-					SET_DISP(2);
+					SET_DISP(BIT_SIZE_16);
 				}
 				break;
 			case BIT_SIZE_32:	/* fallthrough */
 			case BIT_SIZE_64:
 				if (get_modrm_rm(emu_env) % 8 == 5) {
-					SET_DISP(4);
+					SET_DISP(BIT_SIZE_32);
 				}
 				break;
 			default:
@@ -658,7 +658,7 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 			}
 			break;
 		case 1:
-			SET_DISP(1);
+			SET_DISP(BIT_SIZE_8);
 			break;
 		case 2:
 			SET_DISP(MIN(get_address_size(emu_env), BIT_SIZE_32));
@@ -681,6 +681,11 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 		emu_env->postfix.sib.raw = emu_env->pinst[0];
 		emu_env->pinst++;
 		emu_env->pinst_len--;
+
+		/* Compute displacement if mod=0, base=5 */
+		if (emu_env->postfix.modrm.mod == 0 && get_sib_base(emu_env) % 8 == 5) {
+			SET_DISP(BIT_SIZE_32);
+		}
 	}
 	if (displacement_len > 0) {
 		HALT_ON_ERRORCOND(emu_env->pinst_len >= displacement_len);
