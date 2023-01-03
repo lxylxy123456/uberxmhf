@@ -394,13 +394,18 @@ static void *get_reg_ptr(emu_env_t * emu_env, enum CPU_Reg_Sel index,
 /* Return whether the operand size is 32 bits */
 static size_t get_operand_size(emu_env_t * emu_env)
 {
-	if (emu_env->prefix.rex.w) {
-		return BIT_SIZE_64;
-	}
-	if (emu_env->prefix.opsize) {
-		return emu_env->cs_d ? BIT_SIZE_16 : BIT_SIZE_32;
+	if (emu_env->g64) {
+		if (emu_env->prefix.rex.w) {
+			return BIT_SIZE_64;
+		} else {
+			return emu_env->prefix.opsize ? BIT_SIZE_16 : BIT_SIZE_32;
+		}
 	} else {
-		return emu_env->cs_d ? BIT_SIZE_32 : BIT_SIZE_16;
+		if (emu_env->prefix.opsize) {
+			return emu_env->cs_d ? BIT_SIZE_16 : BIT_SIZE_32;
+		} else {
+			return emu_env->cs_d ? BIT_SIZE_32 : BIT_SIZE_16;
+		}
 	}
 }
 
@@ -574,6 +579,7 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 		emu_env->pinst++;
 		emu_env->pinst_len--;
 
+		/* Compute displacement */
 		switch (emu_env->postfix.modrm.mod) {
 		case 0:
 			switch (get_address_size(emu_env)) {
@@ -582,16 +588,11 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 					SET_DISP(2);
 				}
 				break;
-			case BIT_SIZE_32:
-				if (get_modrm_rm(emu_env) == 4) {
-					HALT_ON_ERRORCOND(!has_sib);
-					has_sib = true;
-				} else if (get_modrm_rm(emu_env) == 5) {
+			case BIT_SIZE_32:	/* fallthrough */
+			case BIT_SIZE_64:
+				if (get_modrm_rm(emu_env) % 8 == 5) {
 					SET_DISP(4);
 				}
-				break;
-			case BIT_SIZE_64:
-				HALT_ON_ERRORCOND(0 && "Not implemented");
 				break;
 			default:
 				HALT_ON_ERRORCOND(0 && "Invalid value");
@@ -599,29 +600,21 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 			break;
 		case 1:
 			SET_DISP(1);
-			HALT_ON_ERRORCOND(get_address_size(emu_env) != BIT_SIZE_64 && "Not implemented");
-			if (get_address_size(emu_env) != BIT_SIZE_16 &&
-				get_modrm_rm(emu_env) == 4) {
-				SET_SIB(true);
-			}
 			break;
 		case 2:
 			SET_DISP(get_address_size(emu_env));
-			HALT_ON_ERRORCOND(get_address_size(emu_env) != BIT_SIZE_64 && "Not implemented");
-			if (get_address_size(emu_env) != BIT_SIZE_16 &&
-				get_modrm_rm(emu_env) == 4) {
-				SET_SIB(true);
-			}
 			break;
 		case 3:
 			break;
 		default:
 			HALT_ON_ERRORCOND(0 && "Invalid value");
 		}
-		if (get_address_size(emu_env) == BIT_SIZE_32 &&
-			emu_env->postfix.modrm.mod != 3 &&
-			get_modrm_rm(emu_env) == 4) {
-			has_sib = true;
+
+		/* Compute whether SIB is present */
+		if (emu_env->postfix.modrm.mod != 3 &&
+			get_address_size(emu_env) != BIT_SIZE_16 &&
+			get_modrm_rm(emu_env) % 8 == 4) {
+			SET_SIB(true);
 		}
 	}
 	if (has_sib) {
