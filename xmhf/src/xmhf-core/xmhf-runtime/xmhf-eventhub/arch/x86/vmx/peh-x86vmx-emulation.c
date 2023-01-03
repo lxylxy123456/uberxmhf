@@ -357,6 +357,47 @@ static void access_memory_gv(guestmem_hptw_ctx_pair_t * ctx_pair,
 	memprot_x86vmx_eptlock_read_unlock(vcpu);
 }
 
+#define EXTEND(dtype, stype) \
+	do { \
+		_Static_assert(sizeof(dtype) >= sizeof(stype), "Type size mismatch"); \
+		if (sizeof(dtype) == dst_size && sizeof(stype) == src_size) { \
+			*(dtype *)dst = (dtype)*(stype *)src; \
+			return; \
+		} \
+	} while (0)
+
+static void zero_extend(void *dst, void *src, size_t dst_size, size_t src_size)
+{
+	EXTEND(uint8_t, uint8_t);
+	EXTEND(uint16_t, uint8_t);
+	EXTEND(uint32_t, uint8_t);
+	EXTEND(uint64_t, uint8_t);
+	EXTEND(uint16_t, uint16_t);
+	EXTEND(uint32_t, uint16_t);
+	EXTEND(uint64_t, uint16_t);
+	EXTEND(uint32_t, uint32_t);
+	EXTEND(uint64_t, uint32_t);
+	EXTEND(uint64_t, uint64_t);
+	HALT_ON_ERRORCOND(0 && "Unknown sizes");
+}
+
+static void sign_extend(void *dst, void *src, size_t dst_size, size_t src_size)
+{
+	EXTEND(int8_t, int8_t);
+	EXTEND(int16_t, int8_t);
+	EXTEND(int32_t, int8_t);
+	EXTEND(int64_t, int8_t);
+	EXTEND(int16_t, int16_t);
+	EXTEND(int32_t, int16_t);
+	EXTEND(int64_t, int16_t);
+	EXTEND(int32_t, int32_t);
+	EXTEND(int64_t, int32_t);
+	EXTEND(int64_t, int64_t);
+	HALT_ON_ERRORCOND(0 && "Unknown sizes");
+}
+
+#undef EXTEND
+
 /* Given register index, return its pointer */
 static void *get_reg_ptr(emu_env_t * emu_env, enum CPU_Reg_Sel index,
 						 size_t size)
@@ -479,7 +520,10 @@ static void compute_segment(emu_env_t * emu_env, enum CPU_Reg_Sel index)
  */
 static bool eval_modrm_addr(emu_env_t * emu_env, uintptr_t *addr)
 {
-	HALT_ON_ERRORCOND(get_address_size(emu_env) == BIT_SIZE_32 && "Not implemented");
+	size_t address_size = get_address_size(emu_env);
+	HALT_ON_ERRORCOND(address_size != BIT_SIZE_16 && "Not implemented");
+
+	/* Register operand, simple case */
 	if (emu_env->postfix.modrm.mod == 3) {
 		size_t operand_size = get_operand_size(emu_env);
 		void *ans = get_reg_ptr(emu_env, get_modrm_rm(emu_env), operand_size);
@@ -488,31 +532,46 @@ static bool eval_modrm_addr(emu_env_t * emu_env, uintptr_t *addr)
 	}
 
 	/* Compute register / SIB */
-	if (get_modrm_rm(emu_env) == 4) {
+	if (get_modrm_rm(emu_env) % 8 == 4) {
 		HALT_ON_ERRORCOND(0 && "Not implemented (SIB)");
 		//*addr = ???;
 		get_sib_base(emu_env);
 		get_sib_index(emu_env);
-	} else if (get_modrm_rm(emu_env) == 5 && emu_env->postfix.modrm.mod == 0) {
+	} else if (get_modrm_rm(emu_env) % 8 == 5 &&
+			   emu_env->postfix.modrm.mod == 0) {
 		*addr = 0;
 	} else {
 		u8 rm = get_modrm_rm(emu_env);
-		*addr = *(u32 *)get_reg_ptr(emu_env, rm, get_address_size(emu_env));
+		zero_extend(addr, get_reg_ptr(emu_env, rm, address_size), sizeof(addr),
+					address_size);
 		compute_segment(emu_env, rm);
 	}
 
 	/* Compute displacement */
 	switch (emu_env->postfix.modrm.mod) {
 	case 0:
-		if (get_modrm_rm(emu_env) == 5) {
-			*addr += *(int32_t *)emu_env->postfix.displacement;
+		if (get_modrm_rm(emu_env) % 8 == 5) {
+			uintptr_t displacement;
+			sign_extend(&displacement, emu_env->postfix.displacement,
+						sizeof(displacement), BIT_SIZE_32);
+			*addr += displacement;
 		}
 		break;
 	case 1:
-		*addr += (int32_t)*(int8_t *)emu_env->postfix.displacement;
+		{
+			uintptr_t displacement;
+			sign_extend(&displacement, emu_env->postfix.displacement,
+						sizeof(displacement), BIT_SIZE_8);
+			*addr += displacement;
+		}
 		break;
 	case 2:
-		*addr += *(int32_t *)emu_env->postfix.displacement;
+		{
+			uintptr_t displacement;
+			sign_extend(&displacement, emu_env->postfix.displacement,
+						sizeof(displacement), BIT_SIZE_32);
+			*addr += displacement;
+		}
 		break;
 	default:
 		HALT_ON_ERRORCOND(0 && "Invalid value");
