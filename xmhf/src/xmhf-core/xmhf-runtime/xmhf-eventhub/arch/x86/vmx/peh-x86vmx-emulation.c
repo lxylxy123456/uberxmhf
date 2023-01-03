@@ -516,6 +516,33 @@ static void compute_segment(emu_env_t * emu_env, enum CPU_Reg_Sel index)
 	}
 }
 
+/* Return the value encoded by SIB */
+static uintptr_t eval_sib_addr(emu_env_t * emu_env)
+{
+	size_t address_size = get_address_size(emu_env);
+	size_t id = get_sib_index(emu_env);
+	size_t bs = get_sib_base(emu_env);
+	uintptr_t scaled_index = 0;
+	uintptr_t base = 0;
+	HALT_ON_ERRORCOND(address_size != BIT_SIZE_16 && "Not implemented");
+
+	if (id != CPU_REG_SP) {
+		zero_extend(&scaled_index, get_reg_ptr(emu_env, id, address_size),
+					sizeof(scaled_index), address_size);
+		scaled_index <<= (1 << emu_env->postfix.sib.scale);
+	}
+
+	if (!(emu_env->postfix.modrm.mod == 0 && bs % 8 == 5)) {
+		zero_extend(&base, get_reg_ptr(emu_env, bs, address_size),
+					sizeof(base), address_size);
+		compute_segment(emu_env, bs);
+	} else {
+		compute_segment(emu_env, CPU_REG_AX);
+	}
+
+	return scaled_index + base;
+}
+
 /*
  * If memory, return true and store guest memory address to addr.
  * If register, return false and store hypervisor memory address to addr.
@@ -535,13 +562,13 @@ static bool eval_modrm_addr(emu_env_t * emu_env, uintptr_t *addr)
 
 	/* Compute register / SIB */
 	if (get_modrm_rm(emu_env) % 8 == 4) {
-		HALT_ON_ERRORCOND(0 && "Not implemented (SIB)");
-		//*addr = ???;
-		get_sib_base(emu_env);
-		get_sib_index(emu_env);
+		*addr = eval_sib_addr(emu_env);
 	} else if (get_modrm_rm(emu_env) % 8 == 5 &&
 			   emu_env->postfix.modrm.mod == 0) {
+		HALT_ON_ERRORCOND(address_size != BIT_SIZE_64 &&
+						  "Not implemented (RIP relative addressing)");
 		*addr = 0;
+		compute_segment(emu_env, CPU_REG_AX);
 	} else {
 		u8 rm = get_modrm_rm(emu_env);
 		zero_extend(addr, get_reg_ptr(emu_env, rm, address_size), sizeof(addr),
@@ -556,6 +583,8 @@ static bool eval_modrm_addr(emu_env_t * emu_env, uintptr_t *addr)
 					sizeof(displacement), emu_env->displacement_len);
 		*addr += displacement;
 	}
+
+	// TODO: truncate to address size // TODO
 
 	return true;
 }
