@@ -661,7 +661,7 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 			SET_DISP(1);
 			break;
 		case 2:
-			SET_DISP(get_address_size(emu_env));
+			SET_DISP(MIN(get_address_size(emu_env), BIT_SIZE_32));
 			break;
 		case 3:
 			break;
