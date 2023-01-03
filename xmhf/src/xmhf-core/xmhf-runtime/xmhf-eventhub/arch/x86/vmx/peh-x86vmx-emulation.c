@@ -468,29 +468,41 @@ static size_t get_address_size(emu_env_t * emu_env)
 /* Return reg of ModRM, adjusted by REX prefix */
 static u8 get_modrm_reg(emu_env_t * emu_env)
 {
-	HALT_ON_ERRORCOND(!emu_env->prefix.rex.four && "Not implemented");
-	return emu_env->postfix.modrm.regop;
+	u8 ans = emu_env->postfix.modrm.regop;
+	if (emu_env->prefix.rex.four) {
+		ans |= emu_env->prefix.rex.r << 3;
+	}
+	return ans;
 }
 
 /* Return rm of ModRM, adjusted by REX prefix */
 static u8 get_modrm_rm(emu_env_t * emu_env)
 {
-	HALT_ON_ERRORCOND(!emu_env->prefix.rex.four && "Not implemented");
-	return emu_env->postfix.modrm.rm;
+	u8 ans = emu_env->postfix.modrm.rm;
+	if (emu_env->prefix.rex.four) {
+		ans |= emu_env->prefix.rex.b << 3;
+	}
+	return ans;
 }
 
 /* Return index of SIB, adjusted by REX prefix */
 static u8 get_sib_index(emu_env_t * emu_env)
 {
-	HALT_ON_ERRORCOND(!emu_env->prefix.rex.four && "Not implemented");
-	return emu_env->postfix.sib.index;
+	u8 ans = emu_env->postfix.sib.index;
+	if (emu_env->prefix.rex.four) {
+		ans |= emu_env->prefix.rex.x << 3;
+	}
+	return ans;
 }
 
 /* Return base of SIB, adjusted by REX prefix */
 static u8 get_sib_base(emu_env_t * emu_env)
 {
-	HALT_ON_ERRORCOND(!emu_env->prefix.rex.four && "Not implemented");
-	return emu_env->postfix.sib.base;
+	u8 ans = emu_env->postfix.sib.base;
+	if (emu_env->prefix.rex.four) {
+		ans |= emu_env->prefix.rex.b << 3;
+	}
+	return ans;
 }
 
 /* Return hypervisor memory address containing the register */
