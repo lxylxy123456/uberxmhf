@@ -156,9 +156,10 @@ typedef struct emu_env_t {
  * Handle access of special memory.
  * Interface similar to hptw_checked_access_va.
  */
-static void access_special_memory(void *hva, hpt_prot_t access_type,
-								  hptw_cpl_t cpl, gpa_t gpa,
-								  size_t requested_sz, size_t *avail_sz)
+static void access_special_memory(VCPU * vcpu, void *hva,
+								  hpt_prot_t access_type, hptw_cpl_t cpl,
+								  gpa_t gpa, size_t requested_sz,
+								  size_t *avail_sz)
 {
 	if ((gpa & PAGE_MASK_4K) == g_vmx_lapic_base) {
 		HALT_ON_ERRORCOND(requested_sz == 4);
@@ -167,10 +168,8 @@ static void access_special_memory(void *hva, hpt_prot_t access_type,
 		*avail_sz = 4;
 		switch (gpa & ADDR64_PAGE_OFFSET_4K) {
 		case 0x300:
-			HALT_ON_ERRORCOND(0 && "Not implemented (LAPIC)");
-			break;
-		case 0x310:
-			HALT_ON_ERRORCOND(0 && "Not implemented (LAPIC)");
+			xmhf_smpguest_arch_x86vmx_eventhandler_icrlowwrite(vcpu,
+															   *(u32 *)hva);
 			break;
 		default:
 			if (access_type & HPT_PROT_WRITE_MASK) {
@@ -341,8 +340,8 @@ static void access_memory_gv(guestmem_hptw_ctx_pair_t * ctx_pair,
 									 gpa, size, &size);
 		if (hva == NULL) {
 			/* Memory not in EPT, need special treatment */
-			access_special_memory(env->haddr + copied, env->mode, env->cpl, gpa,
-								  old_size, &size);
+			access_special_memory(vcpu, env->haddr + copied, env->mode,
+								  env->cpl, gpa, old_size, &size);
 			copied += size;
 		} else {
 			/* Perform normal memory access */
@@ -794,9 +793,32 @@ static void parse_opcode_one(emu_env_t * emu_env)
 	case 0x86: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x87: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x88: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
-	case 0x89: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0x89:	/* MOV Ev, Gv */
+		HALT_ON_ERRORCOND(!emu_env->prefix.lock && "Not implemented");
+		HALT_ON_ERRORCOND(!emu_env->prefix.repe && "Not implemented");
+		HALT_ON_ERRORCOND(!emu_env->prefix.repne && "Not implemented");
+		parse_postfix(emu_env, true, false, 0, 0);
+		{
+			size_t operand_size = get_operand_size(emu_env);
+			uintptr_t rm;	/* r */
+			void *reg = eval_modrm_reg(emu_env);	/* w */
+			if (eval_modrm_addr(emu_env, &rm)) {
+				mem_access_env_t env = {
+					.haddr = reg,
+					.gaddr = rm,
+					.seg = emu_env->seg,
+					.size = operand_size,
+					.mode = HPT_PROT_WRITE_MASK,
+					.cpl = emu_env->vcpu->vmcs.guest_CS_selector & 3,
+				};
+				access_memory_gv(&emu_env->ctx_pair, &env);
+			} else {
+				memcpy((void *)rm, reg, operand_size);
+			}
+		}
+		break;
 	case 0x8a: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
-	case 0x8b:
+	case 0x8b:	/* MOV Gv, Ev */
 		HALT_ON_ERRORCOND(!emu_env->prefix.lock && "Not implemented");
 		HALT_ON_ERRORCOND(!emu_env->prefix.repe && "Not implemented");
 		HALT_ON_ERRORCOND(!emu_env->prefix.repne && "Not implemented");

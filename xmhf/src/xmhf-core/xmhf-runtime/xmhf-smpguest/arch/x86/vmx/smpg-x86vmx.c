@@ -425,6 +425,48 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_dbexception(VCPU *vcpu, struct regs 
 }
 
 /*
+ * Handle the fact that LAPIC ICR low is writte.
+ * Intercept ICR requests of INIT and SIPI.
+ */
+void xmhf_smpguest_arch_x86vmx_eventhandler_icrlowwrite(VCPU *vcpu, u32 val)
+{
+	hva_t low_registeraddress = (hva_t)g_vmx_lapic_base + LAPIC_ICR_LOW;
+	hva_t high_registeraddress = (hva_t)g_vmx_lapic_base + LAPIC_ICR_HIGH;
+	u32 low = val;
+	u32 high = *((u32 *)high_registeraddress);
+	switch (low & 0x00000F00U) {
+	case 0x500:
+		/* INIT IPI, we just void it */
+		printf("0x%04x:0x%08llx -> (LAPIC ICR low write) INIT IPI skipped, low=0x%08x, high=0x%08x\n",
+			   (u32)vcpu->vmcs.guest_CS_selector, vcpu->vmcs.guest_RIP, low, high);
+		break;
+	case 0x600:
+		/* This is a STARTUP IPI */
+		printf("0x%04x:0x%08llx -> (LAPIC ICR low write) STARTUP IPI detected, low=0x%08x, high=0x%08x\n",
+			   (u32)vcpu->vmcs.guest_CS_selector, vcpu->vmcs.guest_RIP, low, high);
+
+		#ifdef __XMHF_VERIFICATION__
+			#ifdef __XMHF_VERIFICATION_DRIVEASSERTS__
+			g_vmx_lapic_db_verification_coreprotected = true;
+			#endif
+		#else
+			//we assume that destination is always physical and
+			//specified via top 8 bits of icr_high_value
+			if (processSIPI(vcpu, low, high >> 24)) {
+				printf("%s: delinking LAPIC interception since all cores have SIPI\n", __FUNCTION__);
+				vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_MAP);
+				xmhf_partition_arch_x86vmx_clear_msrbitmap_x2apic_icr(vcpu);
+			}
+		#endif
+		break;
+	default:
+		/* Neither an INIT or SIPI, just propagate this IPI to physical LAPIC */
+		*((u32 *)low_registeraddress) = low;
+		break;
+	}
+}
+
+/*
  * This function is called by WRMSR interception where ECX=0x830. value is
  * EDX:EAX. Return 1 if smpguest handles this WRMSR. Return 0 if smpguest does
  * not recognize it (should forward the write to physical x2APIC).
