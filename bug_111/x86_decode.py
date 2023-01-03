@@ -17,4 +17,7 @@ if __name__ == '__main__':
 	decode(2, 0x1089)
 	decode(6, 0xff5fd000878b)
 	decode(6, 0xff5fd000b789)
+	decode(7, 0xff5fd30025048b)
+	decode(8, 0xff5fd30025048b40)
+	decode(8, 0xff5fd30025048b41)
 

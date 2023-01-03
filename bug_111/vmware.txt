@@ -1,0 +1,3 @@
+Subject: LOCK instruction atomicity broken on VGA memory mapped IO
+Select Location: VMware Workstation Player Discussions
+

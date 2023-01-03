@@ -57,6 +57,13 @@ The bug is reported in <https://bugzilla.kernel.org/show_bug.cgi?id=216867>.
 Will track status in `bug_076`. Bug report text in `kvm.txt`, image in
 `c.img.gz`.
 
+Also tested this on other hypervisors
+* Virtual Box, Linux host: good
+* VMware, Linux host: bad (similar to KVM, but takes longer to deadlock)
+* VMware, Windows host with Hyper-V: bad (same as VMware Linux host)
+* Hyper-V, Windows host: good (hard to use serial port, so use VGA, see
+  `lhv-dev 46e4c60af`)
+
 #### Unaligned memory access
 
 It becomes challenging to support LOCK CMPXCHG8B. There are no alignment
@@ -114,7 +121,11 @@ function pointer calls later.
 In `xmhf64 839937397..d11e8b841`, check segment limit and permissions in
 `_vmx_decode_seg()`.
 
-TODO: check whether other hypervisors have the KVM bug
+In `xmhf64-dev 1cd113b58..c90491fdd`, implement instruction emulation for some
+MOV instructions. 32-bit LHV can run now, 64-bit cannot run yet because REX
+prefix is not implemented yet. x86 Debian stucks with CPU 0 ISR = 253.
+
+TODO: report bug to VMware
 TODO: implement instruction emulation (deprecated)
 TODO: merge `_vmx_decode_seg()` implementation
 
