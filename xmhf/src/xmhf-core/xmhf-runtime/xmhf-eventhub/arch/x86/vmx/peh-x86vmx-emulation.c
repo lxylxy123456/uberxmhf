@@ -49,7 +49,11 @@
 // author: Eric Li (xiaoyili@andrew.cmu.edu)
 #include <xmhf.h>
 
-#define INST_LEN_MAX 15
+#define INST_LEN_MAX	15
+#define BIT_SIZE_64		8
+#define BIT_SIZE_32		4
+#define BIT_SIZE_16		2
+#define BIT_SIZE_8		1
 
 /* Select a segment that will be used to access memory */
 typedef enum cpu_segment_t {
@@ -358,10 +362,10 @@ static void access_memory_gv(guestmem_hptw_ctx_pair_t * ctx_pair,
 static void *get_reg_ptr(emu_env_t * emu_env, enum CPU_Reg_Sel index,
 						 size_t size)
 {
-	if (size == 8) {
+	if (size == BIT_SIZE_8) {
 		HALT_ON_ERRORCOND(0 && "Not implemented");
 		// Note: in 32-bit mode, AH CH DH BH are different
-		// Note: in 64-bit mode, AH CH DH BH are different
+		// Note: in 64-bit mode, AH CH DH BH do not exist
 	}
 	switch (index) {
 		case CPU_REG_AX: return &emu_env->r->eax;
@@ -392,12 +396,12 @@ static void *get_reg_ptr(emu_env_t * emu_env, enum CPU_Reg_Sel index,
 static size_t get_operand_size(emu_env_t * emu_env)
 {
 	if (emu_env->prefix.rex.w) {
-		return 64;
+		return BIT_SIZE_64;
 	}
 	if (emu_env->prefix.opsize) {
-		return emu_env->cs_d ? 16 : 32;
+		return emu_env->cs_d ? BIT_SIZE_16 : BIT_SIZE_32;
 	} else {
-		return emu_env->cs_d ? 32 : 16;
+		return emu_env->cs_d ? BIT_SIZE_32 : BIT_SIZE_16;
 	}
 }
 
@@ -405,12 +409,12 @@ static size_t get_operand_size(emu_env_t * emu_env)
 static size_t get_address_size(emu_env_t * emu_env)
 {
 	if (emu_env->g64) {
-		return emu_env->prefix.addrsize ? 32 : 64;
+		return emu_env->prefix.addrsize ? BIT_SIZE_32 : BIT_SIZE_64;
 	}
 	if (emu_env->prefix.addrsize) {
-		return emu_env->cs_d ? 16 : 32;
+		return emu_env->cs_d ? BIT_SIZE_16 : BIT_SIZE_32;
 	} else {
-		return emu_env->cs_d ? 32 : 16;
+		return emu_env->cs_d ? BIT_SIZE_32 : BIT_SIZE_16;
 	}
 }
 
@@ -471,7 +475,7 @@ static void compute_segment(emu_env_t * emu_env, enum CPU_Reg_Sel index)
  */
 static bool eval_modrm_addr(emu_env_t * emu_env, uintptr_t *addr)
 {
-	HALT_ON_ERRORCOND(get_address_size(emu_env) == 32 && "Not implemented");
+	HALT_ON_ERRORCOND(get_address_size(emu_env) == BIT_SIZE_32 && "Not implemented");
 	if (emu_env->postfix.modrm.mod == 3) {
 		size_t operand_size = get_operand_size(emu_env);
 		void *ans = get_reg_ptr(emu_env, get_modrm_rm(emu_env), operand_size);
@@ -574,12 +578,12 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 		switch (emu_env->postfix.modrm.mod) {
 		case 0:
 			switch (get_address_size(emu_env)) {
-			case 16:
+			case BIT_SIZE_16:
 				if (get_modrm_rm(emu_env) == 6) {
 					SET_DISP(2);
 				}
 				break;
-			case 32:
+			case BIT_SIZE_32:
 				if (get_modrm_rm(emu_env) == 4) {
 					HALT_ON_ERRORCOND(!has_sib);
 					has_sib = true;
@@ -587,7 +591,7 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 					SET_DISP(4);
 				}
 				break;
-			case 64:
+			case BIT_SIZE_64:
 				HALT_ON_ERRORCOND(0 && "Not implemented");
 				break;
 			default:
@@ -596,15 +600,17 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 			break;
 		case 1:
 			SET_DISP(1);
-			HALT_ON_ERRORCOND(get_address_size(emu_env) != 64 && "Not implemented");
-			if (get_address_size(emu_env) != 16 && get_modrm_rm(emu_env) == 4) {
+			HALT_ON_ERRORCOND(get_address_size(emu_env) != BIT_SIZE_64 && "Not implemented");
+			if (get_address_size(emu_env) != BIT_SIZE_16 &&
+				get_modrm_rm(emu_env) == 4) {
 				SET_SIB(true);
 			}
 			break;
 		case 2:
-			SET_DISP(get_address_size(emu_env) / 8);
-			HALT_ON_ERRORCOND(get_address_size(emu_env) != 64 && "Not implemented");
-			if (get_address_size(emu_env) != 16 && get_modrm_rm(emu_env) == 4) {
+			SET_DISP(get_address_size(emu_env));
+			HALT_ON_ERRORCOND(get_address_size(emu_env) != BIT_SIZE_64 && "Not implemented");
+			if (get_address_size(emu_env) != BIT_SIZE_16 &&
+				get_modrm_rm(emu_env) == 4) {
 				SET_SIB(true);
 			}
 			break;
@@ -613,7 +619,7 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 		default:
 			HALT_ON_ERRORCOND(0 && "Invalid value");
 		}
-		if (get_address_size(emu_env) == 32 &&
+		if (get_address_size(emu_env) == BIT_SIZE_32 &&
 			emu_env->postfix.modrm.mod != 3 &&
 			get_modrm_rm(emu_env) == 4) {
 			has_sib = true;
@@ -804,13 +810,13 @@ static void parse_opcode_one(emu_env_t * emu_env)
 					.haddr = reg,
 					.gaddr = rm,
 					.seg = emu_env->seg,
-					.size = operand_size / 8,
+					.size = operand_size,
 					.mode = HPT_PROT_READ_MASK,
 					.cpl = emu_env->vcpu->vmcs.guest_CS_selector & 3,
 				};
 				access_memory_gv(&emu_env->ctx_pair, &env);
 			} else {
-				memcpy(reg, (void *)rm, operand_size / 8);
+				memcpy(reg, (void *)rm, operand_size);
 			}
 		}
 		break;
