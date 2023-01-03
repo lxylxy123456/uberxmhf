@@ -800,8 +800,8 @@ static void parse_opcode_one(emu_env_t * emu_env)
 		parse_postfix(emu_env, true, false, 0, 0);
 		{
 			size_t operand_size = get_operand_size(emu_env);
-			uintptr_t rm;	/* r */
-			void *reg = eval_modrm_reg(emu_env);	/* w */
+			uintptr_t rm;	/* w */
+			void *reg = eval_modrm_reg(emu_env);	/* r */
 			if (eval_modrm_addr(emu_env, &rm)) {
 				mem_access_env_t env = {
 					.haddr = reg,
@@ -901,7 +901,40 @@ static void parse_opcode_one(emu_env_t * emu_env)
 	case 0xc4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0xc5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0xc6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
-	case 0xc7: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xc7:	/* MOV Ev, Iz */
+		HALT_ON_ERRORCOND(!emu_env->prefix.lock && "Not implemented");
+		HALT_ON_ERRORCOND(!emu_env->prefix.repe && "Not implemented");
+		HALT_ON_ERRORCOND(!emu_env->prefix.repne && "Not implemented");
+		if (emu_env->postfix.modrm.regop == 0) {
+			size_t operand_size = get_operand_size(emu_env);
+			size_t imm_size = MIN(operand_size, BIT_SIZE_32);
+			u64 imm;
+			void *pimm;
+			uintptr_t rm;	/* w */
+			parse_postfix(emu_env, true, false, 0, imm_size);
+			if (operand_size == BIT_SIZE_64) {
+				imm = (int64_t)*(int32_t *)emu_env->postfix.immediate4;
+				pimm = &imm;
+			} else {
+				pimm = &emu_env->postfix.immediate;
+			}
+			if (eval_modrm_addr(emu_env, &rm)) {
+				mem_access_env_t env = {
+					.haddr = (void *)pimm,
+					.gaddr = rm,
+					.seg = emu_env->seg,
+					.size = operand_size,
+					.mode = HPT_PROT_WRITE_MASK,
+					.cpl = emu_env->vcpu->vmcs.guest_CS_selector & 3,
+				};
+				access_memory_gv(&emu_env->ctx_pair, &env);
+			} else {
+				memcpy((void *)rm, (void *)pimm, operand_size);
+			}
+		} else {
+			HALT_ON_ERRORCOND(0 && "Not implemented");
+		}
+		break;
 	case 0xc8: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0xc9: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0xca: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
