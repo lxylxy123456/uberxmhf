@@ -41,6 +41,7 @@ def spawn_qemu(args, serial_file):
 		'--drive', 'media=disk,file=%s,format=raw,index=1' % args.lhv_img,
 		'-smp', str(args.smp), '-cpu', 'Haswell,vmx=yes', '--enable-kvm',
 		'-serial', 'file:%s' % serial_file,
+		'-machine', 'kernel_irqchip=off',
 	]
 	if args.no_display:
 		qemu_args.append('-display')

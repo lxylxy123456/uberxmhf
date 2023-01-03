@@ -74,6 +74,7 @@ def spawn_qemu(args, serial_file, ssh_port):
 		'-netdev', 'user,id=net0,hostfwd=tcp::%d-:22' % ssh_port,
 		'-smp', str(args.smp), '-cpu', 'Haswell,vmx=yes', '--enable-kvm',
 		'-serial', 'file:%s' % serial_file,
+		'-machine', 'kernel_irqchip=off',
 	]
 	if args.no_display:
 		qemu_args.append('-display')
