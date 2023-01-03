@@ -541,7 +541,7 @@ static uintptr_t eval_sib_addr(emu_env_t * emu_env)
 	if (id != CPU_REG_SP) {
 		zero_extend(&scaled_index, get_reg_ptr(emu_env, id, address_size),
 					sizeof(scaled_index), address_size);
-		scaled_index <<= (1 << emu_env->postfix.sib.scale);
+		scaled_index <<= emu_env->postfix.sib.scale;
 	}
 
 	if (!(emu_env->postfix.modrm.mod == 0 && bs % 8 == CPU_REG_BP)) {
