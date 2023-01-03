@@ -84,8 +84,8 @@ typedef struct prefix_t {
 	cpu_segment_t seg;
 	bool opsize;
 	bool addrsize;
-	struct {
-		union {
+	union {
+		struct {
 			u8 b : 1;
 			u8 x : 1;
 			u8 r : 1;
@@ -597,8 +597,10 @@ static bool eval_modrm_addr(emu_env_t * emu_env, uintptr_t *addr)
 static void parse_prefix(emu_env_t * emu_env)
 {
 	/* Group 1 - 4 */
-	while (1) {
+	bool read_prefix;
+	do {
 		HALT_ON_ERRORCOND(emu_env->pinst_len > 0);
+		read_prefix = true;
 		switch (emu_env->pinst[0]) {
 			case 0x26: emu_env->prefix.seg = CPU_SEG_ES; break;
 			case 0x2e: emu_env->prefix.seg = CPU_SEG_CS; break;
@@ -611,11 +613,14 @@ static void parse_prefix(emu_env_t * emu_env)
 			case 0xf0: emu_env->prefix.lock = true; break;
 			case 0xf2: emu_env->prefix.repne = true; break;
 			case 0xf3: emu_env->prefix.repe = true; break;
-			default: return;
+			default: read_prefix = false; break;
 		}
-		emu_env->pinst++;
-		emu_env->pinst_len--;
-	}
+		if (read_prefix) {
+			emu_env->pinst++;
+			emu_env->pinst_len--;
+		}
+	} while (read_prefix);
+
 	/* REX */
 	if (emu_env->g64 && (emu_env->pinst[0] & 0xf0) == 0x40) {
 		emu_env->prefix.rex.raw = emu_env->pinst[0];
