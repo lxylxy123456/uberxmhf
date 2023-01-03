@@ -740,10 +740,12 @@ static void parse_postfix(emu_env_t * emu_env, bool has_modrm, bool has_sib,
 /* Parse first byte of opcode */
 static void parse_opcode_one(emu_env_t * emu_env)
 {
+	u8 opcode;
 	HALT_ON_ERRORCOND(emu_env->pinst_len > 0);
+	opcode = emu_env->pinst[0];
 	emu_env->pinst++;
 	emu_env->pinst_len--;
-	switch (emu_env->pinst[-1]) {
+	switch (opcode) {
 	case 0x00: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x01: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x02: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
@@ -950,10 +952,32 @@ static void parse_opcode_one(emu_env_t * emu_env)
 	case 0x9d: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x9e: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0x9f: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
-	case 0xa0: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
-	case 0xa1: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
-	case 0xa2: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
-	case 0xa3: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
+	case 0xa0: /* MOV AL, Ob */
+	case 0xa1: /* MOV rAX, Ov */
+	case 0xa2: /* MOV Ob, AL */
+	case 0xa3: /* MOV Ov, rAX */
+		HALT_ON_ERRORCOND(!emu_env->prefix.lock && "Not implemented");
+		HALT_ON_ERRORCOND(!emu_env->prefix.repe && "Not implemented");
+		HALT_ON_ERRORCOND(!emu_env->prefix.repne && "Not implemented");
+		{
+			size_t address_size = get_address_size(emu_env);
+			size_t operand_size = (opcode & 1) ? get_operand_size(emu_env) : 1;
+			mem_access_env_t env;
+			parse_postfix(emu_env, false, false, 0, address_size);
+			compute_segment(emu_env, CPU_REG_AX);
+			env = (mem_access_env_t){
+				.haddr = get_reg_ptr(emu_env, CPU_REG_AX, operand_size),
+				.gaddr = 0,
+				.seg = emu_env->seg,
+				.size = operand_size,
+				.mode = (opcode & 2) ? HPT_PROT_WRITE_MASK : HPT_PROT_READ_MASK,
+				.cpl = emu_env->vcpu->vmcs.guest_CS_selector & 3,
+			};
+			zero_extend(&env.gaddr, emu_env->postfix.immediate,
+						sizeof(env.gaddr), address_size);
+			access_memory_gv(&emu_env->ctx_pair, &env);
+		}
+		break;
 	case 0xa4: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0xa5: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
 	case 0xa6: HALT_ON_ERRORCOND(0 && "Not implemented"); break;
