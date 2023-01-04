@@ -769,9 +769,7 @@ static void _vmx_handle_intercept_eptviolation(VCPU *vcpu, struct regs *r){
 
 	//check if EPT violation is due to LAPIC interception
 	if(vcpu->isbsp && (gpa >= g_vmx_lapic_base) && (gpa < (g_vmx_lapic_base + PAGE_SIZE_4K)) ){
-		// TODO: emulate_instruction() is not compatible with _optimize_x86vmx_intercept_handler()
-		emulate_instruction(vcpu, r);
-		//xmhf_smpguest_arch_x86_eventhandler_hwpgtblviolation(vcpu, (u32)gpa, errorcode);
+		xmhf_smpguest_arch_x86_eventhandler_hwpgtblviolation(vcpu, (u32)gpa, errorcode);
 	}else{ //no, pass it to hypapp
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
 		xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
@@ -1074,35 +1072,12 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			_OPT_VMREAD(NW, info_exit_qualification);
 			_OPT_VMREAD(32, control_exception_bitmap);
 			_OPT_VMREAD(32, guest_interruptibility);
-			_OPT_VMREAD(32, info_vmexit_instruction_length);
 			_OPT_VMREAD(NW, guest_RFLAGS);
-			_OPT_VMREAD(NW, guest_RIP);
-			_OPT_VMREAD(NW, guest_CR0);
-			_OPT_VMREAD(NW, guest_RSP);
 			_OPT_VMREAD(64, control_EPT_pointer);
-			_OPT_VMREAD(NW, guest_ES_base);
-			_OPT_VMREAD(NW, guest_CS_base);
-			_OPT_VMREAD(NW, guest_SS_base);
-			_OPT_VMREAD(NW, guest_DS_base);
-			_OPT_VMREAD(NW, guest_FS_base);
-			_OPT_VMREAD(NW, guest_GS_base);
-			_OPT_VMREAD(32, guest_ES_limit);
-			_OPT_VMREAD(32, guest_CS_limit);
-			_OPT_VMREAD(32, guest_SS_limit);
-			_OPT_VMREAD(32, guest_DS_limit);
-			_OPT_VMREAD(32, guest_FS_limit);
-			_OPT_VMREAD(32, guest_GS_limit);
-			_OPT_VMREAD(32, guest_ES_access_rights);
-			_OPT_VMREAD(32, guest_CS_access_rights);
-			_OPT_VMREAD(32, guest_SS_access_rights);
-			_OPT_VMREAD(32, guest_DS_access_rights);
-			_OPT_VMREAD(32, guest_FS_access_rights);
-			_OPT_VMREAD(32, guest_GS_access_rights);
 			_vmx_handle_intercept_eptviolation(vcpu, r);
 			_OPT_VMWRITE(32, control_exception_bitmap);
 			_OPT_VMWRITE(32, guest_interruptibility);
 			_OPT_VMWRITE(NW, guest_RFLAGS);
-			_OPT_VMWRITE(NW, guest_RIP);
 			return 1;
 		}
 		return 0;

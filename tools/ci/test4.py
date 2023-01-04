@@ -48,7 +48,6 @@ def spawn_qemu(args, xmhf_img, serial_file):
 		'--bios', bios_bin,
 		'-smp', str(args.smp), '-cpu', 'Haswell,vmx=yes', '--enable-kvm',
 		'-serial', 'file:%s' % serial_file,
-		'-machine', 'kernel_irqchip=off',
 	]
 	if args.no_display:
 		qemu_args.append('-display')
