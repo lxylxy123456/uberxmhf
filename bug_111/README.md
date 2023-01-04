@@ -64,6 +64,22 @@ Also tested this on other hypervisors
 * Hyper-V, Windows host: good (hard to use serial port, so use VGA, see
   `lhv-dev 46e4c60af`)
 
+#### VMware bug report
+
+The guideline to report defect is in:
+<https://www.vmware.com/support/policies/defect.html>. I don't think I have an
+active support agreement, so reporting to VMware Technology Network.
+
+Create the VMDK file using:
+
+```sh
+xz -dk c.img.xz
+qemu-img convert -f raw -O vmdk c.img c.vmdk
+```
+
+The bug report text is in `vmware.txt`. Bug reported in:
+<https://communities.vmware.com/t5/VMware-Workstation-Player/LOCK-instruction-atomicity-broken-on-VGA-memory-mapped-IO/m-p/2946505#M39982>
+
 #### Unaligned memory access
 
 It becomes challenging to support LOCK CMPXCHG8B. There are no alignment
@@ -125,7 +141,25 @@ In `xmhf64-dev 1cd113b58..c90491fdd`, implement instruction emulation for some
 MOV instructions. 32-bit LHV can run now, 64-bit cannot run yet because REX
 prefix is not implemented yet. x86 Debian stucks with CPU 0 ISR = 253.
 
-TODO: report bug to VMware
-TODO: implement instruction emulation (deprecated)
-TODO: merge `_vmx_decode_seg()` implementation
+In `xmhf64-dev 3e8d5df89`, able to emulate for 64-bit guests. x64 Debian with
+x2APIC works correctly. If XMHF hides x2APIC, x64 Debian also stucks with CPU 0
+ISR = 253. Looks like this is the known KVM bug reported in
+<https://bugzilla.kernel.org/show_bug.cgi?id=216045>. The workaround for this
+case is to add `-machine kernel_irqchip=off`. After that Debian x86 and x64 can
+boot correctly.
+
+This may become a good way to debug the KVM bug. I am pretty sure that using
+`#DB` exception is good, but using instruction emulation is bad.
+
+In `xmhf64-dev 1be476896`, support more Windows guests, but unstable. Giving up
+now because it is too difficult to write instruction emulation cleanly.
+* To see the change, use `git diff 4cfa1eee1 1be476896`.
+
+## Fix
+
+`xmhf64 e641acea5..4cfa1eee1`
+* Add segmentation limit and access rights check to `guestmem_desegment()`
+
+`xmhf64-dev 1cd113b58..a864b512e`
+* Implement some of instruction emulation, then reverted
 

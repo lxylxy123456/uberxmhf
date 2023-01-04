@@ -1,3 +1,86 @@
-Subject: LOCK instruction atomicity broken on VGA memory mapped IO
+Subject: LOCK instruction atomicity broken on VGA memory mapped IO (hypervisor defect)
 Select Location: VMware Workstation Player Discussions
+
+Hi,
+
+I recently realized that on x86 virtual machines, memory operations on VGA memory mapped IO with the LOCK prefix are not atomic. An example instruction is the XCHG instruction operating on memory address 0xb8000.
+
+Here is the information about my environment:
+
+    Product: VMware(R) Workstation 16 Player
+    Version: 16.2.4 build-20089737
+    Host OS: Debian 11, kernel version 5.10.0-19-amd64 (Note: this bug is also reproducible on Windows host)
+
+I have written a system-level software to demonstrate this bug. The software is attached to this post as "c.vmdk" in "c.zip". To run my code:
+
+    Open VMware workstation player
+    Create a new virtual machine
+    Select "I will install the operating system later"
+    Guest Operating System: Other
+    Complete creating the virtual machine following default settings
+    Edit virtual machine settings
+    Keep Memory 256 MB default
+    Set Number of processor cores to 4
+    Remove the default hard disk
+    Create a new harddisk, type is IDE, select "Use existing disk file", use "c.vmdk" attached with this post, do not convert to new vmdk format
+    Create a serial port, use any output file (e.g. "/tmp/serial.txt")
+    Start the virtual machine
+    Observe the content of serial port output file
+
+The expected behavior is to see the following from serial port:
+
+...
+counts:	count0	count1	count2	count0-count1+count2
+counts:	1	0	1	0
+counts:	2	1	1	0
+counts:	3	1	2	0
+counts:	4	2	2	0
+counts:	5	2	3	0
+counts:	6	3	3	0
+counts:	7	3	4	0
+counts:	8	4	4	0
+counts:	9	5	4	0
+counts:	10	5	5	0
+counts:	11	5	6	0
+counts:	12	6	6	0
+counts:	13	7	6	0
+... (does not stop, right most column is always 0)
+
+However, VMware's output stops at some point, and the last column may become negative. For example:
+
+...
+counts:	count0	count1	count2	count0-count1+count2
+counts:	1	1	0	0
+counts:	2	2	0	0
+counts:	3	3	0	0
+counts:	4	4	0	0
+counts:	5	5	1	-1
+... (no more outputs)
+
+
+My code is available in https://github.com/lxylxy123456/uberxmhf/blob/b5935eaf8aab38ce1933da1c1be22dcf1b992eaf/xmhf/src/xmhf-core/xmhf-runtime/xmhf-startup/lhv.c#L5 line 5 - 89
+
+My code performs the following experiment repeatedly on 3 CPUs:
+
+    Initially, "ptr" at address 0xb8000 (VGA memory mapped I/O) is set to 0
+    CPU 0 writes 0x12345678 to ptr, then increases counter "count0".
+    In an infinite loop, CPU 1 tries exchanges ptr with register EAX (contains 0) using the XCHG instruction. If CPU 1 sees 0x12345678, it increases counter "count1".
+    CPU 2's behavior is similar to CPU 1, except it increases counter "count2" when it sees 0x12345678.
+
+Ideally, after each experiment there should always be count1 + count2 = count0. However, in VMware, there may be count1 + count2 > count0. This because CPU 0 writes 0x12345678 to ptr once, but CPU 1 and CPU 2 both get 0x12345678 in XCHG. Note that according to Intel's specification, XCHG instruction always implements the locking protocol.
+
+
+The correct behavior can be reproduced on:
+
+    Convert c.vmdk to raw disk image, then run on real hardware
+    Virtual Box (version 6.1.40), the way to create the virtual machine is similar to VMware
+    QEMU TCG (version 5.2.0), use "qemu-system-i386 -serial stdio -drive file=c.vmdk -m 256M -smp 4"
+    Hyper-V
+
+The incorrect behavior can be reproduced on:
+
+    VMware (this bug report)
+    QEMU KVM (Linux version 5.10.0-19-amd64), use "qemu-system-i386 -serial stdio -drive file=c.vmdk -m 256M -smp 4 --enable-kvm". The KVM bug report is in https://bugzilla.kernel.org/show_bug.cgi?id=216867 .
+
+Thank you!
 

@@ -326,4 +326,7 @@ This page will be used to track various bugs reported to QEMU / KVM
 	* <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107663>
 * `bug_111`: KVM instruction emulation does not honor atomic instruction
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216867>
+	* Limitation in KVM: KVM's ABI does not support LOCK on MMIO
+* `bug_111`: VMware VGA MMIO does not honor atomic instruction
+	* <https://communities.vmware.com/t5/VMware-Workstation-Player/LOCK-instruction-atomicity-broken-on-VGA-memory-mapped-IO/m-p/2946505#M39982>
 
