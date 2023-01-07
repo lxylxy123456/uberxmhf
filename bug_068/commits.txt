@@ -1,3 +1,797 @@
+4cfa1eee1 Fix bug in _optimize_x86vmx_intercept_handler()						V (bug_111)
+6a6dad771 Add comments to memp-x86vmx-eptlock.c									V (bug_111)
+c71b312f8 Move _vmx_decode_seg() to guestmem_desegment()												V (bug_111)
+7d15c43fe Move guestmem function declarations to xmhf-memprot.h											V (bug_111)
+d11e8b841 Expand-down data segment not implemented								V (bug_111)
+4bce24df3 Fix bug in 1b811acd02495a332c56dd50bce641cfd7f34d39					V (bug_111)
+999613c38 Fix typo in 1b811acd02495a332c56dd50bce641cfd7f34d39					V (bug_111)
+1b811acd0 Check segment permissions in _vmx_decode_seg()						Feature: nested virtualization (bug_111)
+839937397 Move peh-x86vmx-guestmem.c to memp-x86vmx-guestmem.c											V
+645354b7c Prepare for moving guestmem to memprot														V
+e641acea5 Replace retry logic in guestmem with read write lock					V (bug_110)
+3ca39eb9f Change integer literal sizes in smpg-x86vmx.c							V (bug_110)
+eabe9a8c7 Update comments														Bug: race condition when changing EPT (bug_110)
+0230ac339 Destroy all scode in TrustVisor when shutdown							Bug: TrustVisor does not destroy memory when shutdown (bug_109)
+9fe3a6e7d Remove tautology ifdef																		V
+a0b7a9112 Add comments about INIT-SIPI-SIPI attack														V
+c8a04911e Add barrier to xmhf_runtime_shutdown()								V (bug_109)
+01a889ad5 Always set the TXT.CMD.SECRETS flag									Bug: Intel TXT configuration (bug_109)
+0b1bcb839 Remove PA_PAGE_ALIGN_UP_NOCHK_* macros														V
+acadeccf0 Update header file for rntm-x86-dmap.c																	V (bug_108)
+dc3e1934c Update comments for ACPI_MAX_RSDT_ENTRIES																	V (bug_108)
+188e65178 Fix bug in vmx_find_dmar_paddr(): interprete XSDT correctly												V (bug_108)
+d1bcb0ee1 Fix bug in d6d00d2fb63421eb477295d7ced5c1c8bbc17284: check return val										V (bug_108)
+d6d00d2fb Merge duplicate code into vmx_find_dmar_paddr()															V (bug_108)
+df3cfd78b Unify common part of vmx_eap_initialize{,_early} and vmx_eap_zap											V (bug_108)
+82e00abd9 Move DMAP related functions to rntm-x86-dmap.c															V (bug_108)
+9b0214a40 Fix compile error in 93cbd6931a3a51fca97ba35bddefc30c7479504f												V (bug_108)
+93cbd6931 Cleanly hide DMAR from ACPI so that Linux does not I/O error when ls 										V (bug_108)
+6b2c4d4ac Fix bug in 2aca34588101533525de497f203a2f1558ef60e2					V
+29013810b Fix bug: dmar not initialized																				V (bug_108)
+10cc0cb4d Fix DMAP bug due to a55102a50c9abd55afd519eedac35ad8ebe4fc38												Update DMAP
+2aca34588 Fix bug in nested virtualization about PAE and PDPTE					V
+80fb80436 Update CI																Feature: nested virtualization
+3105d1d27 Stop x2APIC ICR WRMSR exit when SMP boot complete															V (bug_108)
+8daaceede Use MSR bitmap to reduce number of VMEXIT101																Feature: nested virtualization - MSR bitmap (bug_108)
+3b6e54256 Use more APIs in _vmx_ctls.h														V
+0d55a8144 indent nested virtualization code													V
+7ae5d80be Update CI																			V
+c3cc6146b Manually merge pull request #21 from lxylxy123456/xmhf64-nest			V (bug_106)
+5e86cb84c Fix triple fault bug by passing ctls12								V (bug_106)
+b1264602e Fix bug by passing ctls12 to _vmcs02_to_vmcs12_control_EPT_pointer()	V (bug_106)
+0d60aef19 Use VMCS02 feature bits instead of VMCS12								V (bug_106)
+bc3674567 Fix compile error																							V (bug_106)
+84dbac95f Add vmx_ept_changed for ept12_pa2ptr()																	V (bug_106)
+dbccc35fc Add comments about race condition solved in guestmem														V (bug_106)
+ab0cb033a Merge pull request #20 from lxylxy123456/xmhf64-nest																	V
+ef6432ebe Merge branch 'xmhf64' into xmhf64-nest																				V
+948445fcd Fix bug in retry loop in guestmem																			V (bug_106)
+5af660a65 Fix bug in order of guestmem_hptw_ctx_pair_t																V (bug_106)
+1d16ff87a Merge branch 'xmhf64' into xmhf64-nest																				V
+2faecda78 Prevent race condition in changing EPT and software walk EPT												V (bug_106)
+a6bb99deb Fix race condition when changing root mappings															Bug: race condition when changing EPT (bug_106)
+e82b16a6e Fix uninitialized variable in xmhf_nested_arch_x86vmx_check_fields_ex	V (bug_106)
+787f7671e Merge branch 'xmhf64' into xmhf64-nest																				V
+d424154e1 Fix bug in ab560c7874066bfaf4b9f841e9a2fe51320d1aef					V (bug_106)
+df16bccf9 Merge branch 'xmhf64' into xmhf64-nest																				V
+e01bc0899 Support stopping tests in Windows using Ctrl+C						V (bug_106)
+b74072cb3 Support stopping tests in Linux using Ctrl+C							V (bug_106)
+7221f467d Merge branch 'xmhf64' into xmhf64-nest																				V
+452e01ad0 In PAL demo, check for CPUID in main functions						V (bug_106)
+f54dbb9b2 Update pal_demo to test TrustVisor									V (bug_106)
+ab560c787 Support TrustVisor detection through CPUID							V (bug_106)
+dfc2142df Add print debugging message during L2 triple fault					V (bug_106)
+3b68a0605 Merge branch 'xmhf64' into xmhf64-nest																				V
+5331f23e2 Add all VMX_VMEXIT_* macros											V (bug_106)
+b396158cc Merge branch 'xmhf64' into xmhf64-nest																				V
+ae4c24db5 Correct TrustVisor context when dealing with PDPTE					V (bug_106)
+f1e0f40a0 Correct TrustVisor context when dealing with PDPTE					V (bug_106)
+10855272c Merge branch 'xmhf64' into xmhf64-nest																				V
+8abd94186 Fix CI																V (bug_106)
+dade7564f CI: also upload tar archive											V (bug_106)
+de69f6b29 CI: Also create tar archive (zip not supported in Debian by default)	V (bug_106)
+3db43f23a Add -fno-stack-protector to pal_demo									V (bug_106)
+97539f7ca Merge branch 'xmhf64' into xmhf64-nest																				V
+b0fc4cb40 Add macro for CPUID in intercept handler								V (bug_106)
+45d795154 Merge branch 'xmhf64' into xmhf64-nest																				V
+bd31addd3 Add comments in _vmx_handle_intercept_cpuid()							V (bug_106)
+ec537e1d5 Merge branch 'xmhf64' into xmhf64-nest																				V
+357c72c9b Fix bug in bootloader about moving sl+rt														V
+e05abcd46 Fix bug in bootloader about moving sl+rt														V
+fbac1afd7 Misc change															V (bug_106)
+b29ca38bf Move KVM workaround code to _workaround_kvm_216234()					V (bug_106)
+06faedbde Fix TrustVisor vulnerability: incorrect gCR3 prot check													Bug: incorrect EPT permission check (bug_106)
+5b1a6ced1 Check for NULL pointer before calling pagelist_get_zeroedpage()		V (bug_106)
+ad9e43667 Change arg type to bool in xmhf_nested_arch_x86vmx_handle_vmlaunch_vm	V (bug_106)
+629d6071e Remove magic number in xmhf_nested_arch_x86vmx_handle_ept02_exit()'s 	V (bug_106)
+de6b62db7 Merge branch 'xmhf64' into xmhf64-nest																				V
+c99e85216 Reduce use of asm volatile CPUID										V (bug_106)
+19978269c Modify interface of xmhf_app_handlecpuid()							V (bug_106)
+67d30e2f8 Add checks to XMHF callback function return code						V (bug_106)
+207dbcbfd Remove quiesce of xmhf_app_handlemtrr(), add comments for XMHF applic	V (bug_106)
+dcd1a0c3b Fix bug of vmcs shadowing												V (bug_106)
+515c401b0 Remove offset calculation in VMCS struct																	V
+9172ce7f2 Remove struct nested_vmcs12																				V
+56189caa7 Add comments																								V
+85f1ad25d Merge branch 'xmhf64' into xmhf64-nest																				V
+e29b3f9f7 Rename enum _vmcs_encodings																				V
+5fa098ab4 Remove duplicate enum vmcs_nested_encoding																V
+58eae53d0 Merge branch 'xmhf64' into xmhf64-nest																				V
+ca884594f Fix typo in db6f9ee903e8dd7af77fefc404b6abf60e9c1e81														V
+496b156ab Use macro to reduce code in _optimize_x86vmx_intercept_handler()											V
+f4cdcc16f Merge branch 'xmhf64' into xmhf64-nest																				V
+db6f9ee90 Use macro to reduce code in _optimize_x86vmx_intercept_handler()											V
+7557b3fd7 Remove magic VMCS field encodings																			V
+8343ac01c Merge branch 'xmhf64' into xmhf64-nest																				V
+e701f0116 Make VMCS encodings 16 bits																				V
+e1e900b6e Remove magic VMCS field encodings																			V
+cbb8242ac Add _vmx_vmcs_fields.h to enumerate VMCS fields															Feature: use macros to manage VMCS fields
+6d0be20e9 Remove unnecessary casts in xmhf-baseplatform-arch-x86.h				V (bug_106)
+53e6f0ecb Remove unnecessary casts in xmhf-baseplatform-arch-x86.h				V (bug_106)
+314311327 Add configuration option TRUSTVISOR_L2_OFFSET							V (bug_106)
+3104b23e6 Merge branch 'xmhf64' into xmhf64-nest																				V
+912c95052 Update default VMCALL_OFFSET value for pal_demo						V (bug_106)
+6535ced48 Fix bug on Makefile about pal_demo									V (bug_106)
+8abf566c4 Update github actions													V (bug_106)
+d802f8f8c Update pal_demo GitHub actions										V (bug_106)
+69691abc0 Update build_pal_demo.sh												V (bug_106)
+9713855ae Able to set VMCALL_OFFSET in pal_demo									V (bug_106)
+2e520c3eb Fix bug in pal_demo about inline assembly								V (bug_106)
+2514e7295 Use _nexted_vmx_is_interruption_valid()								Feature: nested virtualization - TrustVisor (bug_106)
+9ba342c98 Merge branch 'xmhf64' into xmhf64-nest																				V
+28ce646f2 Fix bug in 157977bbb01ffd502a9d50548807bb4a7ebe0d0d											V
+157977bbb Remove duplicate function udelay()															V
+46c22f3a7 indent																V
+c219d5ec0 Replace magic number with VMX_GUEST_INTR_BLOCK_NMI					Feature: nested virtualization
+9343f6db0 Merge branch 'xmhf64' into xmhf64-nest																				V
+abcabc04f Replace magic number with VMX_GUEST_INTR_BLOCK_NMI											V
+5b11b37da Remove magic number																			V
+56ceab9e4 Combine event injection code in nested-x86vmx-handler2.c				V (bug_104)
+8bf94895d indent																V (bug_104)
+40e829764 Disallow modifying APIC MSRs in MSR load area							V (bug_104)
+58689efae Merge branch 'xmhf64' into xmhf64-nest																				V
+8639f3ff9 Support MSR bitmap for guest hypervisor								V (bug_104)
+5dcac3287 Increase memory for CI															V
+ecf60f5f3 Fix bug in 226e33c3d714d8476e46f76ca0be9df6392ceeb4 _rewalk_ept01_con										Feature: nested virtualization
+2c32d4dd8 Cache result of _vmcs12_get_ctls() during L2 operation				V (bug_104)
+0ba390125 Merge branch 'xmhf64' into xmhf64-nest																				V
+74dcb4c0e Fix typo in 52526750e36089d3d19fddf0b29f65f4aae02b7c					V (bug_104)
+bda3a6f0e Merge branch 'xmhf64' into xmhf64-nest																				V
+52526750e Correctly restore guest_interruptibility when handling dbexception	V (bug_104)
+0cbfc9524 Fix bug: remove EPT02 blocking if VMENTRY fails						Feature: nested virtualization - Hyper-V (bug_104)
+d52b4718c Revert removal of control_EPT_pointer									V
+b64a57340 Add comment about changing EPTP01										V
+226e33c3d Update EPTP02 from EPTP01 if the guest hypervisor is not using EPT	Feature: nested virtualization
+4c1cbb6ef Merge branch 'xmhf64' into xmhf64-nest																				V
+ec5f0e368 Add official VMCS field names in nested-x86vmx-vmcs12-fields.h		V (bug_103)
+415ae5adf Merge variables to track VMX mode (fix EPT02 flush bug)				V (bug_103)
+a5adb60e6 Split VMCS translation to small function (#19)						V (bug_103)
+6792c4c41 Fix memory leak in pal_demo																	V
+31943437c indent																V (bug_103)
+a8ce63845 Move EPT02 invalidation logic to xmhf_nested_arch_x86vmx_rewalk_ept01	V (bug_103)
+be8b08f1c Call xmhf_nested_arch_x86vmx_rewalk_ept01 during EPT01 flush to updat	Feature: nested virtualization - EPT01 flush (bug_103)
+a2b8a1bb8 Debug CI																						V
+bb9f98b0c Fix typo in configure.ac; reduce EPT02 size for Jenkins CI									V
+138af7e61 Make VMX_NESTED_MAX_ACTIVE_EPT and EPT02_PAGE_POOL_SIZE configurable							V
+651792df0 Merge branch 'xmhf64' into xmhf64-nest																				V
+c36d37b38 Sort bss sections by alignment to reduce fragmentation				Feature: remove unused code to fix SL bloat
+2c850ad3e Merge branch 'xmhf64' into xmhf64-nest																				V
+fd9e3e3bb Add check to overlap of multiboot modules								V (bug_102)
+a02353bef Fix bug when copying hypervisor image									Bug: copy overlap hypervisor image (bug_102)
+b4fd705b2 Move some debug code from xmhf64-nest-dev to xmhf64-nest										Misc changes
+47e22a346 Merge branch 'xmhf64' into xmhf64-nest																				V
+0a9c369d4 Fix compile errors due to a7cc5243104454b7654253b1ad96b2c9a676f002	V (bug_101)
+a7cc52431 Fix compile errors due to c3a5816a03132a6ed1c16ea8e754b06b8ad92386	V (bug_101)
+c3a5816a0 Protect DRHD from guest memory access									Feature: hide DMAR pages from guest (bug_101)
+7acbb46bd Fix buffer overflow in vmx_eap_initialize() while reading DRHD		Bug: buffer overflow in DMAP code (bug_101)
+f7005517b Merge branch 'xmhf64' into xmhf64-nest																				V
+8b972c159 Remove unnecessary EPT flush in CR0 intercept							Feature: nested virtualization - VMware (bug_094)
+09586f1fd Merge branch 'xmhf64' into xmhf64-nest																				V
+153a61f99 Fix deadlock in bootloader in mp_cstartup()							Bug: deadlock in mp_cstartup (bug_100)
+c6ddbe756 Merge branch 'xmhf64' into xmhf64-nest																				V
+f8029f6e8 Update from tboot-20101005 to tboot-1.10.5 (#18)						Feature: update imported tboot version (bug_097)
+4bfe710ab Remove .bss.palign_data in nested virtualization						V (bug_095)
+dffdb4970 Merge branch 'xmhf64' into xmhf64-nest																				V
+5185f1e6a Enable ld --gc-sections by default									V (bug_095)
+eb482ee2c Add OUTPUT_FORMAT to linker scripts (solve ld --gc-sections problem o	V (bug_095)
+7070d04ea Use aligned(PAGE_SIZE_4K) instead of section(...)						V (bug_095)
+fb0da8247 Add KEEP to unreachable sections in linker script						V (bug_095)
+4d9ea8b2b Add LDFLAGS to Makefile												Feature: remove unused code to fix SL bloat (bug_095)
+19439297d Merge branch 'xmhf64' of github.com:lxylxy123456/uberxmhf into xmhf64													V
+8e7dd1c8c Update OS to SINIT Data version to 5 - 7								V (bug_097)
+12f22f22b Allow creating a 2nd PIO access control map (#17)															PR: DMAP
+c426b0e0e Change acmod_size to uint32_t (backport change in tboot-1.6)			V (bug_097)
+e200c0b25 Fix incorrect integer size in xmhf_sl_arch_xfer_control_to_runtime (#										PR: DMAP
+e0277b23f Fix MTRR bug (restore missing while loop in set_mem_type compared to 	V (bug_097)
+8e9aaab05 Fix bug in print_mtrrs() format string														V
+ca64abb5d Split bplt-x86vmx-mtrrs.c to save space in SL													V
+2f4f2e134 Update printf in print_mtrrs()										V (bug_097)
+6e5c5195c Fix MTRR truncation when maxphyaddr > 36								Feature: support Dell DRT (bug_097)
+1b9d60b57 Mxmhf64 (#15)																								PR: DMAP
+a224d367f Merge branch 'xmhf64' into xmhf64-nest																				V
+ac3f3a510 Remove printfs on XSETBV												V (bug_096)
+fbd6319d3 Merge branch 'xmhf64' into xmhf64-nest																				V
+6c6c3294b Set the "XSS-exiting bitmap" to 0 to prevent VMEXIT					V (bug_096)
+3266af64f Enable XSAVES/XRSTORS instructions in the guest						V (bug_096)
+a52c34fd7 Merge branch 'xmhf64' into xmhf64-nest																				V
+2f01c38a1 Always flush TLB in xmhf_setup_sl_paging()							V (bug_096)
+d6ce3f2ad Flush TLB after changing page structure in SL							Feature: support running on Dell (bug_096)
+3ca7e20f5 Fix bug: VMPTRLD without current VMCS will crash XMHF					V (bug_094)
+0bd29bc66 Gracefully handle VMXON twice error									V (bug_094)
+0d7e80ad1 Ignore value of control_Executive_VMCS_pointer						V (bug_094)
+72533f6aa Merge branch 'xmhf64' into xmhf64-nest																				V
+427b6d6b7 Remove message when guest performs MOV CR4							V (bug_094)
+b892df2ad Remove INVVPID call when guest MOVs to CR4							V (bug_094)
+63ef633f5 Do not resolve I/O bitmap address when not using						V (bug_094)
+0b560ab7d Fix bug introduced in ed84991cbab5b0d2b9fd8f28bc03de467d501e20		V (bug_094)
+3ee47921a Update MSR variable names												V (bug_094)
+ed84991cb Remove redundant memcpy's												V (bug_094)
+9d62746cb Support load / store IA32_PAT / IA32_EFER								V (bug_094)
+65a4c0e44 Indicate support for 2M and 1G EPT pages for L1						Feature: nested virtualization - VMware (bug_094)
+c44296487 indent																V (bug_093)
+a09402fd7 Merge branch 'xmhf64' into xmhf64-nest																				V
+710e9a847 Allow CPU 0 continuously log events before other CPUs are started											V
+f870a497a Update event logger values											V (bug_093)
+292d5397d Merge branch 'xmhf64' into xmhf64-nest																				V
+5bc24d710 Make NMI injection and exception event loggers						V (bug_093)
+e58ae3fb2 Remove support for MSR bitmap											V (bug_093)
+a1215598b Merge branch 'xmhf64' into xmhf64-nest																				V
+6e56fffcf No need to manage MSR_K6_STAR (XMHF does not do system call)			V (bug_093)
+8de661b8f Better update L1 state during nested VMEXIT							V (bug_093)
+9d8f6ae1e Modify default IA32_EFER during VMEXIT and VMENTRY					V (bug_093)
+fed06964a Reduce memcpy during nested VMENTRY									V (bug_093)
+789d3bd7d Prevent handling MSR copying from L2 to L1 in VMENTRY					V (bug_093)
+91a1a828e Apply xmhf_partition_arch_x86vmx_get_xmhf_msr() to nested virtualizat	V (bug_093)
+1dcd74a70 Merge branch 'xmhf64' into xmhf64-nest																				V
+77921d016 Implement xmhf_partition_arch_x86vmx_get_xmhf_msr()					Feature: nested virtualization - VirtualBox (bug_093)
+35ef22bcd Merge branch 'xmhf64' into xmhf64-nest																				V
+3875e68b1 Replace magic number in SL with g_sl_intel_dmap_buffer				V
+00e90be17 Log ept02_miss events													V
+c816e4551 Only call xmhf_nested_arch_x86vmx_check_fields_existence() once		V
+af4b0f9e4 Write xmhf_nested_arch_x86vmx_check_fields_existence()				V
+d6c819536 Fix typo in existence of APIC VMCS fields								V
+454494b00 Merge branch 'xmhf64' into xmhf64-nest																				V
+0b77b9442 Print known separator at end of event logger																Feature: event logger
+63abca65a Make is_interruption_nmi() internal, indent							V
+524ac7d65 Refactor nested VMEXIT handling code									V
+a6d76314a Make xmhf_nested_arch_x86vmx_handle_vmexit()'s children functions ret	V
+4501a4d76 Update CI																V
+cb60143ac Remove duplicate code in handle_vmexit20_forward()					V
+3669d0096 Add docs for xmhf_nested_arch_x86vmx_handle_vmexit()'s children funct	V
+6f95d71e6 Split xmhf_nested_arch_x86vmx_handle_vmexit()							V
+338821794 Use is_interruption_nmi() to remove duplicate code					V
+f50e8030a Make cpu_has_current_vmcs12 static and indent							V
+bbe3e3294 Fix missing includes caused by cca2731a6945448c6bf8b22bace177a6fc969e	V
+cca2731a6 Create nested-x86vmx-handler{1,2}.h									V
+e915814f6 Make guest_ept_cache_line the correct type in vmcs12_info				V
+45dfa7de1 Rename vmx_nested_current_vmcs12_info and avoid void pointers in vcpu	V
+028bc495e Fix bug in xmhf_nested_arch_x86vmx_handle_vmclear() introduced in 67b	V
+67bf7dcee Remove vmx_nested_current_vmcs_pointer from vcpu						V
+6553b11b2 Remove nested-x86vmx-handler.h										V
+21b0c6940 Remove nested-x86vmx-lru.h (moved to stl/xmhf-lru.h earlier)			V
+0ded056ea indent																V
+3cf167b80 Split nested-x86vmx-handler.c to two files							Feature: nested virtualization
+872252453 Merge branch 'xmhf64' into xmhf64-nest																				V
+8fcfa3917 Xmhf64 (#13)																								PR: DMAP
+3cbd3ae42 Add calls to event logger for nested virtualization					V
+e40683f64 Merge branch 'xmhf64' into xmhf64-nest																				V
+a71084ef8 Log all VMEXIT events													V
+b17a9f7ff Make event log output YAML											V
+cf40ec26a Initial implementation of event logger								Feature: event logger
+a3624c7bd Merge branch 'xmhf64' into xmhf64-nest																				V
+04ed0fd93 CI: commit grub package to repo (no longer available on Debian websit				V
+73e48cd52 Merge branch 'xmhf64' into xmhf64-nest																				V
+2c767d24b Make wbf_required True by default																			V (bug_092)
+3882cfc28 Merge branch 'xmhf64' into xmhf64-nest																				V
+569abea18 Berform write buffer flush (WBF), fix VGA corruption problem												V (bug_092)
+c510f195f Fix typo in dmap-vmx-internal.c																			Bug: DMAP VGA corruption (bug_092)
+b92c1369c Merge branch 'xmhf64' into xmhf64-nest																				V
+1c3d520a9 Fix typo in xmhf_cpu_relax()											V (bug_091)
+6d7774d11 Reduce hpt output for nested virtualization EPT02						V (bug_091)
+1c2217901 Add Intel ucode for Windows 8.1										V (bug_091)
+366ed4c93 Remove verbose log message											V (bug_091)
+077c6eb55 Modify code due to 623a2384dbbe67b2ee09abc9abcbc37fa74ce50d			V (bug_091)
+3da95e1f1 Merge branch 'xmhf64' into xmhf64-nest																				V
+2c3480cf0 Make atomic instructions functions									V (bug_091)
+d646f01da Make asm volatile ("pause") a function								V (bug_091)
+623a2384d Rename vmx_guest_nmi_ to vmx_mhv_nmi_									V (bug_091)
+c11271ed0 Rename vmx_guest_nmi_disable to vmx_guest_nmi_enable					V (bug_091)
+1e9f90436 Add note for verification for vmx_guest_nmi_handler_arg				V (bug_091)
+f9a93b709 Add helpful printfs for debugging										V (bug_091)
+7fad2c2e2 Flush EPT02 when hptw_insert_pmeo_alloc() fails in xmhf_nested_arch_x	V (bug_091)
+d9662cb5f Fix VMENTRY failure due to retrying NMI injection						V (bug_091)
+02f90a7a8 Merge branch 'xmhf64' into xmhf64-nest																				V
+291c01c82 Fix return type of hpt_pme_set_pmt()																		Bug: incorrect size that causes trouble in 64-bit (bug_091)
+d581c94f7 Merge branch 'xmhf64' into xmhf64-nest																				V
+ff89c614c Avoid accessing input operands in asm									V (bug_091)
+65f42d043 Update to __asm__ __volatile__										V (bug_091)
+4ddba18fc Merge branch 'xmhf64' into xmhf64-nest																				V
+a4c0dd40c Fix bug in __vmx_invvpid() and __vmx_invept() when compiled optimized	V (bug_091)
+433803237 Use __asm__ __volatile__ in _vmx.h									V (bug_091)
+f6016a913 Merge branch 'xmhf64' into xmhf64-nest																				V
+7657c9806 Use __asm__ __volatile__ in _processor.h								V (bug_091)
+0cc956ec0 Merge branch 'xmhf64' into xmhf64-nest																				V
+d1d313501 Support handling #GP when handling wrmsr								V (bug_091)
+2b7ea954f Fix bug by checking support of VMCS shadowing							Feature: nested virtualization - 2540p (bug_091)
+4a0f847cb Merge branch 'xmhf64' into xmhf64-nest																				V
+983c6bc82 Fix compile problem in GCC 12																	V
+db9bf0cbb Fix bug in handling control_posted_interrupt_desc_address				V (bug_090)
+b09f64d9e Implement EPT misconfig VMEXIT when R=0 and W=1						V (bug_090)
+e4ccca76d Merge branch 'xmhf64' into xmhf64-nest																				V
+ab9768a9f Fix hpt_pme_is_present()'s incorrect behavior on EPT					V (bug_090)
+ff282c5eb Merge branch 'xmhf64' into xmhf64-nest																				V
+15efd3547 Add --vga to build.sh																V
+ef9d12919 Add comment															V (bug_090)
+217e5290f Fix bug in 89d5cdf313b30d5b0650bf2ec5601f933a118a81 when VMCS shadowi	V (bug_090)
+bafe63d82 indent																V (bug_090)
+89d5cdf31 Fix behavior of VMCLEAR and VMPTRLD									Feature: nested virtualization - EPT misconfig (bug_090)
+536d95d87 Merge branch 'xmhf64' into xmhf64-nest																				V
+35b8a931f Remove unused function in CI											V (bug_089)
+84dfccb42 Use jenkins.groovy													V (bug_089)
+5602ae839 Merge branch 'xmhf64' into xmhf64-nest																				V
+2760f01af Extract common logic to tools/ci/jenkins.groovy						V (bug_089)
+0175e4888 Update CI																V (bug_089)
+60ba43625 More updates to CI													V (bug_089)
+b6f249b10 Update CI for KVM XMHF Windows										V (bug_089)
+310a0592c Add CI for KVM XMHF XMHF Debian										V (bug_089)
+9ef8e9367 Merge branch 'xmhf64' into xmhf64-nest																				V
+8f7d81d38 Update CI for KVM XMHF Debian											Feature: nested virtualization - CI XMHF in XMHF (bug_089)
+66b2ad27e Update CI																V (bug_088)
+7fccc88fa Workaround QEMU bug													V (bug_088)
+d83329247 Fix bug by not invalidating guest_ept_root (EPT12)					V (bug_088)
+4cc358d7e Increase EPT02_PAGE_POOL_SIZE											V (bug_088)
+ad21701f4 Decrease verbosity of TrustVisor										V (bug_088)
+96483829b Do not print nested vmentry and vmexit								V (bug_088)
+1aefad96f Decrease test size													V (bug_088)
+45545da3d Update test5.py to use LHV output to determine test pass				V (bug_088)
+6041be5ad Flush EPT02 when EPT01 is flushed										V (bug_088)
+2fa065a43 Write xmhf_nested_arch_x86vmx_flush_ept02()							V (bug_088)
+91cd79435 Update comments														V (bug_088)
+506470d3f Prevent EPT01 from affecting EPT02's memory type						V (bug_088)
+06a387f60 Revert most of 5876a6f8db11f2f8df4c41f120d2d07703c25c78 that cause pr	V (bug_088)
+5876a6f8d Invalidate EPT02 when EPT01 is invalidated							V (bug_088)
+130691485 Merge branch 'xmhf64' into xmhf64-nest																				V
+8968e4c63 Use xmhf_memprot_flushmappings_alltlb() in TrustVisor					V (bug_088)
+09ff733c9 Update CI																V (bug_088)
+e1fe73dc8 Support large pages in EPT01 and EPT12								V (bug_088)
+6355bd66f Merge branch 'xmhf64' into xmhf64-nest																				V
+b87a0dcdd Implement hpt_pme_set_page()											V (bug_088)
+993a5115c Fix typo																V (bug_088)
+a585a6323 Fix bug in nested-x86vmx-lru.h										V (bug_088)
+8cae6e5b0 indent																V (bug_088)
+d525e5d83 Also copy instruction length when copying IDT vectoring				V (bug_088)
+e3e687ca1 Change function order in header file									V (bug_088)
+586d36088 Print VMCS02 when VMENTRY fails using xmhf_nested_arch_x86vmx_handle_	V (bug_088)
+3a36b4a5f Fix typo																V (bug_088)
+fdb0a13ca Update CI																V (bug_088)
+98696d2e2 Support VMXOFF														V (bug_088)
+8b43b4310 Support VMPTRST														V (bug_088)
+5af7fe209 Fix typo related to VMCS shadowing									V (bug_088)
+3c6192ea0 Set VMREAD / VMWRITE bitmap for VMCS shadowing						V (bug_088)
+9d22e8a7d Implement the logic to use VMCS shadowing								Feature: nested virtualization - Optimize (bug_088)
+84b01ca77 Add logic to allow detecting XMHF through CPUID						V (bug_087)
+92bb54710 Swap priority of NMI windowing and NMI VMEXIT							V (bug_087)
+8044db960 Fix bug of extra NMI injected when __OPTIMIZE_NESTED_VIRT__			V (bug_087)
+00713eda7 Merge branch 'xmhf64' into xmhf64-nest																				V
+330e650f4 Disable NMIs during _optimize_x86vmx_intercept_handler()				V (bug_087)
+aae0167bf Disable NMIs during _optimize_x86vmx_intercept_handler()				V (bug_087)
+65da0f4d8 Detect XMHF limitation of injecting NMI while clearing virtual NMI bl	V (bug_087)
+28d175232 Update NMI windowing during nested VMEXIT								V (bug_087)
+bd7c46c83 Fix bug of copying control_VM_entry_interruption_information from VMC	V (bug_087)
+ab678ccba Halt when NMI exiting = 0 and L1 injects NMI to L2					V (bug_087)
+cc49ab14a Workaround indent oscillation											V (bug_087)
+c05c8f65b indent																V (bug_087)
+03cb5dd3e Support basic NMI exiting = 1											V (bug_087)
+40ae1ef3b Revert "Pass regs to xmhf_smpguest_arch_x86vmx_mhv_nmi_handle()"		V (bug_087)
+044fa9b95 Fix 2 bugs in NMI handling											V (bug_087)
+e246f9c43 Inject NMI during NMI window											V (bug_087)
+c276f13e5 Set NMI windowing bit when VMCS12 NMI exiting = 0						V (bug_087)
+50f946c0d Fix compile errors after merge										V (bug_087)
+a3b693e68 Merge branch 'xmhf64' into xmhf64-nest																				V
+b055c5d93 Pass regs to xmhf_smpguest_arch_x86vmx_mhv_nmi_handle()				V (bug_087)
+0e61c95f9 Make xmhf_smpguest_arch_x86vmx_mhv_nmi_disabled() non-static			V (bug_087)
+3e92ffad2 indent																V (bug_087)
+e77b6f99a Use interruption type instead of vector in nested virtualization		V (bug_087)
+f95c1d5c4 Merge branch 'xmhf64' into xmhf64-nest																				V
+fb77aece8 Add checks to interruption type										V (bug_087)
+d4d96751c Start capturing NMIs that happen during L0 XMHF						V (bug_087)
+54e0f4430 Merge branch 'xmhf64' into xmhf64-nest																				V
+f1361dd6f Implement xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting() to re	V (bug_087)
+15458899a Handle guest_interruptibility translation in VMCS						V (bug_087)
+ea6977834 Manually process guest_interruptibility in VMCS translations			V (bug_087)
+934d30e40 Check for NMI related fields in xmhf_nested_arch_x86vmx_vmcs12_to_vmc	V (bug_087)
+276496fb3 Use xmhf_nested_arch_x86vmx_handle_nmi() for NMI in L0 while handling	V (bug_087)
+4825ce8e0 Avoid calling find_active_vmcs12() in find_current_vmcs12()												Feature: nested virtualization
+1b72c4d59 Merge branch 'xmhf64' into xmhf64-nest																				V
+6b56acef7 Fix bug in PUSHAQ														V (bug_087)
+de4464501 Fix regression due to change in XMHF NMI code							V (bug_087)
+32826f0b9 Merge branch 'xmhf64' into xmhf64-nest																				V
+3297ae84b Fix bug in xmhf_smpguest_arch_x86vmx_nmi_block()						V (bug_087)
+39bfa074f Fix bug when handling NMI interrupt									V (bug_087)
+f4710c4a2 Check for overflow on vmx_guest_nmi_visited							V (bug_087)
+95275ab23 Make vmx_guest_nmi_visited a counter to prevent losing NMIs			V (bug_087)
+c01a32408 Simplify NMI logic by providing software NMI blocking simulation		V (bug_087)
+1dde5ac37 Use xmhf_smpguest_nmi_block() in TrustVisor							Feature: nested virtualization - NMI (bug_087)
+9840519b6 Add nested vmexit / vmentry printf back for CI						V (bug_085)
+1a2b8b266 Remove verbose printfs in nested virtualization						V (bug_085)
+b6e3637b4 Merge branch 'xmhf64' into xmhf64-nest																				V
+f41b83a6b Fix regression caused by a17801cc63ac99c981b5f6df880b5fc5e1ac47d5		V (bug_085)
+4b50506a3 Merge branch 'xmhf64' into xmhf64-nest																				V
+694e2ba2f Reduce TrustVisor and hpt output										V (bug_085)
+a17801cc6 Reduce TrustVisor and hpt output										V (bug_085)
+a8c210a3d Merge branch 'xmhf64' into xmhf64-nest																				V
+fc6d8f954 Fix bug caused by 06710e3a281727955342b981704d8d0a56e5ea45									V
+f9d68ee45 Support --enable-skip-init-smp to run XMHF in XMHF					V (bug_085)
+bf5a8d0de Support __OPTIMIZE_NESTED_VIRT__ for VMREAD and VMWRITE				V (bug_085)
+62300e80b Indent																V (bug_085)
+477159f1c Merge branch 'xmhf64' into xmhf64-nest																				V
+3d916a673 Fix bug of GRUB cannot handle keyboard input in nested XMHF			V (bug_085)
+117389b8f Reduce workaround code												V (bug_085)
+1bf106823 Reduce number of EPT violations caused when working around KVM bug	V (bug_085)
+bca582be3 Fix compile error when not using QEMU									V (bug_085)
+38ec92d34 Start working around KVM's REP INS bug								V (bug_085)
+daba03cff Implement ept_merge_hpt_pmt()											Feature: nested virtualization - XMHF in XMHF (bug_085)
+59bf041f0 Merge branch 'xmhf64' into xmhf64-nest																				V
+efdafbd78 Support changing __TARGET_BASE_SL in configure									V
+88863b9ef Merge branch 'xmhf64' into xmhf64-nest																				V
+3f0c4c695 Update grub_windows.img with smaller image										V
+746b9804c Support reduced GRUB modules for Windows GRUB image								V
+543f35a74 Support setting GRUB menu background color										V
+307d583ed Fix typo in grub.cfg template														V
+2bab7b3df Use Jinja2 to render grub.cfg, support changing menuentry and timeout				V
+1ffca1e3b Fix removal of incorrect file														V
+331f38d1b Update CI to prepare for rendering grub.cfg using Jinja2							V
+0c4b21f76 Update grub.cfg to support booting from other than first disk						V
+eecb1ffce Update CI																V (bug_084)
+ea7e59c79 Allow "IA-32e mode guest" bit in control_VM_entry_controls to change	V (bug_084)
+ad5e4a7c0 Document KVM bug														V (bug_084)
+4c67d4336 indent																V (bug_084)
+fdf1ce506 Workaround KVM bug of assuming nested guest CR3 in EPT				V (bug_084)
+2b1b23cf0 Merge branch 'xmhf64' into xmhf64-nest																				V
+3b8f57996 Fix bug in retrying CR0.PG and CR0.PE															V
+83ae2f294 Merge branch 'xmhf64' into xmhf64-nest																				V
+06710e3a2 Review printf()'s in peh-x86vmx-main.c														V
+ef4ed2a8f Enable "Unrestricted guest" bit in seccpu ctls						V (bug_084)
+1a939ec40 Merge branch 'xmhf64' into xmhf64-nest																				V
+6a1aae510 For i386 XMHF, hide 64-bit-ness of CPU in CPUID												V
+6b47f6c0b Merge branch 'xmhf64' into xmhf64-nest																				V
+d6aa1839e Remove some magic numbers related to VMX control bits											V
+455979163 Update CI																V (bug_084)
+a2617b289 Fix bug in INVEPT when running i386 LHV on amd64 XMHF					V (bug_084)
+a8099de20 Merge branch 'xmhf64' into xmhf64-nest																				V
+ea3baaad4 Check for CPU's 64-bit support in bootloader							V (bug_084)
+e69ca507a Support all types of INVVPID											V (bug_084)
+2cb2a8857 Support INVVPID 0														V (bug_084)
+20dad0089 Support guest hv enabling VPID										V (bug_084)
+66ecf84b7 Update type for __vmx_invvpid()										V (bug_084)
+a8eb927f7 Indent																V (bug_084)
+de0873065 Merge branch 'xmhf64' into xmhf64-nest																				V
+3f796487d Split ept02_ctx_init and ept12_ctx_init to only update needed fields	V (bug_084)
+4d54df6b9 Remove TODOs caused by c914beaf79370c8970051554d7b3d79f96f0bb8f		V (bug_084)
+c914beaf7 Extract LRU cache algorithm to nested-x86vmx-lru.h, using macros		V (bug_084)
+4f68a6bc4 Correct the VTd page root used in unbind (#12)															Bug: PR: VT-d problem
+458adf795 Flush TLB when VPID = 0												V (bug_084)
+daafed3d0 Use hptw_checked_get_pmeo() to walk page table for ept12				V (bug_084)
+3439cadbf Extract EPTP validation function in xmhf_nested_arch_x86vmx_check_ept	V (bug_084)
+8c0f7e841 Temporarily fix the problem that hptw_get_pmeo() does not check acces	V (bug_084)
+e37e303ba Implement handler for INVEPT											V (bug_084)
+524471878 Implement most of operand decoding for INVEPT and INVVPID				V (bug_084)
+aacfcc27c Modify LHV_OPT in CI													V (bug_084)
+8287f048a Declare INVEPT and INVVPID handlers									V (bug_084)
+cf26a8a34 Merge branch 'xmhf64' into xmhf64-nest																				V
+da54cf82d Execute pause in runtime.c's and dbg-x86-uart.c's busy wait loops								V
+4cae5a9de Execute pause in bplt-x86-reboot.c's busy wait loops											V
+b4718da96 Execute pause in bplt-x86-smp.c's busy wait loops												V
+ea1422a16 Undo moving udelay() in a01b11278ce93916db47af79f883ac3b00f77e86								V
+8af8fde89 Fix typo in 032af858b8cd8bba97c34bf5e1c4f1d60d84b572											V
+a01b11278 Execute pause in init.c's busy wait loops														V
+032af858b Execute pause in NMI handler's busy wait loops												V
+d2673e628 Execute pause in spin_lock's busy wait loop													V
+642491460 Merge branch 'xmhf64' into xmhf64-nest																				V
+925c13617 Fix bug in part-x86vmx.c: INVEPT on invalid EPT						V (bug_084)
+bdbdfba5d Merge branch 'xmhf64' into xmhf64-nest																				V
+842a171fe Check return value of __vmx_invept and __vmx_invvpid					V (bug_084)
+1f30c1be3 Check return value of __vmx_invept									V (bug_084)
+4fbd0061d Print when EPT cache miss												V (bug_084)
+6580b8166 Halt on 2 unimplemented cases: NMI with event injection and EPT misco	V (bug_084)
+44cfb2b4c Indent																V (bug_084)
+ccdd88de0 Cache ept12_ctx in EPT												V (bug_084)
+64d873004 Write LRU cache for EPTs per CPU										V (bug_084)
+67bd95800 Set feature MSR bits for EPT											V (bug_084)
+54c4697bd Solve the interrupt lose problem										V (bug_084)
+cc9e32ee5 Merge branch 'xmhf64' into xmhf64-nest																				V
+aadd462c1 Fix TrustVisor security bug: handle TLB shootdown															Bug: TrustVisor does not perform TLB shootdown (bug_084)
+6eb88e97b Flush cache for all L1 VMENTRY										V (bug_084)
+ff9e54529 Return 2 and 3 when !hpt_pmeo_is_page									V (bug_084)
+6df90c94b Handle EPT L2 -> L0 -> L2 case										V (bug_084)
+70a313b0d Make hpt_pmeo_getcache() publically available							V (bug_084)
+c3984b1a8 Merge branch 'xmhf64' into xmhf64-nest																				V
+99a7e5aba Use ext2 for GRUB (no journalling)												V
+8d63368ae Able to access memory accessed by L2 guest							V (bug_084)
+d8577177a Decrease memory usage to solve problem when AMD64 running on QEMU		V (bug_084)
+41ec0edfe Write skeleton for xmhf_nested_arch_x86vmx_handle_ept02_exit()		V (bug_084)
+671cd197d Use the encoding variable to make better coding style														V
+f4d5412f5 Print some information for L2 EPT violation							V (bug_084)
+5a721dfc6 indent																									V
+3c3359bb2 Replace more magic numbers with encoding names															V
+8fd10d670 use enum to manage VMCS encodings; and run indent															V
+8e43fbca0 Stop when EPT violation in xmhf_nested_arch_x86vmx_handle_vmexit()	V (bug_084)
+9304f66f0 Working on EPT														V (bug_084)
+89024d6e1 Skeleton code for xmhf_nested_arch_x86vmx_ept12_to_ept02()			V (bug_084)
+6625c5fb3 Modify EPT code in vmcs translation									V (bug_084)
+f09a18923 Merge branch 'xmhf64' into xmhf64-nest																				V
+8b5de43bf Remove hpt_internal.c (duplicate of hpt.c)							Feature: nested virtualization - EPT (bug_084)
+95be0e19a Assume exception bitmap cannot be changed by hardware											V
+2e2a3c300 Merge branch 'xmhf64' into xmhf64-nest																				V
+2441d2e2c Copy less GRUB modules to save space												V
+39ebffa37 Copy less GRUB modules to save space												V
+50d59a937 Build fast																		V
+713de24cf Merge branch 'xmhf64' into xmhf64-nest																				V
+7a7907bca Add cld in SKIP_RUNTIME_BSS																	V
+182ddc790 Update Jenkinsfile timeout														V
+e35ab5f05 Update CI																			V
+a1323939c Update Jenkins																	V
+ca961fa07 Support SKIP_BOOTLOADER_HASH: speed up XMHF boot when developing								V
+b780bc118 Speed up using rep stosb																		V
+c8b90b557 Fix SKIP_RUNTIME_BSS in amd64																	V
+cb5e63a69 Support SKIP_RUNTIME_BSS: speed up XMHF build when developing									V
+acad9ef02 Fix typo: BINBASED -> PINBASED in nested virtualization										V
+d923ae837 Merge branch 'xmhf64' into xmhf64-nest																				V
+4dfc37f29 Fix typo: BINBASED -> PINBASED																V
+24fbc0c2d Fix bug in VMENTRY MSR load											V (bug_082)
+26af6c4d5 Update CI																V (bug_082)
+858b45b4c Remove old NMI handling code																				V
+296d39b8d Solve the NMI deadlock problem																			V
+c6f552b61 Remove TODO															V (bug_082)
+96d898863 Fix NMI deadlock problem																					V
+8bccfb54e Merge branch 'xmhf64' into xmhf64-nest																				V
+5ec465427 Add xmhf_smpguest_arch_x86vmx_eventhandler_nmiexception()										V
+14c2f362a Clear host states																							V
+77cd035d1 Make L2 guest have virtual NMI																			Feature: nested virtualization
+dcc16e8a6 Perform assertions about control bits in vmcs02_to_vmcs12				V (bug_082)
+c13fa1e94 indent																V (bug_082)
+ce3a2cefd Fix bug																V (bug_082)
+2db3f6fbe Load 3 MSRs during VMENTRY/VMEXIT										V (bug_082)
+9f888f9ea Support VM_entry_MSR_load												V (bug_082)
+8a7dbe0f4 Support guest's VM_exit_MSR_load										V (bug_082)
+3fbd85c13 indent																V (bug_082)
+9bfb13159 Support VM_exit_MSR_store												V (bug_082)
+d9e0a0acd Merge branch 'xmhf64' into xmhf64-nest																				V
+738d65b71 Supporting VM_exit_MSR_store											V (bug_082)
+50279a161 Implement xmhf_parteventhub_arch_x86vmx_handle_wrmsr()				V (bug_082)
+e43dc2c7b Implement xmhf_parteventhub_arch_x86vmx_handle_rdmsr()				Feature: nested virtualization - MSR (bug_082)
+40953c907 Merge branch 'xmhf64' into xmhf64-nest																				V
+feb1747b1 Fix compile error														V
+2fe0a6519 Merge branch 'xmhf64' into xmhf64-nest																				V
+149e2714b Fix compile error														V
+028ccc111 Merge branch 'xmhf64' into xmhf64-nest																				V
+3c61e6b3c Implement guestmem_gpa2spa_size()										V
+e2c0496fd Merge branch 'xmhf64' into xmhf64-nest																				V
+abe41f5f1 Implement NMI virtualization that supports blocking and unblocking NM										Feature: support software NMI blocking (bug_083)
+6728b7785 Run indent over nested virtualization code							V
+281f75ef2 Merge branch 'xmhf64' into xmhf64-nest																				V
+7518bc1d1 Cherry pick non-NMI related changes from PR #10 (https://github.com/l							V
+a2f7411d5 Add MSR fields to vmcs12_info_t										V
+c224d5fdc Move struct vmcs12_info to header file								V
+d3c97a24b Remove all fields and add FIELD_PROP_SWWRONLY							V
+50bf7bbc6 Add FIELD_PROP_SWWRONLY flag											V
+345f3917b Fix typo																			V
+f94d01936 Support LHV_OPT																	V
+d34ef5b65 Panic when nested vmexit is handled by vmxroot handlers				Feature: nested virtualization
+aab1b5643 Add CI for nested virtualization (squash 450ea1996..b71f804b9)		V (bug_079)
+40610219d Print nested vmentry and vmexit										V (bug_079)
+0a5ddcdfd Fix bug when running i386 LHV and amd64 XMHF							V (bug_079)
+6397d4bd9 Fix typo in DECLARE_FIELD_32_RO										V (bug_079)
+0b03f23e1 Fix VMENTRY error when amd64 XMHF run i386 guest hv					V (bug_079)
+faef6096f Fix vmread / vmwrite handling error when running i386 lhv in amd64 xm	V (bug_079)
+b3c8aed33 Prepare VMRESUME to guest hypervisor									V (bug_079)
+b75172b81 Merge branch 'xmhf64' into xmhf64-nest																				V
+d2daaeaf9 Fix bug in vmx_handle_intercept_cr0access_ug() about handling PAE								V
+280bb32dc Fix guest triple fault when enabling EPT								V (bug_079)
+602c3dc38 Move SYSENTER_CS to nested-x86vmx-vmcs12-guesthost.h					V (bug_079)
+84f5350df Rename host_IA32_SYSENTER_CS to host_SYSENTER_CS						V (bug_079)
+f9056a088 Use nested-x86vmx-vmcs12-guesthost.h to compress code between guest a	V (bug_079)
+01942b974 Add comments to nested-x86vmx-vmcs12-fields.h							V (bug_079)
+7ae10b0ee Add manual processing code for FIELD_PROP_ID_HOST						V (bug_079)
+dd2dfebf8 Support FIELD_PROP_ID_GUEST and FIELD_PROP_GPADDR						V (bug_079)
+8827a656e Modify nested-x86vmx-vmcs12-fields.h to prepare for automation (Curre	V (bug_079)
+54b55dd29 Add FIELD_PROP_{GUEST,HOST,CTRL,RO}									V (bug_079)
+a61888225 Always enable secondary CPU control									V (bug_079)
+6c72e8726 Fix indent															V (bug_079)
+4d0f83bee Remove "check whether guest hypervisor enables the feature"			V (bug_079)
+82e3eb1b4 Skip copying fields the guest does not use							V (bug_079)
+824c310ed Use local ctls in vmcs12_to_vmcs02 and vmcs02_to_vmcs12				V (bug_079)
+b3d9bf421 Follow struct vmx_ctls's interfaces in nested virtualization			V (bug_079)
+d824adb33 Merge branch 'xmhf64' into xmhf64-nest																				V
+e203d3120 Add struct vmx_ctls to track control bits / capabilities										V
+f24d67709 Support IA32_VMX_VMFUNC MSR																				V (bug_081)
+bd3af6ce2 Handle VMCS12 host -> VMCS02 guest fields								V (bug_079)
+2a6c16336 Complete xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12()					V (bug_079)
+3997ad609 Complete 32-bit fields												V (bug_079)
+acbe39164 Translate on 32-bit contorl fields; fix bug in control_VMX_seccpu_bas	V (bug_079)
+53d027111 Complete 64-bit fields												V (bug_079)
+06139a195 Write 64-Bit control fields											V (bug_079)
+ec91fffcf Writing xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12()					V (bug_079)
+6ccdce5f2 Temporarily remove IA32_VMX_VMFUNC_MSR in nested virtualization											V (bug_081)
+46d7c20aa Merge branch 'xmhf64' into xmhf64-nest																				V
+f326512f4 Temporarily drop support for IA32_VMX_VMFUNC_MSR due to regression										Intel SDM typo (bug_081)
+7b3f4332c Add declaration to xmhf_nested_arch_x86vmx_vmcs02_to_vmcs12()			V (bug_079)
+066224af9 Return error to guest hv in xmhf_nested_arch_x86vmx_vmcs12_to_vmcs02(	V (bug_079)
+cbba24558 Move vmcs12_to_vmcs02 to a function in vmcs12.c						V (bug_079)
+974a752bc Add nested-x86vmx-vminsterr.h											V (bug_079)
+8b8db59bd Do not set unrestricted guest											V (bug_079)
+bd05cdb69 Remove "this should be considered KVM bug"							V (bug_079)
+d106e02bb Merge branch 'xmhf64' into xmhf64-nest																				V
+195973e9a Change \n for dmap																			V
+f7b8d3b9f Write xmhf_nested_arch_x86vmx_vmread_all()							V (bug_079)
+3c39d7d38 Write xmhf_nested_arch_x86vmx_vmcs_dump()								V (bug_079)
+83af7d582 Declare xmhf_nested_arch_x86vmx_handle_vmexit()						V (bug_079)
+13f9a6b80 Enable EPT and unrestricted guest										V (bug_079)
+9cb77710a Set vmx_nested_is_vmx_root_operation when nested vmentry				V (bug_079)
+a5678c62e Move '\n' to end of printf() in nested virtualization											V
+b6311cd2a Merge branch 'xmhf64' into xmhf64-nest																				V
+d8f2220a6 Move '\n' to end of printf()																	V
+c4afaf4d8 Be able to enter nested guest, but disabled EPT						V (bug_079)
+1c2ffa207 Merge branch 'xmhf64' into xmhf64-nest																				V
+d870629a9 Update timeout																							V
+c623fa411 Try to call __vmx_vmentry_vmlaunch() for nested guest					V (bug_079)
+0ddb5507d Make DECLARE_FIELD_* variadic macros									V (bug_079)
+b79fd8dcf Complete Natural-Width guest and host fields							V (bug_079)
+f3dca7c48 Enable Unrestricted guest in XMHF, but not guest hv					V (bug_079)
+4019309cb Complete Natural-Width Control Fields									V (bug_079)
+2b8a1fb3c Add DEBUG_QEMU														V (bug_079)
+3249875cd Complete 32-Bit Guest/Host -State Fields								V (bug_079)
+f623b4c13 Complete 32-Bit Control Fields										V (bug_079)
+6b1f898be Retry in Jenkins CI for Windows																			V
+d5353dde1 Merge branch 'xmhf64' into xmhf64-nest																				V
+3e2d82610 Use macros from _vmx_cap.h																	V
+0ffe1559e Working on 32-bit control fields										V (bug_079)
+3e9b7021a Add vmx_nested_*_ctls fields to VCPU									V (bug_079)
+7d66603bf Add MSRs to RDMSR and WRMSR intercept									V (bug_079)
+6749c2454 Cover INDEX_IA32_VMX_TRUE_* in xmhf_nested_arch_x86vmx_vcpu_init()	V (bug_079)
+c91cb0572 Merge branch 'xmhf64' into xmhf64-nest																				V
+499e4f0e1 Fix INDEX_IA32_VMX_TRUE_* macro name															V
+6c45b871c Update xmhf_baseplatform_arch_x86vmx_dump_vcpu() with nested virt fie	V (bug_079)
+a6f36c062 Merge branch 'xmhf64' into xmhf64-nest																				V
+1829f3c26 Remove vmx_guest_currentstate andvmx_guest_nextstate from VCPU								V
+0e3bb7b47 Remove vmx_msr_efer and vmx_msr_efcr from VCPU												V
+e169b9fab Use functions in _vmx_cap.h											V (bug_079)
+48bc999e0 Consider INDEX_IA32_VMX_TRUE_*_CTLS MSRs when IA32_VMX_BASIC_MSR[55]	V (bug_079)
+a4f874f84 Modify other MSRs														V (bug_079)
+9d5879f0c Modify VMX MSRs for guest hypervisor									V (bug_079)
+23eafc184 Complete 64-Bit Host-State Fields										V (bug_079)
+6a3d740fc Complete 64-Bit Guest-State Fields									V (bug_079)
+28f833108 Complete 64-bit control fields										V (bug_079)
+ae785e198 Add some more nested virtualization fields							V (bug_079)
+b8eede338 Merge branch 'xmhf64' into xmhf64-nest																				V
+c447283b9 Write Jenkins CI for Windows 7 and higher																	V (bug_080)
+cb871f15f Make pal_demo compilable on Fedora																		V (bug_080)
+28a0b7d74 Update CI docs																							Feature: CI for Windows (bug_080)
+4ed89c9c8 Fix typo																						V
+f9667b40e Check spa < 4G in i386 XMHF																	V
+dad41371f Write guestmem_gpa2spa_page()											V (bug_079)
+f7eaa5106 Fix comments in guestmem_copy_h2gv() and guestmem_copy_h2gp()									V
+123b4d6f7 Merge branch 'xmhf64' into xmhf64-nest																				V
+b32661c70 Mxmhf64 (#8)																					V
+ebb0c0a01 Merge branch 'xmhf64' into xmhf64-nest																				V
+b75a4e95a Remove inline of __vmx_vmread* and __vmx_vmwrite* functions (gcc O3 w							V
+227910844 Remove inline of __vmx_vmread* and __vmx_vmwrite* functions (gcc O3 w							V
+5fbb4d477 Complete 16-bit fields in _vmx_vmentry()								V (bug_079)
+3c123d401 Merge branch 'xmhf64' into xmhf64-nest																				V
+eb84cb0f9 Add _vmx_cap.h														V (bug_079)
+ffa83f2b8 Add _vmx_cap.h														V (bug_079)
+032c7da90 Merge branch 'xmhf64' into xmhf64-nest																				V
+b71dc65f1 Fix bug in __vmx_vmread() and __vmx_vmwrite(): operand cannot be inte							V
+5ed147f43 Merge branch 'xmhf64' into xmhf64-nest																				V
+c1b175ec9 Fix bug in __vmx_vmread() and __vmx_vmwrite(): operand cannot be inte							V
+94ef38262 Update docs for CI																V
+670c47712 Use properties and parameters in Jenkinsfile for parameters						V
+adb991e26 Move parameters in Jenkinsfile													V
+7dfce2f34 Support supplying BUILD_OPTS in Jenkins											V
+d6eea2f09 Use __vmx_vmread*() and __vmx_vmwrite*() in OPTIMIZE_NESTED_VIRT		V (bug_079)
+de5e92db3 Merge branch 'xmhf64' into xmhf64-nest																				V
+81001741b Remove fields in struct _vmx_vmcsfields								V (bug_079)
+53e832aba Support different types of fields in __vmx_vmread*() and __vmx_vmwrit	V (bug_079)
+6673cbc7a Writing _vmx_vmentry()												V (bug_079)
+100f595ed Merge branch 'xmhf64' into xmhf64-nest																				V
+267313a51 Remove #BP handling code in xmhf_xcphandler_arch_hub()										V
+0f9e01cdd Fix typo																						V
+7ae76b336 Use __vmx_vmentry_vmresume(), instead of using #BP exception									V
+5675a058d Fix typo																						V
+853892d38 Convert __vmx_start_hvm to a macro to also handle VMRESUME									V
+a939d7c31 Fix x64 IDT limit																				V
+64f7f2ddc Remove tabs from xcph-stubs-i386.S															V
+c3881e546 Merge different subarchs to peh-x86vmx-entry.S												V
+6ee9d74f8 Fix compile bug																				V
+8a84215f8 Add comments for __vmx_start_hvm_fail()														V
+6464fae4b Merge different subarchs to part-x86vmx-sup.S													V
+c262179b8 Write PUSHFD / POPFD macros																	V
+1ad94c097 Let __vmx_start_hvm() accept struct regs argument												V
+856fea7f8 Implement __vmx_vmentry_fail_callback(); __vmx_start_hvm() no longer 							V
+14770aafc Remove tabs in part-x86-i386vmx-sup.S															V
+1581d001c Remove tabs in peh-x86-i386vmx-entry.S														V
+d4d2e7c9e Add warning when write to readonly field in xmhf_nested_arch_x86vmx_v	V (bug_079)
+39ae630f2 Fix bug in _vmx_nested_vm_fail_valid()								V (bug_079)
+dce5b3f0c Tracker whether VMCS12 is launched in XMHF							V (bug_079)
+4324f7c5c Implement most checks in xmhf_nested_arch_x86vmx_handle_vmlaunch_vmre	V (bug_079)
+207a1884e Implement _vmx_nested_vm_fail_valid()									V (bug_079)
+5c88bc942 Merge branch 'xmhf64' into xmhf64-nest																				V
+b156f650b Update Makefile clean																V
+5dc1c0f84 Merge branch 'xmhf64' into xmhf64-nest																				V
+ca3513447 Remove unnecessary packed attributes from _vmx.h												V
+383b043fe Change guest CR0 and CR4 to ulong_t															V
+f510e75bd Fix rdmsr bug in vmx_initunrestrictedguestVMCS()												V
+fc82af2f0 Remove xmhf_baseplatform_arch_x86vmx_dumpVMCS()												V
+29572f5b2 Add checks to field types in xmhf_baseplatform_arch_x86vmx_dump_vcpu(							V
+84bd837f9 Update xmhf_baseplatform_arch_x86vmx_dump_vcpu() following changes to							V
+61282920f Update fields in VMCS																			V
+c85e7f9ba Add check on VMCS field sizes																	V
+80378b06a Fix bug in VMREAD handler												V (bug_079)
+07b739cbe Support accessing high bits of 64-bit VMCS							V (bug_079)
+d84227547 Complete VMREAD success path logic									V (bug_079)
+ed2244227 Remove guest memory reference logic in _vmx_decode_mem_operand()		V (bug_079)
+23b0c07ad Fix bug in _vmx_decode_mem_operand									V (bug_079)
+dd5d261a6 Implement VMREAD error checking										V (bug_079)
+eefa1024b Fix typo (causing bug in VMWRITE)										V (bug_079)
+d428196ca Define all VMCS fields												V (bug_079)
+292171e55 Complete VMWRITE logic												V (bug_079)
+395c10ad0 Merge memory operand accessing code									V (bug_079)
+ee0f4e9f0 Add code to decode VMWRITE operands									V (bug_079)
+9dd2db9bf Write most of error checking for VMWRITE								V (bug_079)
+efdc6f8b8 Use hva2spa() and spa2hva()											V (bug_079)
+f52728d32 Initialize VMCS02 in VMPTRLD											V (bug_079)
+55226f086 Write logic of VMPTRLD following Intel manual							V (bug_079)
+9ec206a5b Define active VMCS12 tracking											V (bug_079)
+8e0183852 Implement basic guest VMCS field management							V (bug_079)
+df8859136 Add xmhf_nested_arch_x86vmx_vcpu_init()								V (bug_079)
+beae7f53b Rename nested intercept handlers										V (bug_079)
+868aa072b Merge branch 'xmhf64' into xmhf64-nest																				V
+089e1d242 GitHub Actions: separate pal_demo from xmhf64										V
+90dd6a242 Update GitHub CI														V (bug_079)
+676763932 Fix typo in configure.ac												V (bug_079)
+89267bab9 Move nested virtualization to its own component (xmhf-nested)			V (bug_079)
+836f98a9f Merge branch 'xmhf64' into xmhf64-nest																				V
+ab7968ed8 Be able to generate a GRUB chainloader for booting Windows						CI / logistics
+47e987016 Complete implementing xmhf_parteventhub_arch_x86vmx_handle_intercept_	V (bug_079)
+fb4c6f353 debugged																V (bug_079)
+544887b33 Implementing xmhf_parteventhub_arch_x86vmx_handle_intercept_vmclear()	V (bug_079)
+40039247f Implement _vmx_nested_vm_fail() and _vmx_check_physical_addr_width()	V (bug_079)
+64265b78c Implement some of xmhf_parteventhub_arch_x86vmx_handle_intercept_vmcl	V (bug_079)
+751b4e30a Write _vmx_nested_check_ud() to reduce repeated logic					V (bug_079)
+bb283aba2 Add vmx_nested_current_vmcs_pointer to VCPU							V (bug_079)
+f721372fa Merge branch 'xmhf64' into xmhf64-nest																				V
+f83221188 Fix bug in incorrect use of CPU_EXCEPTION_NMI as bit map										V
+c9ac5d25b Move vmx_guest_inject_nmi out of xmhf_baseplatform_arch_x86vmx_getVMC							V
+27fcf4b53 Add xmhf_app_handlecpuid() for all hypapps													V
+ce2c14433 Fix screen glitch issue on HP2540p (#7)																	Bug: PR: 2540P DMAP screen glitch
+584e72675 Complete xmhf_parteventhub_arch_x86vmx_handle_intercept_vmxon()		V (bug_079)
+1f31da255 Merge branch 'xmhf64' into xmhf64-nest																				V
+d07c6a92f Fix typo in __HIDE_X2APIC__																	V
+99be1cc9e Remove debugging printfs												V (bug_079)
+156c56e47 Use correct CR0 and CR4 for guest										V (bug_079)
+927458df5 Implementing checks in xmhf_parteventhub_arch_x86vmx_handle_intercept	V (bug_079)
+bc1a90f68 Implement correct path for xmhf_parteventhub_arch_x86vmx_handle_inter	V (bug_079)
+c89b1cd8e Merge branch 'xmhf64' into xmhf64-nest																				V
+f96ec8305 Implement PAE CR0 handling																	V
+d2c813e7b Implement _vmx_get_guest_efer()																V
+9f94e26c2 Add some states in VMCS to track VMX operation						V (bug_079)
+01e9aa55c Merge branch 'xmhf64' into xmhf64-nest																				V
+f4617076a Write helper function to inject exceptions													V
+7aa1ea127 Get VMXON pointer address from guest memory space						V (bug_079)
+5b3916796 Merge branch 'xmhf64' into xmhf64-nest																				V
+9380f77eb In hptw_checked_copy_from_va(), require succeeding											V
+6dfd301bf Merge branch 'xmhf64' into xmhf64-nest																				V
+173be4f5b Move guest memory access functions to another file											V
+c5ed37782 Decode memory operand													V (bug_079)
+960353e0e Write function prototype for VMX instruction intercept handlers		V (bug_079)
+427d32548 Merge branch 'xmhf64' into xmhf64-nest																				Misc change (git merge)
+123ee41f6 Fix bug in asm calculation																	V
+d02408cf0 Reorder registers in amd64																	V
+96f0022ac Add configuration option for nested virtualization					Feature: nested virtualization (bug_079)
+78b56c9ca Disable x2APIC from CI (workaround a bug that may be in KVM)						V (bug_078)
+356013eb7 Update CI docs																	V (bug_078)
+1b63cf928 Workaround git 2.30 bug to perform Jenkins CI in Debian							V (bug_078)
+2a206b1d0 Add documentation for CI															V (bug_078)
+a8610d2f9 When x2APIC, do not poll on ICR "Delivery Status"									Feature: CI in Debian (bug_078)
+a65ee0d63 Allow guest to send INIT-SIPI-SIPI to "All Excluding Self"			Bug: send INIT-SIPI-SIPI to "All Excluding Self" (bug_074)
+14dc5b41c Check for errors when debugfs fails												V
+b9af2fb52 Use grub.cfg to distinguish subarch, not grubenv									V
+11fb8b648 Update scripts in response to moving files to /tools/ci							V
+082409e8c Move CI files to tools/ci (only moved files)										V
+cd11375c3 Fix bug in grub.py																V
+55c2c0bfa Fix grub.py																		V
+47dabfa44 Remove --xmhf-bin in test3.py in Jenkinsfile										V
+ab1438c28 Split test3.py to grub.py and itself												V
+699c983fd Add --skip-test																	V
+63240f0ef Remove documentations																V
+a5c055276 Disable x2APIC in circle CI														V
+f386da679 Update .gitignore																	V
+fa2e9888b Remove .jenkins/boot/grub/i386-pc/												V
+ca07e6b54 Ignore .sha1 files																V
+d2bd1d05a Bug in 32-bit XMHF secureloader: gdt_base not converted to sla								V
+560c74c05 Remove UNIX execute bit for non-executable files									CI / logistics
+a3ab24993 Fix bug in build.sh																			V
+ee71c1210 Fix typo in lds file																			Misc change
 d0f2be0fb Enable ucode in CI													V (bug_067)
 e995b81e3 Implement microcode update											Feature: Intel microcode update (bug_067)
 18ecd868e Prevent commands containing paths in debugfs										V (bug_069)

@@ -224,7 +224,7 @@ inject_nmi() {
 }
 ```
 
-This is implemented in `7518bc1d1..8fd163a89`.
+This is implemented in `7518bc1d1..abe41f5f1`.
 
 ### Review call to `xmhf_smpguest_arch_x86vmx_unblock_nmi()`
 
@@ -248,6 +248,6 @@ return with IRET, so we do not need to execute IRET manually (will print
 
 ## Fix
 
-`7518bc1d1..8fd163a89`
+`7518bc1d1..abe41f5f1`
 * Implement NMI virtualization that supports blocking and unblocking NMI
 
