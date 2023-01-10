@@ -176,12 +176,8 @@ static void _vmx_gathermemorytypes(VCPU *vcpu){
 
 	//0. sanity check
   	//check MTRR support
-  	eax=0x00000001;
-  	ecx=0x00000000;
 	#ifndef __XMHF_VERIFICATION__
-  	asm volatile ("cpuid\r\n"
-            :"=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
-            :"a"(eax), "c" (ecx));
+	cpuid(1, &eax, &ebx, &ecx, &edx);
   	#endif
 
   	if( !(edx & (u32)(1 << 12)) ){
@@ -441,10 +437,19 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 		printf("CPU(0x%02x): WRMSR (MTRR) 0x%08x 0x%016llx (old = 0x%016llx)\n",
 				vcpu->id, msr, val, oldval);
 	}
-	/* Check whether hypapp allows modifying MTRR */
-	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+	/*
+	 * Check whether hypapp allows modifying MTRR
+	 *
+	 * TODO: For TrustVisor, there is a corner case race condition:
+	 * 1. CPU X calls xmhf_app_handlemtrr() and returns
+	 * 2. CPU Y starts TrustVisor business, which modifies EPT01
+	 * 3. CPU X calls _vmx_updateEPT_memtype(), which modifies EPT01
+	 *
+	 * A possible workaround is to call xmhf_app_handlemtrr() after
+	 * _vmx_updateEPT_memtype(). However this does not work if the hypapp has
+	 * special MTRR handling code.
+	 */
 	hypapp_status = xmhf_app_handlemtrr(vcpu, msr, val);
-	xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 	if (hypapp_status != APP_SUCCESS) {
 		printf("CPU(0x%02x): Hypapp does not allow changing MTRRs. Halt!\n",
 				vcpu->id);
@@ -534,22 +539,27 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val) {
 		 */
 		printf("CPU(0x%02x): Update EPT memory types due to MTRR\n", vcpu->id);
 		_vmx_updateEPT_memtype(vcpu, 0, MAX_PHYS_ADDR);
-		xmhf_memprot_arch_x86vmx_flushmappings_localtlb(vcpu);
+		xmhf_memprot_arch_x86vmx_flushmappings_localtlb(vcpu, MEMP_FLUSHTLB_MT_ENTRY);
 	}
 	return 0;
 }
 
 //flush hardware page table mappings (TLB)
-void xmhf_memprot_arch_x86vmx_flushmappings(VCPU *vcpu){
-  HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_SINGLECONTEXT,
-                                 (u64)vcpu->vmcs.control_EPT_pointer));
-}
-
-//flush hardware page table mappings (TLB)
-void xmhf_memprot_arch_x86vmx_flushmappings_localtlb(VCPU *vcpu){
+void xmhf_memprot_arch_x86vmx_flushmappings_localtlb(VCPU *vcpu, u32 flags){
   (void)vcpu;
-  HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_GLOBAL,
-                                 (u64)0));
+
+  /*
+   * Note: when only EPTP changes, there is no need to call INVEPT.
+   * Note: currently the API does not specify which EPT's entries are changed.
+   */
+  if ((flags & (MEMP_FLUSHTLB_ENTRY | MEMP_FLUSHTLB_MT_ENTRY)) != 0) {
+    HALT_ON_ERRORCOND(__vmx_invept(VMX_INVEPT_GLOBAL, 0ULL));
+  }
+
+#ifdef __NESTED_VIRTUALIZATION__
+  /* When nested virtualization, invalidate all EPT02's */
+  xmhf_nested_arch_x86vmx_flush_ept02(vcpu, flags);
+#endif /* __NESTED_VIRTUALIZATION__ */
 }
 
 //set protection for a given physical memory address
@@ -624,13 +634,24 @@ u32 xmhf_memprot_arch_x86vmx_getprot(VCPU *vcpu, u64 gpa){
   return prottype;
 }
 
+/* Get EPT pointer. When nested virtualization, get EPT01. */
 u64 xmhf_memprot_arch_x86vmx_get_EPTP(VCPU *vcpu)
 {
   HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
   return vcpu->vmcs.control_EPT_pointer;
 }
+
+/*
+ * Set EPT pointer. When nested virtualization, set EPT01.
+ *
+ * Note: when nested virtualization is enabled, the CPU needs to call
+ * xmhf_nested_arch_x86vmx_flush_ept02() to make sure that EPT02 settings are
+ * updated according to the change in EPT01. Currently in TrustVisor this EPT02
+ * flushing function is called later during flushing EPT01 TLB.
+ */
 void xmhf_memprot_arch_x86vmx_set_EPTP(VCPU *vcpu, u64 eptp)
 {
   HALT_ON_ERRORCOND(vcpu->cpu_vendor == CPU_VENDOR_INTEL);
   vcpu->vmcs.control_EPT_pointer = eptp;
 }
+

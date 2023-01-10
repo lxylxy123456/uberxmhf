@@ -53,9 +53,6 @@
 
 #ifndef __ASSEMBLY__
 
-/// @brief maximum number of RSDT entries we support
-#define ACPI_MAX_RSDT_ENTRIES (256)
-
 /// @brief The invalid handler of the IOMMU PageTable
 #define IOMMU_PT_INVALID	0xFFFFFFFF
 
@@ -156,6 +153,10 @@ u32 xmhf_dmaprot_earlyinitialize(u64 protectedbuffer_paddr,
 u32 xmhf_dmaprot_initialize(u64 protectedbuffer_paddr,
 	u32 protectedbuffer_vaddr, u32 protectedbuffer_size);
 
+// Call memprot to protect DRHD pages. Should be called by each CPU after
+// xmhf_dmaprot_initialize().
+void xmhf_dmaprot_protect_drhd(VCPU *vcpu);
+
 // Enable the DMA protection HW
 // [NOTE] This function must be separated from <xmhf_dmaprot_initialize>. Otherwise, misconfigured devices can have a 
 // chance to modify XMHF binary between the function <xmhf_dmaprot_initialize> and <xmhf_dmaprot_protect> inside 
@@ -181,6 +182,7 @@ u32 xmhf_dmaprot_arch_earlyinitialize(u64 protectedbuffer_paddr,
 	u64 memregionbase_paddr, u32 memregion_size);
 u32 xmhf_dmaprot_arch_initialize(u64 protectedbuffer_paddr,
 	u32 protectedbuffer_vaddr, u32 protectedbuffer_size);
+void xmhf_dmaprot_arch_protect_drhd(VCPU *vcpu);
 u32 xmhf_dmaprot_arch_enable(u64 protectedbuffer_paddr,
 	u32 protectedbuffer_vaddr, u32 protectedbuffer_size);
 void xmhf_dmaprot_arch_protect(spa_t start_paddr, size_t size);
@@ -209,6 +211,7 @@ u32 xmhf_dmaprot_arch_x86_vmx_earlyinitialize(sla_t protectedbuffer_paddr,
 	sla_t memregionbase_paddr, u32 memregion_size);
 u32 xmhf_dmaprot_arch_x86_vmx_initialize(spa_t protectedbuffer_paddr,
 	hva_t protectedbuffer_vaddr, size_t protectedbuffer_size);
+void xmhf_dmaprot_arch_x86_vmx_protect_drhd(VCPU *vcpu);
 u32 xmhf_dmaprot_arch_x86_vmx_enable(spa_t protectedbuffer_paddr,
 	hva_t protectedbuffer_vaddr, size_t protectedbuffer_size);
 void xmhf_dmaprot_arch_x86_vmx_protect(spa_t start_paddr, size_t size);
@@ -253,20 +256,20 @@ extern void xmhf_dmaprot_arch_x86_svm_invalidate_cache(void);
 
 //VMX VT-d page table buffers; we support a 3 level page-table walk,
 //4kb pdpt, 4kb pdt and 4kb pt and each entry in pdpt, pdt and pt is 64-bits
-//extern u8 g_vmx_vtd_pdp_table[] __attribute__(( section(".bss.palign_data") ));
-//extern u8 g_vmx_vtd_pd_tables[] __attribute__(( section(".bss.palign_data") ));
-//extern u8 g_vmx_vtd_p_tables[] __attribute__(( section(".bss.palign_data") ));
+//extern u8 g_vmx_vtd_pdp_table[] __attribute__((aligned(PAGE_SIZE_4K)));
+//extern u8 g_vmx_vtd_pd_tables[] __attribute__((aligned(PAGE_SIZE_4K)));
+//extern u8 g_vmx_vtd_p_tables[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //VMX VT-d Root Entry Table (RET)
 //the RET is 4kb, each root entry (RE) is 128-bits
 //this gives us 256 entries in the RET, each corresponding to a PCI bus num. (0-255)
-extern u8 g_vmx_vtd_ret[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_vtd_ret[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //VMX VT-d Context Entry Table (CET)
 //each RE points to a context entry table (CET) of 4kb, each context entry (CE)
 //is 128-bits which gives us 256 entries in the CET, accounting for 32 devices
 //with 8 functions each as per the PCI spec.
-extern u8 g_vmx_vtd_cet[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_vtd_cet[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 
 #endif	//__ASSEMBLY__

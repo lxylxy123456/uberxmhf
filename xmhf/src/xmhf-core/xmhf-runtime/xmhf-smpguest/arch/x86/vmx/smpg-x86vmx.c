@@ -103,7 +103,7 @@ static void vmx_lapic_changemapping(VCPU *vcpu, u32 lapic_paddr, u32 new_lapic_p
 
   pts[lapic_page] = value;
 
-  xmhf_memprot_arch_x86vmx_flushmappings(vcpu);
+  xmhf_memprot_arch_x86vmx_flushmappings_localtlb(vcpu, MEMP_FLUSHTLB_ENTRY);
 #endif //__XMHF_VERIFICATION__
 }
 //----------------------------------------------------------------------
@@ -204,7 +204,7 @@ void xmhf_smpguest_arch_x86vmx_initialize(VCPU *vcpu, u32 unmaplapic){
   rdmsr(MSR_APIC_BASE, &eax, &edx);
   HALT_ON_ERRORCOND( edx == 0 ); //APIC should be below 4G
 
-  g_vmx_lapic_base = eax & 0xFFFFF000UL;
+  g_vmx_lapic_base = eax & 0xFFFFF000U;
   //printf("BSP(0x%02x): LAPIC base=0x%08x\n", vcpu->id, g_vmx_lapic_base);
 
   if (unmaplapic) {
@@ -271,8 +271,9 @@ u32 xmhf_smpguest_arch_x86vmx_eventhandler_hwpgtblviolation(VCPU *vcpu, u32 padd
   vcpu->vmcs.guest_RFLAGS &= ~(EFLAGS_IF);
 
   //disable NMIs
-  g_vmx_lapic_guest_intr_nmimask = vcpu->vmcs.guest_interruptibility & (1U << 3);
-  vcpu->vmcs.guest_interruptibility |= (1U << 3);
+  g_vmx_lapic_guest_intr_nmimask =
+    vcpu->vmcs.guest_interruptibility & VMX_GUEST_INTR_BLOCK_NMI;
+  vcpu->vmcs.guest_interruptibility |= VMX_GUEST_INTR_BLOCK_NMI;
 
   //intercept all exceptions (XMHF will panic if the guest's APIC access resuls
   //in an exception)
@@ -399,6 +400,7 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_dbexception(VCPU *vcpu, struct regs 
   if(delink_lapic_interception){
     printf("%s: delinking LAPIC interception since all cores have SIPI\n", __FUNCTION__);
 	vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_MAP);
+	xmhf_partition_arch_x86vmx_clear_msrbitmap_x2apic_icr(vcpu);
   }else{
 	vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_UNMAP);
   }
@@ -409,7 +411,9 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_dbexception(VCPU *vcpu, struct regs 
   vcpu->vmcs.guest_RFLAGS |= g_vmx_lapic_guest_eflags_tfifmask;
 
   //restore NMI blocking (likely enable NMIs)
-  vcpu->vmcs.guest_interruptibility |= g_vmx_lapic_guest_intr_nmimask;
+  vcpu->vmcs.guest_interruptibility =
+    ((vcpu->vmcs.guest_interruptibility & ~VMX_GUEST_INTR_BLOCK_NMI) |
+     g_vmx_lapic_guest_intr_nmimask);
 
   //restore exception bitmap
   vcpu->vmcs.control_exception_bitmap = g_vmx_lapic_exception_bitmap;
@@ -453,6 +457,7 @@ int xmhf_smpguest_arch_x86vmx_eventhandler_x2apic_icrwrite(VCPU *vcpu, u64 value
 			 */
 			printf("%s: delinking LAPIC interception since all cores have SIPI\n", __FUNCTION__);
 			vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_MAP);
+			xmhf_partition_arch_x86vmx_clear_msrbitmap_x2apic_icr(vcpu);
 		}
 		return 1;
 	default:
@@ -475,20 +480,20 @@ static void _vmx_send_quiesce_signal(VCPU __attribute__((unused)) *vcpu){
 
   if (eax & (1U << 10)) {
     /* x2APIC enabled, use it */
-    u32 eax = 0x000C0400UL;
-    u32 edx = 0xFFFFFFFFUL;
+    u32 eax = 0x000C0400U;
+    u32 edx = 0xFFFFFFFFU;
     wrmsr(IA32_X2APIC_ICR, eax, edx);
   } else {
     /* use LAPIC */
     volatile u32 *icr_low = (u32 *)(0xFEE00000 + 0x300);
     volatile u32 *icr_high = (u32 *)(0xFEE00000 + 0x310);
-    u32 icr_high_value= 0xFFUL << 24;
+    u32 icr_high_value= 0xFFU << 24;
     u32 prev_icr_high_value;
 
     prev_icr_high_value = *icr_high;
 
     *icr_high = icr_high_value;    //send to all but self
-    *icr_low = 0x000C0400UL;      //send NMI
+    *icr_low = 0x000C0400U;      //send NMI
 
     //check if IPI has been delivered successfully
     //printf("%s: CPU(0x%02x): firing NMIs...\n", __FUNCTION__, vcpu->id);
@@ -553,6 +558,9 @@ void xmhf_smpguest_arch_x86vmx_quiesce(VCPU *vcpu){
         spin_lock(&g_vmx_lock_quiesce);
         //printf("CPU(0x%02x): grabbed quiesce lock.\n", vcpu->id);
 
+        /* Acquire memprot_x86vmx_eptlock_write_lock() to prevent deadlock */
+        memprot_x86vmx_eptlock_write_lock(vcpu);
+
         /* Acquire the printf lock to prevent deadlock */
         emhfc_putchar_linelock(emhfc_putchar_linelock_arg);
 
@@ -591,6 +599,8 @@ void xmhf_smpguest_arch_x86vmx_quiesce(VCPU *vcpu){
          */
         emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
 
+        /* Release memprot_x86vmx_eptlock_write_lock() */
+        memprot_x86vmx_eptlock_write_unlock(vcpu);
 }
 
 void xmhf_smpguest_arch_x86vmx_endquiesce(VCPU *vcpu){
@@ -671,7 +681,7 @@ u32 xmhf_smpguest_arch_x86vmx_nmi_check_quiesce(VCPU *vcpu) {
 
 		// Flush EPT TLB, if instructed so
 		if(g_vmx_flush_all_tlb_signal) {
-			xmhf_memprot_flushmappings_localtlb(vcpu);
+			xmhf_memprot_flushmappings_localtlb(vcpu, g_vmx_flush_all_tlb_signal);
 		}
 
 		spin_lock(&g_vmx_lock_quiesce_resume_counter);
@@ -700,6 +710,11 @@ void xmhf_smpguest_arch_x86vmx_mhv_nmi_handle(VCPU *vcpu)
 	case SMPG_VMX_NMI_INJECT:
 		xmhf_smpguest_arch_x86vmx_inject_nmi(vcpu);
 		break;
+#ifdef __NESTED_VIRTUALIZATION__
+	case SMPG_VMX_NMI_NESTED:
+		xmhf_nested_arch_x86vmx_handle_nmi(vcpu);
+		break;
+#endif /* __NESTED_VIRTUALIZATION__ */
 	default:
 		HALT_ON_ERRORCOND(0 && "Unexpected vcpu->vmx_mhv_nmi_handler_arg");
 		break;
@@ -810,7 +825,7 @@ void xmhf_smpguest_arch_x86vmx_postCPUwakeup(VCPU *vcpu){
 	//setup guest CS and EIP as specified by the SIPI vector
 	vcpu->vmcs.guest_CS_selector = ((vcpu->sipivector * PAGE_SIZE_4K) >> 4);
 	vcpu->vmcs.guest_CS_base = (vcpu->sipivector * PAGE_SIZE_4K);
-	vcpu->vmcs.guest_RIP = 0x0ULL;
+	vcpu->vmcs.guest_RIP = 0x0UL;
 }
 
 //walk guest page tables; returns pointer to corresponding guest physical address
@@ -947,8 +962,8 @@ void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU *vcpu)
 
 	/* When the guest OS is blocking NMI, max of guest_nmi_pending is 1 */
 	{
-		u32 __guest_interruptibility = __vmx_vmread32(0x4824);
-		if (__guest_interruptibility & (1U << 3)) {
+		u32 __guest_interruptibility = __vmx_vmread32(VMCSENC_guest_interruptibility);
+		if (__guest_interruptibility & VMX_GUEST_INTR_BLOCK_NMI) {
 			nmi_pending_limit = 1;
 		}
 	}
@@ -959,7 +974,7 @@ void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU *vcpu)
 	 * guest_nmi_pending is 1.
 	 */
 	{
-		u32 __ctl_VM_entry_intr_info = __vmx_vmread32(0x4016);
+		u32 __ctl_VM_entry_intr_info = __vmx_vmread32(VMCSENC_control_VM_entry_interruption_information);
 		if ((__ctl_VM_entry_intr_info & INTR_INFO_VALID_MASK) &&
 			(__ctl_VM_entry_intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI) {
 			HALT_ON_ERRORCOND((__ctl_VM_entry_intr_info & INTR_INFO_VECTOR_MASK) ==
@@ -977,9 +992,9 @@ void xmhf_smpguest_arch_x86vmx_inject_nmi(VCPU *vcpu)
 
 	/* Set NMI windowing bit as required */
 	{
-		u32 procctl = __vmx_vmread32(0x4002);
+		u32 procctl = __vmx_vmread32(VMCSENC_control_VMX_cpu_based);
 		xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(vcpu, &procctl);
-		__vmx_vmwrite32(0x4002, procctl);
+		__vmx_vmwrite32(VMCSENC_control_VMX_cpu_based, procctl);
 	}
 }
 
@@ -993,6 +1008,13 @@ void xmhf_smpguest_arch_x86vmx_nmi_block(VCPU *vcpu)
 
 	/* Set NMI block bit in VCPU */
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_block = true;
+
+#ifdef __NESTED_VIRTUALIZATION__
+	if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+		xmhf_nested_arch_x86vmx_update_nested_nmi(vcpu);
+		return;
+	}
+#endif /* __NESTED_VIRTUALIZATION__ */
 
 	/* Remove NMI windowing bit in VMCS as needed */
 	xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(
@@ -1009,6 +1031,13 @@ void xmhf_smpguest_arch_x86vmx_nmi_unblock(VCPU *vcpu)
 
 	/* Clear NMI block bit in VCPU */
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_block = false;
+
+#ifdef __NESTED_VIRTUALIZATION__
+	if (vcpu->vmx_nested_operation_mode == NESTED_VMX_MODE_NONROOT) {
+		xmhf_nested_arch_x86vmx_update_nested_nmi(vcpu);
+		return;
+	}
+#endif /* __NESTED_VIRTUALIZATION__ */
 
 	/* Set NMI windowing bit in VMCS as needed */
 	xmhf_smpguest_arch_x86vmx_update_nmi_window_exiting(

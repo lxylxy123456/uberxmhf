@@ -60,8 +60,9 @@
 //----------------------------------------------------------------------
 //the master-id table, which is used by the AP bootstrap code
 //to locate its own vcpu structure
-//NOTE: The size of this structure _MUST_ be _EXACTLY_EQUAL_ to 8 bytes
-//as it is made use of in low-level assembly language stubs
+//NOTE: The size of this structure _MUST_ be _EXACTLY_EQUAL_ to 8 bytes in i386
+//and 16 bytes in amd64, as it is made use of in low-level assembly language
+//stubs, like bplt-x86-i386-smptrampoline.S and bplt-x86-amd64-smptrampoline.S
 typedef struct _midtab {
     union {
         u32 cpu_lapic_id;       // CPU LAPIC id (unique)
@@ -103,7 +104,7 @@ typedef struct _pcpu {
 extern PCPU	g_cpumap[] __attribute__(( section(".data") ));
 
 //runtime stacks for individual cores
-extern u8 g_cpustacks[] __attribute__(( section(".bss.stack") ));
+extern u8 g_cpustacks[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //VCPU structure for each "guest OS" core
 extern VCPU g_vcpubuffers[] __attribute__(( section(".data") ));
@@ -151,7 +152,23 @@ void xmhf_baseplatform_smpinitialize(void);
 //initialize basic platform elements
 void xmhf_baseplatform_initialize(void);
 
-//reboot platform
+// reboot platform
+//
+// This function must be called when all CPUs are running hypervisor code
+// forever. Usually this function is called in xmhf_app_handleshutdown(), which
+// satisifes this requirement.
+//
+// If this requirement is not satisfied, an attack using INIT and SIPI may
+// happen. Suppose on Intel platform, CPU 3 calls this function and CPU 4 runs
+// (malicious) guest code. CPU 4 sends INIT IPI to CPU 3. CPU 3 at first blocks
+// the IPI because XMHF runs in VMX root mode. However, this function will
+// execute VMXOFF. At this time CPU 3 receives INIT IPI and falls into
+// wait-for-SIPI state. Then CPU 4 can send SIPI to CPU 3, which allows CPU 3
+// to execute malicious code.
+//
+// When this requirement is satisfied, it is still possible for the attacker to
+// bring CPU 3 into wait-for-SIPI state. However, there is no one to send SIPI
+// to CPU 3 and let it execute malicious code.
 void xmhf_baseplatform_reboot(VCPU *vcpu);
 
 // Traverse the E820 map and return the base and limit of used system physical address (i.e., used by main memory and MMIO).

@@ -19,18 +19,26 @@ OBJECTS_PRECOMPILED += ./xmhf-memprot/memp-interface.o
 OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/memp-x86.o
 OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/vmx/memp-x86vmx.o
 OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/vmx/memp-x86vmx-data.o
+OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/vmx/memp-x86vmx-eptlock.o
 OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/svm/memp-x86svm.o
 OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/svm/memp-x86svm-data.o
+OBJECTS_PRECOMPILED += ./xmhf-memprot/arch/x86/vmx/memp-x86vmx-guestmem.o
 
 OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/svm/peh-x86svm-entry.o
 OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/svm/peh-x86svm-main.o
 OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-entry.o
 OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-main.o
 OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86-safemsr.o
-OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-guestmem.o
 ifeq ($(UPDATE_INTEL_UCODE), y)
 OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-ucode.o
 OBJECTS_PRECOMPILED += ./xmhf-eventhub/arch/x86/vmx/peh-x86vmx-ucode-data.o
+endif
+
+ifeq ($(NESTED_VIRTUALIZATION), y)
+OBJECTS_PRECOMPILED += ./xmhf-nested/arch/x86/vmx/nested-x86vmx-handler1.o
+OBJECTS_PRECOMPILED += ./xmhf-nested/arch/x86/vmx/nested-x86vmx-handler2.o
+OBJECTS_PRECOMPILED += ./xmhf-nested/arch/x86/vmx/nested-x86vmx-vmcs12.o
+OBJECTS_PRECOMPILED += ./xmhf-nested/arch/x86/vmx/nested-x86vmx-ept12.o
 endif
 
 OBJECTS_PRECOMPILED += ./xmhf-smpguest/smpg-interface.o
@@ -99,6 +107,7 @@ OBJECTS_PRECOMPILED += ./xmhf-partition/arch/x86/vmx/part-x86vmx-sup.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/runtime.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/rntm-data.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-data.o
+OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-dmap.o
 
 OBJECTS_PRECOMPILED += ./xmhf-debug/lib.a
 
@@ -134,11 +143,14 @@ RUNTIME_COMPONENTS += xmhf-debug
 RUNTIME_COMPONENTS += xmhf-xmhfcbackend
 #XMHF startup component
 RUNTIME_COMPONENTS += xmhf-startup
+ifeq ($(NESTED_VIRTUALIZATION), y)
+#XMHF nested virtualization component
+RUNTIME_COMPONENTS += xmhf-nested
+endif
 
 OBJCOPY_FLAGS = --output-format=binary
 ifneq ($(SKIP_RUNTIME_BSS), y)
-OBJCOPY_FLAGS += --set-section-flags .palign_data=alloc,load,contents
-OBJCOPY_FLAGS += --set-section-flags .stack=alloc,load,contents
+OBJCOPY_FLAGS += --set-section-flags .bss=alloc,load,contents
 endif
 
 # targets
@@ -157,7 +169,7 @@ $(OBJECTS_PRECOMPILED): %: runtimecomponents
 $(OBJECTS_PRECOMPILED_LIBBACKENDS): %: runtimecomponents
 
 runtime.bin: runtimecomponents $(APP_ARCHIVE) runtime.lds
-	$(LD) -T runtime.lds -o runtime.exe $(OBJECTS_PRECOMPILED) $(APP_ARCHIVE) $(ADDL_LIBS) $(OBJECTS_PRECOMPILED_LIBBACKENDS) -L$(CCLIB) -lgcc
+	$(LD) $(LDFLAGS) -T runtime.lds -o runtime.exe $(OBJECTS_PRECOMPILED) $(APP_ARCHIVE) $(ADDL_LIBS) $(OBJECTS_PRECOMPILED_LIBBACKENDS) -L$(CCLIB) -lgcc
 	# .palign_data and .stack are NOBITS in the ELF file (similar to .bss), but
 	# we need them in runtime.bin. So use the --set-section-flags option to
 	# force objcopy to zero them and add to runtime.bin. See OBJCOPY_FLAGS
@@ -191,3 +203,4 @@ clean:
 	cd xmhf-debug && $(MAKE) -w clean
 	cd xmhf-xmhfcbackend && $(MAKE) -w clean
 	cd xmhf-startup && $(MAKE) -w clean
+	cd xmhf-nested && $(MAKE) -w clean

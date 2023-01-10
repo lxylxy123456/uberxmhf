@@ -234,80 +234,19 @@ static u32 vmx_eap_initialize(
     spa_t vtd_ret_paddr, hva_t vtd_ret_vaddr,
     spa_t vtd_cet_paddr, hva_t vtd_cet_vaddr)
 {
-    ACPI_RSDP rsdp;
-    ACPI_RSDT rsdt;
-    u32 num_rsdtentries;
-    uintptr_t rsdtentries[ACPI_MAX_RSDT_ENTRIES];
-    uintptr_t status;
     bool status2 = false;
     VTD_DMAR dmar;
-    u32 i, dmarfound;
+    u32 i;
     spa_t dmaraddrphys, remappingstructuresaddrphys;
-    spa_t rsdt_xsdt_spaddr = INVALID_SPADDR;
-    hva_t rsdt_xsdt_vaddr = INVALID_VADDR;
 
 #ifndef __XMHF_VERIFICATION__
     // zero out rsdp and rsdt structures
-    memset(&rsdp, 0, sizeof(ACPI_RSDP));
-    memset(&rsdt, 0, sizeof(ACPI_RSDT));
     memset(&g_vtd_cap_sagaw_mgaw_nd, 0, sizeof(struct dmap_vmx_cap));
 
-    // get ACPI RSDP
-    //  [TODO] Unify the name of <xmhf_baseplatform_arch_x86_acpi_getRSDP> and <xmhf_baseplatform_arch_x86_acpi_getRSDP>, and then remove the following #ifdef
-    status = xmhf_baseplatform_arch_x86_acpi_getRSDP(&rsdp);
-    HALT_ON_ERRORCOND(status != 0); // we need a valid RSDP to proceed
-    printf("%s: RSDP at %lx\n", __FUNCTION__, status);
-
-    // [Superymk] Use RSDT if it is ACPI v1, or use XSDT addr if it is ACPI v2
-    if (rsdp.revision == 0) // ACPI v1
-    {
-        printf("%s: ACPI v1\n", __FUNCTION__);
-        rsdt_xsdt_spaddr = rsdp.rsdtaddress;
-    }
-    else if (rsdp.revision == 0x2) // ACPI v2
-    {
-        printf("%s: ACPI v2\n", __FUNCTION__);
-        rsdt_xsdt_spaddr = (spa_t)rsdp.xsdtaddress;
-    }
-    else // Unrecognized ACPI version
-    {
-        printf("%s: ACPI unsupported version!\n", __FUNCTION__);
+    dmaraddrphys = vmx_find_dmar_paddr(&dmar);
+    if (dmaraddrphys == 0) {
         return 0;
     }
-
-    // grab ACPI RSDT
-    // Note: in i386, <rsdt_xsdt_spaddr> should be in lower 4GB. So the conversion to vaddr is fine.
-    rsdt_xsdt_vaddr = (hva_t)rsdt_xsdt_spaddr;
-
-    xmhf_baseplatform_arch_flat_copy((u8 *)&rsdt, (u8 *)rsdt_xsdt_vaddr, sizeof(ACPI_RSDT));
-    printf("%s: RSDT at %lx, len=%u bytes, hdrlen=%u bytes\n",
-           __FUNCTION__, rsdt_xsdt_vaddr, rsdt.length, sizeof(ACPI_RSDT));
-
-    // get the RSDT entry list
-    num_rsdtentries = (rsdt.length - sizeof(ACPI_RSDT)) / sizeof(u32);
-    HALT_ON_ERRORCOND(num_rsdtentries < ACPI_MAX_RSDT_ENTRIES);
-    xmhf_baseplatform_arch_flat_copy((u8 *)&rsdtentries, (u8 *)(rsdt_xsdt_vaddr + sizeof(ACPI_RSDT)),
-                                     sizeof(rsdtentries[0]) * num_rsdtentries);
-    printf("%s: RSDT entry list at %lx, len=%u\n", __FUNCTION__,
-           (rsdt_xsdt_vaddr + sizeof(ACPI_RSDT)), num_rsdtentries);
-
-    // find the VT-d DMAR table in the list (if any)
-    for (i = 0; i < num_rsdtentries; i++)
-    {
-        xmhf_baseplatform_arch_flat_copy((u8 *)&dmar, (u8 *)rsdtentries[i], sizeof(VTD_DMAR));
-        if (dmar.signature == VTD_DMAR_SIGNATURE)
-        {
-            dmarfound = 1;
-            break;
-        }
-    }
-
-    // if no DMAR table, bail out
-    if (!dmarfound)
-        return 0;
-
-    dmaraddrphys = rsdtentries[i]; // DMAR table physical memory address;
-    printf("%s: DMAR at %llx\n", __FUNCTION__, dmaraddrphys);
 
     i = 0;
     remappingstructuresaddrphys = dmaraddrphys + sizeof(VTD_DMAR);
@@ -316,7 +255,12 @@ static u32 vmx_eap_initialize(
     while (i < (dmar.length - sizeof(VTD_DMAR)))
     {
         u16 type, length;
+        // Minimum length required by VT-d spec.
         hva_t remappingstructures_vaddr = (hva_t)remappingstructuresaddrphys;
+
+        // TODO: remove magic number 16. Should be something like
+        // sizeof(VTD_DRHD), but unfortunately VTD_DRHD contains other data.
+        _Static_assert(sizeof(VTD_DRHD) >= 16);
 
         xmhf_baseplatform_arch_flat_copy((u8 *)&type, (u8 *)(remappingstructures_vaddr + i), sizeof(u16));
         xmhf_baseplatform_arch_flat_copy((u8 *)&length, (u8 *)(remappingstructures_vaddr + i + sizeof(u16)), sizeof(u16));
@@ -326,7 +270,10 @@ static u32 vmx_eap_initialize(
         case 0: // DRHD
             printf("DRHD at %lx, len=%u bytes\n", (remappingstructures_vaddr + i), length);
             HALT_ON_ERRORCOND(vtd_num_drhd < VTD_MAX_DRHD);
-            xmhf_baseplatform_arch_flat_copy((u8 *)&vtd_drhd[vtd_num_drhd], (u8 *)(remappingstructures_vaddr + i), length);
+            // TODO: remove magic number 16.
+            HALT_ON_ERRORCOND(length >= 16);
+            // TODO: remove magic number 16.
+            xmhf_baseplatform_arch_flat_copy((u8 *)&vtd_drhd[vtd_num_drhd], (u8 *)(remappingstructures_vaddr + i), 16);
             vtd_num_drhd++;
             i += (u32)length;
             break;
@@ -409,9 +356,9 @@ static u32 vmx_eap_initialize(
 #endif //__XMHF_VERIFICATION__
 
     // zap VT-d presence in ACPI table...
-    // TODO: we need to be a little elegant here. eventually need to setup
-    // EPT/NPTs such that the DMAR pages are unmapped for the guest
-    xmhf_baseplatform_arch_flat_writeu32(dmaraddrphys, 0UL);
+    // DRHD pages are protected from guest memory access in
+    // xmhf_dmaprot_arch_x86_vmx_protect_drhd().
+    vmx_dmar_zap(dmaraddrphys);
 
     // Flush CPU cache
     wbinvd();
@@ -542,6 +489,18 @@ u32 xmhf_dmaprot_arch_x86_vmx_initialize(spa_t protectedbuffer_paddr,
     vtd_cet = (void *)vmx_eap_vtd_cet_vaddr;
     return vmx_eap_initialize(vmx_eap_vtd_pml4t_paddr, vmx_eap_vtd_pml4t_vaddr, vmx_eap_vtd_pdpt_paddr, vmx_eap_vtd_pdpt_vaddr, vmx_eap_vtd_pdts_paddr, vmx_eap_vtd_pdts_vaddr,
                               vmx_eap_vtd_pts_paddr, vmx_eap_vtd_pts_vaddr, vmx_eap_vtd_ret_paddr, vmx_eap_vtd_ret_vaddr, vmx_eap_vtd_cet_paddr, vmx_eap_vtd_cet_vaddr);
+}
+
+// Call memprot to protect DRHD pages. Should be called by each CPU after
+// xmhf_dmaprot_initialize().
+void xmhf_dmaprot_arch_x86_vmx_protect_drhd(VCPU *vcpu)
+{
+    u32 i = 0;
+    FOREACH_S(i, vtd_num_drhd, VTD_MAX_DRHD, 0, 1)
+    {
+        xmhf_memprot_setprot(vcpu, vtd_drhd[i].regbaseaddr, MEMP_PROT_NOTPRESENT);
+    }
+    printf("Protected %u DRHD tables from guest memory access\n", vtd_num_drhd);
 }
 
 // DMA protect a given region of memory

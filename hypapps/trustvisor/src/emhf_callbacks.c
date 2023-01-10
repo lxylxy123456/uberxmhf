@@ -80,7 +80,20 @@ void xmhf_app_handleshutdown(VCPU *vcpu, struct regs *r)
 }
 
 // Detect the presence of TrustVisor
-void xmhf_app_handlecpuid(VCPU *vcpu, struct regs *r, uint32_t fn)
+u32 xmhf_app_handlecpuid(VCPU *vcpu, struct regs *r)
 {
-	(void)vcpu;(void)r;(void)fn;
+  return tv_app_handlecpuid(vcpu, r);
 }
+
+#ifdef __NESTED_VIRTUALIZATION__
+u32 xmhf_app_handle_nest_entry(VCPU *vcpu, struct regs *r)
+{
+  return tv_app_handle_nest_entry(vcpu, r);
+}
+
+u32 xmhf_app_handle_nest_exit(VCPU *vcpu, struct regs *r)
+{
+  return tv_app_handle_nest_exit(vcpu, r);
+}
+#endif /* __NESTED_VIRTUALIZATION__ */
+

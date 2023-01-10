@@ -54,6 +54,9 @@
 
 /* Macros that control how NMIs for the guest are handled */
 #define SMPG_VMX_NMI_INJECT     0   /* Inject NMI to guest */
+#ifdef __NESTED_VIRTUALIZATION__
+#define SMPG_VMX_NMI_NESTED     1   /* Let nested virtualization decide */
+#endif /* !__NESTED_VIRTUALIZATION__ */
 
 
 #ifndef __ASSEMBLY__
@@ -175,7 +178,7 @@ extern u32 g_vmx_lapic_base __attribute__(( section(".data") ));
 
 //4k buffer which is the virtual LAPIC page that guest reads and writes from/to
 //during INIT-SIPI-SIPI emulation
-extern u8 g_vmx_virtual_LAPIC_base[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_virtual_LAPIC_base[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //the quiesce counter, all CPUs except for the one requesting the
 //quiesce will increment this when they get their quiesce signal
@@ -256,10 +259,10 @@ extern u32 g_svm_lock_quiesce_resume_signal __attribute__(( section(".data") ));
 
 //4k buffer which is the virtual LAPIC page that guest reads and writes from/to
 //during INIT-SIPI-SIPI emulation
-extern u8 g_svm_virtual_LAPIC_base[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_svm_virtual_LAPIC_base[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //SVM SIPI page buffers used for guest INIT-SIPI-SIPI emulation
-extern u8 g_svm_sipi_page_buffers[]__attribute__(( section(".bss.palign_data") ));
+extern u8 g_svm_sipi_page_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 
 

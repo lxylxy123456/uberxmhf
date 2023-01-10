@@ -28,6 +28,8 @@ OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/svm/dmap-svm.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/vmx/dmap-vmx-earlyinit.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal-common.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-dmaprot/arch/x86/vmx/dmap-vmx-internal-earlyinit.o
+
+OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-startup/arch/x86/rntm-x86-dmap.o
 endif
 
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/bplt-interface.o
@@ -66,7 +68,7 @@ all: sl.bin
 
 # FIXME: ADDL_LIBS is overly general; sl/ doesn't need all of them
 sl.bin: $(OBJECTS) $(OBJECTS_PRECOMPILED) sl.lds
-	$(LD) -T sl.lds -o sl.exe $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS) $(OBJECTS_PRECOMPILED_LIBBACKENDS) -L$(CCLIB) -lgcc
+	$(LD) $(LDFLAGS) -T sl.lds -o sl.exe $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS) $(OBJECTS_PRECOMPILED_LIBBACKENDS) -L$(CCLIB) -lgcc
 	$(CP) sl.exe sl_syms.exe
 	$(STRIP) -s sl.exe
 	$(OBJCOPY) --output-format=binary sl.exe sl.bin

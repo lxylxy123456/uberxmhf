@@ -271,10 +271,52 @@ typedef struct _vcpu {
   /* Configure NMI blocking for the guest */
   guest_nmi_t vmx_guest_nmi_cfg;
 
+  /*
+   * When this flag is set, the CPU is walking EPT using software. Change to
+   * EPT and quiesce are temporarily disabled. See memp-x86vmx-eptlock.c for
+   * details.
+   */
+  volatile bool vmx_eptlock_reading;
+
   //guest state fields
   u32 vmx_guest_unrestricted;   //this is 1 if the CPU VMX implementation supports unrestricted guest execution
   struct _vmx_vmcsfields vmcs;   //the VMCS fields
 
+#ifdef __NESTED_VIRTUALIZATION__
+  /*
+   * Current CPU mode w.r.t. VMX operation.
+   * 0: Not in VMX operation (NESTED_VMX_MODE_DISABLED)
+   * 1: In VMX root operation (NESTED_VMX_MODE_ROOT)
+   * 2: In VMX non-root operation (NESTED_VMX_MODE_NONROOT)
+   */
+  u32 vmx_nested_operation_mode;
+  /* If in VMX operation, address of VMXON pointer */
+  gpa_t vmx_nested_vmxon_pointer;
+  /*
+   * If in VMX operation, index of the current VMCS12 in cpu_active_vmcs12.
+   * INVALID_VMCS12_INDEX means there is no current VMCS12.
+   * The current-VMCS pointer is the vmcs12_ptr field in the struct.
+   */
+  u32 vmx_nested_cur_vmcs12;
+  /* VMX MSR values that should be observed by the guest */
+  u64 vmx_nested_msrs[IA32_VMX_MSRCOUNT];
+  /* VMX control register limitations for guest hypervisor */
+  u64 vmx_nested_pinbased_ctls;
+  u64 vmx_nested_procbased_ctls;
+  u64 vmx_nested_exit_ctls;
+  u64 vmx_nested_entry_ctls;
+  /*
+   * Whether the hypervisor is busy so that it cannot handle
+   * xmhf_nested_arch_x86vmx_flush_ept02().
+   */
+  volatile bool vmx_nested_ept02_flush_disable;
+  /*
+   * Whether a call to xmhf_nested_arch_x86vmx_flush_ept02() arrived during
+   * vmx_nested_ept02_flush_disable = true. This field records the flags passed
+   * to xmhf_memprot_flushmappings_*().
+   */
+  volatile u32 vmx_nested_ept02_flush_visited;
+#endif /* __NESTED_VIRTUALIZATION__ */
 } VCPU;
 
 #define SIZE_STRUCT_VCPU    (sizeof(struct _vcpu))
@@ -304,6 +346,9 @@ u32 xmhf_baseplatform_arch_flat_readu32(u32 addr);
 //read 64-bits from absolute physical address
 u64 xmhf_baseplatform_arch_flat_readu64(u32 addr);
 
+//write 8-bits to absolute physical address
+void xmhf_baseplatform_arch_flat_writeu8(u32 addr, u8 val);
+
 //write 32-bits to absolute physical address
 void xmhf_baseplatform_arch_flat_writeu32(u32 addr, u32 val);
 
@@ -314,7 +359,10 @@ void xmhf_baseplatform_arch_flat_writeu64(u32 addr, u64 val);
 //data segment relative address (dest)
 void xmhf_baseplatform_arch_flat_copy(u8 *dest, u8 *src, u32 size);
 
-//reboot platform
+// reboot platform
+//
+// This function must be called when all CPUs are running hypervisor code
+// forever. See "xmhf-baseplatform.h" for detailed analysis.
 void xmhf_baseplatform_arch_reboot(VCPU *vcpu);
 
 //returns true if CPU has support for XSAVE/XRSTOR
@@ -395,219 +443,32 @@ void xmhf_baseplatform_arch_x86_pci_type1_read(u32 bus, u32 device, u32 function
 //microsecond delay
 void xmhf_baseplatform_arch_x86_udelay(u32 usecs);
 
-
-static inline u64 VCPU_gdtr_base(VCPU *vcpu)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    return ((struct _vmx_vmcsfields*)&(vcpu->vmcs))->guest_GDTR_base;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    return ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->gdtr.base;
-  } else {
-    HALT_ON_ERRORCOND(false);
-    return 0;
-  }
-}
-
-static inline size_t VCPU_gdtr_limit(VCPU *vcpu)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    return ((struct _vmx_vmcsfields*)&(vcpu->vmcs))->guest_GDTR_limit;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    return ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->gdtr.limit;
-  } else {
-    HALT_ON_ERRORCOND(false);
-    return 0;
-  }
-}
-
-static inline u64 VCPU_grflags(VCPU *vcpu)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    return ((struct _vmx_vmcsfields*)&(vcpu->vmcs))->guest_RFLAGS;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    return ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->rflags;
-  } else {
-    HALT_ON_ERRORCOND(false);
-    return 0;
-  }
-}
-
-static inline void VCPU_grflags_set(VCPU *vcpu, u64 val)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    ((struct _vmx_vmcsfields*)&(vcpu->vmcs))->guest_RFLAGS = val;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->rflags = val;
-  } else {
-    HALT_ON_ERRORCOND(false);
-  }
-}
-
-static inline u64 VCPU_grip(VCPU *vcpu)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    return ((struct _vmx_vmcsfields*)&(vcpu->vmcs))->guest_RIP;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    return ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->rip;
-  } else {
-    HALT_ON_ERRORCOND(false);
-    return 0;
-  }
-}
-
-static inline void VCPU_grip_set(VCPU *vcpu, u64 val)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    ((struct _vmx_vmcsfields*)&(vcpu->vmcs))->guest_RIP = val;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->rip = val;
-  } else {
-    HALT_ON_ERRORCOND(false);
-  }
-}
-
-static inline u64 VCPU_grsp(VCPU *vcpu)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    return ((struct _vmx_vmcsfields*)&(vcpu->vmcs))->guest_RSP;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    return ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->rsp;
-  } else {
-    HALT_ON_ERRORCOND(false);
-    return 0;
-  }
-}
-
-static inline void VCPU_grsp_set(VCPU *vcpu, u64 val)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    ((struct _vmx_vmcsfields*)&(vcpu->vmcs))->guest_RSP = val;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->rsp = val;
-  } else {
-    HALT_ON_ERRORCOND(false);
-  }
-}
-
-static inline ulong_t VCPU_gcr0(VCPU *vcpu)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    return vcpu->vmcs.guest_CR0;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    return ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->cr0;
-  } else {
-    HALT_ON_ERRORCOND(false);
-    return 0;
-  }
-}
-
-static inline void VCPU_gcr0_set(VCPU *vcpu, ulong_t cr0)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    vcpu->vmcs.guest_CR0 = cr0;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->cr0 = cr0;
-  } else {
-    HALT_ON_ERRORCOND(false);
-  }
-}
-
-static inline u64 VCPU_gcr3(VCPU *vcpu)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    return vcpu->vmcs.guest_CR3;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    return ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->cr3;
-  } else {
-    HALT_ON_ERRORCOND(false);
-    return 0;
-  }
-}
-
-static inline void VCPU_gcr3_set(VCPU *vcpu, u64 cr3)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    vcpu->vmcs.guest_CR3 = cr3;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->cr3 = cr3;
-  } else {
-    HALT_ON_ERRORCOND(false);
-  }
-}
-
-static inline ulong_t VCPU_gcr4(VCPU *vcpu)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    return vcpu->vmcs.guest_CR4;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    return ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->cr4;
-  } else {
-    HALT_ON_ERRORCOND(false);
-    return 0;
-  }
-}
-
-static inline void VCPU_gcr4_set(VCPU *vcpu, ulong_t cr4)
-{
-  if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-    vcpu->vmcs.guest_CR4 = cr4;
-  } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-    ((struct _svm_vmcbfields*)vcpu->vmcb_vaddr_ptr)->cr4 = cr4;
-  } else {
-    HALT_ON_ERRORCOND(false);
-  }
-}
-
-/* Return whether guest OS is in long mode (return 1 or 0) */
-static inline u32 VCPU_glm(VCPU *vcpu) {
-    if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-        return (vcpu->vmcs.control_VM_entry_controls >>
-                VMX_VMENTRY_IA_32E_MODE_GUEST) & 1U;
-    } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-        /* Not implemented */
-        HALT_ON_ERRORCOND(false);
-        return 0;
-    } else {
-        HALT_ON_ERRORCOND(false);
-        return 0;
-    }
-}
-
-/*
- * Return whether guest application is in 64-bit mode (return 1 or 0).
- * If guest OS is in long mode, return 1 if guest application in 64-bit mode.
- * If guest OS in legacy mode (e.g. protected mode), will always return 0;
- */
-static inline u32 VCPU_g64(VCPU *vcpu) {
-    if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-        return (vcpu->vmcs.guest_CS_access_rights >> 13) & 1U;
-    } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-        /* Not implemented */
-        HALT_ON_ERRORCOND(false);
-        return 0;
-    } else {
-        HALT_ON_ERRORCOND(false);
-        return 0;
-    }
-}
-
-/*
- * Update vcpu->vmcs.guest_PDPTE{0..3} for PAE guests. This is needed
- * after guest CR3 is changed.
- */
-static inline void VCPU_gpdpte_set(VCPU *vcpu, u64 pdptes[4]) {
-    if (vcpu->cpu_vendor == CPU_VENDOR_INTEL) {
-        vcpu->vmcs.guest_PDPTE0 = pdptes[0];
-        vcpu->vmcs.guest_PDPTE1 = pdptes[1];
-        vcpu->vmcs.guest_PDPTE2 = pdptes[2];
-        vcpu->vmcs.guest_PDPTE3 = pdptes[3];
-    } else if (vcpu->cpu_vendor == CPU_VENDOR_AMD) {
-        /* Not implemented */
-        HALT_ON_ERRORCOND(false);
-    } else {
-        HALT_ON_ERRORCOND(false);
-    }
-}
+u64 VCPU_gdtr_base(VCPU *vcpu);
+size_t VCPU_gdtr_limit(VCPU *vcpu);
+u64 VCPU_grflags(VCPU *vcpu);
+void VCPU_grflags_set(VCPU *vcpu, u64 val);
+u64 VCPU_grip(VCPU *vcpu);
+void VCPU_grip_set(VCPU *vcpu, u64 val);
+u64 VCPU_grsp(VCPU *vcpu);
+void VCPU_grsp_set(VCPU *vcpu, u64 val);
+ulong_t VCPU_gcr0(VCPU *vcpu);
+void VCPU_gcr0_set(VCPU *vcpu, ulong_t cr0);
+u64 VCPU_gcr3(VCPU *vcpu);
+void VCPU_gcr3_set(VCPU *vcpu, u64 cr3);
+ulong_t VCPU_gcr4(VCPU *vcpu);
+void VCPU_gcr4_set(VCPU *vcpu, ulong_t cr4);
+bool VCPU_glm(VCPU *vcpu);
+bool VCPU_g64(VCPU *vcpu);
+void VCPU_gpdpte_set(VCPU *vcpu, u64 pdptes[4]);
+u32 VCPU_exception_bitmap(VCPU *vcpu);
+void VCPU_exception_bitmap_set(VCPU *vcpu, u32 val);
+bool VCPU_nested(VCPU *vcpu);
+bool VCPU_disable_nested_interrupt_exit(VCPU *vcpu);
+void VCPU_enable_nested_interrupt_exit(VCPU *vcpu, bool old_state);
+u32 VCPU_disable_nested_timer_exit(VCPU *vcpu);
+void VCPU_enable_nested_timer_exit(VCPU *vcpu, u32 old_state);
+u32 VCPU_disable_memory_bitmap(VCPU *vcpu);
+void VCPU_enable_memory_bitmap(VCPU *vcpu, u32 old_state);
 
 /*
  * Selector for VCPU_reg_get and VCPU_reg_set
@@ -639,108 +500,8 @@ enum CPU_Reg_Sel
     CPU_REG_IP
 };
 
-/*
- * Get a guest register
- */
-static inline ulong_t VCPU_reg_get(VCPU *vcpu, struct regs* r,
-                                     enum CPU_Reg_Sel sel)
-{
-    switch (sel)
-    {
-#ifdef __AMD64__
-        case CPU_REG_AX: return r->rax;
-        case CPU_REG_CX: return r->rcx;
-        case CPU_REG_DX: return r->rdx;
-        case CPU_REG_BX: return r->rbx;
-        /* CPU_REG_SP is managed by VCPU_grsp() */
-        case CPU_REG_BP: return r->rbp;
-        case CPU_REG_SI: return r->rsi;
-        case CPU_REG_DI: return r->rdi;
-        case CPU_REG_R8: return r->r8;
-        case CPU_REG_R9: return r->r9;
-        case CPU_REG_R10: return r->r10;
-        case CPU_REG_R11: return r->r11;
-        case CPU_REG_R12: return r->r12;
-        case CPU_REG_R13: return r->r13;
-        case CPU_REG_R14: return r->r14;
-        case CPU_REG_R15: return r->r15;
-#elif defined(__I386__)
-        case CPU_REG_AX: return r->eax;
-        case CPU_REG_CX: return r->ecx;
-        case CPU_REG_DX: return r->edx;
-        case CPU_REG_BX: return r->ebx;
-        /* CPU_REG_SP is managed by VCPU_grsp() */
-        case CPU_REG_BP: return r->ebp;
-        case CPU_REG_SI: return r->esi;
-        case CPU_REG_DI: return r->edi;
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
-
-        case CPU_REG_SP: return VCPU_grsp(vcpu);
-        case CPU_REG_FLAGS: return VCPU_grflags(vcpu);
-        case CPU_REG_IP: return VCPU_grip(vcpu);
-
-        default:
-            printf("VCPU_reg_get: Invalid guest CPU register is given (sel:%u)!\n", sel);
-            HALT();
-            return 0; // should never hit
-    }
-}
-
-/*
- * Set a guest register
- */
-static inline void VCPU_reg_set(VCPU *vcpu, struct regs* r,
-                                enum CPU_Reg_Sel sel, ulong_t val)
-{
-    switch (sel)
-    {
-#ifdef __AMD64__
-        case CPU_REG_AX: r->rax = val; break;
-        case CPU_REG_CX: r->rcx = val; break;
-        case CPU_REG_DX: r->rdx = val; break;
-        case CPU_REG_BX: r->rbx = val; break;
-        /* CPU_REG_SP is managed by VCPU_grsp_set() */
-        case CPU_REG_BP: r->rbp = val; break;
-        case CPU_REG_SI: r->rsi = val; break;
-        case CPU_REG_DI: r->rdi = val; break;
-        case CPU_REG_R8: r->r8 = val; break;
-        case CPU_REG_R9: r->r9 = val; break;
-        case CPU_REG_R10: r->r10 = val; break;
-        case CPU_REG_R11: r->r11 = val; break;
-        case CPU_REG_R12: r->r12 = val; break;
-        case CPU_REG_R13: r->r13 = val; break;
-        case CPU_REG_R14: r->r14 = val; break;
-        case CPU_REG_R15: r->r15 = val; break;
-#elif defined(__I386__)
-        case CPU_REG_AX: r->eax = val; break;
-        case CPU_REG_CX: r->ecx = val; break;
-        case CPU_REG_DX: r->edx = val; break;
-        case CPU_REG_BX: r->ebx = val; break;
-        /* CPU_REG_SP is managed by VCPU_grsp_set() */
-        case CPU_REG_BP: r->ebp = val; break;
-        case CPU_REG_SI: r->esi = val; break;
-        case CPU_REG_DI: r->edi = val; break;
-#else /* !defined(__I386__) && !defined(__AMD64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
-
-        case CPU_REG_SP: 
-            VCPU_grsp_set(vcpu, val);
-            break;
-        case CPU_REG_FLAGS:
-            VCPU_grflags_set(vcpu, val);
-            break;
-        case CPU_REG_IP:
-            VCPU_grip_set(vcpu, val);
-            break;
-
-        default:
-            printf("VCPU_reg_set: Invalid guest CPU register is given (sel:%u)!\n", sel);
-            HALT();
-    }
-}
+ulong_t VCPU_reg_get(VCPU *vcpu, struct regs* r, enum CPU_Reg_Sel sel);
+void VCPU_reg_set(VCPU *vcpu, struct regs* r, enum CPU_Reg_Sel sel, ulong_t val);
 
 //----------------------------------------------------------------------
 //x86vmx SUBARCH. INTERFACES
@@ -750,36 +511,24 @@ static inline void VCPU_reg_set(VCPU *vcpu, struct regs* r,
 extern u32 _mle_join_start[];
 
 
-//VMX VMCS read-only field encodings
-extern struct _vmx_vmcsrofields_encodings g_vmx_vmcsrofields_encodings[] __attribute__(( section(".data") ));
-
-//count of VMX VMCS read-only fields
-extern unsigned int g_vmx_vmcsrofields_encodings_count __attribute__(( section(".data") ));
-
-//VMX VMCS read-write field encodings
-extern struct _vmx_vmcsrwfields_encodings g_vmx_vmcsrwfields_encodings[] __attribute__(( section(".data") ));
-
-//count of VMX VMCS read-write fields
-extern unsigned int g_vmx_vmcsrwfields_encodings_count __attribute__(( section(".data") ));
-
 //VMX VMXON buffers
-extern u8 g_vmx_vmxon_buffers[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_vmxon_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //VMX VMCS buffers
-extern u8 g_vmx_vmcs_buffers[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_vmcs_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //VMX IO bitmap buffers
-extern u8 g_vmx_iobitmap_buffer[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_iobitmap_buffer[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 // 2nd IO bitmap buffers. Some hypapps may need a 2nd bitmap.
-extern u8 g_vmx_iobitmap_buffer_2nd[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_iobitmap_buffer_2nd[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //VMX guest and host MSR save area buffers
-extern u8 g_vmx_msr_area_host_buffers[] __attribute__(( section(".bss.palign_data") ));
-extern u8 g_vmx_msr_area_guest_buffers[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_msr_area_host_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
+extern u8 g_vmx_msr_area_guest_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //VMX MSR bitmap buffers
-extern u8 g_vmx_msrbitmap_buffers[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_msrbitmap_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 
 //initialize CPU state
@@ -792,14 +541,14 @@ void xmhf_baseplatform_arch_x86vmx_wakeupAPs(void);
 void xmhf_baseplatform_arch_x86vmx_allocandsetupvcpus(u32 cpu_vendor);
 
 // VMWRITE and VMREAD of different sizes
-void __vmx_vmwrite16(unsigned long encoding, u16 value);
-void __vmx_vmwrite64(unsigned long encoding, u64 value);
-void __vmx_vmwrite32(unsigned long encoding, u32 value);
-void __vmx_vmwriteNW(unsigned long encoding, ulong_t value);
-u16 __vmx_vmread16(unsigned long encoding);
-u64 __vmx_vmread64(unsigned long encoding);
-u32 __vmx_vmread32(unsigned long encoding);
-ulong_t __vmx_vmreadNW(unsigned long encoding);
+void __vmx_vmwrite16(u16 encoding, u16 value);
+void __vmx_vmwrite64(u16 encoding, u64 value);
+void __vmx_vmwrite32(u16 encoding, u32 value);
+void __vmx_vmwriteNW(u16 encoding, ulong_t value);
+u16 __vmx_vmread16(u16 encoding);
+u64 __vmx_vmread64(u16 encoding);
+u32 __vmx_vmread32(u16 encoding);
+ulong_t __vmx_vmreadNW(u16 encoding);
 
 // routine takes vcpu vmcsfields and stores it in the CPU VMCS
 void xmhf_baseplatform_arch_x86vmx_putVMCS(VCPU *vcpu);
@@ -810,7 +559,10 @@ void xmhf_baseplatform_arch_x86vmx_getVMCS(VCPU *vcpu);
 //--debug: dump_vcpu dumps vcpu contents (including VMCS)
 void xmhf_baseplatform_arch_x86vmx_dump_vcpu(VCPU *vcpu);
 
-//VMX specific platform reboot
+// VMX specific platform reboot
+//
+// This function must be called when all CPUs are running hypervisor code
+// forever. See "xmhf-baseplatform.h" for detailed analysis.
 void xmhf_baseplatform_arch_x86vmx_reboot(VCPU *vcpu);
 
 //----------------------------------------------------------------------
@@ -822,16 +574,16 @@ void xmhf_baseplatform_arch_x86vmx_reboot(VCPU *vcpu);
 #endif
 
 //SVM VM_HSAVE buffers
-extern u8 g_svm_hsave_buffers[]__attribute__(( section(".bss.palign_data") ));
+extern u8 g_svm_hsave_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //SVM VMCB buffers
-extern u8 g_svm_vmcb_buffers[]__attribute__(( section(".bss.palign_data") ));
+extern u8 g_svm_vmcb_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //SVM IO bitmap buffer
-extern u8 g_svm_iobitmap_buffer[]__attribute__(( section(".bss.palign_data") ));
+extern u8 g_svm_iobitmap_buffer[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //SVM MSR bitmap buffer
-extern u8 g_svm_msrpm[]__attribute__(( section(".bss.palign_data") ));
+extern u8 g_svm_msrpm[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 
 //wake up application processors (cores) in the system

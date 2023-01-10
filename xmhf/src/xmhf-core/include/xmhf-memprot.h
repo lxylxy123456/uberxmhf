@@ -54,6 +54,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <hptw.h>
+
 // memory protection types
 #define MEMP_PROT_NOTPRESENT	(1)	// page not present
 #define	MEMP_PROT_PRESENT		(2)	// page present
@@ -62,6 +64,33 @@
 #define MEMP_PROT_EXECUTE		(16) // page execute
 #define MEMP_PROT_NOEXECUTE		(32) // page no-execute
 #define MEMP_PROT_MAXVALUE		(MEMP_PROT_NOTPRESENT+MEMP_PROT_PRESENT+MEMP_PROT_READONLY+MEMP_PROT_READWRITE+MEMP_PROT_NOEXECUTE+MEMP_PROT_EXECUTE)
+
+// flush TLB flags
+// These flags need to satisfy 2 properties:
+// 1. flags can be logically or'ed (used in xmhf_nested_arch_x86vmx_flush_ept02)
+// 2. when flags = 0, nothing is done
+#define MEMP_FLUSHTLB_EPTP		1	// EPTP changed
+#define MEMP_FLUSHTLB_ENTRY		2	// Entries in EPT changed
+#define MEMP_FLUSHTLB_MT_ENTRY	4	// Entries changed, but only EPT MT bits
+
+// Structures for guestmem
+typedef struct {
+	/* guest_ctx must be the first member, see guestmem_guest_ctx_pa2ptr() */
+	hptw_ctx_t guest_ctx;
+	hptw_ctx_t host_ctx;
+	/* Pointer to vcpu */
+	VCPU *vcpu;
+} guestmem_hptw_ctx_pair_t;
+
+typedef enum cpu_segment_t {
+	CPU_SEG_ES,
+	CPU_SEG_CS,
+	CPU_SEG_SS,
+	CPU_SEG_DS,
+	CPU_SEG_FS,
+	CPU_SEG_GS,
+	CPU_SEG_UNKNOWN,
+} cpu_segment_t;
 
 //----------------------------------------------------------------------
 //exported DATA
@@ -90,14 +119,13 @@ u64 * xmhf_memprot_get_lvl4_pagemap_address(VCPU *vcpu);
 //get default root page map address
 u64 * xmhf_memprot_get_default_root_pagemap_address(VCPU *vcpu);
 
-//flush hardware page table mappings (TLB)
-void xmhf_memprot_flushmappings(VCPU *vcpu);
+//flush the TLB of all nested page tables in the current core.
+//flags is bitwise or of MEMP_FLUSHTLB_* macros. 0 is effectively NOP.
+void xmhf_memprot_flushmappings_localtlb(VCPU *vcpu, u32 flags);
 
-//flush the TLB of all nested page tables in the current core
-void xmhf_memprot_flushmappings_localtlb(VCPU *vcpu);
-
-// flush the TLB of all nested page tables in all cores
-void xmhf_memprot_flushmappings_alltlb(VCPU *vcpu);
+//flush the TLB of all nested page tables in all cores (need quiesce).
+//flags is bitwise or of MEMP_FLUSHTLB_* macros. 0 is effectively NOP.
+void xmhf_memprot_flushmappings_alltlb(VCPU *vcpu, u32 flags);
 
 //set protection for a given physical memory address
 void xmhf_memprot_setprot(VCPU *vcpu, u64 gpa, u32 prottype);
@@ -141,11 +169,8 @@ u32 xmhf_memprot_arch_x86vmx_mtrr_read(VCPU *vcpu, u32 msr, u64 *val);
 //handle WRMSR on MTRRs
 u32 xmhf_memprot_arch_x86vmx_mtrr_write(VCPU *vcpu, u32 msr, u64 val);
 
-//flush hardware page table mappings (TLB)
-void xmhf_memprot_arch_flushmappings(VCPU *vcpu);
-
 //flush the TLB of all nested page tables in the current core
-void xmhf_memprot_arch_flushmappings_localtlb(VCPU *vcpu);
+void xmhf_memprot_arch_flushmappings_localtlb(VCPU *vcpu, u32 flags);
 
 //set protection for a given physical memory address
 void xmhf_memprot_arch_setprot(VCPU *vcpu, u64 gpa, u32 prottype);
@@ -168,24 +193,44 @@ bool xmhf_arch_get_machine_paddr_range(spa_t* machine_base_spa, spa_t* machine_l
 //----------------------------------------------------------------------
 
 void xmhf_memprot_arch_x86vmx_initialize(VCPU *vcpu);	//initialize memory protection for a core
-void xmhf_memprot_arch_x86vmx_flushmappings(VCPU *vcpu); //flush hardware page table mappings (TLB)
-void xmhf_memprot_arch_x86vmx_flushmappings_localtlb(VCPU *vcpu);
+void xmhf_memprot_arch_x86vmx_flushmappings_localtlb(VCPU *vcpu, u32 flags); // flush TLB in current CPU
 void xmhf_memprot_arch_x86vmx_setprot(VCPU *vcpu, u64 gpa, u32 prottype); //set protection for a given physical memory address
 u32 xmhf_memprot_arch_x86vmx_getprot(VCPU *vcpu, u64 gpa); //get protection for a given physical memory address
-u64 xmhf_memprot_arch_x86vmx_get_EPTP(VCPU *vcpu); // get or set EPTP (only valid on Intel)
+u64 xmhf_memprot_arch_x86vmx_get_EPTP(VCPU *vcpu); // get or set EPTP01 (only valid on Intel)
 void xmhf_memprot_arch_x86vmx_set_EPTP(VCPU *vcpu, u64 eptp);
 
+void memprot_x86vmx_eptlock_write_lock(VCPU *vcpu);
+void memprot_x86vmx_eptlock_write_unlock(VCPU *vcpu);
+void memprot_x86vmx_eptlock_read_lock(VCPU *vcpu);
+void memprot_x86vmx_eptlock_read_unlock(VCPU *vcpu);
+
+void guestmem_init(VCPU *vcpu, guestmem_hptw_ctx_pair_t *ctx_pair);
+void guestmem_copy_gv2h(guestmem_hptw_ctx_pair_t *ctx_pair, hptw_cpl_t cpl,
+						void *dst, hpt_va_t src, size_t len);
+void guestmem_copy_gp2h(guestmem_hptw_ctx_pair_t *ctx_pair, hptw_cpl_t cpl,
+						void *dst, hpt_va_t src, size_t len);
+void guestmem_copy_h2gv(guestmem_hptw_ctx_pair_t *ctx_pair, hptw_cpl_t cpl,
+						hpt_va_t dst, void *src, size_t len);
+void guestmem_copy_h2gp(guestmem_hptw_ctx_pair_t *ctx_pair, hptw_cpl_t cpl,
+						hpt_va_t dst, void *src, size_t len);
+spa_t guestmem_gpa2spa_page(guestmem_hptw_ctx_pair_t *ctx_pair,
+							gpa_t guest_addr);
+spa_t guestmem_gpa2spa_size(guestmem_hptw_ctx_pair_t *ctx_pair,
+							gpa_t guest_addr, size_t size);
+gva_t guestmem_desegment(VCPU * vcpu, cpu_segment_t seg, gva_t addr,
+						 size_t size, hpt_prot_t mode, hptw_cpl_t cpl);
+
 //VMX EPT PML4 table buffers
-extern u8 g_vmx_ept_pml4_table_buffers[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_ept_pml4_table_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //VMX EPT PDP table buffers
-extern u8 g_vmx_ept_pdp_table_buffers[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_ept_pdp_table_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //VMX EPT PD table buffers
-extern u8 g_vmx_ept_pd_table_buffers[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_ept_pd_table_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //VMX EPT P table buffers
-extern u8 g_vmx_ept_p_table_buffers[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_vmx_ept_p_table_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 
 //----------------------------------------------------------------------
@@ -200,13 +245,13 @@ u64 xmhf_memprot_arch_x86svm_get_h_cr3(VCPU *vcpu); // get or set host cr3 (only
 void xmhf_memprot_arch_x86svm_set_h_cr3(VCPU *vcpu, u64 hcr3);
 
 //SVM NPT PDPT buffers
-extern u8 g_svm_npt_pdpt_buffers[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_svm_npt_pdpt_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //SVM NPT PDT buffers
-extern u8 g_svm_npt_pdts_buffers[]__attribute__(( section(".bss.palign_data") ));
+extern u8 g_svm_npt_pdts_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //SVM NPT PT buffers
-extern u8 g_svm_npt_pts_buffers[]__attribute__(( section(".bss.palign_data") ));
+extern u8 g_svm_npt_pts_buffers[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 
 #endif	//__ASSEMBLY__

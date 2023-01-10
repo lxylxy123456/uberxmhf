@@ -50,7 +50,7 @@
 #ifndef __EMHF_RUNTIME_H__
 #define __EMHF_RUNTIME_H__
 
-#define DMAPROT_PHY_ADDR_SPACE_SIZE		(PA_PAGE_ALIGN_UP_NOCHK_1G(MAX_PHYS_ADDR))
+#define DMAPROT_PHY_ADDR_SPACE_SIZE		(PA_PAGE_ALIGN_UP_1G(MAX_PHYS_ADDR))
 #define DMAPROT_VMX_P4L_NPDT			(DMAPROT_PHY_ADDR_SPACE_SIZE >> PAGE_SHIFT_1G)
 
 // 4-level PML4 page tables + 4KB root entry table + 4K context entry table per PCI bus
@@ -73,7 +73,7 @@ extern RPB arch_rpb;
 extern RPB *rpb __attribute__(( section(".data") ));
 
 //runtime DMA protection buffer
-extern u8 g_rntm_dmaprot_buffer[] __attribute__(( section(".bss.palign_data") ));
+extern u8 g_rntm_dmaprot_buffer[] __attribute__((aligned(PAGE_SIZE_4K)));
 
 //variable that is incremented by 1 by all cores that cycle through appmain
 //successfully, this should be finally equal to g_midtable_numentries at
@@ -95,6 +95,15 @@ void xmhf_runtime_entry(void);
 void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit);
 
 void xmhf_runtime_shutdown(VCPU *vcpu, struct regs *r);
+
+//DMAP related functions
+#if defined(__DRT__) || defined(__DMAP__)
+void vmx_dmar_zap(spa_t dmaraddrphys);
+spa_t vmx_find_dmar_paddr(VTD_DMAR *dmar);
+#endif /* defined(__DRT__) || defined(__DMAP__) */
+#if defined(__DRT__) && !defined(__DMAP__)
+void vmx_eap_zap(void);
+#endif /* defined(__DRT__) && !defined(__DMAP__) */
 
 //----------------------------------------------------------------------
 //ARCH. BACKENDS
