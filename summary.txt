@@ -1,0 +1,34 @@
+Porting XMHF to amd64
+	Port C headers
+	Difference between assembly instructions
+		pusha (before bug_001)
+	Difference between pointer size
+		(bug_006)
+		Stack space required *= about 2, or stack overflow (bug_013)
+		scode.c (bug_017)
+	Difference between hardware data structures
+		gdt, idt, page table, TSS
+		segment base = 0 -> restructure SL
+		Need to walk page long mode page table (bug_012)
+		TR access right: 3 or 11 -> 11 only (bug_014)
+	New states to be managed
+		EFER.LME (bug_001)
+		"IA-32e mode guest" (bug_009)
+		guest_GS_base (bug_010)
+
+Support modern OS
+	Debian 11 uses INVPCID (bug_002) (guest crash) (could have cleared CPUID)
+	Debian 11 uses RDTSCP (bug_003) (guest crash) (could have cleared CPUID)
+	Debian 11 needs exception when RDMSR fails (bug_004) (hypervisor crash) (unimplemented feature)
+	Debian 11 sets CR0 reserved fields (bug_008) (hypervisor crash) (not follow SDM)
+	Debian 11 reads special MSR (bug_009) (guest crash) (not follow SDM)
+	Debian 11 uses x2APIC (bug_011) (guest crash) (could have cleared CPUID)
+	Debian 11 uses CR3 PCID, should ignore lower bits in trustvisor (bug_017) (trustvisor crash) (now follow SDM, ignored bits not ignored)
+
+Support modern hardware
+	TODO
+
+Existing bugs
+	Race condition in quiesce code (bug_018) (hypervisor stuck)
+
+TODO: continue at bug_018
