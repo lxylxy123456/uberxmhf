@@ -117,41 +117,17 @@ static u8 cpu_shadow_vmcs12[MAX_VCPU_ENTRIES][VMX_NESTED_MAX_ACTIVE_VMCS]
 #endif							/* VMX_NESTED_USE_SHADOW_VMCS */
 
 /*
- * Given a segment index, return the segment offset
- * TODO: do we need to check access rights?
+ * Get the linear address (after segmentation) of memory operand of the
+ * instruction. The access size and mode are passed in size and mode.
  */
-static uintptr_t _vmx_decode_seg(u32 seg, VCPU * vcpu)
-{
-	switch (seg) {
-	case 0:
-		return vcpu->vmcs.guest_ES_base;
-	case 1:
-		return vcpu->vmcs.guest_CS_base;
-	case 2:
-		return vcpu->vmcs.guest_SS_base;
-	case 3:
-		return vcpu->vmcs.guest_DS_base;
-	case 4:
-		return vcpu->vmcs.guest_FS_base;
-	case 5:
-		return vcpu->vmcs.guest_GS_base;
-	default:
-		HALT_ON_ERRORCOND(0 && "Unexpected segment");
-		return 0;
-	}
-}
-
-/*
- * Access size bytes of memory referenced in memory operand of instruction.
- * The memory content in the guest is returned in dst.
- */
-static gva_t _vmx_decode_mem_operand(VCPU * vcpu, struct regs *r)
+static gva_t _vmx_decode_mem_operand(VCPU * vcpu, struct regs *r, size_t size,
+									 hpt_prot_t mode, hptw_cpl_t cpl)
 {
 	union _vmx_decode_vm_inst_info inst_info;
+	/* addr is the logical address (before segmentation) */
 	gva_t addr;
 	inst_info.raw = vcpu->vmcs.info_vmx_instruction_information;
-	addr = _vmx_decode_seg(inst_info.segment_register, vcpu);
-	addr += vcpu->vmcs.info_exit_qualification;
+	addr = vcpu->vmcs.info_exit_qualification;
 	if (!inst_info.base_reg_invalid) {
 		addr += *_vmx_decode_reg(inst_info.base_reg, vcpu, r);
 	}
@@ -178,7 +154,9 @@ static gva_t _vmx_decode_mem_operand(VCPU * vcpu, struct regs *r)
 		HALT_ON_ERRORCOND(0 && "Unexpected address size");
 		break;
 	}
-	return addr;
+	/* Return linear address (after segmentation) */
+	return guestmem_desegment(vcpu, inst_info.segment_register, addr, size,
+							  mode, cpl);
 }
 
 /*
@@ -190,7 +168,7 @@ static gva_t _vmx_decode_mem_operand(VCPU * vcpu, struct regs *r)
  * ppdescriptor.
  */
 static void _vmx_decode_r_m128(VCPU * vcpu, struct regs *r, ulong_t * ptype,
-							   gva_t * ppdescriptor)
+							   gva_t * ppdescriptor, hpt_prot_t mode)
 {
 	union _vmx_decode_vm_inst_info inst_info;
 	size_t size = (VCPU_g64(vcpu) ? sizeof(u64) : sizeof(u32));
@@ -200,7 +178,7 @@ static void _vmx_decode_r_m128(VCPU * vcpu, struct regs *r, ulong_t * ptype,
 	type = _vmx_decode_reg(inst_info.reg2, vcpu, r);
 	*ptype = 0;
 	memcpy(ptype, type, size);
-	*ppdescriptor = _vmx_decode_mem_operand(vcpu, r);
+	*ppdescriptor = _vmx_decode_mem_operand(vcpu, r, 16, mode, HPTW_CPL0);
 }
 
 /*
@@ -209,12 +187,12 @@ static void _vmx_decode_r_m128(VCPU * vcpu, struct regs *r, ulong_t * ptype,
  * for VMCLEAR, VMPTRLD, VMPTRST, VMXON, XRSTORS, and XSAVES in Intel's
  * System Programming Guide, Order Number 325384.
  */
-static gva_t _vmx_decode_m64(VCPU * vcpu, struct regs *r)
+static gva_t _vmx_decode_m64(VCPU * vcpu, struct regs *r, hpt_prot_t mode)
 {
 	union _vmx_decode_vm_inst_info inst_info;
 	inst_info.raw = vcpu->vmcs.info_vmx_instruction_information;
 	HALT_ON_ERRORCOND(inst_info.mem_reg == 0);
-	return _vmx_decode_mem_operand(vcpu, r);
+	return _vmx_decode_mem_operand(vcpu, r, 8, mode, HPTW_CPL0);
 }
 
 /*
@@ -230,7 +208,7 @@ static gva_t _vmx_decode_m64(VCPU * vcpu, struct regs *r)
 static size_t _vmx_decode_vmread_vmwrite(VCPU * vcpu, struct regs *r,
 										 int is_vmwrite, ulong_t * pencoding,
 										 uintptr_t * ppvalue,
-										 int *pvalue_mem_reg)
+										 int *pvalue_mem_reg, hpt_prot_t mode)
 {
 	union _vmx_decode_vm_inst_info inst_info;
 	ulong_t *encoding;
@@ -253,7 +231,7 @@ static size_t _vmx_decode_vmread_vmwrite(VCPU * vcpu, struct regs *r,
 		}
 	} else {
 		*pvalue_mem_reg = 0;
-		*ppvalue = _vmx_decode_mem_operand(vcpu, r);
+		*ppvalue = _vmx_decode_mem_operand(vcpu, r, size, mode, HPTW_CPL0);
 	}
 	return size;
 }
@@ -643,7 +621,7 @@ void xmhf_nested_arch_x86vmx_handle_invept(VCPU * vcpu, struct regs *r)
 			u64 reserved;
 		} descriptor;
 		guestmem_hptw_ctx_pair_t ctx_pair;
-		_vmx_decode_r_m128(vcpu, r, &type, &pdescriptor);
+		_vmx_decode_r_m128(vcpu, r, &type, &pdescriptor, HPT_PROT_READ_MASK);
 		guestmem_init(vcpu, &ctx_pair);
 		guestmem_copy_gv2h(&ctx_pair, 0, &descriptor, pdescriptor,
 						   sizeof(descriptor));
@@ -709,7 +687,7 @@ void xmhf_nested_arch_x86vmx_handle_invvpid(VCPU * vcpu, struct regs *r)
 			u64 linear_addr;
 		} descriptor;
 		guestmem_hptw_ctx_pair_t ctx_pair;
-		_vmx_decode_r_m128(vcpu, r, &type, &pdescriptor);
+		_vmx_decode_r_m128(vcpu, r, &type, &pdescriptor, HPT_PROT_READ_MASK);
 		guestmem_init(vcpu, &ctx_pair);
 		guestmem_copy_gv2h(&ctx_pair, 0, &descriptor, pdescriptor,
 						   sizeof(descriptor));
@@ -770,7 +748,7 @@ void xmhf_nested_arch_x86vmx_handle_vmclear(VCPU * vcpu, struct regs *r)
 	} else if (_vmx_guest_get_cpl(vcpu) > 0) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
 	} else {
-		gva_t addr = _vmx_decode_m64(vcpu, r);
+		gva_t addr = _vmx_decode_m64(vcpu, r, HPT_PROT_READ_MASK);
 		gpa_t vmcs_ptr;
 		guestmem_hptw_ctx_pair_t ctx_pair;
 		guestmem_init(vcpu, &ctx_pair);
@@ -898,7 +876,7 @@ void xmhf_nested_arch_x86vmx_handle_vmptrld(VCPU * vcpu, struct regs *r)
 	} else if (_vmx_guest_get_cpl(vcpu) > 0) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
 	} else {
-		gva_t addr = _vmx_decode_m64(vcpu, r);
+		gva_t addr = _vmx_decode_m64(vcpu, r, HPT_PROT_READ_MASK);
 		gpa_t vmcs_ptr;
 		guestmem_hptw_ctx_pair_t ctx_pair;
 		guestmem_init(vcpu, &ctx_pair);
@@ -970,7 +948,7 @@ void xmhf_nested_arch_x86vmx_handle_vmptrst(VCPU * vcpu, struct regs *r)
 	} else if (_vmx_guest_get_cpl(vcpu) > 0) {
 		_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
 	} else {
-		gva_t addr = _vmx_decode_m64(vcpu, r);
+		gva_t addr = _vmx_decode_m64(vcpu, r, HPT_PROT_WRITE_MASK);
 		gpa_t vmcs_ptr = CUR_VMCS_PTR_INVALID;
 		guestmem_hptw_ctx_pair_t ctx_pair;
 		guestmem_init(vcpu, &ctx_pair);
@@ -1008,7 +986,8 @@ void xmhf_nested_arch_x86vmx_handle_vmread(VCPU * vcpu, struct regs *r)
 			uintptr_t pvalue;
 			int value_mem_reg;
 			size_t size = _vmx_decode_vmread_vmwrite(vcpu, r, 1, &encoding,
-													 &pvalue, &value_mem_reg);
+													 &pvalue, &value_mem_reg,
+													 HPT_PROT_WRITE_MASK);
 #ifdef VMX_NESTED_USE_SHADOW_VMCS
 			/* If using shadow VMCS, there should be no VMREAD exits */
 			HALT_ON_ERRORCOND(!_vmx_hasctl_vmcs_shadowing(&vcpu->vmx_caps));
@@ -1061,7 +1040,8 @@ void xmhf_nested_arch_x86vmx_handle_vmwrite(VCPU * vcpu, struct regs *r)
 			uintptr_t pvalue;
 			int value_mem_reg;
 			size_t size = _vmx_decode_vmread_vmwrite(vcpu, r, 1, &encoding,
-													 &pvalue, &value_mem_reg);
+													 &pvalue, &value_mem_reg,
+													 HPT_PROT_READ_MASK);
 #ifdef VMX_NESTED_USE_SHADOW_VMCS
 			/* If using shadow VMCS, there should be no VMWRITE exits */
 			HALT_ON_ERRORCOND(!_vmx_hasctl_vmcs_shadowing(&vcpu->vmx_caps));
@@ -1167,7 +1147,7 @@ void xmhf_nested_arch_x86vmx_handle_vmxon(VCPU * vcpu, struct regs *r)
 			(vcr4 & ~vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED1_MSR]) != 0) {
 			_vmx_inject_exception(vcpu, CPU_EXCEPTION_GP, 1, 0);
 		} else {
-			gva_t addr = _vmx_decode_m64(vcpu, r);
+			gva_t addr = _vmx_decode_m64(vcpu, r, HPT_PROT_READ_MASK);
 			gpa_t vmxon_ptr;
 			guestmem_hptw_ctx_pair_t ctx_pair;
 			guestmem_init(vcpu, &ctx_pair);
