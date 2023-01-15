@@ -884,7 +884,8 @@ void lhv_guest_main(ulong_t cpu_id)
 		if (in_xmhf) {
 			printf("CPU(0x%02x): LHV in XMHF test iter %lld\n", vcpu->id, iter);
 		} else {
-			printf("CPU(0x%02x): LHV test iter %lld\n", vcpu->id, iter);
+			// TODO
+			//printf("CPU(0x%02x): LHV test iter %lld\n", vcpu->id, iter);
 		}
 		if (!(__LHV_OPT__ & (LHV_NO_EFLAGS_IF | LHV_NO_INTERRUPT))) {
 			asm volatile ("hlt");
@@ -966,6 +967,9 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 		 */
 		break;
 #endif /* __DEBUG_QEMU__ */
+	case 0x2c:
+		handle_mouse_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
+		break;
 	default:
 		{
 			extern uint8_t _begin_xcph_table[];

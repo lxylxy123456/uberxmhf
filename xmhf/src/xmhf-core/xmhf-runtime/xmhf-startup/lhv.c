@@ -43,6 +43,11 @@ void lhv_main(VCPU *vcpu)
 		asm volatile ("sti");
 	}
 
+	// TODO: control with LHV_OPT
+	if (vcpu->isbsp) {
+		mouse_init(vcpu);
+	}
+
 	/* Start VT related things */
 	lhv_vmx_main(vcpu);
 

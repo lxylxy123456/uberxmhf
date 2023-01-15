@@ -55,6 +55,10 @@ int pic_spurious(unsigned char irq);
 /* lhv-keyboard.c */
 void handle_keyboard_interrupt(VCPU *vcpu, int vector, int guest);
 
+/* lhv-mouse.c */
+void mouse_init(VCPU *vcpu);
+void handle_mouse_interrupt(VCPU *vcpu, int vector, int guest);
+
 /* lhv-vmx.c */
 void lhv_vmx_main(VCPU *vcpu);
 void vmentry_error(ulong_t is_resume, ulong_t valid);
