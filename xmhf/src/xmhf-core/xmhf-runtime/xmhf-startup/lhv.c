@@ -43,7 +43,7 @@ void lhv_main(VCPU *vcpu)
 		asm volatile ("sti");
 	}
 
-	if (!(__LHV_OPT__ & LHV_USE_PS2_MOUSE)) {
+	if (__LHV_OPT__ & LHV_USE_PS2_MOUSE) {
 		if (vcpu->isbsp) {
 			mouse_init(vcpu);
 		}
