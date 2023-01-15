@@ -29,6 +29,7 @@ typedef struct {
 #define LHV_NO_INTERRUPT			0x0000000000000200ULL
 #define LHV_USE_MSRBITMAP			0x0000000000000400ULL
 #define LHV_NESTED_USER_MODE		0x0000000000000800ULL	/* Need !0x2 */
+#define LHV_USE_PS2_MOUSE			0x0000000000001000ULL
 
 /* xcph-x86.c */
 VCPU *_svm_and_vmx_getvcpu(void);
@@ -54,6 +55,10 @@ int pic_spurious(unsigned char irq);
 
 /* lhv-keyboard.c */
 void handle_keyboard_interrupt(VCPU *vcpu, int vector, int guest);
+
+/* lhv-mouse.c */
+void mouse_init(VCPU *vcpu);
+void handle_mouse_interrupt(VCPU *vcpu, int vector, int guest);
 
 /* lhv-vmx.c */
 void lhv_vmx_main(VCPU *vcpu);

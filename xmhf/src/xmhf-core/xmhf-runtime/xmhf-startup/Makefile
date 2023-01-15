@@ -19,6 +19,7 @@ C_SOURCES += lhv-ept.c
 C_SOURCES += lhv-vmcs.c
 C_SOURCES += lhv-guest.c
 C_SOURCES += lhv-user.c
+C_SOURCES += lhv-mouse.c
 
 C_SOURCES += ./arch/x86/rntm-x86-data.c
 C_SOURCES += ./arch/x86/rntm-x86-dmap.c

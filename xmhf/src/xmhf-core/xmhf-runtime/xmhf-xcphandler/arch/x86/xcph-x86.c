@@ -192,6 +192,10 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
 		break;
 #endif /* __DEBUG_QEMU__ */
 
+	case 0x2c:
+		handle_mouse_interrupt(vcpu, vector, 0);
+		break;
+
     default:
         {
             /*

@@ -966,6 +966,9 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 		 */
 		break;
 #endif /* __DEBUG_QEMU__ */
+	case 0x2c:
+		handle_mouse_interrupt(_svm_and_vmx_getvcpu(), vector, 1);
+		break;
 	default:
 		{
 			extern uint8_t _begin_xcph_table[];
