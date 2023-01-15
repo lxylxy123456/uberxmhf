@@ -92,7 +92,9 @@ typedef struct {
  * Hypapp should return APP_INIT_SUCCESS if hypapp initialization is successful.
  * Otherwise hypapp should return APP_INIT_FAIL (XMHF will halt).
  *
- * When this function is called, other CPUs are NOT quiesced.
+ * When this function is called, other CPUs are NOT quiesced. However, when
+ * this function is called all CPUs are in hypervisor mode (guest has not been
+ * started).
  */
 extern u32 xmhf_app_main(VCPU *vcpu, APP_PARAM_BLOCK *apb);
 
@@ -124,7 +126,9 @@ extern u32 xmhf_app_handleintercept_portaccess(VCPU *vcpu, struct regs *r,
  *
  * gpa: guest physical address accessed
  * gva: guest virtual address accessed
- * violationcode: platform specific reasion of NPT / EPT violation
+ * violationcode: platform specific reason of NPT / EPT violation
+ *
+ * Hypapp should return APP_SUCCESS.
  *
  * When this function is called, other CPUs may or may not be quiesced. This is
  * configured using __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__.
@@ -137,9 +141,11 @@ extern u32 xmhf_app_handleintercept_hwpgtblviolation(VCPU *vcpu, struct regs *r,
  * Called when the guest tries to shutdown / restart.
  *
  * Hypapp should call xmhf_baseplatform_reboot() to perform the restart.
+ * xmhf_baseplatform_reboot() will never return.
  *
  * When this function is called, other CPUs are NOT quiesced. However, all
- * CPUs are going to call xmhf_app_handleshutdown() concurrently.
+ * CPUs are going to call xmhf_app_handleshutdown() concurrently (all CPUs
+ * are in hypervisor mode).
  */
 extern void xmhf_app_handleshutdown(VCPU *vcpu, struct regs *r);
 
@@ -163,7 +169,9 @@ extern u32 xmhf_app_handlehypercall(VCPU *vcpu, struct regs *r);
  * Hypapp should return APP_SUCCESS if MTRR can be modified (for VMX, XMHF will
  * modify MTRR). Otherwise hypapp should return APP_ERROR (XMHF will halt).
  *
- * When this function is called, other CPUs are NOT quiesced.
+ * When this function is called, other CPUs are NOT quiesced. For formal
+ * verification purpose, XMHF assumes that the hypapp does not access XMHF's
+ * global variables.
  */
 extern u32 xmhf_app_handlemtrr(VCPU *vcpu, u32 msr, u64 val);
 
@@ -175,9 +183,45 @@ extern u32 xmhf_app_handlemtrr(VCPU *vcpu, u32 msr, u64 val);
  * APP_CPUID_SKIP. Otherwise the hypapp should return APP_CPUID_CHAIN and XMHF
  * will handle the CPUID instruction.
  *
- * When this function is called, other CPUs are NOT quiesced.
+ * When this function is called, other CPUs are NOT quiesced. For formal
+ * verification purpose, XMHF assumes that the hypapp does not access XMHF's
+ * global variables.
  */
 extern u32 xmhf_app_handlecpuid(VCPU *vcpu, struct regs *r);
+
+/*
+ * Called when the CPU receives an interrupt from hardware during guest mode.
+ *
+ * In VMX, this function is only called when "External-interrupt exiting" VMCS
+ * control bit is set to 1 by the hypapp.
+ *
+ * Currently call to this function is NOT implemented in nested virtualization.
+ * All such events from nested virtualization are sent to the guest hypervisor.
+ *
+ * Hypapp should return APP_SUCCESS.
+ *
+ * When this function is called, other CPUs are NOT quiesced. For formal
+ * verification purpose, XMHF assumes that the hypapp does not access XMHF's
+ * global variables.
+ */
+extern u32 xmhf_app_handle_external_interrupt(VCPU *vcpu, struct regs *r);
+
+/*
+ * Called when the guest is able to receive an interrupt (EFLAGS.IF = 1).
+ *
+ * In VMX, this function is only called when "Interrupt-window exiting" VMCS
+ * control bit is set to 1 by the hypapp.
+ *
+ * Currently call to this function is NOT implemented in nested virtualization.
+ * All such events from nested virtualization are sent to the guest hypervisor.
+ *
+ * Hypapp should return APP_SUCCESS.
+ *
+ * When this function is called, other CPUs are NOT quiesced. For formal
+ * verification purpose, XMHF assumes that the hypapp does not access XMHF's
+ * global variables.
+ */
+extern u32 xmhf_app_handle_interrupt_window(VCPU *vcpu, struct regs *r);
 
 #ifdef __NESTED_VIRTUALIZATION__
 /*
@@ -188,7 +232,9 @@ extern u32 xmhf_app_handlecpuid(VCPU *vcpu, struct regs *r);
  *
  * Hypapp should return APP_SUCCESS.
  *
- * When this function is called, other CPUs are NOT quiesced.
+ * When this function is called, other CPUs are NOT quiesced. For formal
+ * verification purpose, XMHF assumes that the hypapp does not access XMHF's
+ * global variables.
  */
 extern u32 xmhf_app_handle_nest_entry(VCPU *vcpu, struct regs *r);
 
@@ -200,7 +246,9 @@ extern u32 xmhf_app_handle_nest_entry(VCPU *vcpu, struct regs *r);
  *
  * Hypapp should return APP_SUCCESS.
  *
- * When this function is called, other CPUs are NOT quiesced.
+ * When this function is called, other CPUs are NOT quiesced. For formal
+ * verification purpose, XMHF assumes that the hypapp does not access XMHF's
+ * global variables.
  */
 extern u32 xmhf_app_handle_nest_exit(VCPU *vcpu, struct regs *r);
 #endif /* __NESTED_VIRTUALIZATION__ */

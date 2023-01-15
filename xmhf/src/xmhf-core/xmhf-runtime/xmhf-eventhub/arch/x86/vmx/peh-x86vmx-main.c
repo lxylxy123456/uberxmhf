@@ -771,18 +771,20 @@ static void _vmx_handle_intercept_eptviolation(VCPU *vcpu, struct regs *r){
 	if(vcpu->isbsp && (gpa >= g_vmx_lapic_base) && (gpa < (g_vmx_lapic_base + PAGE_SIZE_4K)) ){
 		xmhf_smpguest_arch_x86_eventhandler_hwpgtblviolation(vcpu, (u32)gpa, errorcode);
 	}else{ //no, pass it to hypapp
+		u32 app_ret_status;
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
 		xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
-		xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, gpa, gva,
+		app_ret_status = xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, gpa, gva,
 				(errorcode & 7));
 		xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 #else
 		// [Superymk] Some hypapps cannot use CPU quiescing when handling trapped PIO and memory accesses. For example, some
 		// hypapps must call another core to emulate the trapped CPU instructions. These hypapps cannot do so if CPU 
 		// quiescing is used.
-		xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, gpa, gva,
+		app_ret_status = xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, gpa, gva,
 				(errorcode & 7));
 #endif // __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
+		HALT_ON_ERRORCOND(app_ret_status == APP_SUCCESS);
 	}
 }
 
@@ -1131,6 +1133,18 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		_OPT_VMREAD(NW, guest_DS_base);
 		_OPT_VMREAD(NW, guest_FS_base);
 		_OPT_VMREAD(NW, guest_GS_base);
+		_OPT_VMREAD(32, guest_ES_limit);
+		_OPT_VMREAD(32, guest_CS_limit);
+		_OPT_VMREAD(32, guest_SS_limit);
+		_OPT_VMREAD(32, guest_DS_limit);
+		_OPT_VMREAD(32, guest_FS_limit);
+		_OPT_VMREAD(32, guest_GS_limit);
+		_OPT_VMREAD(32, guest_ES_access_rights);
+		_OPT_VMREAD(32, guest_CS_access_rights);
+		_OPT_VMREAD(32, guest_SS_access_rights);
+		_OPT_VMREAD(32, guest_DS_access_rights);
+		_OPT_VMREAD(32, guest_FS_access_rights);
+		_OPT_VMREAD(32, guest_GS_access_rights);
 		_OPT_VMREAD(NW, guest_RSP);
 		_OPT_VMREAD(NW, guest_RIP);
 		_OPT_VMREAD(NW, guest_RFLAGS);
@@ -1411,6 +1425,28 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 					xmhf_parteventhub_arch_x86vmx_print_guest(vcpu, r);
 					HALT();
 			}
+		}
+		break;
+
+		case VMX_VMEXIT_EXT_INTERRUPT: {
+			/*
+			 * XMHF does not perform interrupt virtualization. If hypapp
+			 * performs interrupt virtualization, the interrupt is handled by
+			 * the hypapp.
+			 */
+			u32 app_ret_status = xmhf_app_handle_external_interrupt(vcpu, r);
+			HALT_ON_ERRORCOND(app_ret_status == APP_SUCCESS);
+		}
+		break;
+
+		case VMX_VMEXIT_INTERRUPT_WINDOW: {
+			/*
+			 * XMHF does not perform interrupt virtualization. If hypapp
+			 * performs interrupt virtualization, the interrupt window is
+			 * handled by the hypapp.
+			 */
+			u32 app_ret_status = xmhf_app_handle_interrupt_window(vcpu, r);
+			HALT_ON_ERRORCOND(app_ret_status == APP_SUCCESS);
 		}
 		break;
 
