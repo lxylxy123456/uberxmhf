@@ -884,8 +884,7 @@ void lhv_guest_main(ulong_t cpu_id)
 		if (in_xmhf) {
 			printf("CPU(0x%02x): LHV in XMHF test iter %lld\n", vcpu->id, iter);
 		} else {
-			// TODO
-			//printf("CPU(0x%02x): LHV test iter %lld\n", vcpu->id, iter);
+			printf("CPU(0x%02x): LHV test iter %lld\n", vcpu->id, iter);
 		}
 		if (!(__LHV_OPT__ & (LHV_NO_EFLAGS_IF | LHV_NO_INTERRUPT))) {
 			asm volatile ("hlt");
