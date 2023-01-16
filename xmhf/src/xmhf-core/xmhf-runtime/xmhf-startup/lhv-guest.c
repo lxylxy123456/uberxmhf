@@ -296,76 +296,6 @@ static void lhv_guest_test_ept(VCPU *vcpu)
 	}
 }
 
-/* Test non-identity mapping of EPT */
-
-static u8 ept_2[4][PAGE_SIZE_4K] __attribute__((aligned(PAGE_SIZE_4K)));
-
-static void lhv_guest_test_ept_2_vmexit_handler(VCPU *vcpu, struct regs *r,
-											  vmexit_info_t *info)
-{
-	// Change this to 0x0, then the bug disappears
-	u64 offset = 0x1000;
-	if (info->vmexit_reason == VMX_VMEXIT_VMCALL) {
-		HALT_ON_ERRORCOND(r->eax == 123);
-		((u64 *)(ept_2[0]))[0] = (u64)(ept_2[1]) | 0x7;
-		((u64 *)(ept_2[1]))[0] = (u64)(ept_2[2]) | 0x7;
-		((u64 *)(ept_2[2]))[0] = (u64)(ept_2[3]) | 0x7;
-		((u64 *)(ept_2[3]))[0] = (offset + 0x0000) | 0x37;
-		((u64 *)(ept_2[3]))[1] = (offset + 0x1000) | 0x37;
-		((u64 *)(ept_2[3]))[2] = (offset + 0x2000) | 0x37;
-		((u64 *)(ept_2[3]))[3] = (offset + 0x3000) | 0x37;
-		((u64 *)(ept_2[3]))[4] = (offset + 0x4000) | 0x37;
-		((u64 *)(offset + 0x0000))[0] = 0x1067;
-		((u64 *)(offset + 0x1000))[0] = 0x2067;
-		((u64 *)(offset + 0x2000))[0] = 0x3067;
-		((u64 *)(offset + 0x3000))[0] = 0x4067;
-		((u64 *)(offset + 0x4000))[0] = 0xf4f4f4f4f4f4f4f4;
-		vmcs_vmwrite(vcpu, VMCS_control_EPT_pointer, ((u64)ept_2) | 0x1eULL);
-		vmcs_vmwrite(vcpu, VMCS_guest_CR3, 0);
-		vmcs_vmwrite(vcpu, VMCS_guest_RIP, 1);
-		vmresume_asm(r);
-	} else {
-		printf("VMEXIT: %u\n", info->vmexit_reason);
-		return;
-	}
-
-#if 0
-	if (info->vmexit_reason != VMX_VMEXIT_EPT_VIOLATION) {
-		return;
-	}
-	{
-		ulong_t q = vmcs_vmread(vcpu, VMCS_info_exit_qualification);
-		u64 paddr = vmcs_vmread64(vcpu, VMCS_guest_paddr);
-		ulong_t vaddr = vmcs_vmread(vcpu, VMCS_info_guest_linear_address);
-		if (paddr != 0x12340000 || vaddr != 0x12340000) {
-			/* Let the default handler report the error */
-			return;
-		}
-		/* On older machines: q = 0x181; on Dell 7050: q = 0x581 */
-		HALT_ON_ERRORCOND((q & ~0xe00UL) == 0x181UL);
-		HALT_ON_ERRORCOND(r->eax == 0xdeadbeefU);
-		HALT_ON_ERRORCOND(r->ebx == 0x12340000U);
-		r->eax = 0xfee1c0de;
-		vcpu->ept_exit_count++;
-	}
-	vmcs_vmwrite(vcpu, VMCS_guest_RIP, info->guest_rip + info->inst_len);
-	vmresume_asm(r);
-#endif
-}
-
-static void lhv_guest_test_ept_2(VCPU *vcpu)
-{
-	if (__LHV_OPT__ & LHV_USE_EPT) {
-		HALT_ON_ERRORCOND(vcpu->ept_exit_count == 0);
-		vcpu->vmexit_handler_override = lhv_guest_test_ept_2_vmexit_handler;
-		asm volatile ("cli");
-		asm volatile ("vmcall" : : "a"(123));
-		vcpu->vmexit_handler_override = NULL;
-		vcpu->ept_exit_count = 0;
-	}
-	HALT_ON_ERRORCOND(0 && "TODO frontier");
-}
-
 /* Switch EPT */
 static void lhv_guest_switch_ept_vmexit_handler(VCPU *vcpu, struct regs *r,
 												vmexit_info_t *info)
@@ -955,9 +885,6 @@ void lhv_guest_main(ulong_t cpu_id)
 			printf("CPU(0x%02x): LHV in XMHF test iter %lld\n", vcpu->id, iter);
 		} else {
 			printf("CPU(0x%02x): LHV test iter %lld\n", vcpu->id, iter);
-		}
-		if (iter == 3) {
-			lhv_guest_test_ept_2(vcpu);
 		}
 		if (!(__LHV_OPT__ & (LHV_NO_EFLAGS_IF | LHV_NO_INTERRUPT))) {
 			asm volatile ("hlt");
