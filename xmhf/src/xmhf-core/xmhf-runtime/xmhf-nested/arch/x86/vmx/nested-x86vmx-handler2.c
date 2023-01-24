@@ -75,7 +75,7 @@
  * * VM-exit interruption information
  * * IDT-vectoring information field
  */
-static bool _nexted_vmx_is_interruption_valid(u32 interruption)
+static bool _nested_vmx_is_interruption_valid(u32 interruption)
 {
 	union {
 		struct _vmx_event_injection st;
@@ -449,7 +449,7 @@ static u32 handle_vmexit20_nmi(VCPU * vcpu, vmcs12_info_t * vmcs12_info)
 	{
 		u32 idt_info, idt_errcode, inst_len;
 		_nexted_vmx_get_idt_vec_info(&idt_info, &idt_errcode, &inst_len);
-		HALT_ON_ERRORCOND(!_nexted_vmx_is_interruption_valid(idt_info));
+		HALT_ON_ERRORCOND(!_nested_vmx_is_interruption_valid(idt_info));
 	}
 	return NESTED_VMEXIT_HANDLE_202;
 }
@@ -504,7 +504,7 @@ static u32 handle_vmexit20_nmi_window(VCPU * vcpu, vmcs12_info_t * vmcs12_info)
 		/* Inject NMI to L2 */
 		u32 idt_info, idt_errcode, inst_len;
 		_nexted_vmx_get_idt_vec_info(&idt_info, &idt_errcode, &inst_len);
-		HALT_ON_ERRORCOND(!_nexted_vmx_is_interruption_valid(idt_info));
+		HALT_ON_ERRORCOND(!_nested_vmx_is_interruption_valid(idt_info));
 		idt_info = NMI_VECTOR | INTR_TYPE_NMI | INTR_INFO_VALID_MASK;
 		_nested_vmx_inject_exception(idt_info, 0, 0);
 		/* Update NMI windowing */
@@ -641,14 +641,18 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 		{
 			/* Guest accesses illegal address, first invoke hypapp */
 			gva_t gva = __vmx_vmreadNW(VMCSENC_info_guest_linear_address);
+			u32 app_ret_status;
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
 			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 #endif
-			xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, guest1_paddr,
-													  gva, (qualification & 7));
+			app_ret_status =
+				xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, guest1_paddr,
+														  gva,
+														  (qualification & 7));
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
 			xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 #endif
+			HALT_ON_ERRORCOND(app_ret_status == APP_SUCCESS);
 		}
 		/*
 		 * Hypapp will halt if memory access is illegal. Since hypapp has
@@ -968,7 +972,7 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		{
 			u32 intr_info =
 				vmcs12_info->vmcs12_value.info_vmexit_interrupt_information;
-			HALT_ON_ERRORCOND(!_nexted_vmx_is_interruption_valid(intr_info));
+			HALT_ON_ERRORCOND(!_nested_vmx_is_interruption_valid(intr_info));
 		}
 		vmcs12_info->vmcs12_value.info_vmexit_interrupt_information =
 			NMI_VECTOR | INTR_TYPE_NMI | INTR_INFO_VALID_MASK;
@@ -980,7 +984,7 @@ static void handle_vmexit20_forward(VCPU * vcpu, vmcs12_info_t * vmcs12_info,
 		{
 			u32 idt_vec_info =
 				vmcs12_info->vmcs12_value.info_IDT_vectoring_information;
-			HALT_ON_ERRORCOND(!_nexted_vmx_is_interruption_valid(idt_vec_info));
+			HALT_ON_ERRORCOND(!_nested_vmx_is_interruption_valid(idt_vec_info));
 		}
 
 		/* Update host state: NMI is blocked */
@@ -1073,7 +1077,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		{
 			u32 intr_info =
 				__vmx_vmread32(VMCSENC_info_vmexit_interrupt_information);
-			HALT_ON_ERRORCOND(_nexted_vmx_is_interruption_valid(intr_info));
+			HALT_ON_ERRORCOND(_nested_vmx_is_interruption_valid(intr_info));
 			if (xmhf_nested_arch_x86vmx_is_interruption_nmi(intr_info)) {
 				handle_behavior = handle_vmexit20_nmi(vcpu, vmcs12_info);
 			}
