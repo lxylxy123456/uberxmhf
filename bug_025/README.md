@@ -113,8 +113,24 @@ asm_exc_nmi+309 = end_repeat_nmi
 Looks like in normal NMI handling, there will be no nested NMIs at all, because
 NMI handler will only execute iret when returning back to non-exception code.
 
+### `bug_113`
+
+This bug still presents in `xmhf64 531c11afd`. See also `bug_113`.
+
+```sh
+# Build
+./build.sh amd64 fast && gr
+# Also reproducible:
+./build.sh amd64 fast O3 circleci && gr
+# Run KVM
+../tmp/bios-qemu.sh --gdb 1234 -d build64 +1 -d debian11x64 -t -qmp tcp:localhost:4444,server,wait=off -smp 1 &
+# Run NMI inection script
+python3 bug_018/qemu_inject_nmi.py 4444 0
+```
+
 TODO: try to inject a finite number of NMIs, likely < 10
 TODO: try to modify `VMX_VMEXIT_NMI_WINDOW` to not clear NMI windowing bit
+TODO: recompile Linux, reduce NMI handling code
 
 ## Result
 
