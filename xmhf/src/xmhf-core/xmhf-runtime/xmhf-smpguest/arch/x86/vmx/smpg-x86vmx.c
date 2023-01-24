@@ -787,6 +787,9 @@ void xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(VCPU *vcpu)
 		mb();
 		atomic_dec(&vcpu->vmx_mhv_nmi_visited);
 		mb();
+		// TODO: If vcpu->vmx_mhv_nmi_visited is too large, probably there is an decrement from 0
+		HALT_ON_ERRORCOND(vcpu->vmx_mhv_nmi_visited < 0xf0000000U);
+		mb();
 		vcpu->vmx_mhv_nmi_enable = false;
 		mb();
 		xmhf_smpguest_arch_x86vmx_mhv_nmi_handle(vcpu);
