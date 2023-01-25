@@ -131,6 +131,7 @@ python3 bug_018/qemu_inject_nmi.py 4444 0
 TODO: try to inject a finite number of NMIs, likely < 10
 TODO: try to modify `VMX_VMEXIT_NMI_WINDOW` to not clear NMI windowing bit
 TODO: recompile Linux, reduce NMI handling code
+TODO: try on Bochs, if Bochs supports injecting NMI
 
 ## Result
 

@@ -111,10 +111,17 @@ Also make sure to add memory barriers.
 
 Implemented in `xmhf64-dev b3e5e098c`, cherry picked to `xmhf64 7ea6b5f31`.
 
+However, then I realized that it is not a good idea. Should remove call to
+`nmi_enable()` in `nmi_handler()` in H5 and H7. Implemented in
+`xmhf64 127869130`.
+
 ## Fix
 
 `xmhf64 531c11afd..7ea6b5f31`
 * Make `xmhf_smpguest_arch_x86vmx_mhv_nmi_enable()` reentrant
+
+`xmhf64 37ff9bd7d..127869130`
+* Revert `7ea6b5f31`, fix using another way
 
 `xmhf64-dev 21422c5b3..227783839`
 * Test unsigned underflow in `xmhf_smpguest_arch_x86vmx_mhv_nmi_enable()`
