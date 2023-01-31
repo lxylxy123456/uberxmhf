@@ -8,6 +8,7 @@ Porting XMHF to amd64
 		scode.c (bug_017)
 		Do not simply cast to u32 (bug_022)
 		TrustVisor (bug_026)
+		DRT (bug_037, bug_042, bug_053)
 	Difference between hardware data structures
 		gdt, idt, page table, TSS
 		segment base = 0 -> restructure SL
@@ -32,24 +33,43 @@ Support modern OS
 	Debian 11 uses x2APIC (bug_011) (guest crash) (could have cleared CPUID)
 	Debian 11 uses CR3 PCID, should ignore lower bits in trustvisor (bug_017) (trustvisor crash) (now follow SDM, ignored bits not ignored)
 	Windows XP uses PAE, but triple fault due to incorrect CR4 (bug_027) (guest crash) (not follow SDM)
-	PAE in general needs to update guest_PDPTE{0..3} (bug_028, bug_033) (guest crash) (not follow SDM)
+	PAE in general needs to update guest_PDPTE{0..3} (bug_028, bug_033, bug_040) (guest crash) (not follow SDM)
 	Windows XP uses VMCALL (bug_029) (hypervisor crash) (not fixable easily)
+	Windows 10 access VGA trigger MTRR bug (bug_036) (hypervisor crash later) (not follow SDM)
+	Fedora and Windows 10 updates microcode (bug_039, bug_067) (hypervisor crash) (unimplemented feature)
+	Windows 7 changes MTRR (bug_054) (hypervisor crash) (unimplemented feature)
 
 Support modern hardware
-	TODO
+	New hardware has x2APIC (bug_065) (hypervisor stuck) (could have cleared CPUID)
+	New hardware only boots with UEFI (bug_071) (hypervisor cannot boot) (unimplemented feature)
+
+Support parallel build and compiler optimization
+	Fix Makefile dependency errors (7e142744b, before bugs are tracked)
+	Add volatile to global variables (bug_058)
+	Fix Makefile dependency errors (bug_066)
+
+Run TrustVisor on Windows
+	Write wrapper to translate call convention (bug_038)
 
 Existing bugs
+	Vulnerability
+		INIT-SIPI-SIPI twice will reboot XMHF (bug_075)
 	NMI
 		Race condition in quiesce code (bug_018) (hypervisor stuck)
-		TrustVisor does not mask NMIs in PAL (bug_021)
+		TrustVisor does not mask NMIs in PAL (bug_021, bug_051)
 		Need to hold printf lock (all possible locks) before quiesce (bug_024)
+		Need to unblock NMI after TXT launch (bug_055)
 	Other
 		Incorrectly simulate E820 to guest (bug_019) (guest see less memory)
 		Incorrect logic when UP (bug_032) (cannot boot computer with 1 CPU)
 		Guest AP entry state should follow SDM (bug_033) (impact unknown)
+		Booting guest does not follow BIOS (bug_043) (cannot boot another disk)
+		VGA driver reference NULL pointer (bug_044) (VGA has strange color)
+		Integer overflow in udelay() (bug_045) (impact unknown)
 
 Bugs in other software
 	QEMU Assertion `ret < cpu->num_ases && ret >= 0' (bug_031)
 	KVM does not handle SMM correctly (bug_031)
+	QEMU Assertion `!env->exception_has_payload` (bug_076)
 
-TODO: continue at bug_036
+TODO: continue at bug_077

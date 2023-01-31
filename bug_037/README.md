@@ -21,7 +21,7 @@ Some background materials related to DRTM, SRTM, TXT:
 
 ### Compile errors
 
-First fixed some compile errors due to data types. Now git at `8ed67ee`,
+First fixed some compile errors due to data types. Now git at `d4ef00c7a`,
 x86 XMHF serial `20220127145105`, x64 XMHF serial `20220127145132`.
 
 In x64, HP automatically reboots (looks like triple fault).
