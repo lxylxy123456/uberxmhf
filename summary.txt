@@ -30,7 +30,6 @@ Support modern OS
 	Debian 11 needs exception when RDMSR fails (bug_004) (hypervisor crash) (unimplemented feature)
 	Debian 11 sets CR0 reserved fields (bug_008) (hypervisor crash) (not follow SDM)
 	Debian 11 reads special MSR (bug_009) (guest crash) (not follow SDM)
-	Debian 11 uses x2APIC (bug_011) (guest crash) (could have cleared CPUID)
 	Debian 11 uses CR3 PCID, should ignore lower bits in trustvisor (bug_017) (trustvisor crash) (now follow SDM, ignored bits not ignored)
 	Windows XP uses PAE, but triple fault due to incorrect CR4 (bug_027) (guest crash) (not follow SDM)
 	PAE in general needs to update guest_PDPTE{0..3} (bug_028, bug_033, bug_040) (guest crash) (not follow SDM)
@@ -38,10 +37,13 @@ Support modern OS
 	Windows 10 access VGA trigger MTRR bug (bug_036) (hypervisor crash later) (not follow SDM)
 	Fedora and Windows 10 updates microcode (bug_039, bug_067) (hypervisor crash) (unimplemented feature)
 	Windows 7 changes MTRR (bug_054) (hypervisor crash) (unimplemented feature)
+	Windows 10 scans process memory (bug_107) (hypervisor crash) (guest breaks assumption)
 
 Support modern hardware
-	New hardware has x2APIC (bug_065) (hypervisor stuck) (could have cleared CPUID)
+	New hardware has x2APIC (bug_011, bug_065) (guest crash) (could have cleared CPUID)
 	New hardware only boots with UEFI (bug_071) (hypervisor cannot boot) (unimplemented feature)
+	New hardware has XRSTORS, default VMX behavior hides it (bug_096) (guest crash) (could have cleared CPUID)
+	New hardware TPM 2.0 require newer version of tboot code (bug_097) (hypervisor cannot boot) (unimplemented feature)
 
 Support parallel build and compiler optimization
 	Fix Makefile dependency errors (7e142744b, before bugs are tracked)
@@ -53,12 +55,17 @@ Run TrustVisor on Windows
 
 Existing bugs
 	Vulnerability
-		INIT-SIPI-SIPI twice will reboot XMHF (bug_075)
+		INIT-SIPI-SIPI twice will reboot XMHF (bug_075, bug_086)
+		DRT does not clear memory when shutdown (bug_109)
+		tv_app_handleshutdown does not clear running PAL's memory (bug_109)
+		TrustVisor incorrect check of PAL pages (bug_109)
+		Race condition when changing EPT (bug_109)
 	NMI
 		Race condition in quiesce code (bug_018) (hypervisor stuck)
 		TrustVisor does not mask NMIs in PAL (bug_021, bug_051)
 		Need to hold printf lock (all possible locks) before quiesce (bug_024)
 		Need to unblock NMI after TXT launch (bug_055)
+		Support software NMI blocking (bug_083, bug_113)
 	Other
 		Incorrectly simulate E820 to guest (bug_019) (guest see less memory)
 		Incorrect logic when UP (bug_032) (cannot boot computer with 1 CPU)
@@ -66,10 +73,15 @@ Existing bugs
 		Booting guest does not follow BIOS (bug_043) (cannot boot another disk)
 		VGA driver reference NULL pointer (bug_044) (VGA has strange color)
 		Integer overflow in udelay() (bug_045) (impact unknown)
+		WBF missing in DMAP code (bug_092) (VGA corruption)
 
 Bugs in other software
 	QEMU Assertion `ret < cpu->num_ases && ret >= 0' (bug_031)
 	KVM does not handle SMM correctly (bug_031)
 	QEMU Assertion `!env->exception_has_payload` (bug_076)
+	SeaBIOS SMM problem with Windows (bug_077)
+	KVM VMXON does not check CR0 (bug_079)
+	KVM handle PAE PDPTE wrong (bug_084)
+	KVM handle REP INS wrong (bug_085)
+	KVM and Bochs handle NMI wrong (bug_087)
 
-TODO: continue at bug_077
