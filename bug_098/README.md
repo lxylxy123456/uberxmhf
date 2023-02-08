@@ -49,9 +49,48 @@ More tests
 Now my guess is that PR 15 fixes something broken by PR 13, but it breaks DMAP,
 even when without DRT.
 
+### Update from Miao
+
+Later, receive update from Miao. To workaround this issue, add
+`--enable-allow-hypapp-disable-igfx-iommu` to build configuration, then call
+`xmhf_dmaprot_arch_x86_vmx_disable_igfx_iommu()` in `tv_app_main()` if BSP.
+After that, 2540p no longer has this problem.
+
+Example patch:
+```diff
+--- a/hypapps/trustvisor/src/appmain.c
++++ b/hypapps/trustvisor/src/appmain.c
+ u32 tv_app_main(VCPU *vcpu, APP_PARAM_BLOCK *apb){
+   HALT_ON_ERRORCOND(NULL != vcpu);
+   HALT_ON_ERRORCOND(NULL != apb);
+ 
+   eu_trace("CPU(0x%02x)", vcpu->id);
+ 
+   if (vcpu->isbsp) {
+     eu_trace("CPU(0x%02x): init\n", vcpu->id);
+ 
+     eu_trace("CPU(0x%02x) apb->cmdline: \"%s\"", vcpu->id, apb->cmdline);
+     parse_boot_cmdline(apb->cmdline);
+ 
+     init_scode(vcpu);
++
++    HALT_ON_ERRORCOND(xmhf_dmaprot_arch_x86_vmx_disable_igfx_iommu());
+   }
+ 
+   /* force these to be linked in */
+   emhfc_log_error("");
+ 
+   return APP_INIT_SUCCESS;  //successful
+ }
+```
+
+Currently not going to commit this to XMHF.
+
 ## Result
 
 Discussed with superymk, not going to fix at this point. Xen has documented bug
 on 2540p firmware / hardware. PR 15 is supposed to fix something, so maybe this
 is not a regression.
+
+Workaround see `### Update from Miao` above.
 

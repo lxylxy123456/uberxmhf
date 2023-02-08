@@ -44,3 +44,41 @@ Currently waiting for PR review
 After implementing nested virtualization, updated `commits.txt` with git
 commits `d0f2be0fb..4cfa1eee1`.
 
+### Documentation
+
+```
+pip3 install sphinx sphinx-jsondomain
+cd docs
+make clean
+make docs_html
+```
+
+However, see error
+```
+Extension error:
+Could not import extension sphinx.builders.latex (exception: cannot import name 'contextfunction' from 'jinja2' (/usr/local/lib/python3.11/site-packages/jinja2/__init__.py))
+make: *** [Makefile:29: docs_html] Error 2
+```
+
+### Changes to do
+
+First
+* Move all files to xmhf-64 folder
+* Restore uberXMHF code (reverts 669ffe4253f6f6389c8217f64e8bdddde36ee394)
+
+Then
+* Update `CHANGELOG.md`
+* Update `docs/pc-intel-x86_64/`, `docs/.gitignore`, `docs/index.rst`
+* Remove `xmhf-64/xmhf/src/xmhf-core/verification`
+* Remove unsupported hypapps
+* Move CI to `tools/*`, add README
+* Remove docs:
+	* `xmhf-64/xmhf/doc`
+	* `xmhf-64/hypapps/trustvisor/doc`
+	* `xmhf-64/hypapps/trustvisor/README.md`
+	* `xmhf-64/hypapps/trustvisor/tee-sdk/README.md`
+	* `xmhf-64/hypapps/trustvisor/tee-sdk/doc`
+	* `xmhf-64/README.md`
+
+PR created: <https://github.com/uberspark/uberxmhf/pull/36>
+
