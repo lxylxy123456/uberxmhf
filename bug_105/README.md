@@ -356,6 +356,24 @@ I did some print debugging regarding interrupts seen by my P3:
   when I set PIT period to 1 ms, but not reproducible when period is 50 ms.
   Looks like not reproducible when PIT period is 10 ms.
 
+### Update
+
+On Feb 10, 2023, the course staff updated the Pathos kernel. The new timer
+interrupt cycle becomes:
+
+```
+Interrupt 0x80000020		XMHF gets timer interrupt
+Inject interrupt			Inject interrupt to guest
+Interrupt 0x80000027		XMHF gets spurious interrupt
+outb port=0x0020 al=0x20	Guest sends EOI to PIC
+Inject interrupt			Inject interrupt to guest
+outb port=0x0020 al=0x0b	outb(MASTER_ICW, READ_IS_ONRD | OCW_TEMPLATE | READ_NEXT_RD);
+inb port=0x0020 al=0x00		inb(MASTER_ICW) -> 0x00
+```
+
+Looks like the Pathos kernel calls `pic_spurious()` to check whether the
+interrupt is spurious, and the EOI is not sent. This is the correct behavior.
+
 ## Fix
 
 `lhv ce69c270c..83723a519`
