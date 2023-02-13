@@ -1214,7 +1214,7 @@ Modified XMHF interfaces for hypapp:
 * `VCPU_*`: if running in nested virtualization, will return L2 state
 * `xmhf_memprot_flushmappings`: removed
 * `xmhf_memprot_flushmappings_localtlb`: flush current CPU's TLB, added flags
-* `xmhf_memprot_flushmappings_alltlb`: flush current CPU's TLB, added flags
+* `xmhf_memprot_flushmappings_alltlb`: flush all CPU's TLB, added flags
 
 Created <https://github.com/lxylxy123456/uberxmhf/pull/21> and squash merged
 manually. Before merge: `xmhf64 5e86cb84c`, `xmhf64-nest ba802997e`. After
