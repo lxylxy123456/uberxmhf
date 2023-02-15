@@ -74,7 +74,7 @@ TARGET_ARCH=$[]with_target_arch
 # Default: no
 AC_SUBST([ALLOW_HYPAPP_DISABLE_IGFX_IOMMU])
 AC_ARG_ENABLE([allow_hypapp_disable_igfx_iommu],
-        AS_HELP_STRING([--allow-hypapp-disable-igfx-iommu@<:@=yes|no@:>@],
+        AS_HELP_STRING([--enable-allow-hypapp-disable-igfx-iommu@<:@=yes|no@:>@],
                 [Allow a hypapp to disable igfx's IOMMU when needed due to igfx's hardware quirks. WARNING: If set this config, then XMHF MUST TRUST ALL code that can disable igfx's IOMMU and configuring igfx]),
                 , [allow_hypapp_disable_igfx_iommu=no])
 AS_IF([test "x${allow_hypapp_disable_igfx_iommu}" != "xno"],
@@ -165,7 +165,7 @@ AC_SUBST([SKIP_INIT_SMP])
 AC_ARG_ENABLE([skip_init_smp],
         AS_HELP_STRING([--enable-skip-init-smp@<:@=yes|no@:>@],
                 [do not start APs in bootloader, only when no DRT]),
-                , [enable_skip_init_smp=no])
+                , [enable_skip_init_smp=yes])
 AS_IF([test "x${enable_skip_init_smp}" != "xno"],
       [SKIP_INIT_SMP=y],
       [SKIP_INIT_SMP=n])
@@ -174,7 +174,7 @@ AC_SUBST([SKIP_BOOTLOADER_HASH])
 AC_ARG_ENABLE([skip_bootloader_hash],
         AS_HELP_STRING([--enable-skip-bootloader-hash@<:@=yes|no@:>@],
                 [skip computing hash in bootloader, only when no DRT]),
-                , [enable_skip_bootloader_hash=no])
+                , [enable_skip_bootloader_hash=yes])
 AS_IF([test "x${enable_skip_bootloader_hash}" != "xno"],
       [SKIP_BOOTLOADER_HASH=y],
       [SKIP_BOOTLOADER_HASH=n])

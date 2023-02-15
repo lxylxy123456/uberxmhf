@@ -1227,8 +1227,6 @@ u32 cpus_active=0; //number of CPUs that are awake, should be equal to
 //midtable_numentries -1 if all went well with the
 //MP startup protocol
 u32 lock_cpus_active=1; //spinlock to access the above
-#elif defined(__DRT__)
-	#error "__SKIP_INIT_SMP__ not supported when __DRT__"
 #endif /* __SKIP_INIT_SMP__ */
 
 

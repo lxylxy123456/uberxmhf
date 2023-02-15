@@ -102,6 +102,8 @@ static void _vmx_initVT(VCPU *vcpu){
 	{
 	  hva_t gdtstart = (hva_t)x_gdt_start;
 	  u16 trselector = 	__TRSEL;
+	  static volatile u32 lock = 1;
+	  spin_lock(&lock);
 	  #ifndef __XMHF_VERIFICATION__
 #ifdef __AMD64__
 	  asm volatile("movq %0, %%rdi\r\n"
@@ -133,6 +135,7 @@ static void _vmx_initVT(VCPU *vcpu){
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
 	  #endif
+	  spin_unlock(&lock);
 	}
 
 
