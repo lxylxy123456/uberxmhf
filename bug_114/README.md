@@ -13,21 +13,29 @@ We need to evaluate XMHF64's performance for the research
 We use latest version `xmhf64 f6c71ded5` as XMHF64, we use `v6.1.0 3cd28bfe5`
 as XMHF.
 
-Remove the call to `xmhf_debug_arch_putc` in `emhfc_putchar`. See
+For old XMHF: change 3 places to `#define EU_LOG_LVL EU_ERR`. Similar to
+`fd47fbe44`.
+
+For XMHF64: remove the call to `xmhf_debug_arch_putc` in `emhfc_putchar`. See
 `xmhf64-dev d0e5be5d8` for an example.
 
 old XMHF compile:
-```
-./autogen.sh && ./configure '--with-approot=hypapps/trustvisor' '--disable-dmap' '--disable-debug-serial'???
+```sh
+# GCC 4.6.3
+./autogen.sh && ./configure '--with-approot=hypapps/trustvisor' '--disable-dmap' && make
 ```
 
 new XMHF compile:
-```
+```sh
+# xmhf32O0
+# GCC 12.2.1
 ./autogen.sh && ./configure '--with-approot=hypapps/trustvisor' '--disable-dmap' '--with-target-subarch=i386' && make -j 8
 ```
 
 new XMHF compile with O3:
-```
+```sh
+# xmhf32O3
+# GCC 12.2.1
 ./autogen.sh && ./configure '--with-approot=hypapps/trustvisor' '--disable-dmap' '--with-target-subarch=i386' '--with-opt=-O3 -Wno-array-bounds' && make -j 8
 ```
 
@@ -38,7 +46,88 @@ TODO: max memory
 
 XMHF64 compile
 
-TODO: Remove all printfs.
+TODO: calling convention changed, pal_demo does not work on legacy XMHF
+
+### CPU frequency
+
+```sh
+for i in /sys/devices/system/cpu/cpu*/cpufreq/; do
+	cat "$i/scaling_max_freq" | sudo tee "$i/scaling_min_freq"
+done
+grep . /sys/devices/system/cpu/cpu*/cpufreq/scaling_m*_freq
+sudo grep . /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq
+```
 
 ### Benchmarks
 
+#### sysbench 0.4.12
+
+Easily installed on Ubuntu 12.04.
+
+```sh
+sysbench --test=cpu run
+```
+
+Deprecated because we want to use later version
+
+#### sysbench 1.0.20
+
+Download from GitHub / easily installed on Fedora.
+
+Compile:
+```sh
+# GCC 4.6.3
+cd sysbench-1.0.20
+./autogen.sh
+./configure --without-mysql
+make -j 4
+PATH="$PWD/src:$PATH"
+```
+
+Run:
+```sh
+# see "total number of events"
+sysbench cpu run
+sysbench cpu run --threads=2
+sysbench cpu run --threads=3
+sysbench cpu run --threads=4
+sysbench memory run
+sysbench memory run --threads=2
+sysbench memory run --threads=3
+sysbench memory run --threads=4
+sysbench fileio prepare				# for each run
+sysbench fileio run --file-test-mode=seqwr
+sysbench fileio cleanup				# for each run
+sysbench fileio run --file-test-mode=seqrewr
+sysbench fileio run --file-test-mode=seqrd
+sysbench fileio run --file-test-mode=rndrd
+sysbench fileio run --file-test-mode=rndwr
+sysbench fileio run --file-test-mode=rndrw
+```
+
+Use `sysbench.sh` to run automatically
+
+### LMbench 3.0-a9
+
+Download from sourceforge, cannot compile. See
+```
+bench.h:39:17: fatal error: rpc/rpc.h: No such file or directory
+```
+
+Debian 11: add `non-free` to `/etc/apt/sources.list`, then can install easily
+
+Run with `sudo lmbench-run`, answer some questions, ...
+
+Too complicated, probably deprecate
+
+### Test result
+
+Legend
+```
+log: full test log
+result: table with number of events
+u1232: Ubuntu 12.04.1 LTS, i686, Linux 3.2.0-150-generic
+oldxmhf32O0: old XMHF, 32-bit, gcc -O0
+xmhf32O0: XMHF64, 32-bit, gcc -O0
+xmhf32O3: XMHF64, 32-bit, gcc -O3
+```
