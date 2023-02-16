@@ -1,18 +1,22 @@
 # Compile amd64 pal_demo for Linux on amd64 Linux:
-#   make
+#   make TV_H=64
 # Compile i386 pal_demo for Linux on amd64 Debian:
-#   make CC=i686-linux-gnu-gcc LD=i686-linux-gnu-ld make
+#   make CC=i686-linux-gnu-gcc LD=i686-linux-gnu-ld TV_H=64
 # Compile i386 pal_demo for Linux on amd64 Fedora:
-#   make I386=y
+#   make I386=y TV_H=64
 # Compile i386 pal_demo for Windows on Linux:
-#   make CC=i686-w64-mingw32-gcc LD=i686-w64-mingw32-ld
+#   make CC=i686-w64-mingw32-gcc LD=i686-w64-mingw32-ld TV_H=64
 # Compile amd64 pal_demo for Windows on Linux:
-#   make CC=x86_64-w64-mingw32-gcc LD=x86_64-w64-mingw32-ld
+#   make CC=x86_64-w64-mingw32-gcc LD=x86_64-w64-mingw32-ld TV_H=64
+#
+# TV_H=32: for legacy XMHF
+# TV_H=64: for XMHF64
 
 # -fno-stack-protector: hint from https://stackoverflow.com/questions/2340259/
-CFLAGS := -g -I../src/include -Wall -Werror -fno-stack-protector
+CFLAGS := -g -Wall -Werror -fno-stack-protector -static
+LDFLAGS := -static
 
-BINS = main test test_args
+BINS = main
 PAL_OBJS = pal.o caller.o
 VMCALL_OFFSET = 0U
 
@@ -24,6 +28,7 @@ ifeq ($(I386), y)
 	LDFLAGS += -m32
 endif
 CFLAGS += -DVMCALL_OFFSET=$(VMCALL_OFFSET)
+CFLAGS += -DTV_H=$(TV_H)
 
 ifeq ($(CC), x86_64-w64-mingw32-gcc)
 PAL_OBJS += translate.o

@@ -1,14 +1,52 @@
 #include <assert.h>
 #include <stdio.h>
+#include <time.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "vmcall.h"
 #include "pal.h"
 #include "caller.h"
 #include "trustvisor.h"
 
-void call_pal(uintptr_t a, uintptr_t b) {
-	uintptr_t b2 = b;
-	// Construct struct tv_pal_params
+time_t test_duration = 0;
+
+static int time_cmp(struct timespec *lhs, struct timespec *rhs)
+{
+	if (lhs->tv_sec < rhs->tv_sec) {
+		return -1;
+	} else if (lhs->tv_sec > rhs->tv_sec) {
+		return 1;
+	} else if (lhs->tv_nsec < rhs->tv_nsec) {
+		return -1;
+	} else if (lhs->tv_nsec > rhs->tv_nsec) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+unsigned long long run_const_time(void (*f)(void *), void *arg)
+{
+	struct timespec start;
+	struct timespec end;
+	long long int i;
+	assert(test_duration > 0);
+	for (i = -128; i <= 0 || time_cmp(&start, &end) >= 0; i++) {
+		if (i == 0) {
+			memcpy(&start, &end, sizeof(end));
+			start.tv_sec += test_duration;
+		}
+		f(arg);
+		assert(clock_gettime(CLOCK_REALTIME, &end) == 0);
+	}
+	assert(i > 0);
+	return (unsigned long long)i;
+}
+
+/* Register and unregister */
+void f_ru(void *arg)
+{
 	struct tv_pal_params params = {
 		num_params: 2,
 		params: {
@@ -16,40 +54,89 @@ void call_pal(uintptr_t a, uintptr_t b) {
 			{ TV_PAL_PM_POINTER, 4 }
 		}
 	};
-	// Register scode
-	void *entry = register_pal(&params, my_pal, begin_pal_c, end_pal_c, 1);
-	typeof(my_pal) *func = (typeof(my_pal) *)entry;
-	// Call function
-	printf("With PAL:\n");
-	printf(" %p = *%p\n", (void *)b2, &b2);
-	fflush(stdout);
-	uintptr_t ret = func(a | PAL_FLAG_MASK, &b2);
-	printf(" %p = my_pal(%p, %p)\n", (void *)ret, (void *)a, &b2);
-	printf(" %p = *%p\n\n", (void *)b2, &b2);
-	fflush(stdout);
-	// Unregister scode
+	void *entry = register_pal(&params, my_pal, begin_pal_c, end_pal_c, 0);
 	unregister_pal(entry);
 }
 
-int main(int argc, char *argv[]) {
-	uintptr_t a, b, b2;
-	uintptr_t ret;
-	if (!check_cpuid()) {
-		printf("Error: TrustVisor not present according to CPUID\n");
-		return 1;
+/* Register, call unregister */
+void f_rcu(void *arg)
+{
+	struct tv_pal_params params = {
+		num_params: 2,
+		params: {
+			{ TV_PAL_PM_INTEGER, 4 },
+			{ TV_PAL_PM_POINTER, 4 }
+		}
+	};
+	void *entry = register_pal(&params, my_pal, begin_pal_c, end_pal_c, 0);
+	typeof(my_pal) *func = (typeof(my_pal) *)entry;
+	{
+		uintptr_t b = 123456;
+		uintptr_t ret = func(789012, &b);
+		assert(ret == 912468);
 	}
+	unregister_pal(entry);
+}
+
+/* Call */
+void *f_c_init(void)
+{
+	struct tv_pal_params params = {
+		num_params: 2,
+		params: {
+			{ TV_PAL_PM_INTEGER, 4 },
+			{ TV_PAL_PM_POINTER, 4 }
+		}
+	};
+	void *entry = register_pal(&params, my_pal, begin_pal_c, end_pal_c, 0);
+	return entry;
+}
+
+void f_c(void *arg)
+{
+	typeof(my_pal) *func = arg;
+	{
+		uintptr_t b = 123456;
+		uintptr_t ret = func(789012, &b);
+		assert(ret == 912468);
+	}
+}
+
+void f_c_fini(void *arg)
+{
+	unregister_pal(arg);
+}
+
+void run_test(char c)
+{
+	switch (c) {
+	case '0':
+		printf("f_ru:  %llu\n", run_const_time(f_ru, NULL));
+		break;
+	case '1':
+		printf("f_rcu: %llu\n", run_const_time(f_rcu, NULL));
+		break;
+	case '2':
+		{
+			void *arg = f_c_init();
+			printf("f_c:   %llu\n", run_const_time(f_c, arg));
+			f_c_fini(arg);
+		}
+		break;
+	default:
+		printf("unknown test: %c\n", c);
+		break;
+	}
+}
+
+int main(int argc, char *argv[])
+{
 	assert(argc > 2);
-	assert(sscanf(argv[1], "%p", (void **)&a) == 1);
-	assert(sscanf(argv[2], "%p", (void **)&b) == 1);
-	b2 = b;
-	printf("Without PAL:\n");
-	printf(" %p = *%p\n", (void *)b2, &b2);
-	a &= ~PAL_FLAG_MASK;
-	fflush(stdout);
-	ret = my_pal(a, &b2);
-	printf(" %p = my_pal(%p, %p)\n", (void *)ret, (void *)a, &b2);
-	printf(" %p = *%p\n\n", (void *)b2, &b2);
-	fflush(stdout);
-	call_pal(a, b);
+	{
+		int i = atoi(argv[2]);
+		assert(i > 0);
+		test_duration = i;
+	}
+	run_test(argv[1][0]);
 	return 0;
 }
