@@ -13,9 +13,10 @@ We need to evaluate XMHF64's performance for the research
 We use latest version `xmhf64 f6c71ded5` as XMHF64, we use `v6.1.0 3cd28bfe5`
 as XMHF.
 
-For old XMHF: change 3 places to `#define EU_LOG_LVL EU_ERR`. Similar to
-`fd47fbe44`.
-
+For old XMHF:
+* change 3 places to `#define EU_LOG_LVL EU_ERR`. Similar to `fd47fbe44`.
+* Modify `xmhf/src/libbaremetal/libtv_utpm/utpm.c` to remove printf
+  "utpm_extend: extending PCR 0"
 For XMHF64: remove the call to `xmhf_debug_arch_putc` in `emhfc_putchar`. See
 `xmhf64-dev d0e5be5d8` for an example.
 
@@ -41,7 +42,9 @@ new XMHF compile with O3:
 
 new XMHF64:
 ```
+# xmhf64O3
 TODO: max memory
+./autogen.sh && ./configure '--with-approot=hypapps/trustvisor' '--disable-dmap' '--with-target-subarch=amd64' '--with-amd64-max-phys-addr=0x140000000' '--enable-nested-virtualization' '--with-opt=-O3 -Wno-array-bounds' && make -j 8
 ```
 
 XMHF64 compile
@@ -120,14 +123,35 @@ Run with `sudo lmbench-run`, answer some questions, ...
 
 Too complicated, probably deprecate
 
-### Test result
+#### PAL
+Write own benchmark (called `pal_bench`) in `xmhf64-dev 39ab6174c`. Run with
+`palbench.sh`.
+
+### Test result for XMHF vs XMHF64
+
+See `ubuntu.csv` and `ubuntu.7z`
 
 Legend
 ```
-log: full test log
-result: table with number of events
+log: full sysbench log
+result: sysbench table with number of events
+plog: full pal_bench log
+pal: pal_bench results
+
 u1232: Ubuntu 12.04.1 LTS, i686, Linux 3.2.0-150-generic
 oldxmhf32O0: old XMHF, 32-bit, gcc -O0
 xmhf32O0: XMHF64, 32-bit, gcc -O0
 xmhf32O3: XMHF64, 32-bit, gcc -O3
 ```
+
+Commands:
+```sh
+cd ~/pal-tmp/; rm *; script -c '../palbench.sh ../pal_bench32 "old XMHF i386 O0, Ubuntu 12.04 x86"' plog
+
+cd ~/sysbench-tmp/; rm *; script -c '../sysbench.sh "XMHF64 i386 O0, Ubuntu 12.04 x86"' log
+cd ~/pal-tmp/; rm *; script -c '../palbench.sh ../pal_bench64 "XMHF64 i386 O0, Ubuntu 12.04 x86"' plog
+
+cd ~/sysbench-tmp/; rm *; script -c '../sysbench.sh "XMHF64 i386 O3, Ubuntu 12.04 x86"' log
+cd ~/pal-tmp/; rm *; script -c '../palbench.sh ../pal_bench64 "XMHF64 i386 O3, Ubuntu 12.04 x86"' plog
+```
+

@@ -9,10 +9,10 @@ RESD="$PWD"
 TMPD="`mktemp -d`"
 pushd "$TMPD"
 PATH="$HOME/sysbench-1.0.20/src:$PATH"	# TODO
-# cd sysbench-tmp/; script -c '../sysbench.sh "Ubuntu 12.04 x86"' log
+# cd sysbench-tmp/; rm *; script -c '../sysbench.sh "Ubuntu 12.04 x86"' log
 FLAGS=()
 
-echo "$@" | tee -a "$RESD/result"
+echo "$@" | tee "$RESD/result"
 lsb_release -a 2> /dev/null | grep "^Description" | tee -a "$RESD/result"
 
 scale_cpu_max () {
