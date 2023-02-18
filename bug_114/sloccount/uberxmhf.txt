@@ -1,0 +1,56 @@
+Have a non-directory at the top, so creating directory top_dir
+Adding /home/lxy/Documents/GreenBox/uberxmhf/xmhf/xmhf/src/xmhf-core/xmhf-runtime/./Makefile to top_dir
+Adding /home/lxy/Documents/GreenBox/uberxmhf/xmhf/xmhf/src/xmhf-core/xmhf-runtime/./runtime.lds.S to top_dir
+Creating filelist for xmhf-baseplatform
+Creating filelist for xmhf-debug
+Creating filelist for xmhf-dmaprot
+Creating filelist for xmhf-eventhub
+Creating filelist for xmhf-memprot
+Creating filelist for xmhf-partition
+Creating filelist for xmhf-smpguest
+Creating filelist for xmhf-startup
+Creating filelist for xmhf-tpm
+Creating filelist for xmhf-xcphandler
+Creating filelist for xmhf-xmhfcbackend
+Categorizing files.
+Finding a working MD5 command....
+Found a working MD5 command.
+Computing results.
+
+
+SLOC	Directory	SLOC-by-Language (Sorted)
+1229    xmhf-baseplatform ansic=1105,asm=124
+815     xmhf-eventhub   ansic=723,asm=92
+811     xmhf-dmaprot    ansic=811
+807     xmhf-smpguest   ansic=807
+674     xmhf-partition  ansic=579,asm=95
+538     xmhf-memprot    ansic=538
+445     xmhf-tpm        ansic=445
+229     xmhf-xcphandler ansic=118,asm=111
+147     xmhf-startup    ansic=147
+123     xmhf-debug      ansic=123
+25      top_dir         asm=25
+17      xmhf-xmhfcbackend ansic=17
+
+
+Totals grouped by language (dominant language first):
+ansic:         5413 (92.37%)
+asm:            447 (7.63%)
+
+
+
+
+Total Physical Source Lines of Code (SLOC)                = 5,860
+Development Effort Estimate, Person-Years (Person-Months) = 1.28 (15.36)
+ (Basic COCOMO model, Person-Months = 2.4 * (KSLOC**1.05))
+Schedule Estimate, Years (Months)                         = 0.59 (7.06)
+ (Basic COCOMO model, Months = 2.5 * (person-months**0.38))
+Estimated Average Number of Developers (Effort/Schedule)  = 2.18
+Total Estimated Cost to Develop                           = $ 172,955
+ (average salary = $56,286/year, overhead = 2.40).
+SLOCCount, Copyright (C) 2001-2004 David A. Wheeler
+SLOCCount is Open Source Software/Free Software, licensed under the GNU GPL.
+SLOCCount comes with ABSOLUTELY NO WARRANTY, and you are welcome to
+redistribute it under certain conditions as specified by the GNU GPL license;
+see the documentation for details.
+Please credit this data as "generated using David A. Wheeler's 'SLOCCount'."

@@ -21,6 +21,9 @@ echo "$@" | tee "$RESD/pal"
 lsb_release -a 2> /dev/null | grep "^Description" | tee -a "$RESD/pal"
 
 scale_cpu_max () {
+	if [ ! -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq ]; then
+		return 0
+	fi
 	for i in /sys/devices/system/cpu/cpu*/cpufreq/; do
 		cat "$i/scaling_max_freq" | sudo tee "$i/scaling_min_freq"
 	done

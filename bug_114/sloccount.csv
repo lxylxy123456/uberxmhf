@@ -1,0 +1,16 @@
+component,>,>,XMHF,>,>,\XMHF64,>,>,\XMHF64 without nested virtualization
+^,ansic,asm,Total,ansic,asm,Total,ansic,asm,Total
+top_dir,,25,25,,61,61,61,,61
+xmhf-baseplatform,1105,124,1229,1794,282,2076,1584,282,1866
+xmhf-debug,123,,123,213,,213,213,,213
+xmhf-dmaprot,811,,811,1742,,1742,1742,,1742
+xmhf-eventhub,723,92,815,1761,116,1877,1619,116,1735
+xmhf-memprot,538,,538,954,,954,951,,951
+xmhf-mm,,,,884,,884,884,,884
+xmhf-nested,,,,4888,,4888,,,
+xmhf-partition,579,95,674,882,110,992,851,110,961
+xmhf-smpguest,807,,807,1106,,1106,1089,,1089
+xmhf-startup,147,,147,312,,312,312,,312
+xmhf-tpm,445,,445,135,,135,135,,135
+xmhf-xcphandler,118,111,229,184,223,407,184,223,407
+xmhf-xmhfcbackend,17,,17,378,,378,378,,378

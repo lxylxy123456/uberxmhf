@@ -155,3 +155,60 @@ cd ~/sysbench-tmp/; rm *; script -c '../sysbench.sh "XMHF64 i386 O3, Ubuntu 12.0
 cd ~/pal-tmp/; rm *; script -c '../palbench.sh ../pal_bench64 "XMHF64 i386 O3, Ubuntu 12.04 x86"' plog
 ```
 
+### Testing for nested virtualization
+
+Install Debian using KVM with
+```
+./bios-qemu.sh --q35 -d a.qcow2 '' -c debian-11.0.0-amd64-netinst.iso
+...
+./bios-qemu.sh --q35 -d a.qcow2 +1 --ssh 1234 -smp 2
+qemu-img convert -f qcow2 -O vdi a.qcow2 a.vdi
+qemu-img convert -f qcow2 -O vmdk a.qcow2 a.vmdk
+```
+
+Install sysbench, copy `palbench.sh`, `sysbench.sh`, and `pal_bench64L2`.
+`mkdir ben`.
+
+Note: at least in KVM, cannot set CPU scaling.
+
+In VMware, port forwarding is configured in
+`/usr/lib/vmware/configurator/vmnet-nat.conf`. Add under `[incomingtcp]` TODO
+Ref:
+* <https://stackoverflow.com/questions/52386841/>
+* <https://superuser.com/questions/571196/>
+
+```
+COMMENT="XMHF64 amd64 O3, KVM, Debian 11 x64"
+cd ben
+rm *
+script -c "../palbench.sh ../pal_bench64 $COMMENT" plog
+script -c "../sysbench.sh $COMMENT" log
+```
+
+Legend
+```
+d1164: Debian 11, x64, Linux 5.10.0-21-amd64
+kvm: KVM, version same as Linux
+vmware: VMware Workstation 16.2.4
+virtualbox: VirtualBox 6.1.42
+```
+
+### SLOCCount
+
+Using sloccount to measure code size, wrote `remove_nv.py` to remove nested
+virtualization code.
+
+Result in `sloccount.csv` and `sloccount/*.txt`. Approximate to reproduce:
+
+```sh
+cd .../uberxmhf/xmhf/xmhf/src/xmhf-core/xmhf-runtime
+sloccount . > .../uberxmhf.txt
+cd .../xmhf64/xmhf/src/xmhf-core/xmhf-runtime
+sloccount . > .../xmhf64.txt
+cd ...
+python3 ../notes/bug_114/remove_nv.py
+cd -
+rm -r xmhf-nested
+sloccount . > .../xmhf64_nonested.txt
+```
+
