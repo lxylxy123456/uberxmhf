@@ -1,3 +1,9 @@
+'''
+Read event logger output and print statistics. Sample usage:
+
+tail -n +1 -F /tmp/amt | python3 el.py
+'''
+
 import re, yaml
 from collections import defaultdict
 
@@ -30,6 +36,8 @@ if __name__ == '__main__':
 			if ek in ('vmexit_cpuid', 'vmexit_rdmsr', 'vmexit_wrmsr',
 					  'vmexit_xcph', 'vmexit_other'):
 				count_101 += ev['count']
+			elif ek in ('exception', 'inject_nmi'):
+				pass
 			elif ek == 'vmexit_201':
 				count_201 += ev['count']
 			elif ek == 'vmexit_202':
