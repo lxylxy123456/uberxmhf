@@ -212,3 +212,36 @@ rm -r xmhf-nested
 sloccount . > .../xmhf64_nonested.txt
 ```
 
+### Retry testing nested virtualization
+
+We need to make sure the inner-most guest have the same configuration across
+tests. We install another Debian on VirtualBox, with swap disabled, no
+graphical user interface. We call this "debian(light)". "OS" is the normal OS
+we use.
+
+Other things to install:
+```
+apt-get install sudo sysbench qemu-system-i386
+```
+
+Configurations to test
+
+* L0
+	* debian(light) (native for L1)
+* L1
+	* xmhf debian(light)
+	* OS virtualbox debian(light)
+	* OS vmware debian(light)
+	* OS kvm debian(light) (native for L2)
+* L2
+	* xmhf OS kvm debian(light)
+	* OS kvm debian(light) kvm debian(light)
+	* OS vmware debian(light) kvm debian(light)
+	* OS virtualbox debian(light) kvm debian(light)
+
+Linux command line
+	* Use `mem=1g` to limit memory for L0
+	* Use `vga=normal nofb nomodeset video=vesafb:off i915.modeset=0` to force
+	  Linux to use 80x25 VGA. Maybe useful with QEMU's `-display curses`
+		* Ref: <https://ubuntuforums.org/archive/index.php/t-2225544.html>
+
