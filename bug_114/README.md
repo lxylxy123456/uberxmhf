@@ -240,8 +240,23 @@ Configurations to test
 	* OS virtualbox debian(light) kvm debian(light)
 
 Linux command line
-	* Use `mem=1g` to limit memory for L0
-	* Use `vga=normal nofb nomodeset video=vesafb:off i915.modeset=0` to force
-	  Linux to use 80x25 VGA. Maybe useful with QEMU's `-display curses`
-		* Ref: <https://ubuntuforums.org/archive/index.php/t-2225544.html>
+* Use `mem=1g` to limit memory for L0
+* Use `vga=normal nofb nomodeset video=vesafb:off i915.modeset=0` to force
+  Linux to use 80x25 VGA. Maybe useful with QEMU's `-display curses`
+	* Ref: <https://ubuntuforums.org/archive/index.php/t-2225544.html>
+
+Debian network configuration without GUI (e.g. install Debian on VirtualBox,
+run on VMware)
+* `ls /sys/class/net/`: see list of network interfaces
+* `sudo nano /etc/network/interfaces`: add network interface
+	* `allow-hotplug ens33`
+	* `iface ens33 inet dhcp`
+* `sudo ifup ens33`: start device
+* Different names
+	* VirtualBox (when install): name is enp0s3
+	* VMware: name is ens33
+	* QEMU: name is enp0s2
+* Ref: <https://serverfault.com/questions/239807/>
+* Ref: <https://wiki.debian.org/NetworkConfiguration>
+* Ref: <https://www.debian.org/doc/manuals/debian-reference/ch05.en.html>
 
