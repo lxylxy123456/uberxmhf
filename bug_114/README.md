@@ -224,20 +224,26 @@ Other things to install:
 apt-get install sudo sysbench qemu-system-i386
 ```
 
+Files to copy: `nested2_scripts/*.sh`, `sysbench2.sh`, `palbench.sh`,
+`pal_bench64{,L2}` (build from `xmhf64-dev`), `bios-qemu.sh`.
+
 Configurations to test
 
 * L0
-	* debian(light) (native for L1)
+	* (0) debian(light) (native for L1)
 * L1
-	* xmhf debian(light)
-	* OS virtualbox debian(light)
-	* OS vmware debian(light)
-	* OS kvm debian(light) (native for L2)
+	* (1x) xmhf debian(light)
+	* (1b) OS virtualbox debian(light)
+	* (1w) OS vmware debian(light)
+	* (1k) OS kvm debian(light) (native for L2)
 * L2
-	* xmhf OS kvm debian(light)
-	* OS kvm debian(light) kvm debian(light)
-	* OS vmware debian(light) kvm debian(light)
-	* OS virtualbox debian(light) kvm debian(light)
+	* (2xk) xmhf OS kvm debian(light)
+	* (2kk) OS kvm debian(light) kvm debian(light)
+	* (2wk) OS vmware debian(light) kvm debian(light)
+	* (2bk) OS virtualbox debian(light) kvm debian(light)
+
+KVM overhead: around 66 MiB, but adding 128 MiB will still crash KVM during
+sysbench. Add 512 MiB
 
 Linux command line
 * Use `mem=1g` to limit memory for L0
@@ -259,4 +265,34 @@ run on VMware)
 * Ref: <https://serverfault.com/questions/239807/>
 * Ref: <https://wiki.debian.org/NetworkConfiguration>
 * Ref: <https://www.debian.org/doc/manuals/debian-reference/ch05.en.html>
+
+Network port forwarding
+* xxxx1 -> 22
+* xxxx2 -> xxxx2
+
+BIOS settings
+* Dell: disable TurboBoost, disable SpeedStep
+* HP: hyperthreading cannot be disabled, due to TXT
+
+KVM commands
+```sh
+# L1
+./bios-qemu.sh --q35 -d debian_light_2.vmdk +1 --ssh xxxx1 --fwd xxxx2 xxxx2 -m 2560M
+# L2
+./bios-qemu.sh --q35 -d debian_light.vmdk +1 --ssh xxxx2 -m 2048M
+```
+
+VirtualBox commands
+```sh
+VBoxManage startvm debian_light --type headless
+VBoxManage controlvm debian_light poweroff 
+VBoxManage snapshot debian_light restore "Snapshot 1"
+```
+
+VMware commands
+```sh
+vmrun -T ws start /.../debain_light.vmx nogui
+vmrun -T ws stop /.../debain_light.vmx hard
+vmrun -T ws revertToSnapshot /.../debain_light.vmx 'Snapshot 1'
+```
 
