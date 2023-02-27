@@ -243,7 +243,51 @@ Configurations to test
 	* (2bk) OS virtualbox debian(light) kvm debian(light)
 
 KVM overhead: around 66 MiB, but adding 128 MiB will still crash KVM during
-sysbench. Add 512 MiB
+sysbench. Add 512 MiB for each layer, add 256 MiB for XMHF64.
+
+2xk: remove unused file tests, because creating test files is too slow
+* See "watchdog: BUG: soft lockup" in inner virtual machine
+* Same problem with 2kk
+* This may be a QEMU / KVM problem
+	* <https://gitlab.com/qemu-project/qemu/-/issues/819>
+	* <https://bugzilla.kernel.org/show_bug.cgi?id=199727>
+
+```diff
+diff --git a/bug_114/nested2_scripts/2xk.sh b/bug_114/nested2_scripts/2xk.sh
+index 0082512..45d2bad 100755
+--- a/bug_114/nested2_scripts/2xk.sh
++++ b/bug_114/nested2_scripts/2xk.sh
+@@ -7,7 +7,7 @@ mkdir ben
+ cd ben
+ script -c "../sysbench2.sh $COMMENT" log
+ sleep 5
+-script -c "../palbench.sh ../pal_bench64 $COMMENT" plog
++script -c "../palbench.sh ../pal_bench64L2 $COMMENT" plog
+ echo DONE
+ tar c * | xz -9 | base64
+ echo END
+diff --git a/bug_114/sysbench2.sh b/bug_114/sysbench2.sh
+index 78bb6b7..cc82cf0 100755
+--- a/bug_114/sysbench2.sh
++++ b/bug_114/sysbench2.sh
+@@ -58,16 +58,6 @@ main () {
+ 	run_sysbench fileio run --file-test-mode=seqrd
+ 	run_sysbench fileio run --file-test-mode=seqwr
+ 	run_dummy___ fileio cleanup
+-	run_dummy___ fileio prepare
+-	run_sysbench fileio run --file-test-mode=seqrewr
+-	run_dummy___ fileio cleanup
+-	run_dummy___ fileio prepare
+-	run_sysbench fileio run --file-test-mode=rndrd
+-	run_sysbench fileio run --file-test-mode=rndwr
+-	run_dummy___ fileio cleanup
+-	run_dummy___ fileio prepare
+-	run_sysbench fileio run --file-test-mode=rndrw
+-	run_dummy___ fileio cleanup
+ }
+ 
+ main
+```
 
 Linux command line
 * Use `mem=1g` to limit memory for L0
@@ -295,4 +339,10 @@ vmrun -T ws start /.../debain_light.vmx nogui
 vmrun -T ws stop /.../debain_light.vmx hard
 vmrun -T ws revertToSnapshot /.../debain_light.vmx 'Snapshot 1'
 ```
+
+Disk configuration
+* KVM: `-drive` add `cache=directsync`
+* VirtualBox: already disabled "Use Host I/O Cache"
+* VMware: uncheck "Enable write caching"
+* Add `--validate` to sysbench, use random file content, not /dev/zero
 
