@@ -230,17 +230,17 @@ Files to copy: `nested2_scripts/*.sh`, `sysbench2.sh`, `palbench.sh`,
 Configurations to test
 
 * L0
-	* (0) debian(light) (native for L1)
+	* (0) debian(light,2048) (native for L1)
 * L1
-	* (1x) xmhf debian(light)
-	* (1b) OS virtualbox debian(light)
-	* (1w) OS vmware debian(light)
-	* (1k) OS kvm debian(light) (native for L2)
+	* (1x) xmhf debian(light,2304)
+	* (1b) OS virtualbox debian(light,2048)
+	* (1w) OS vmware debian(light,2048)
+	* (1k) OS kvm debian(light,2048) (native for L2)
 * L2
-	* (2xk) xmhf OS kvm debian(light)
-	* (2kk) OS kvm debian(light) kvm debian(light)
-	* (2wk) OS vmware debian(light) kvm debian(light)
-	* (2bk) OS virtualbox debian(light) kvm debian(light)
+	* (2xk) xmhf OS(2816) kvm debian(light,2048)
+	* (2kk) OS(3072) kvm debian(light,2560) kvm debian(light,2048)
+	* (2wk) OS(3072) vmware debian(light,2560) kvm debian(light,2048)
+	* (2bk) OS(3072) virtualbox debian(light,2560) kvm debian(light,2048)
 
 KVM overhead: around 66 MiB, but adding 128 MiB will still crash KVM during
 sysbench. Add 512 MiB for each layer, add 256 MiB for XMHF64.
@@ -340,9 +340,25 @@ vmrun -T ws stop /.../debain_light.vmx hard
 vmrun -T ws revertToSnapshot /.../debain_light.vmx 'Snapshot 1'
 ```
 
+VMware fix IP address (maybe restart host to make it effective)
+```sh
+vi /etc/vmware/vmnet8/dhcpd/dhcpd.conf
+	host debian_light {
+		hardware ethernet 00:0c:29:ab:cd:ef;
+		fixed-address 172.16.131.131;
+	}
+	host debian_light_2 {
+		hardware ethernet 00:0c:29:ab:cd:ef;
+		fixed-address 172.16.131.132;
+	}
+```
+
 Disk configuration
 * KVM: `-drive` add `cache=directsync`
 * VirtualBox: already disabled "Use Host I/O Cache"
 * VMware: uncheck "Enable write caching"
 * Add `--validate` to sysbench, use random file content, not /dev/zero
+* Add `--file-extra-flags=direct` to sysbench to prevent oom due to Linux cache
+
+`nested2.7z` and `nested2_scripts`: without `--validate` etc, discarded
 

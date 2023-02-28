@@ -9,6 +9,7 @@ RESD="$PWD"
 TMPD="`mktemp -d`"
 pushd "$TMPD"
 FLAGS=()
+FILEIO_FLAGS=("--validate" "--file-extra-flags=direct")
 
 echo "$@" | tee "$RESD/result"
 lsb_release -a 2> /dev/null | grep "^Description" | tee -a "$RESD/result"
@@ -47,14 +48,14 @@ main () {
 	run_sysbench cpu run
 	run_dummy___ memory run
 	run_sysbench memory run
-	run_dummy___ fileio --validate prepare
-	run_dummy___ fileio --validate run --file-test-mode=seqrd
-	run_sysbench fileio --validate run --file-test-mode=seqrd
-	run_sysbench fileio --validate run --file-test-mode=seqwr
-	run_dummy___ fileio --validate cleanup
-	#run_dummy___ fileio --validate prepare
-	#run_sysbench fileio --validate run --file-test-mode=seqrewr
-	#run_dummy___ fileio --validate cleanup
+	run_dummy___ fileio "${FILEIO_FLAGS[@]}" prepare
+	run_dummy___ fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrd
+	run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrd
+	run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqwr
+	run_dummy___ fileio "${FILEIO_FLAGS[@]}" cleanup
+	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" prepare
+	#run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrewr
+	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" cleanup
 }
 
 main
