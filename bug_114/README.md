@@ -43,8 +43,10 @@ new XMHF compile with O3:
 new XMHF64:
 ```
 # xmhf64O3
-TODO: max memory
+# HP
 ./autogen.sh && ./configure '--with-approot=hypapps/trustvisor' '--disable-dmap' '--with-target-subarch=amd64' '--with-amd64-max-phys-addr=0x140000000' '--enable-nested-virtualization' '--with-opt=-O3 -Wno-array-bounds' && make -j 8
+# Dell
+./autogen.sh && ./configure '--with-approot=hypapps/trustvisor' '--disable-dmap' '--with-target-subarch=amd64' '--with-amd64-max-phys-addr=0x230000000' '--enable-nested-virtualization' '--with-opt=-O3 -Wno-array-bounds' && make -j 8
 ```
 
 XMHF64 compile
@@ -232,12 +234,12 @@ Configurations to test
 * L0
 	* (0) debian(light,2048) (native for L1)
 * L1
-	* (1x) xmhf debian(light,2304)
-	* (1b) OS virtualbox debian(light,2048)
-	* (1w) OS vmware debian(light,2048)
-	* (1k) OS kvm debian(light,2048) (native for L2)
+	* (1x) xmhf debian(light,2304/2432)
+	* (1b) OS(2560) virtualbox debian(light,2048)
+	* (1w) OS(2560) vmware debian(light,2048)
+	* (1k) OS(2560) kvm debian(light,2048) (native for L2)
 * L2
-	* (2xk) xmhf OS(2816) kvm debian(light,2048)
+	* (2xk) xmhf OS(2816/2944) kvm debian(light,2048)
 	* (2kk) OS(3072) kvm debian(light,2560) kvm debian(light,2048)
 	* (2wk) OS(3072) vmware debian(light,2560) kvm debian(light,2048)
 	* (2bk) OS(3072) virtualbox debian(light,2560) kvm debian(light,2048)

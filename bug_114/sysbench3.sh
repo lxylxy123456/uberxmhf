@@ -22,6 +22,9 @@ scale_cpu_max () {
 		cat "$i/scaling_max_freq" | sudo tee "$i/scaling_min_freq"
 	done
 	grep . /sys/devices/system/cpu/cpu*/cpufreq/scaling_m*_freq
+	if [ ! -f /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq ]; then
+		return 0
+	fi
 	sudo grep . /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq
 }
 
