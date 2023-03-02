@@ -49,8 +49,8 @@ main () {
 	scale_cpu_max
 	run_dummy___ cpu run
 	run_sysbench cpu run
-	run_dummy___ memory run
-	run_sysbench memory run
+	run_dummy___ memory run --memory-total-size=0
+	run_sysbench memory run --memory-total-size=0
 	run_dummy___ fileio "${FILEIO_FLAGS[@]}" prepare
 	run_dummy___ fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrd
 	run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrd
