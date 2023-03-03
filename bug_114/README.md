@@ -364,3 +364,54 @@ Disk configuration
 
 `nested2.7z` and `nested2_scripts`: without `--validate` etc, discarded
 
+### Why is XMHF faster than without XMHF
+
+Compare 0 and 1x: 1x is around 3% faster in file read. Using event logger, 1x
+does not generate a lot of VMEXITs (around 1 VMEXIT per second).
+
+Compare 1k and 2xk: 2xk file read speed is 2.58 times 1k. Event logger shows
+that there are 10 - 100 EPT02 misses per event logger cycle (around 4 seconds).
+This result in around 10000 intercept202 due to EPT02 violation.
+
+We do not notice clock drift in time reported by `date`
+
+More tests
+```
+config	time	events	throughput (MiB/s)
+~2xk	100		283534	44.30
+1k		100		143023	22.35
+2xk		100		323372	50.52
+```
+
+Compare dmesg of 0 and 1x. The most noticeable differences are:
+* All CPUs output "Disabled fast string operations"
+* IOMMU is disabled in 1x. This is because `vmx_eap_zap` is called when DRT
+  enabled
+	* This may be the cause of faster XMHF. See paper
+	  "The Price of Safety: Evaluating IOMMU Performance"
+
+```diff
+> Disabled fast string operations
+...
+< ACPI: DMAR 0x00000000CA518FB0 0000EC (v01 INTEL  KBL      00000001 INTL 00000001)
+> ACPI: XMHF 0x00000000CA518FB0 000024 (v01 INTEL  KBL      00000001 INTL 00000001)
+```
+
+We disable IOMMU in Linux by supplying `intel_iommu=off` on command line.
+
+More tests
+```
+config	time	events	throughput (MiB/s)	comment
+1k		100		209883	32.79
+2xk		100		323833	50.60
+2xk		100		320634	50.10				XMHF enable DMAP
+2xk		100		227354	35.52
+```
+
+TODO: try XMHF without DRT
+TODO: does Linux detect TPM?
+TODO: Disable IOMMU by removing it from APIC
+TODO: 1x has more memory available? `Memory: 332976K/2598460K available (12295K kernel code, 2537K rwdata, 7560K rodata, 2660K init, 5468K bss, 132212K reserved, 0K cma-reserved)`
+* Ref: <https://unix.stackexchange.com/questions/30324/>
+TODO: benchmark md5sum of some file in VM
+
