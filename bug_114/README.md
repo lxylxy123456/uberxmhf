@@ -402,12 +402,29 @@ We disable IOMMU in Linux by supplying `intel_iommu=off` on command line.
 More tests
 ```
 config	time	events	throughput (MiB/s)	comment
-1k		100		209883	32.79
+1k		100		209883	32.79				intel_iommu=off
 2xk		100		323833	50.60
 2xk		100		320634	50.10				XMHF enable DMAP
-2xk		100		227354	35.52
+2xk		100		227354	35.52				XMHF disable DRT DMAP
 ```
 
+Investigate other benchmarks
+* <https://wiki.archlinux.org/title/benchmarking>
+	* iozone (used by XMHF paper)
+	* dd
+	* gnome-disks (graphical)
+
+### Benchmarks 2
+
+#### iozone
+
+Install
+```
+sudo dnf install iozone
+```
+
+TODO: make sure benchmark reports correct disk benchmark
+TODO: fstrim
 TODO: try XMHF without DRT
 TODO: does Linux detect TPM?
 TODO: Disable IOMMU by removing it from APIC
