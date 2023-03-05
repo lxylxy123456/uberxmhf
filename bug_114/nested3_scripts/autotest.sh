@@ -1,7 +1,7 @@
 #!/bin/bash
 set -xe
 
-SCRIPT_DIR="$(realpath "$(dirname $BASH_SOURCE)")"
+SCRIPT_DIR="$(dirname "$(realpath $BASH_SOURCE)")"
 HOST="hp.lxy"
 # TODO
 XMHF_BUILD="XMHF-build32"
@@ -17,10 +17,10 @@ edit_grub () {
 start_k () {
 	if [ "$1" == "22" ]; then
 		timeout 1m ssh "$HOST" \
-			"cd VirtualBox\ VMs/$2; nohup sudo /home/dev/qemu/bios-qemu.sh --q35 --drive-directsync $2.vmdk +1 --ssh 1121 -display none $3"
+			"cd VirtualBox\ VMs/$2; nohup sudo /home/dev/qemu/bios-qemu.sh --q35 --drive-directsync $2.vmdk +1 --ssh 1121 -display none $3 > /dev/null 2> /dev/null &"
 	else
 		timeout 1m sshpass -p dev ssh -p "$1" "$HOST" \
-			"nohup sudo ./bios-qemu.sh --q35 --drive-directsync $2.vmdk +1 --ssh 1122 -display none $3"
+			"nohup sudo ./bios-qemu.sh --q35 --drive-directsync $2.vmdk +1 --ssh 1122 -display none $3 > /dev/null 2> /dev/null &"
 	fi
 	sleep 5m
 }

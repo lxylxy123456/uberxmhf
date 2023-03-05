@@ -419,9 +419,13 @@ Investigate other benchmarks
 #### iozone
 
 Install
-```
+```sh
 sudo dnf install iozone
+sudo apt-get install iozone3
 ```
+
+Documentation: <https://www.iozone.org/docs/IOzone_msword_98.pdf>
+
 
 TODO: make sure benchmark reports correct disk benchmark
 TODO: fstrim
