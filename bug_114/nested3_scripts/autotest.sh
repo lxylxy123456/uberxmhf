@@ -41,6 +41,12 @@ start_w () {
 	sleep 5m
 }
 
+stop_v () {
+	timeout 1m sshpass -p dev ssh -p "$1" "$HOST" \
+		"nohup bash -c 'sleep 10; sudo init 0' > /dev/null 2> /dev/null &"
+	sleep 1m
+}
+
 run_test () {
 	CONF="$1"
 
@@ -121,6 +127,26 @@ run_test () {
 
 	timeout 1h sshpass -p dev ssh -p "$BENCH_PORT" "$HOST" "./$CONF.sh" | \
 		tee "$(mktemp "$(date "+auto_%Y%m%d%H%M%S_${CONF}_XXXXXXX")")"
+
+	# Stop VM
+	case "$CONF" in
+		0|1x)
+			;;
+		1b|1k|1w|2xk)
+			stop_v "$BENCH_PORT"
+			;;
+		2bk|2kk)
+			stop_v 1122
+			stop_v 1121
+			;;
+		2wk)
+			stop_v 2221
+			stop_v 2222
+			;;
+		*)
+			false
+			;;
+	esac
 
 	sleep 10m
 }
