@@ -140,8 +140,8 @@ run_test () {
 			stop_v 1121
 			;;
 		2wk)
-			stop_v 2221
 			stop_v 2222
+			stop_v 2221
 			;;
 		*)
 			false

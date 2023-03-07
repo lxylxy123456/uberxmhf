@@ -424,8 +424,17 @@ sudo dnf install iozone
 sudo apt-get install iozone3
 ```
 
+Note: to test disk speed, need to make sure file size > memory size.
+
 Documentation: <https://www.iozone.org/docs/IOzone_msword_98.pdf>
 
+#### bonnie++
+
+Install
+
+```sh
+sudo apt-get install bonnie++
+```
 
 TODO: make sure benchmark reports correct disk benchmark
 TODO: fstrim
