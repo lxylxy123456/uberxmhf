@@ -436,6 +436,16 @@ Install
 sudo apt-get install bonnie++
 ```
 
+#### HDD vs SSD
+
+Looks like SSD write speed is not stable, considering using HDD instead
+
+### More test updates
+
+`nested3_scripts`: disabling all caches, have some automated testing
+
+`nested4_scripts`: do not disable all caches
+
 TODO: make sure benchmark reports correct disk benchmark
 TODO: fstrim
 TODO: try XMHF without DRT
