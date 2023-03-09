@@ -56,19 +56,26 @@ run_test () {
 	# Configure GRUB
 	case "$CONF" in
 		0)
+			# 2048
 			edit_grub debian_light_2048
 			;;
 		1x)
+			# 2048 + XMHF
 			edit_grub "$XMHF_BUILD" debian_light_2432
+			# TODO: edit_grub "$XMHF_BUILD" debian_light_2944
 			;;
 		1b|1k|1w)
-			edit_grub debian_light_2560
+			# 3072
+			edit_grub debian_light_3072
 			;;
 		2xk)
-			edit_grub "$XMHF_BUILD" debian_light_2944
+			# 3072 + XMHF
+			edit_grub "$XMHF_BUILD" debian_light_4480
+			# TODO: edit_grub "$XMHF_BUILD" debian_light_3968
 			;;
 		2bk|2kk|2wk)
-			edit_grub debian_light_3072
+			# 4096
+			edit_grub debian_light_4992
 			;;
 		*)
 			false
@@ -103,7 +110,7 @@ run_test () {
 			BENCH_PORT="1121"
 			;;
 		2kk)
-			start_k 22 debian_light_2 "-m 2560M --fwd 1122 1122"
+			start_k 22 debian_light_2 "-m 3072M --fwd 1122 1122"
 			start_k 1121 debian_light "-m 2048M"
 			BENCH_PORT="1122"
 			;;

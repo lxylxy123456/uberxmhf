@@ -5,7 +5,7 @@ COMMENT="2bk: Debian full, VirtualBox, Debian light, KVM, Debian light"
 rm -rf ben
 mkdir ben
 cd ben
-script -c "../sysbench3.sh $COMMENT" log
+script -c "../sysbench4.sh $COMMENT" log
 # sleep 5
 # script -c "../palbench.sh ../pal_bench64 $COMMENT" plog
 echo DONE

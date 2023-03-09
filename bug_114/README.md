@@ -440,6 +440,43 @@ sudo apt-get install bonnie++
 
 Looks like SSD write speed is not stable, considering using HDD instead
 
+### Setting memory in Linux
+
+The `mem=` argument in Linux command line sets the maximum memory in e820 to
+use, but real hardware has discontinuous e820.
+
+```
+mem=	dell	qemu	ideal
+1024		1023160320	1073741824
+2048	2078732288	2078552064	2147483648
+3072	3132547072	3132370944	3221225472
+4096	3277893632	4121817088	4294967296
+5120	4261052416	5172490240	5368709120
+6144	5318017024	6229463040	6442450944
+7168	6374981632	7286419456	7516192768
+8192	7431954432	8343379968	8589934592
+
+mem=	dell+xmhf(nodrt)
+2432	2055667712
+2560	2184642560
+3456	2858459136
+3712	2858459136
+4096	2858459136
+4352	3055198208
+4480	3187310592
+```
+
+Without XMHF
+* QEMU 3072 = Dell 3072
+* Maxima equation:
+  `float(solve(1042205081.6 * (x/1024 - 3) + 2206164582.4 = 5172490240, x));`
+* QEMU 4096 = Dell 4954 (round to 4992)
+* QEMU 5120 = Dell 5986 (round to 6016)
+
+With XMHF (no DRT)
+* QEMU 2048 = Dell XMHF 2432
+* QEMU 3072 = Dell XMHF 4480
+
 ### More test updates
 
 `nested3_scripts`: disabling all caches, have some automated testing
