@@ -1,5 +1,6 @@
 #!/bin/bash
 set -xe
+set -o pipefail
 
 SCRIPT_DIR="$(dirname "$(realpath $BASH_SOURCE)")"
 HOST="hp.lxy"
@@ -132,8 +133,15 @@ run_test () {
 	timeout 5m sshpass -p dev scp -P "$BENCH_PORT" \
 		"$SCRIPT_DIR/$CONF.sh" \
 		"$SCRIPT_DIR/../sysbench"*".sh" \
+		"$SCRIPT_DIR/iozone3_489-1_amd64.deb" \
 		"$HOST:"
 	sleep 1m
+
+	timeout 5m sshpass -p dev ssh -p "$BENCH_PORT" "$HOST" \
+		"sudo apt-get install ./iozone3_489-1_amd64.deb"
+	sleep 1m
+
+	# TODO: sudo tune2fs -m 50 /dev/sda1
 
 	timeout 1h sshpass -p dev ssh -p "$BENCH_PORT" "$HOST" "./$CONF.sh" | \
 		tee "$(mktemp "$(date "+auto_%Y%m%d%H%M%S_${CONF}_XXXXXXX")")"

@@ -59,6 +59,7 @@ main () {
 	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" prepare
 	#run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrewr
 	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" cleanup
+	#iozone -a -s 4g -i 0 -i 1
 }
 
 main
