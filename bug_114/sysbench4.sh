@@ -45,21 +45,39 @@ run_sysbench () {
 	sleep 1
 }
 
+grep_iozone () {
+	grep -w reclen -A "$2" "$1" | tail -n1 | tr -s ' ' | cut -d ' ' -f "$3"
+}
+
+run_iozone () {
+	iozone -i 0 -i 1 "$@" | tee out
+	printf '%-40s\t' "iozone `echo "$@"` write" | tee -a "$RESD/result"
+	grep_iozone out 1 4 | tee -a "$RESD/result"
+	printf '%-40s\t' "iozone `echo "$@"` rewrite" | tee -a "$RESD/result"
+	grep_iozone out 1 5 | tee -a "$RESD/result"
+	printf '%-40s\t' "iozone `echo "$@"` read" | tee -a "$RESD/result"
+	grep_iozone out 1 6 | tee -a "$RESD/result"
+	printf '%-40s\t' "iozone `echo "$@"` reread" | tee -a "$RESD/result"
+	grep_iozone out 1 7 | tee -a "$RESD/result"
+}
+
 main () {
 	scale_cpu_max
 	run_dummy___ cpu run
 	run_sysbench cpu run
 	run_dummy___ memory run --memory-total-size=0
 	run_sysbench memory run --memory-total-size=0
-	run_dummy___ fileio "${FILEIO_FLAGS[@]}" prepare
-	run_dummy___ fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrd
-	run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrd
-	run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqwr
-	run_dummy___ fileio "${FILEIO_FLAGS[@]}" cleanup
+	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" prepare
+	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrd
+	#run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrd
+	#run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqwr
+	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" cleanup
 	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" prepare
 	#run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrewr
 	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" cleanup
-	#iozone -a -s 4g -i 0 -i 1
+	run_iozone -s 8g -r 2048
+	run_iozone -s 8g -r 4096
+	run_iozone -s 8g -r 8192
 }
 
 main

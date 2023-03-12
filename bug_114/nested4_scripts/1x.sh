@@ -10,5 +10,13 @@ script -c "../sysbench4.sh $COMMENT" log
 sleep 5
 script -c "../palbench.sh ../pal_bench64 $COMMENT" plog
 echo DONE
+echo BEGIN_RESULT
+cat result
+echo END_RESULT
+echo BEGIN_PAL
+cat pal
+echo END_PAL
+echo BEGIN_ALL_FILES
 tar c * | xz -9 | base64
+echo END_ALL_FILES
 echo END

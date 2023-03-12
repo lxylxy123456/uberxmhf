@@ -10,5 +10,14 @@ sleep 5
 # TODO
 #script -c "../palbench.sh ../pal_bench64L2 $COMMENT" plog
 echo DONE
+echo BEGIN_RESULT
+cat result
+echo END_RESULT
+# TODO
+#echo BEGIN_PAL
+#cat pal
+#echo END_PAL
+echo BEGIN_ALL_FILES
 tar c * | xz -9 | base64
+echo END_ALL_FILES
 echo END
