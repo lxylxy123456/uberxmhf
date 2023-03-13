@@ -38,7 +38,9 @@ grep_events () {
 }
 
 run_sysbench () {
+	date
 	sysbench "${FLAGS[@]}" "$@" | tee out
+	date
 	printf '%-40s\t' "`echo "$@"`" | tee -a "$RESD/result"
 	echo
 	grep_events out | tee -a "$RESD/result"
@@ -50,7 +52,9 @@ grep_iozone () {
 }
 
 run_iozone () {
+	date
 	iozone -i 0 -i 1 "$@" | tee out
+	date
 	printf '%-40s\t' "iozone `echo "$@"` write" | tee -a "$RESD/result"
 	grep_iozone out 1 4 | tee -a "$RESD/result"
 	printf '%-40s\t' "iozone `echo "$@"` rewrite" | tee -a "$RESD/result"
@@ -64,9 +68,9 @@ run_iozone () {
 main () {
 	scale_cpu_max
 	run_dummy___ cpu run
-	run_sysbench cpu run
+	run_sysbench cpu run --time=1000
 	run_dummy___ memory run --memory-total-size=0
-	run_sysbench memory run --memory-total-size=0
+	run_sysbench memory run --memory-total-size=0 --time=1000
 	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" prepare
 	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrd
 	#run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrd
@@ -75,9 +79,9 @@ main () {
 	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" prepare
 	#run_sysbench fileio "${FILEIO_FLAGS[@]}" run --file-test-mode=seqrewr
 	#run_dummy___ fileio "${FILEIO_FLAGS[@]}" cleanup
-	run_iozone -s 8g -r 2048
+	run_iozone -s 8g -r 1
+	run_iozone -s 8g -r 2
 	run_iozone -s 8g -r 4096
-	run_iozone -s 8g -r 8192
 }
 
 main
