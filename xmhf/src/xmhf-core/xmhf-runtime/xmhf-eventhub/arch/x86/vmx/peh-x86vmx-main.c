@@ -773,10 +773,10 @@ static void _vmx_handle_intercept_eptviolation(VCPU *vcpu, struct regs *r){
 	}else{ //no, pass it to hypapp
 		u32 app_ret_status;
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
-		xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+		//xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 		app_ret_status = xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, gpa, gva,
 				(errorcode & 7));
-		xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+		//xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 #else
 		// [Superymk] Some hypapps cannot use CPU quiescing when handling trapped PIO and memory accesses. For example, some
 		// hypapps must call another core to emulate the trapped CPU instructions. These hypapps cannot do so if CPU 
@@ -805,10 +805,10 @@ static void _vmx_handle_intercept_ioportaccess(VCPU *vcpu, struct regs *r){
   //NOT want a callback by setting up some parameters during appmain
 
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
-	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+	//xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 	app_ret_status=xmhf_app_handleintercept_portaccess(vcpu, r, portnum, access_type,
           access_size);
-    xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+    //xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 #else
 	// [Superymk] Some hypapps cannot use CPU quiescing when handling trapped PIO and memory accesses. For example, some
 	// hypapps must call another core to emulate the trapped CPU instructions. These hypapps cannot do so if CPU 
@@ -1273,6 +1273,11 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 //		printf("{%d,%d}", vcpu->id, (u32)vcpu->vmcs.info_vmexit_reason);
 //	}
 
+	if (!(vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION &&
+		  (vcpu->vmcs.info_vmexit_interrupt_information & INTR_INFO_VECTOR_MASK) == NMI_VECTOR)) {
+		xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+	}
+
 #ifdef __DEBUG_EVENT_LOGGER__
 	if (vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_CPUID) {
 		xmhf_dbg_log_event(vcpu, 1, XMHF_DBG_EVENTLOG_vmexit_cpuid, &r->eax);
@@ -1307,12 +1312,12 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 						(vcpu->vmcs.guest_RFLAGS & EFLAGS_VM)  ) );
 				_vmx_int15_handleintercept(vcpu, r);
 			}else{	//if not E820 hook, give hypapp a chance to handle the hypercall
-				xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+				//xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 				if( xmhf_app_handlehypercall(vcpu, r) != APP_SUCCESS){
 					printf("CPU(0x%02x): error(halt), unhandled hypercall 0x%08x!\n", vcpu->id, r->eax);
 					HALT();
 				}
-				xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+				//xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 				vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 			}
 		}
@@ -1578,6 +1583,11 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		printf("CPU(0x%02x): HALT; Nested events unhandled with hwp:0x%08x\n",
 			vcpu->id, vcpu->vmcs.info_IDT_vectoring_information);
 		HALT();
+	}
+
+	if (!(vcpu->vmcs.info_vmexit_reason == VMX_VMEXIT_EXCEPTION &&
+		  (vcpu->vmcs.info_vmexit_interrupt_information & INTR_INFO_VECTOR_MASK) == NMI_VECTOR)) {
+		xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 	}
 
 	//write updated VMCS back to CPU
