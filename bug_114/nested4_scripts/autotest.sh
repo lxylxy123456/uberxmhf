@@ -5,7 +5,7 @@ set -o pipefail
 SCRIPT_DIR="$(dirname "$(realpath $BASH_SOURCE)")"
 HOST="hp.lxy"
 # TODO
-XMHF_BUILD="XMHF-build32"
+XMHF_BUILD="XMHF-build64"
 
 edit_grub () {
 	timeout 1m ssh "$HOST" \
@@ -141,9 +141,7 @@ run_test () {
 		"sudo apt-get install ./iozone3_489-1_amd64.deb"
 	sleep 1m
 
-	# TODO: sudo tune2fs -m 50 /dev/sda1
-
-	timeout 1h sshpass -p dev ssh -p "$BENCH_PORT" "$HOST" "./$CONF.sh" | \
+	timeout 2h sshpass -p dev ssh -p "$BENCH_PORT" "$HOST" "./$CONF.sh" | \
 		tee "$(mktemp "$(date "+auto_%Y%m%d%H%M%S_${CONF}_XXXXXXX")")"
 
 	# Stop VM

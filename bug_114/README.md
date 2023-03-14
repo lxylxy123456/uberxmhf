@@ -464,6 +464,11 @@ mem=	dell+xmhf(nodrt)
 4096	2858459136
 4352	3055198208
 4480	3187310592
+
+mem=	dell+xmhf(drt)
+4480	3187318784
+4352	3055198208
+2432	2055667712
 ```
 
 Without XMHF
@@ -474,6 +479,10 @@ Without XMHF
 * QEMU 5120 = Dell 5986 (round to 6016)
 
 With XMHF (no DRT)
+* QEMU 2048 = Dell XMHF 2432
+* QEMU 3072 = Dell XMHF 4480
+
+With XMHF (DRT)
 * QEMU 2048 = Dell XMHF 2432
 * QEMU 3072 = Dell XMHF 4480
 
