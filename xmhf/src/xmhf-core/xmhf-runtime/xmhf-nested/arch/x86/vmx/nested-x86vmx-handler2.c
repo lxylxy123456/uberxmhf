@@ -353,6 +353,7 @@ u32 xmhf_nested_arch_x86vmx_handle_vmentry(VCPU * vcpu,
 	/* Change NMI handler from L1 to L2 */
 	HALT_ON_ERRORCOND(vcpu->vmx_mhv_nmi_handler_arg == SMPG_VMX_NMI_INJECT);
 	vcpu->vmx_mhv_nmi_handler_arg = SMPG_VMX_NMI_NESTED;
+	xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
 
 	if (vmcs12_info->launched) {
@@ -442,7 +443,9 @@ static u32 handle_vmexit20_nmi(VCPU * vcpu, vmcs12_info_t * vmcs12_info)
 		/* NMI is consumed by L0 (XMHF), nothing to do with L1 / L2 */
 	} else {
 		/* Send NMI to L1 / L2 in the future */
+		xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 		xmhf_nested_arch_x86vmx_handle_nmi(vcpu);
+		xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 	}
 	xmhf_smpguest_arch_x86vmx_unblock_nmi();
 	/*
@@ -647,14 +650,14 @@ static u32 handle_vmexit20_ept_violation(VCPU * vcpu,
 			gva_t gva = __vmx_vmreadNW(VMCSENC_info_guest_linear_address);
 			u32 app_ret_status;
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
-			xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+			//xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 #endif
 			app_ret_status =
 				xmhf_app_handleintercept_hwpgtblviolation(vcpu, r, guest1_paddr,
 														  gva,
 														  (qualification & 7));
 #ifdef __XMHF_QUIESCE_CPU_IN_GUEST_MEM_PIO_TRAPS__
-			xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+			//xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 #endif
 			HALT_ON_ERRORCOND(app_ret_status == APP_SUCCESS);
 		}
@@ -892,13 +895,13 @@ static u32 handle_vmexit20_vmcall(VCPU * vcpu, struct regs *r)
 		return NESTED_VMEXIT_HANDLE_201;
 	}
 	/* Quiesce, invoke hypapp */
-	xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+	//xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 	if (xmhf_app_handlehypercall(vcpu, r) != APP_SUCCESS) {
 		printf("CPU(0x%02x): error(halt), unhandled L2 hypercall 0x%08x!\n",
 			   vcpu->id, r->eax);
 		HALT();
 	}
-	xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
+	//xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 	/* Increase RIP since instruction is emulated */
 	{
 		ulong_t rip = __vmx_vmreadNW(VMCSENC_guest_RIP);
@@ -1065,6 +1068,7 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 {
 	u32 handle_behavior = NESTED_VMEXIT_HANDLE_201;
 	u32 vmexit_reason = __vmx_vmread32(VMCSENC_info_vmexit_reason);
+	bool quiesce_flag = true;
 	vmcs12_info_t *vmcs12_info;
 	vmcs12_info = xmhf_nested_arch_x86vmx_find_current_vmcs12(vcpu);
 
@@ -1076,6 +1080,10 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 	 * otherwise will deadlock. See xmhf_smpguest_arch_x86vmx_quiesce().
 	 */
 
+	if (vmexit_reason != VMX_VMEXIT_EXCEPTION) {
+		xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
+	}
+
 	switch (vmexit_reason) {
 	case VMX_VMEXIT_EXCEPTION:
 		{
@@ -1084,6 +1092,9 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 			HALT_ON_ERRORCOND(_nested_vmx_is_interruption_valid(intr_info));
 			if (xmhf_nested_arch_x86vmx_is_interruption_nmi(intr_info)) {
 				handle_behavior = handle_vmexit20_nmi(vcpu, vmcs12_info);
+				quiesce_flag = false;
+			} else {
+				xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 			}
 		}
 		break;
@@ -1136,6 +1147,10 @@ void xmhf_nested_arch_x86vmx_handle_vmexit(VCPU * vcpu, struct regs *r)
 		u32 app_ret_status = xmhf_app_handle_nest_exit(vcpu, r);
 		HALT_ON_ERRORCOND(app_ret_status == APP_SUCCESS);
 		handle_vmexit20_forward(vcpu, vmcs12_info, handle_behavior);
+	}
+
+	if (quiesce_flag) {
+		xmhf_smpguest_arch_x86vmx_endquiesce(vcpu);
 	}
 
 	xmhf_smpguest_arch_x86vmx_mhv_nmi_enable(vcpu);
