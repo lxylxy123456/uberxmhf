@@ -492,12 +492,18 @@ With XMHF (DRT)
 
 `nested4_scripts`: do not disable all caches
 
-TODO: make sure benchmark reports correct disk benchmark
-TODO: fstrim
-TODO: try XMHF without DRT
-TODO: does Linux detect TPM?
-TODO: Disable IOMMU by removing it from APIC
-TODO: 1x has more memory available? `Memory: 332976K/2598460K available (12295K kernel code, 2537K rwdata, 7560K rodata, 2660K init, 5468K bss, 132212K reserved, 0K cma-reserved)`
-* Ref: <https://unix.stackexchange.com/questions/30324/>
-TODO: benchmark md5sum of some file in VM
+Other ideas
+* make sure benchmark reports correct disk benchmark
+	* Looks iozone with HDD is good when file size > RAM, record size large
+* fstrim
+	* Just use HDD
+* try XMHF without DRT
+* does Linux detect TPM?
+* Disable IOMMU by removing it from ACPI
+	* Too difficult
+* 1x has more memory available? `Memory: 332976K/2598460K available (12295K kernel code, 2537K rwdata, 7560K rodata, 2660K init, 5468K bss, 132212K reserved, 0K cma-reserved)`
+	* This is not accurate. Should use `free -b`
+	* Ref: <https://unix.stackexchange.com/questions/30324/>
+* benchmark md5sum of some file in VM
+	* Probably better to use dd to bench
 
