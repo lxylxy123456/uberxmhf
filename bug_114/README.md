@@ -507,3 +507,6 @@ Other ideas
 * benchmark md5sum of some file in VM
 	* Probably better to use dd to bench
 
+`xmhf64-quiesce-all d62d9ee44`: add quiesce for most intercept handlers, can
+measure the performance hit of quiescing
+

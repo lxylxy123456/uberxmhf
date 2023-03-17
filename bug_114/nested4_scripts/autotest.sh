@@ -56,6 +56,18 @@ run_test () {
 
 	# Configure GRUB
 	case "$CONF" in
+		u0)
+			edit_grub
+			;;
+		u3)
+			edit_grub XMHF-compare
+			;;
+		u6)
+			edit_grub XMHF64-compare0
+			;;
+		u9)
+			edit_grub XMHF64-compare3
+			;;
 		0)
 			# 2048
 			edit_grub debian_light_2048
@@ -89,11 +101,20 @@ run_test () {
 	sleep 5m
 
 	# Stop gdm
-	timeout 1m ssh "$HOST" "sudo systemctl stop gdm"
-	sleep 1m
+	case "$CONF" in
+		u0|u3|u6|u9)
+			;;
+		*)
+			timeout 1m ssh "$HOST" "sudo systemctl stop gdm"
+			sleep 1m
+			;;
+	esac
 
 	# Start VM
 	case "$CONF" in
+		u0|u3|u6|u9)
+			BENCH_PORT="22"
+			;;
 		0|1x)
 			BENCH_PORT="22"
 			;;
@@ -138,7 +159,7 @@ run_test () {
 	sleep 1m
 
 	timeout 5m sshpass -p dev ssh -p "$BENCH_PORT" "$HOST" \
-		"sudo apt-get install ./iozone3_489-1_amd64.deb"
+		"[ -f no-ins-iozone ] || sudo apt-get install ./iozone3_489-1_amd64.deb"
 	sleep 1m
 
 	timeout 2h sshpass -p dev ssh -p "$BENCH_PORT" "$HOST" "./$CONF.sh" | \
@@ -146,6 +167,8 @@ run_test () {
 
 	# Stop VM
 	case "$CONF" in
+		u0|u3|u6|u9)
+			;;
 		0|1x)
 			;;
 		1b|1k|1w|2xk)

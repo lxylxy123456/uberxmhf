@@ -84,4 +84,13 @@ main () {
 	run_iozone -s 8g -r 8192
 }
 
+main_simp () {
+	scale_cpu_max
+	run_sysbench cpu run --time=1
+	run_sysbench memory run --memory-total-size=0 --time=1
+	run_iozone -s 8192 -r 2048
+	run_iozone -s 8192 -r 4096
+	run_iozone -s 8192 -r 8192
+}
+
 main

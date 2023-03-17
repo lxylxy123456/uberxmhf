@@ -53,16 +53,6 @@ def avg_table(t):
 			d['cpu run --time=1000'],
 			d['memory run --memory-total-size=0 --time=1000'],
 			avg(
-				d['iozone -s 8g -r 2048 write'],
-				d['iozone -s 8g -r 4096 write'],
-				d['iozone -s 8g -r 8192 write'],
-			),
-#			avg(
-#				d['iozone -s 8g -r 2048 rewrite'],
-#				d['iozone -s 8g -r 4096 rewrite'],
-#				d['iozone -s 8g -r 8192 rewrite'],
-#			),
-			avg(
 				d['iozone -s 8g -r 2048 read'],
 				d['iozone -s 8g -r 4096 read'],
 				d['iozone -s 8g -r 8192 read'],
@@ -71,6 +61,16 @@ def avg_table(t):
 #				d['iozone -s 8g -r 2048 reread'],
 #				d['iozone -s 8g -r 4096 reread'],
 #				d['iozone -s 8g -r 8192 reread'],
+#			),
+			avg(
+				d['iozone -s 8g -r 2048 write'],
+				d['iozone -s 8g -r 4096 write'],
+				d['iozone -s 8g -r 8192 write'],
+			),
+#			avg(
+#				d['iozone -s 8g -r 2048 rewrite'],
+#				d['iozone -s 8g -r 4096 rewrite'],
+#				d['iozone -s 8g -r 8192 rewrite'],
 #			),
 		])
 #	import pdb; pdb.set_trace()
@@ -111,11 +111,18 @@ def main():
 	print_table(t)
 	tt = avg_table(t)
 	print_table(tt)
-	print()
-	print_csv(div_table(tt, '0', ['1b', '1k', '1w', '1x']))
-	print()
-	print_csv(div_table(tt, '1k', ['2bk', '2kk', '2wk', '2xk']))
-	print()
+	if tt[1][0] == '0':
+		print()
+		print_csv(div_table(tt, '0', ['1b', '1k', '1w', '1x']))
+		print()
+		print_csv(div_table(tt, '1k', ['2bk', '2kk', '2wk', '2xk']))
+		print()
+	elif tt[1][0] == 'u0':
+		print()
+		print_csv(div_table(tt, 'u0', ['u3', 'u6', 'u9']))
+		print()
+	else:
+		raise Exception('Unknown tt[1][0]: %s' % tt[1][0])
 
 if __name__ == '__main__':
 	main()
