@@ -46,7 +46,7 @@ def avg_table(t):
 	aggregate = {}
 	for k, v in data.items():
 		aggregate[k] = list(map(avg, *v))
-	t = [['name', 'CPU', 'Memory', 'File Write', 'File Read']]
+	t = [['name', 'CPU', 'Memory', 'File Read', 'File Write']]
 	for k, v in aggregate.items():
 		d = dict(zip(rs[4:], v))
 		t.append([k,
