@@ -635,6 +635,12 @@ u32 tv_app_handlehypercall(VCPU *vcpu, struct regs *r)
     HANDLE( TV_HC_TPMNVRAM_GETSIZE );
     HANDLE( TV_HC_TPMNVRAM_READALL );
     HANDLE( TV_HC_TPMNVRAM_WRITEALL );
+  case 0xf9:
+    rdtsc(&r->eax, &r->edx);
+    r->ecx = vcpu->idx;
+    r->ebx = 0x64627374;
+    ret = r->eax;
+    break;
   default:
     {
       eu_err("FATAL ERROR: Invalid vmmcall cmd (%d)", cmd);
