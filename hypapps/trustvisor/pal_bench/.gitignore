@@ -1,4 +1,6 @@
 main
-test
-test_args
 *.o
+pal_bench32
+pal_bench32L2
+pal_bench64
+pal_bench64L2

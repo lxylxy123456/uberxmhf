@@ -13,6 +13,7 @@
 
 #include "vmcall.h"
 #include "caller.h"
+#include "record.h"
 
 #define PAGE_SIZE ((uintptr_t) 4096)
 
@@ -298,8 +299,17 @@ void *register_pal(struct tv_pal_params *params, void *entry, void *begin_pal,
 	}
 	pal_count++;
 	// Register scode
-	assert(!vmcall(TV_HC_REG, (uintptr_t)&sections, 0, (uintptr_t)params,
-					pal_entry));
+	{
+		uint64_t ts = 0, te = 0;
+		uint32_t cs = 0, ce = 0;
+		ts = rdtsc(&cs);
+		assert(!vmcall(TV_HC_REG, (uintptr_t)&sections, 0, (uintptr_t)params,
+						pal_entry));
+		te = rdtsc(&ce);
+		if (cs == ce) {
+			record_time(ts, te, RECORD_TYPE_REGISTER);
+		}
+	}
 	return user_entry;
 }
 
@@ -309,7 +319,16 @@ void *register_pal(struct tv_pal_params *params, void *entry, void *begin_pal,
  */
 void unregister_pal(void *user_entry) {
 	pal_record_t *pal_record = get_pal_record(user_entry);
-	assert(!vmcall(TV_HC_UNREG, pal_record->pal_entry, 0, 0, 0));
+	{
+		uint64_t ts = 0, te = 0;
+		uint32_t cs = 0, ce = 0;
+		ts = rdtsc(&cs);
+		assert(!vmcall(TV_HC_UNREG, pal_record->pal_entry, 0, 0, 0));
+		te = rdtsc(&ce);
+		if (cs == ce) {
+			record_time(ts, te, RECORD_TYPE_UNREGISTER);
+		}
+	}
 	assert(!munmap_wrap(pal_record->mmap_code));
 	assert(!munmap_wrap(pal_record->mmap_data));
 	assert(!munmap_wrap(pal_record->mmap_stack));
