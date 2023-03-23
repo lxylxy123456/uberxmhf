@@ -510,3 +510,10 @@ Other ideas
 `xmhf64-quiesce-all d62d9ee44`: add quiesce for most intercept handlers, can
 measure the performance hit of quiescing
 
+### TrustVisor micro benchmark using rdtsc
+
+Patch TrustVisor using `xmhf64-dev 649d35cfe` to provide a way to query XMHF
+time.
+
+Use `xmhf64-dev f50f29f23f`'s `pal_bench` to measure performance of TrustVisor.
+
