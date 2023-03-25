@@ -59,20 +59,20 @@ run_test () {
 		u0)
 			edit_grub
 			;;
-		u3)
+		u3|u3t)
 			edit_grub XMHF-compare
 			;;
-		u6)
+		u6|u6t)
 			edit_grub XMHF64-compare0
 			;;
-		u9)
+		u9|u9t)
 			edit_grub XMHF64-compare3
 			;;
 		0)
 			# 2048
 			edit_grub debian_light_2048
 			;;
-		1x)
+		1x|1xt)
 			# 2048 + XMHF
 			edit_grub "$XMHF_BUILD" debian_light_2432
 			# TODO: edit_grub "$XMHF_BUILD" debian_light_2944
@@ -81,7 +81,7 @@ run_test () {
 			# 3072
 			edit_grub debian_light_3072
 			;;
-		2xk)
+		2xk|2xkt)
 			# 3072 + XMHF
 			edit_grub "$XMHF_BUILD" debian_light_4480
 			# TODO: edit_grub "$XMHF_BUILD" debian_light_3968
@@ -102,7 +102,7 @@ run_test () {
 
 	# Stop gdm
 	case "$CONF" in
-		u0|u3|u6|u9)
+		u0|u3|u6|u9|u3t|u6t|u9t)
 			;;
 		*)
 			timeout 1m ssh "$HOST" "sudo systemctl stop gdm"
@@ -112,10 +112,10 @@ run_test () {
 
 	# Start VM
 	case "$CONF" in
-		u0|u3|u6|u9)
+		u0|u3|u6|u9|u3t|u6t|u9t)
 			BENCH_PORT="22"
 			;;
-		0|1x)
+		0|1x|1xt)
 			BENCH_PORT="22"
 			;;
 		1b)
@@ -127,7 +127,7 @@ run_test () {
 			start_k 1121 debian_light "-m 2048M"
 			BENCH_PORT="1122"
 			;;
-		1k|2xk)
+		1k|2xk|2xkt)
 			start_k 22 debian_light "-m 2048M"
 			BENCH_PORT="1121"
 			;;
@@ -153,6 +153,7 @@ run_test () {
 	# TODO
 	timeout 5m sshpass -p dev scp -P "$BENCH_PORT" \
 		"$SCRIPT_DIR/$CONF.sh" \
+		"$SCRIPT_DIR/../palbench"*".sh" \
 		"$SCRIPT_DIR/../sysbench"*".sh" \
 		"$SCRIPT_DIR/iozone3_489-1_amd64.deb" \
 		"$HOST:"
@@ -167,11 +168,11 @@ run_test () {
 
 	# Stop VM
 	case "$CONF" in
-		u0|u3|u6|u9)
+		u0|u3|u6|u9|u3t|u6t|u9t)
 			;;
-		0|1x)
+		0|1x|1xt)
 			;;
-		1b|1k|1w|2xk)
+		1b|1k|1w|2xk|2xkt)
 			stop_v "$BENCH_PORT"
 			;;
 		2bk|2kk)

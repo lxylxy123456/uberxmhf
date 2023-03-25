@@ -17,8 +17,13 @@ For old XMHF:
 * change 3 places to `#define EU_LOG_LVL EU_ERR`. Similar to `fd47fbe44`.
 * Modify `xmhf/src/libbaremetal/libtv_utpm/utpm.c` to remove printf
   "utpm_extend: extending PCR 0"
-For XMHF64: remove the call to `xmhf_debug_arch_putc` in `emhfc_putchar`. See
-`xmhf64-dev d0e5be5d8` for an example.
+* Add RDTSC API to TrustVisor. Similar to `xmhf64-dev 649d35cfe`. Applied to
+  `xmhf-benchmark 39b5e9850`
+For XMHF64:
+* remove the call to `xmhf_debug_arch_putc` in `emhfc_putchar`. See
+  `xmhf64-dev d0e5be5d8` for an example. Applied to `xmhf64-dev 5019fd964`
+* Add RDTSC API to TrustVisor. See `xmhf64-dev 649d35cfe` as an example.
+  Applied to `xmhf64-dev 0a05c3e28`
 
 old XMHF compile:
 ```sh
