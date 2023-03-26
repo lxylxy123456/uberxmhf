@@ -7,6 +7,10 @@ HOST="hp.lxy"
 # TODO
 XMHF_BUILD="XMHF-build64"
 
+# pal_bench64L2 is not committed to git. If this fails, compile pal_bench64L2.
+# Otherwise, remove pal_bench64L2 from the scp command below.
+[ -f "$SCRIPT_DIR/pal_bench64L2" ]
+
 edit_grub () {
 	timeout 1m ssh "$HOST" \
 		"sudo grub-editenv /boot/grub/grubenv set next_entry=$1 next_entry_2=$2"
@@ -155,6 +159,7 @@ run_test () {
 		"$SCRIPT_DIR/$CONF.sh" \
 		"$SCRIPT_DIR/../palbench"*".sh" \
 		"$SCRIPT_DIR/../sysbench"*".sh" \
+		"$SCRIPT_DIR/pal_bench64L2" \
 		"$SCRIPT_DIR/iozone3_489-1_amd64.deb" \
 		"$HOST:"
 	sleep 1m

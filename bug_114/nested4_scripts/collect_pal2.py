@@ -19,51 +19,25 @@ def read_file(i):
 		c['data'].append((i0, int(i1), int(i2)))
 	return c
 
-def print_table(t):
-	for i in range(len(t[0])):
-		print(*map(lambda x: x[i], t), sep='\t')
-
-def print_csv(t):
-	# TODO: does not escape
-	for i in range(len(t[0])):
-		print(*map(lambda x: x[i], t), sep=',')
-
 def avg(*vs):
 	return sum(vs) / len(vs)
 
-def avg_table(t):
-	rs, cs = t[0], t[1:]
-	data = defaultdict(list)	# name -> dicts
-	for c in cs:
-		d = dict(zip(rs, c))
-		data[d['name']].append(c[4:])
-	aggregate = {}
-	for k, v in data.items():
-		aggregate[k] = list(map(avg, *v))
-	t = [['name', 'ru', 'rcu', 'c']]
-	for k, v in aggregate.items():
-		d = dict(zip(rs[4:], v))
-		t.append([k, d['f_ru:'], d['f_rcu:'], d['f_c:']])
-#	import pdb; pdb.set_trace()
-	return t
+def filter_records(records, conf, name):
+	for f, c, n, v in records:
+		if conf is not None and conf != c:
+			continue
+		if name is not None and name != n:
+			continue
+		yield v
 
-def div_table(t, a, bs):
-	rs, cs = t[0], t[1:]
-	ans = []
-	ans.append(rs)
-	def find_index(x):
-		for index, i in enumerate(cs):
-			if i[0] == x:
-				return index
-		else:
-			assert False
-	a_index = find_index(a)
-	for b in bs:
-		b_index = find_index(b)
-		ans.append([b])
-		for i, j in zip(cs[b_index][1:], cs[a_index][1:]):
-			ans[-1].append(i / j)
-	return ans
+def latex_table(header, data, file=sys.stdout):
+	col_num = len(data[0])
+	row_num = len(data)
+	print(r'\begin{tabular}{ l%s }\hline' % (' | r' * (col_num - 1)), file=file)
+	print(r'%s \\ \hline' % (' & '.join(header)), file=file)
+	for i in data:
+		print(r'%s \\' % (' & '.join(i)), file=file)
+	print(r'\end{tabular}', file=file)
 
 def main():
 	records = []	# (file, conf, name, value)
@@ -72,18 +46,25 @@ def main():
 		for j0, j1, j2 in c['data']:
 			records.append((c['file'], c['conf'], j0, j2 / j1))
 			# print(*records[-1], sep='\t')
+	confs = sorted(set(map(lambda x: x[1], records)))
+	names = set(map(lambda x: x[2], records))
+	alarms = filter_records(records, None, 'alarm')
+	avg_alarms = avg(*alarms)
+	if confs == ['u3', 'u6', 'u9']:
+		header = ['Event', 'XMHF', '\\XMHF64', '\\XMHF64, O3']
+	elif confs == ['1xt', '2xkt']:
+		header = ['Event', '1x', '2xk']
+	else:
+		raise ValueError('Unknown confs %s' % repr(confs))
 	table = []
-	TODO
-	return
-	assert rs is not None
-	t = [rs, *cs]
-	# print(rs, cs)
-	print_table(t)
-	tt = avg_table(t)
-	print_table(tt)
-	print()
-	print_csv(div_table(tt, '1x', ['2xk']))
-	print()
+	assert names == {'unmar', 'mar', 'reg', 'unreg', 'alarm'}
+	for n1, n2 in [('reg', 'Registration'), ('mar', 'Invocation'),
+					('unmar', 'Termination'), ('unreg', 'Unregistration')]:
+		table.append(['PAL ' + n2])
+		for c in confs:
+			x = avg(*filter_records(records, c, n1))
+			table[-1].append('%.1f' % (x / avg_alarms * 1000000))
+	latex_table(header, table)
 
 if __name__ == '__main__':
 	main()
