@@ -54,10 +54,6 @@ new XMHF64:
 ./autogen.sh && ./configure '--with-approot=hypapps/trustvisor' '--disable-dmap' '--with-target-subarch=amd64' '--with-amd64-max-phys-addr=0x230000000' '--enable-nested-virtualization' '--with-opt=-O3 -Wno-array-bounds' && make -j 8
 ```
 
-XMHF64 compile
-
-TODO: calling convention changed, pal_demo does not work on legacy XMHF
-
 ### CPU frequency
 
 ```sh
@@ -521,4 +517,5 @@ Patch TrustVisor using `xmhf64-dev 649d35cfe` to provide a way to query XMHF
 time.
 
 Use `xmhf64-dev f50f29f23f`'s `pal_bench` to measure performance of TrustVisor.
+This code also supports measuring the rdtsc frequency using Linux's timer.
 
