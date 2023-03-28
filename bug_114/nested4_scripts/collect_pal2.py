@@ -6,6 +6,9 @@ E = 'END_PAL'
 
 def read_file(i):
 	a = open(i).read().split('\n')
+	if B not in a:
+		assert E not in a
+		return {'data': []}
 	assert a.count(B) == 1
 	assert a.count(E) == 1
 	b = a[a.index(B) + 1: a.index(E)]
@@ -48,11 +51,12 @@ def main():
 			# print(*records[-1], sep='\t')
 	confs = sorted(set(map(lambda x: x[1], records)))
 	names = set(map(lambda x: x[2], records))
-	alarms = filter_records(records, None, 'alarm')
+	alarms = list(filter_records(records, None, 'alarm'))
+	# print(*alarms, sep='\n')
 	avg_alarms = avg(*alarms)
 	if confs == ['u3', 'u6', 'u9']:
 		header = ['Event', 'XMHF', '\\XMHF64', '\\XMHF64, O3']
-	elif confs == ['1xt', '2xkt']:
+	elif confs == ['1x', '2xk']:
 		header = ['Event', '1x', '2xk']
 	else:
 		raise ValueError('Unknown confs %s' % repr(confs))
