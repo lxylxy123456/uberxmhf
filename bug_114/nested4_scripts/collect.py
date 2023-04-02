@@ -117,6 +117,8 @@ def main():
 		print()
 		print_csv(div_table(tt, '1k', ['2bk', '2kk', '2wk', '2xk']))
 		print()
+		print_csv(div_table(tt, '0', ['2bk', '2kk', '2wk', '2xk']))
+		print()
 	elif tt[1][0] == 'u0':
 		print()
 		print_csv(div_table(tt, 'u0', ['u3', 'u6', 'u9']))
