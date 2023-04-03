@@ -36,9 +36,7 @@ uintptr_t my_pal(uintptr_t arg1, uintptr_t *arg2) {
 	}
 	switch (arg1 & 0x3) {
 		case 0:
-#if 0
-			set_r15((int)arg1 + 0xdb962f0f);
-#endif
+			set_edx((int)arg1 + 0xdb962f0f);
 			break;
 		case 1:
 			set_edi((int)arg1 + 0xfb6d9d22);
@@ -52,7 +50,8 @@ uintptr_t my_pal(uintptr_t arg1, uintptr_t *arg2) {
 		default:
 			do {} while (1);
 	}
-	return arg1 + ((*arg2)++);
+	//return arg1 + ((*arg2)++);
+	return arg1;
 }
 
 uintptr_t pal_10_int(uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,

@@ -23,17 +23,15 @@ INLINE void set_edi(int val) {
 	asm volatile ("movl %0, %%edi" : : "a"(val));
 }
 
-#if 0
-INLINE int get_r15(void) {
+INLINE int get_edx(void) {
 	int ans;
-	asm volatile ("movl %%r15d, %0" : "=a"(ans));
+	asm volatile ("movl %%edx, %0" : "=a"(ans));
 	return ans;
 }
 
-INLINE void set_r15(int val) {
-	asm volatile ("movl %0, %%r15d" : : "a"(val));
+INLINE void set_edx(int val) {
+	asm volatile ("movl %0, %%edx" : : "a"(val));
 }
-#endif
 
 INLINE int fstp(void) {
 	int ans;
