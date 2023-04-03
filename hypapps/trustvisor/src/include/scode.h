@@ -169,7 +169,7 @@ int copy_to_current_guest(VCPU * vcpu, gva_t gvaddr, void *src, size_t len);
 
 /* PAL operations (HPT) */
 u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r);
-u32 hpt_scode_switch_regular(VCPU * vcpu);
+u32 hpt_scode_switch_regular(VCPU * vcpu, struct regs *r);
 u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r);
 bool hpt_scode_is_scode(VCPU * vcpu);
 int hpt_scode_get_scode_id(VCPU * vcpu);

@@ -1197,7 +1197,7 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   return err;
 }
 
-u32 scode_unmarshall(VCPU * vcpu)
+u32 scode_unmarshall(VCPU * vcpu, struct regs *r)
 {
   uintptr_t pm_addr_base, pm_addr;
   size_t i;
@@ -1292,13 +1292,34 @@ u32 scode_unmarshall(VCPU * vcpu)
 
     } //end for loop
 
+  /* clear caller saved registers to prevent leaking PLA's secret */
+  if (VCPU_g64(vcpu)) {
+#ifdef __AMD64__
+    r->rcx = 0;
+    r->rdx = 0;
+    r->rsi = 0;
+    r->rdi = 0;
+    r->r8 = 0;
+    r->r9 = 0;
+    r->r10 = 0;
+    r->r11 = 0;
+#elif defined(__I386__)
+    HALT_ON_ERRORCOND(0 && "32-bit TrustVisor to handling 64-bit PAL?");
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+  } else {
+    r->ecx = 0;
+    r->edx = 0;
+  }
+
   err=0;
  out:
   return err;
 }
 
 //switch from sensitive code to regular code
-u32 hpt_scode_switch_regular(VCPU * vcpu)
+u32 hpt_scode_switch_regular(VCPU * vcpu, struct regs *r)
 {
   int curr=scode_curr[vcpu->id];
   u32 rv=1;
@@ -1312,7 +1333,7 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
   EU_CHK( g_did_change_root_mappings );
 
   /* marshalling parameters back to regular code */
-  EU_CHKN( scode_unmarshall(vcpu));
+  EU_CHKN( scode_unmarshall(vcpu, r));
 
   /* whether or not marshalling succeeded, we switch back to reg world.
    * nothing below can fail.
@@ -1438,7 +1459,7 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
     /* valid return point, switch from sensitive code to regular code */
 
     /* XXX FIXME: now return ponit is extracted from regular code stack, only support one scode function call */
-    EU_CHKN( hpt_scode_switch_regular(vcpu));
+    EU_CHKN( hpt_scode_switch_regular(vcpu, r));
     *curr = -1;
   } else if ((*curr >=0) && (index >= 0)) {
     /* sensitive code to sensitive code */
