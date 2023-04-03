@@ -540,7 +540,7 @@ u32 xmhf_parteventhub_arch_x86vmx_handle_wrmsr(VCPU *vcpu, u32 index, u64 value)
 		// case IA32_VMX_VMFUNC_MSR:
 			HALT_ON_ERRORCOND(0 && "Writing to VMX MSRs (read-only)");
 			break;
-#endif /* !__NESTED_VIRTUALIZATION__ */
+#endif /* __NESTED_VIRTUALIZATION__ */
 		default:{
 			if (wrmsr_safe(index, value) != 0) {
 				return 1;
@@ -690,7 +690,7 @@ u32 xmhf_parteventhub_arch_x86vmx_handle_rdmsr(VCPU *vcpu, u32 index, u64 *value
 		// case IA32_VMX_VMFUNC_MSR:
 			*value = vcpu->vmx_nested_msrs[index - IA32_VMX_BASIC_MSR];
 			break;
-#endif /* !__NESTED_VIRTUALIZATION__ */
+#endif /* __NESTED_VIRTUALIZATION__ */
 		default:{
 			if (rdmsr_safe(index, value) != 0) {
 				return 1;
@@ -1165,7 +1165,7 @@ static u32 _optimize_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		_OPT_VMWRITE(NW, guest_RIP);
 		_OPT_VMWRITE(NW, guest_RFLAGS);
 		return 1;
-#endif /* !__NESTED_VIRTUALIZATION__ */
+#endif /* __NESTED_VIRTUALIZATION__ */
 	default:
 		return 0;
 	}
@@ -1238,7 +1238,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		xmhf_nested_arch_x86vmx_handle_vmexit(vcpu, r);
 		return 1;
 	}
-#endif /* !__NESTED_VIRTUALIZATION__ */
+#endif /* __NESTED_VIRTUALIZATION__ */
 	/*
 	 * The intercept handler access VMCS fields using vcpu->vmcs, but the NMI
 	 * exception handler relies on the hardware VMCS (i.e. use __vmx_vmread()).
@@ -1362,7 +1362,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		case VMX_VMEXIT_VMXON:
 			xmhf_nested_arch_x86vmx_handle_vmxon(vcpu, r);
 			break;
-#endif /* !__NESTED_VIRTUALIZATION__ */
+#endif /* __NESTED_VIRTUALIZATION__ */
 
 		case VMX_VMEXIT_IOIO:{
 			_vmx_handle_intercept_ioportaccess(vcpu, r);

@@ -268,7 +268,7 @@ void xmhf_baseplatform_arch_x86vmx_dump_vcpu(VCPU *vcpu){
     DUMP_VCPU_PRINT_INT64(vcpu->vmx_nested_exit_ctls);
     DUMP_VCPU_PRINT_INT64(vcpu->vmx_nested_entry_ctls);
 
-#endif /* !__NESTED_VIRTUALIZATION__ */
+#endif /* __NESTED_VIRTUALIZATION__ */
 #define DECLARE_FIELD_16(encoding, name, ...) \
     DUMP_VCPU_PRINT_INT16(vcpu->vmcs.name);
 #define DECLARE_FIELD_64(encoding, name, ...) \
