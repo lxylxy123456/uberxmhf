@@ -24,8 +24,20 @@ void call_pal(uintptr_t a, uintptr_t b) {
 	printf(" %p = *%p\n", (void *)b2, &b2);
 	fflush(stdout);
 	uintptr_t ret = func(a | PAL_FLAG_MASK, &b2);
+#if 0
+	int side0 = get_r15();
+#endif
+	int side1 = get_edi();
+	int side2 = fstp();
+	int side3 = get_xmm();
 	printf(" %p = my_pal(%p, %p)\n", (void *)ret, (void *)a, &b2);
 	printf(" %p = *%p\n\n", (void *)b2, &b2);
+#if 0
+	printf(" %p = get_r15()\n", (void *)(uintptr_t)side0);
+#endif
+	printf(" %p = get_edi()\n", (void *)(uintptr_t)side1);
+	printf(" %p = fstp()\n", (void *)(uintptr_t)side2);
+	printf(" %p = get_xmm()\n\n", (void *)(uintptr_t)side3);
 	fflush(stdout);
 	// Unregister scode
 	unregister_pal(entry);
