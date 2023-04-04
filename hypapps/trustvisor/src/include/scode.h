@@ -123,6 +123,7 @@ typedef struct whitelist_entry{
   hpt_pa_t  saved_pt_l1l2_root_pa; /* When nested virtualization, EPT12 */
   hptw_emhf_host_ctx_t saved_hptw_reg_host_ctx; /* ctx to walk EPT / NPT */
   u32 saved_exception_intercepts;
+  bool saved_cr0_em; /* Save whether CR0.EM bit is set */
   bool saved_nested_intr_exit; /* Save VCPU_disable_nested_interrupt_exit() */
   u32 saved_nested_timer; /* Save VCPU_disable_nested_timer_exit() */
   u32 saved_nested_mem_bitmap; /* Save VCPU_disable_memory_bitmap() */

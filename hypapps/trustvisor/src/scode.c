@@ -1156,6 +1156,15 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
     VCPU_grflags_set(vcpu, rflags & ~EFLAGS_IF);
   }
 
+  /* save CR0.EM */
+  {
+    ulong_t cr0 = VCPU_gcr0(vcpu);
+    whitelist[curr].saved_cr0_em = !!(cr0 & CR0_EM);
+    cr0 |= CR0_EM;
+    VCPU_gcr0_set(vcpu, cr0);
+  }
+
+  /* save state related to nested virtualization */
   whitelist[curr].saved_nested_intr_exit = VCPU_disable_nested_interrupt_exit(vcpu);
   whitelist[curr].saved_nested_timer = VCPU_disable_nested_timer_exit(vcpu);
   whitelist[curr].saved_nested_mem_bitmap = VCPU_disable_memory_bitmap(vcpu);
@@ -1377,6 +1386,16 @@ u32 hpt_scode_switch_regular(VCPU * vcpu, struct regs *r)
     u64 rflags = VCPU_grflags(vcpu);
     EU_CHK((rflags & EFLAGS_IF) == 0);
     VCPU_grflags_set(vcpu, rflags | EFLAGS_IF);
+  }
+
+  /* restore CR0.EM, check that CR0.EM is set during PAL */
+  {
+    ulong_t cr0 = VCPU_gcr0(vcpu);
+    EU_CHK((cr0 & CR0_EM) == CR0_EM);
+    if (!whitelist[curr].saved_cr0_em) {
+      cr0 &= ~CR0_EM;
+    }
+    VCPU_gcr0_set(vcpu, cr0);
   }
 
   VCPU_enable_memory_bitmap(vcpu, whitelist[curr].saved_nested_mem_bitmap);
