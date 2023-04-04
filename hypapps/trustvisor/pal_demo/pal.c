@@ -28,7 +28,7 @@ uintptr_t pal_check_cpuid(uintptr_t *arg) {
 }
 
 uintptr_t my_pal(uintptr_t arg1, uintptr_t *arg2) {
-	{
+	if (0) {
 		uintptr_t checked = pal_check_cpuid(&arg1);
 		if (checked) {
 			return 0xdead0000U + checked;

@@ -57,14 +57,14 @@ enum HCcmd {
   TV_HC_SHARE =6,
 
   /* uTPM ops */
-  TV_HC_UTPM_SEAL_DEPRECATED    =3,
+  TV_HC_UTPM_SEAL_DEPRECATED	=3,
   TV_HC_UTPM_UNSEAL_DEPRECATED =4,
   TV_HC_UTPM_QUOTE_DEPRECATED =5,
   TV_HC_UTPM_PCRREAD =7,
   TV_HC_UTPM_PCREXT  =8,
   TV_HC_UTPM_GENRAND =9,
-  TV_HC_UTPM_SEAL   =10,
-  TV_HC_UTPM_UNSEAL =11,
+  TV_HC_UTPM_SEAL	=10,
+  TV_HC_UTPM_UNSEAL	=11,
   TV_HC_UTPM_QUOTE =12,
   TV_HC_UTPM_ID_GETPUB =13,
   /* Reserving up through 20 for more UTPM stuff; don't touch! */
@@ -73,7 +73,7 @@ enum HCcmd {
   TV_HC_TPMNVRAM_GETSIZE = 21,
   TV_HC_TPMNVRAM_READALL = 22,
   TV_HC_TPMNVRAM_WRITEALL = 23,
-
+  
   /* misc */
   TV_HC_TEST =255,
 };
@@ -96,16 +96,15 @@ enum tv_pal_section_type {
 
 struct tv_pal_section {
   enum tv_pal_section_type type;
+  uint32_t start_addr;
   uint32_t page_num; /* size of section in pages */
-  uint64_t start_addr;
-} __attribute__((packed));
+};
 
 #define TV_MAX_SECTIONS 10  /* max sections that are allowed in pal registration */
 struct tv_pal_sections {
   uint32_t num_sections;
-  uint32_t :32; /* Padding */
   struct tv_pal_section sections[TV_MAX_SECTIONS];
-} __attribute__((packed));
+};
 
 /* parameter type */
 enum tv_pal_param_type {
@@ -115,16 +114,14 @@ enum tv_pal_param_type {
 
 struct tv_pal_param {
   enum tv_pal_param_type type;  /* 1: integer ;  2:pointer*/
-  uint32_t :32; /* Padding */
-  uint64_t size;
-} __attribute__((packed));
+  uint32_t size;
+};
 
 #define TV_MAX_PARAMS 10
 struct tv_pal_params {
   uint32_t num_params;
-  uint32_t :32; /* Padding */
   struct tv_pal_param params[TV_MAX_PARAMS];
-} __attribute__((packed));
+};
 
 #endif
 

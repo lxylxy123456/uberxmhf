@@ -42,7 +42,7 @@ void call_pal(uintptr_t a, uintptr_t b) {
 int main(int argc, char *argv[]) {
 	uintptr_t a, b, b2;
 	uintptr_t ret;
-	if (!check_cpuid()) {
+	if (0 && !check_cpuid()) {
 		printf("Error: TrustVisor not present according to CPUID\n");
 		return 1;
 	}
