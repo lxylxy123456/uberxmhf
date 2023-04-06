@@ -582,6 +582,58 @@ Future TODOs
 * Write more tests on NMI blocking (similar to experiment 27)
 * Report bugs to KVM and Bochs
 
+### Reporting bugs
+
+We plan to report bug to KVM and Bochs, using `experiment_13` in the main bug
+report.
+
+In `lhv-nmi a12638ef90`, hardcode `experiment_13` to run first.
+
+What does the experiment do?
+* Prepare state such that currently in L1, NMI is blocked
+* Make sure L2 is configured with virtual NMIs enabled
+* VM entry to NMI without setting L2's blocking by NMI bit
+* L2 VM exit to L1
+* Expected: L1 should not block NMI
+
+Intel v3 25.7.1 says the following, meaning that NMIs are not blocked after VM
+entry
+> The bit’s value does not affect the blocking of NMIs after VM entry. NMIs are
+> not blocked in VMX non-
+> root operation (except for ordinary blocking for other reasons, such as by
+> the MOV SS instruction, the
+> wait-for-SIPI state, etc.)
+
+Intel v3 26.5.5 says the following, meaning that NMIs are not blocked after VM
+exit
+> VM exits caused directly by non-maskable interrupts (NMIs) cause blocking by
+> NMI (see Table 23-3). Other
+> VM exits do not affect blocking by NMI. (See Section 26.1 for the case in
+> which an NMI causes a VM exit
+> indirectly.)
+
+Related files
+* `c.img.xz`: for disk image that can be booted
+* Bare metal
+	* `serial_2540p.txt`: serial output of running on 2540p (correct, endless)
+* Bochs
+	* `serial_bochs.txt`: serial output of bochs r14349
+		* <https://sourceforge.net/p/bochs/code/14349/>
+	* `log_bochs.txt`: bochs log
+	* `bochsrc`: Bochs configuration file
+	* `bug_bochs.txt`: bug report
+* KVM
+	* `serial_kvm.txt`: serial output of KVM 5.10.0-21-amd64
+	* `bug_kvm.txt`: bug report
+	* <https://bugzilla.kernel.org/show_bug.cgi?id=217304>
+
+Actual behavior:
+* Bare metal: L1 does not block NMI (good)
+* KVM: L1 blocks NMI
+* Bochs: L1 blocks NMI
+* VirtualBox: TODO
+* VMware: TODO
+
 ## Fix
 
 `xmhf64 f41b83a6b..330e650f4`

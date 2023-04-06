@@ -1,0 +1,131 @@
+Subject: Bochs does not handle NMI blocking correctly when running virtual machines (VMX)
+
+Bochs version: self-compiled, SVN revision 14349 (also reproducible on bochs 2.7)
+
+Host platform: Debian 11, kernel 5.10.0-21-amd64
+
+Bochs build command:
+~~~
+./configure \
+            --enable-all-optimizations \
+            --enable-cpu-level=6 \
+            --enable-x86-64 \
+            --enable-vmx=2 \
+            --enable-clgd54xx \
+            --enable-busmouse \
+            --enable-show-ips \
+            --enable-smp \
+            --disable-docbook \
+            --with-x --with-x11 --with-term --with-sdl2
+make
+~~~
+
+bochsrc
+~~~
+cpu: model=corei7_sandy_bridge_2600k, count=2, ips=50000000, reset_on_triple_fault=1, ignore_bad_msrs=1, msrs="msrs.def"
+memory: guest=512, host=256
+romimage: file=$BXSHARE/BIOS-bochs-latest, options=fastboot
+vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata1: enabled=1, ioaddr1=0x170, ioaddr2=0x370, irq=15
+ata0-master: type=disk, mode=flat, path="c.img"
+boot: disk
+log: log.txt
+panic: action=ask
+error: action=report
+info: action=report
+debug: action=ignore, pci=report # report BX_DEBUG from module 'pci'
+debugger_log: -
+com1: enabled=1, mode=file, dev=/dev/stdout
+~~~
+
+Attached with this bug report is c.img. It is a disk image that boots a micro-hypervisor I wrote (called LHV). The attachment is compressed with xz.
+
+Bochs' serial output (printed to /dev/stdout)
+~~~
+...
+Detecting environment
+    Bochs detected
+End detecting environment
+Experiment: 13
+  Enter host, exp=13, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+  Enter host, exp=13, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+
+source:      EXIT_NMI_H   (5)
+exit_source: EXIT_TIMER_H (6)
+TEST_ASSERT '0 && (exit_source == source)' failed, line 365, file lhv-guest.c
+~~~
+
+Expected output (reproduced on real Intel hardware, with >= 2 CPUs)
+~~~
+...
+Detecting environment
+End detecting environment
+Experiment: 13
+  Enter host, exp=13, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+  Enter host, exp=13, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 1
+... (endless)
+~~~
+
+Bochs log file:
+~~~
+...
+00731293796i[CPU0  ] RDMSR: Read 00000000:fee00900 from MSR_APICBASE
+00731293815i[CPU0  ] RDMSR: Read 00000000:fee00900 from MSR_APICBASE
+00734198996i[APIC1 ] Deliver NMI
+00784199793i[APIC1 ] Deliver NMI
+00834200590i[APIC1 ] Deliver NMI
+00884270580i[APIC1 ] Deliver NMI
+00934271391i[APIC1 ] Deliver NMI
+00960127468i[CPU1  ] WARNING: HLT instruction with IF=0!
+~~~
+
+Explanation:
+
+The code in LHV performs an experiment (called "Experiment 13" in serial output) on CPU 0 to test the behavior of NMI blocking. The experiment steps are:
+1. Prepare state such that the CPU is currently in host mode (i.e. VMX root mode), and NMI is blocked
+2. Modify VMCS to make sure that the guest mode (i.e. VMX non-root mode) has virtual NMIs enabled (NMI exiting = 1, Virtual NMIs = 1), and the guest mode does not block NMI (Blocking by NMI = 0)
+3. VM entry to guest mode
+4. the guest mode performs VMCALL, get VM exit to host mode
+5. in host mode, check whether NMI is blocked.
+
+The expected behavior is that NMI should be blocked, which is reproduced on real hardware. According to Intel SDM, NMIs should be unblocked after VM entry to guest mode (step 3). After VM exit to host mode (step 4), NMI blocking does not change, so NMIs are still unblocked. This behavior is reproducible on real hardware.
+
+However, when running on Bochs, the experiment shows that at step 5, NMIs are blocked in host mode. Thus, I think NMI blocking is not implemented correctly in Bochs.
+
+I am happy to explain how the experiment code works in detail. c.img also reveals other NMI-related bugs in Bochs. I am also happy to explain the other bugs.
+

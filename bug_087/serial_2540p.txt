@@ -1,0 +1,1495 @@
+Lightweight Hypervisor (LHV) v6.1.0
+Build revision: lhv-nmi-a12638ef90dac430dd18d62cd29aa967826fecc9
+LHV_OPT = 0x0000000000000000
+Subarch: i386
+
+INIT(early): initializing, total modules=3
+INIT(early): detected an Intel CPU
+Finding SMP info. via ACPI...
+ACPI RSDP at 0x000fc600
+ACPI RSDT at 0xbb3fe0ac
+	len=0x0000005c, headerlen=0x00000024, numentries=14
+ACPI MADT at 0xbb3fa000
+	len=0x000000bc, record-length=144 bytes
+rec type=0x00, length=8 bytes, flags=0x00000001, id=0x00
+rec type=0x00, length=8 bytes, flags=0x00000001, id=0x01
+rec type=0x00, length=8 bytes, flags=0x00000001, id=0x04
+rec type=0x00, length=8 bytes, flags=0x00000001, id=0x05
+rec type=0x00, length=8 bytes, flags=0x00000000, id=0x00
+rec type=0x00, length=8 bytes, flags=0x00000000, id=0x00
+rec type=0x00, length=8 bytes, flags=0x00000000, id=0x00
+rec type=0x00, length=8 bytes, flags=0x00000000, id=0x00
+rec type=0x01, length=12 bytes, flags=0xfec00000, id=0x00
+rec type=0x02, length=10 bytes, flags=0x00000002, id=0x00
+rec type=0x02, length=10 bytes, flags=0x00000009, id=0x09
+rec type=0x04, length=6 bytes, flags=0x06040100, id=0x05
+rec type=0x04, length=6 bytes, flags=0x06040100, id=0x05
+rec type=0x04, length=6 bytes, flags=0x06040100, id=0x05
+rec type=0x04, length=6 bytes, flags=0x06040100, id=0x05
+rec type=0x04, length=6 bytes, flags=0x06040100, id=0x05
+rec type=0x04, length=6 bytes, flags=0x06040100, id=0x05
+rec type=0x04, length=6 bytes, flags=0x06040100, id=0x05
+rec type=0x04, length=6 bytes, flags=0xffbf0100, id=0x05
+
+original system E820 map follows:
+0x0000000000000000, size=0x000000000009fc00 (1)
+0x000000000009fc00, size=0x0000000000000400 (2)
+0x00000000000e0000, size=0x0000000000020000 (2)
+0x0000000000100000, size=0x00000000baac2000 (1)
+0x00000000babc2000, size=0x0000000000700000 (2)
+0x00000000bb2c2000, size=0x0000000000100000 (4)
+0x00000000bb3c2000, size=0x000000000003d000 (3)
+0x00000000bb3ff000, size=0x0000000000001000 (1)
+0x00000000bb400000, size=0x0000000000c00000 (2)
+0x00000000e0000000, size=0x0000000010000000 (2)
+0x00000000fec00000, size=0x0000000000001000 (2)
+0x00000000fed10000, size=0x0000000000004000 (2)
+0x00000000fed19000, size=0x0000000000001000 (2)
+0x00000000fed1b000, size=0x0000000000005000 (2)
+0x00000000fee00000, size=0x0000000000001000 (2)
+0x00000000ffd00000, size=0x0000000000300000 (2)
+0x0000000100000000, size=0x0000000038000000 (1)
+proceeding to revise E820...
+E820 revision complete.
+
+revised system E820 map follows:
+0x0000000000000000, size=0x000000000009fc00 (1)
+0x000000000009fc00, size=0x0000000000000400 (2)
+0x00000000000e0000, size=0x0000000000020000 (2)
+0x0000000000100000, size=0x0000000007f00000 (1)
+0x0000000008000000, size=0x0000000001e00000 (2)
+0x0000000009e00000, size=0x00000000b0dc2000 (1)
+0x00000000babc2000, size=0x0000000000700000 (2)
+0x00000000bb2c2000, size=0x0000000000100000 (4)
+0x00000000bb3c2000, size=0x000000000003d000 (3)
+0x00000000bb3ff000, size=0x0000000000001000 (1)
+0x00000000bb400000, size=0x0000000000c00000 (2)
+0x00000000e0000000, size=0x0000000010000000 (2)
+0x00000000fec00000, size=0x0000000000001000 (2)
+0x00000000fed10000, size=0x0000000000004000 (2)
+0x00000000fed19000, size=0x0000000000001000 (2)
+0x00000000fed1b000, size=0x0000000000005000 (2)
+0x00000000fee00000, size=0x0000000000001000 (2)
+0x00000000ffd00000, size=0x0000000000300000 (2)
+0x0000000100000000, size=0x0000000038000000 (1)
+INIT(early): relocated hypervisor binary image to 0x08000000
+INIT(early): 2M aligned size = 0x00400000
+INIT(early): un-aligned size = 0x0022f290
+INIT(early): found app module, base=0x00331000, size=0x00020000
+setupvcpus: cpustacks range 0x01e0d000-0x01e2d000 in 0x00004000 chunks
+setupvcpus: vcpubuffers range 0x01e06080-0x01e084e0 in 0x0000048c chunks
+CPU #0: vcpu_vaddr_ptr=0x01e06080, esp=0x01e11000
+CPU #1: vcpu_vaddr_ptr=0x01e0650c, esp=0x01e15000
+CPU #2: vcpu_vaddr_ptr=0x01e06998, esp=0x01e19000
+CPU #3: vcpu_vaddr_ptr=0x01e06e24, esp=0x01e1d000
+BSP(0x00): Rallying APs...
+BSP(0x00): APs ready, doing DRTM...
+LAPIC base and status=0xfee00900
+Sending INIT IPI to all APs...
+
+Done.
+INIT(early): sent INIT IPI to APs
+
+****** NO DRTM startup ******
+slbase=0x08000000, sl_entry_point_offset=0x00003080
+SL entry point to transfer control to: 0x08003080
+SL(early-init): at 0x08000000, starting...
+SL: slpb at = 0x00010000
+	errorHandler=0x00000000
+	isEarlyInit=0x00000001
+	numE820Entries=19
+	system memory map buffer at 0x00010010
+	numCPUEntries=4
+	cpuinfo buffer at 0x00010514
+	runtime size= 193168 bytes
+	OS bootmodule at 0x00330000, size=512 bytes
+  OS boot_drive is 0x80
+	cmdline = "serial=115200,8n1,0x5080"
+SL: RDTSC before_drtm 0x0, after_drtm 0x6885117b5
+SL: [PERF] RDTSC DRTM elapsed cycles: 0x6885117b5
+SL: runtime at 0x08200000; size=0x0002f290 bytes adjusted to 0x00200000 bytes (2M aligned)
+SL: RPB, magic=0xf00ddead
+xmhf_baseplatform_arch_x86_pci_initialize: PCI type-1 access supported.
+xmhf_baseplatform_arch_x86_pci_initialize: PCI bus enumeration follows:
+xmhf_baseplatform_arch_x86_pci_initialize: Done with PCI bus enumeration.
+SL: setup runtime TSS.
+SL (xmhf_sl_arch_x86_setup_runtime_paging): runtime_spa=08200000, runtime_sva=08200000, totalsize=00200000
+	pa xpdpt=0x0xb77000, xpdt=0x0xb78000
+SL: setup runtime paging structures.
+Transferring control to runtime
+runtime initializing...
+xmhf_baseplatform_arch_x86_pci_initialize: PCI type-1 access supported.
+xmhf_baseplatform_arch_x86_pci_initialize: PCI bus enumeration follows:
+xmhf_baseplatform_arch_x86_pci_initialize: Done with PCI bus enumeration.
+Number of E820 entries = 19
+0x0000000000000000, size=0x000000000009fc00 (1)
+0x000000000009fc00, size=0x0000000000000400 (2)
+0x00000000000e0000, size=0x0000000000020000 (2)
+0x0000000000100000, size=0x0000000007f00000 (1)
+0x0000000008000000, size=0x0000000001e00000 (2)
+0x0000000009e00000, size=0x00000000b0dc2000 (1)
+0x00000000babc2000, size=0x0000000000700000 (2)
+0x00000000bb2c2000, size=0x0000000000100000 (4)
+0x00000000bb3c2000, size=0x000000000003d000 (3)
+0x00000000bb3ff000, size=0x0000000000001000 (1)
+0x00000000bb400000, size=0x0000000000c00000 (2)
+0x00000000e0000000, size=0x0000000010000000 (2)
+0x00000000fec00000, size=0x0000000000001000 (2)
+0x00000000fed10000, size=0x0000000000004000 (2)
+0x00000000fed19000, size=0x0000000000001000 (2)
+0x00000000fed1b000, size=0x0000000000005000 (2)
+0x00000000fee00000, size=0x0000000000001000 (2)
+0x00000000ffd00000, size=0x0000000000300000 (2)
+0x0000000100000000, size=0x0000000038000000 (1)
+Number of MP entries = 4
+CPU #0: bsp=1, lapic_id=0x00
+CPU #1: bsp=0, lapic_id=0x01
+CPU #2: bsp=0, lapic_id=0x04
+CPU #3: bsp=0, lapic_id=0x05
+xmhf_xcphandler_arch_initialize: setting up runtime IDT...
+xmhf_xcphandler_arch_initialize: IDT setup done.
+BSP: Using APIC to awaken APs...
+BSP: APs should be awake.
+Relinquishing BSP thread and moving to common...
+BSP rallying APs...
+BSP(0x00): My ESP is 0x09d04000
+APs all awake...Setting them free...
+AP(0x01): My ESP is 0x09d08000, proceeding...
+AP(0x04): My ESP is 0x09d0c000, proceeding...
+AP(0x05): My ESP is 0x09d10000, proceeding...
+Detecting environment
+End detecting environment
+Experiment: 13
+  Enter host, exp=13, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+  Enter host, exp=13, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 1
+  Enter host, exp=1, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_NMI_G   (3)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_G   (3)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+Experiment: 2
+  Enter host, exp=2, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+  Enter host, exp=2, state=1
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+    iret_wait() begin, source = EXIT_NMI_G   (3)
+      Interrupt recorded:       EXIT_NMI_G   (3)
+    iret_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+Experiment: 3
+  Enter host, exp=3, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+Experiment: 4
+  Enter host, exp=4, state=0
+  Leave host
+  Enter host, exp=4, state=1
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_NMI_H   (5)
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    iret_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+Experiment: 5
+  Enter host, exp=5, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_VMEXIT  (7)
+      Inject NMI
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    hlt_wait() end
+  Enter host, exp=5, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+Experiment: 6
+  Enter host, exp=6, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Enter host, exp=6, state=1
+    iret_wait() begin, source = EXIT_NMI_H   (5)
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    iret_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 7
+  Enter host, exp=7, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+  Enter host, exp=7, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 8
+  Enter host, exp=8, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_VMEXIT  (7)
+      Inject NMI
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    hlt_wait() end
+  Enter host, exp=8, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+Experiment: 9
+  Enter host, exp=9, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_VMEXIT  (7)
+      Inject NMI
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+  Enter host, exp=9, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 10
+  Enter host, exp=10, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+  Enter host, exp=10, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 11
+  Enter host, exp=11, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+  Enter host, exp=11, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 12
+  Enter host, exp=12, state=0
+  Leave host
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Enter host, exp=12, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 13
+  Enter host, exp=13, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+  Enter host, exp=13, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 14
+  Enter host, exp=14, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+  Enter host, exp=14, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 15
+  Enter host, exp=15, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+CPU(0x01): key press: 250, guest=1
+  Enter host, exp=15, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 16
+  Enter host, exp=16, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+CPU(0x01): key press: 250, guest=1
+  Enter host, exp=16, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 17
+  Enter host, exp=17, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+CPU(0x01): key press: 250, guest=1
+  Enter host, exp=17, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 18
+  Enter host, exp=18, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+  Enter host, exp=18, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 19
+  Enter host, exp=19, state=0
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+  Enter host, exp=19, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 20
+  Enter host, exp=20, state=0
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+  Enter host, exp=20, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 21
+  Enter host, exp=21, state=0
+  Leave host
+      Interrupt recorded:       EXIT_NMIWIND (8)
+  Enter host, exp=21, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 22
+  Enter host, exp=22, state=0
+  Leave host
+  Enter host, exp=22, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 23
+  Enter host, exp=23, state=0
+  Leave host
+    iret_wait() begin, source = EXIT_NMIWIND (8)
+      Interrupt recorded:       EXIT_NMIWIND (8)
+    iret_wait() end
+  Enter host, exp=23, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 24
+  Enter host, exp=24, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt 1 recorded:     EXIT_NMI_H   (5)
+      Interrupt recorded:       EXIT_NMIWIND (8)
+  Enter host, exp=24, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 25
+  Enter host, exp=25, state=0
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+    iret_wait() begin, source = EXIT_NMIWIND (8)
+      Interrupt recorded:       EXIT_NMIWIND (8)
+    iret_wait() end
+  Enter host, exp=25, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 26
+  Enter host, exp=26, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt 1 recorded:     EXIT_VMEXIT  (7)
+      Interrupt recorded:       EXIT_NMI_G   (3)
+  Enter host, exp=26, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 27
+  Enter host, exp=27, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Enter host, exp=27, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 28
+  Enter host, exp=28, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Enter host, exp=28, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 29
+  Enter host, exp=29, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_NMI_H   (5)
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    iret_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 30
+  Enter host, exp=30, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Enter host, exp=30, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 1
+  Enter host, exp=1, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_NMI_G   (3)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_G   (3)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+Experiment: 2
+  Enter host, exp=2, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+  Enter host, exp=2, state=1
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+    iret_wait() begin, source = EXIT_NMI_G   (3)
+      Interrupt recorded:       EXIT_NMI_G   (3)
+    iret_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+Experiment: 3
+  Enter host, exp=3, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+Experiment: 4
+  Enter host, exp=4, state=0
+  Leave host
+  Enter host, exp=4, state=1
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_NMI_H   (5)
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    iret_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+Experiment: 5
+  Enter host, exp=5, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_VMEXIT  (7)
+      Inject NMI
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    hlt_wait() end
+  Enter host, exp=5, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+Experiment: 6
+  Enter host, exp=6, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Enter host, exp=6, state=1
+    iret_wait() begin, source = EXIT_NMI_H   (5)
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    iret_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 7
+  Enter host, exp=7, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+  Enter host, exp=7, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 8
+  Enter host, exp=8, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_VMEXIT  (7)
+      Inject NMI
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    hlt_wait() end
+  Enter host, exp=8, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+Experiment: 9
+  Enter host, exp=9, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_VMEXIT  (7)
+      Inject NMI
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+  Enter host, exp=9, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 10
+  Enter host, exp=10, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+  Enter host, exp=10, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 11
+  Enter host, exp=11, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+  Enter host, exp=11, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 12
+  Enter host, exp=12, state=0
+  Leave host
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Enter host, exp=12, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 13
+  Enter host, exp=13, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+  Enter host, exp=13, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 14
+  Enter host, exp=14, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+  Enter host, exp=14, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 15
+  Enter host, exp=15, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+CPU(0x01): key press: 250, guest=1
+  Enter host, exp=15, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 16
+  Enter host, exp=16, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+CPU(0x01): key press: 250, guest=1
+  Enter host, exp=16, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 17
+  Enter host, exp=17, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+CPU(0x01): key press: 250, guest=1
+  Enter host, exp=17, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 18
+  Enter host, exp=18, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+  Enter host, exp=18, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 19
+  Enter host, exp=19, state=0
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+  Enter host, exp=19, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 20
+  Enter host, exp=20, state=0
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+  Enter host, exp=20, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 21
+  Enter host, exp=21, state=0
+  Leave host
+      Interrupt recorded:       EXIT_NMIWIND (8)
+  Enter host, exp=21, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 22
+  Enter host, exp=22, state=0
+  Leave host
+  Enter host, exp=22, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 23
+  Enter host, exp=23, state=0
+  Leave host
+    iret_wait() begin, source = EXIT_NMIWIND (8)
+      Interrupt recorded:       EXIT_NMIWIND (8)
+    iret_wait() end
+  Enter host, exp=23, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 24
+  Enter host, exp=24, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt 1 recorded:     EXIT_NMI_H   (5)
+      Interrupt recorded:       EXIT_NMIWIND (8)
+  Enter host, exp=24, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 25
+  Enter host, exp=25, state=0
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+    iret_wait() begin, source = EXIT_NMIWIND (8)
+      Interrupt recorded:       EXIT_NMIWIND (8)
+    iret_wait() end
+  Enter host, exp=25, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 26
+  Enter host, exp=26, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt 1 recorded:     EXIT_VMEXIT  (7)
+      Interrupt recorded:       EXIT_NMI_G   (3)
+  Enter host, exp=26, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 27
+  Enter host, exp=27, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Enter host, exp=27, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 28
+  Enter host, exp=28, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Enter host, exp=28, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 29
+  Enter host, exp=29, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_NMI_H   (5)
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    iret_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 30
+  Enter host, exp=30, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Enter host, exp=30, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 26
+  Enter host, exp=26, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt 1 recorded:     EXIT_VMEXIT  (7)
+      Interrupt recorded:       EXIT_NMI_G   (3)
+  Enter host, exp=26, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 20
+  Enter host, exp=20, state=0
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+  Enter host, exp=20, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 27
+  Enter host, exp=27, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_NMI_G   (3)
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Enter host, exp=27, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 9
+  Enter host, exp=9, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_VMEXIT  (7)
+      Inject NMI
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+  Enter host, exp=9, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 9
+  Enter host, exp=9, state=0
+  Leave host
+    hlt_wait() begin, source =  EXIT_VMEXIT  (7)
+      Inject NMI
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_G (4)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_G (4)
+    hlt_wait() end
+  Enter host, exp=9, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 3
+  Enter host, exp=3, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)

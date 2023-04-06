@@ -312,8 +312,10 @@ This page will be used to track various bugs reported to QEMU / KVM
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216212>
 * `bug_085`: L2 guest REP INS gets zero page when EPT violation
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=216234>
-* `bug_087`: KVM and Bochs incorrect behavior on nested NMI
-	* TODO: not reported yet
+* `bug_087`: KVM incorrect behavior on nested NMI
+	* <https://bugzilla.kernel.org/show_bug.cgi?id=217304>
+* `bug_087`: Bochs incorrect behavior on nested NMI
+	* <https://sourceforge.net/p/bochs/bugs/1456/>
 * `bug_105`: Pathos kernel panic in LMM
 	* Private email with 15410 instructor, patch donated to CMU
 	* <https://github.com/OSPreservProject/oskit/issues/1>

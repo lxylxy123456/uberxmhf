@@ -1,0 +1,91 @@
+Subject: KVM does not handle NMI blocking correctly in nested virtualization
+
+CPU model: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+Host kernel version: 6.2.8-200.fc37.x86_64
+Host kernel arch: x86_64
+Guest: a micro-hypervisor (called LHV, 32-bits), which runs a 32-bit guest (called "nested guest").
+QEMU command line: qemu-system-x86_64 -m 192M -smp 2 -cpu Haswell,vmx=yes -enable-kvm -serial stdio -drive media=disk,file=c.img,index=1
+This bug still exists if using -machine kernel_irqchip=off
+This problem cannot be tested with -accel tcg , because the guest requires nested virtualization
+
+To reproduce this bug:
+
+1. Download c.img.xz (attached with this bug), decompress to get c.img. Related source code of this LHV image is in https://github.com/lxylxy123456/uberxmhf/blob/a12638ef90dac430dd18d62cd29aa967826fecc9/xmhf/src/xmhf-core/xmhf-runtime/xmhf-startup/lhv-guest.c#L871 .
+
+2. Run the QEMU command line above
+
+3. See the following output in serial port (should be within 10 seconds):
+
+Detecting environment
+    QEMU / KVM detected
+End detecting environment
+Experiment: 13
+  Enter host, exp=13, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+  Enter host, exp=13, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Strange wakeup from HLT
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+(empty line)
+source:      EXIT_NMI_H   (5)
+exit_source: EXIT_TIMER_H (6)
+TEST_ASSERT '0 && (exit_source == source)' failed, line 365, file lhv-guest.c
+qemu: terminating on signal 2
+
+The expected output is (reproducible on real Intel CPUs with >= 2 CPUs):
+
+Detecting environment
+End detecting environment
+Experiment: 13
+  Enter host, exp=13, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+  Enter host, exp=13, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+Experiment: 1
+... (endless)
+
+Explanation:
+
+Assume KVM runs in L0, LHV runs in L1, the nested guest runs in L2.
+
+The code in LHV performs an experiment (called "Experiment 13" in serial output) on CPU 0 to test the behavior of NMI blocking. The experiment steps are:
+1. Prepare state such that the CPU is currently in L1 (LHV), and NMI is blocked
+2. Modify VMCS12 to make sure that L2 has virtual NMIs enabled (NMI exiting = 1, Virtual NMIs = 1), and L2 does not block NMI (Blocking by NMI = 0)
+3. VM entry to L2
+4. L2 performs VMCALL, get VM exit to L1
+5. L1 checks whether NMI is blocked.
+
+The expected behavior is that NMI should be blocked, which is reproduced on real hardware. According to Intel SDM, NMIs should be unblocked after VM entry to L2 (step 3). After VM exit to L1 (step 4), NMI blocking does not change, so NMIs are still unblocked. This behavior is reproducible on real hardware.
+
+However, when running on KVM, the experiment shows that at step 5, NMIs are blocked in L1. Thus, I think NMI blocking is not implemented correctly in KVM's nested virtualization.
+
+I am happy to explain how the experiment code works in detail. c.img also reveals other NMI-related bugs in KVM. I am also happy to explain the other bugs.
+

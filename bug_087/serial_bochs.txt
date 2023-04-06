@@ -1,0 +1,141 @@
+========================================================================
+                      Bochs x86 Emulator 2.7.svn
+               Built from SVN snapshot after release 2.7
+                  Compiled on Apr  5 2023 at 22:35:23
+========================================================================
+00000000000i[      ] BXSHARE not set. using compile time default '/home/dev/bochs-code-r14349-trunk/usr_local/share/bochs'
+00000000000i[      ] reading configuration from bochsrc
+00000000000e[      ] bochsrc:7: ataX-master/slave CHS set to 0/0/0 - autodetection enabled
+00000000000i[      ] installing x module as the Bochs GUI
+00000000000i[      ] using log file log.txt
+Lightweight Hypervisor (LHV) v6.1.0
+Build revision: lhv-nmi-a12638ef90dac430dd18d62cd29aa967826fecc9
+LHV_OPT = 0x0000000000000000
+Subarch: i386
+
+INIT(early): initializing, total modules=1
+INIT(early): detected an Intel CPU
+Finding SMP info. via ACPI...
+ACPI RSDP at 0x000f9fe0
+ACPI RSDT at 0x1fff0000
+	len=0x00000034, headerlen=0x00000024, numentries=4
+ACPI MADT at 0x1fff0f80
+	len=0x00000052, record-length=38 bytes
+rec type=0x00, length=8 bytes, flags=0x00000001, id=0x00
+rec type=0x00, length=8 bytes, flags=0x00000001, id=0x01
+rec type=0x01, length=12 bytes, flags=0xfec00000, id=0x00
+rec type=0x02, length=10 bytes, flags=0x00000002, id=0x00
+
+original system E820 map follows:
+0x0000000000000000, size=0x000000000009f000 (1)
+0x000000000009f000, size=0x0000000000001000 (2)
+0x00000000000e8000, size=0x0000000000018000 (2)
+0x0000000000100000, size=0x000000001fef0000 (1)
+0x000000001fff0000, size=0x0000000000010000 (3)
+0x00000000fffc0000, size=0x0000000000040000 (2)
+proceeding to revise E820...
+E820 revision complete.
+
+revised system E820 map follows:
+0x0000000000000000, size=0x000000000009f000 (1)
+0x000000000009f000, size=0x0000000000001000 (2)
+0x00000000000e8000, size=0x0000000000018000 (2)
+0x0000000000100000, size=0x0000000007f00000 (1)
+0x0000000008000000, size=0x0000000001e00000 (2)
+0x0000000009e00000, size=0x00000000161f0000 (1)
+0x000000001fff0000, size=0x0000000000010000 (3)
+0x00000000fffc0000, size=0x0000000000040000 (2)
+INIT(early): relocated hypervisor binary image to 0x08000000
+INIT(early): 2M aligned size = 0x00400000
+INIT(early): un-aligned size = 0x0022f290
+setupvcpus: cpustacks range 0x01e0d000-0x01e2d000 in 0x00004000 chunks
+setupvcpus: vcpubuffers range 0x01e06080-0x01e084e0 in 0x0000048c chunks
+CPU #0: vcpu_vaddr_ptr=0x01e06080, esp=0x01e11000
+CPU #1: vcpu_vaddr_ptr=0x01e0650c, esp=0x01e15000
+BSP(0x00): Rallying APs...
+BSP(0x00): APs ready, doing DRTM...
+LAPIC base and status=0xfee00900
+Sending INIT IPI to all APs...
+
+Done.
+INIT(early): sent INIT IPI to APs
+
+****** NO DRTM startup ******
+slbase=0x08000000, sl_entry_point_offset=0x00003080
+SL entry point to transfer control to: 0x08003080
+SL(early-init): at 0x08000000, starting...
+SL: slpb at = 0x00010000
+	errorHandler=0x00000000
+	isEarlyInit=0x00000001
+	numE820Entries=8
+	system memory map buffer at 0x00010010
+	numCPUEntries=2
+	cpuinfo buffer at 0x00010514
+	runtime size= 193168 bytes
+	OS bootmodule at 0x00000000, size=20 bytes
+  OS boot_drive is 0x81
+	cmdline = "serial=115200,8n1,0x3f8 boot_drive=0x81"
+SL: RDTSC before_drtm 0x0, after_drtm 0x28fcc5c3
+SL: [PERF] RDTSC DRTM elapsed cycles: 0x28fcc5c3
+SL: runtime at 0x08200000; size=0x0002f290 bytes adjusted to 0x00200000 bytes (2M aligned)
+SL: RPB, magic=0xf00ddead
+xmhf_baseplatform_arch_x86_pci_initialize: PCI type-1 access supported.
+xmhf_baseplatform_arch_x86_pci_initialize: PCI bus enumeration follows:
+xmhf_baseplatform_arch_x86_pci_initialize: Done with PCI bus enumeration.
+SL: setup runtime TSS.
+SL (xmhf_sl_arch_x86_setup_runtime_paging): runtime_spa=08200000, runtime_sva=08200000, totalsize=00200000
+	pa xpdpt=0x0xb77000, xpdt=0x0xb78000
+SL: setup runtime paging structures.
+Transferring control to runtime
+runtime initializing...
+xmhf_baseplatform_arch_x86_pci_initialize: PCI type-1 access supported.
+xmhf_baseplatform_arch_x86_pci_initialize: PCI bus enumeration follows:
+xmhf_baseplatform_arch_x86_pci_initialize: Done with PCI bus enumeration.
+Number of E820 entries = 8
+0x0000000000000000, size=0x000000000009f000 (1)
+0x000000000009f000, size=0x0000000000001000 (2)
+0x00000000000e8000, size=0x0000000000018000 (2)
+0x0000000000100000, size=0x0000000007f00000 (1)
+0x0000000008000000, size=0x0000000001e00000 (2)
+0x0000000009e00000, size=0x00000000161f0000 (1)
+0x000000001fff0000, size=0x0000000000010000 (3)
+0x00000000fffc0000, size=0x0000000000040000 (2)
+Number of MP entries = 2
+CPU #0: bsp=1, lapic_id=0x00
+CPU #1: bsp=0, lapic_id=0x01
+xmhf_xcphandler_arch_initialize: setting up runtime IDT...
+xmhf_xcphandler_arch_initialize: IDT setup done.
+BSP: Using APIC to awaken APs...
+BSP: APs should be awake.
+Relinquishing BSP thread and moving to common...
+BSP rallying APs...
+BSP(0x00): My ESP is 0x09d04000
+APs all awake...Setting them free...
+AP(0x01): My ESP is 0x09d08000, proceeding...
+Detecting environment
+    Bochs detected
+End detecting environment
+Experiment: 13
+  Enter host, exp=13, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+  Enter host, exp=13, state=1
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+
+source:      EXIT_NMI_H   (5)
+exit_source: EXIT_TIMER_H (6)
+TEST_ASSERT '0 && (exit_source == source)' failed, line 365, file lhv-guest.c
+========================================================================
+Bochs is exiting with the following message:
+[XGUI  ] POWER button turned off.
+========================================================================
