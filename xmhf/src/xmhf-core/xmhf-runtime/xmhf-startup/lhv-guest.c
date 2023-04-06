@@ -85,6 +85,11 @@ void handle_interrupt_cpu1(u32 source, uintptr_t rip)
 		if (!quiet) {
 			printf("      Interrupt recorded:       %s\n",
 				   exit_source_str[source]);
+			if (source == EXIT_NMI_H) {
+				ulong_t reason = vmcs_vmread(NULL, VMCS_info_vmexit_reason);
+				printf("      At instruction:           0x%08lx\n", exit_rip);
+				printf("      VM-exit reason:           0x%08lx\n", reason);
+			}
 		}
 		exit_source = source;
 		exit_rip = rip;
@@ -362,6 +367,8 @@ static void assert_measure(u32 source, uintptr_t rip)
 	if (exit_source != source) {
 		printf("\nsource:      %s", exit_source_str[source]);
 		printf("\nexit_source: %s", exit_source_str[exit_source]);
+		printf("\nrip:         0x%08lx", rip);
+		printf("\nexit_rip:    0x%08lx", exit_rip);
 		TEST_ASSERT(0 && (exit_source == source));
 	}
 	if (exit_source != EXIT_MEASURE) {
@@ -1691,7 +1698,7 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
-		experiment_13();
+		experiment_17();
 	}
 	if (1 && "sequential") {
 		for (u32 i = 0; i < nexperiments; i++) {
