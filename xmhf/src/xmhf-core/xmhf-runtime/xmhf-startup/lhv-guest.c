@@ -1691,10 +1691,18 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
-		experiment_30();
+		experiment_13();
 	}
 	if (1 && "sequential") {
 		for (u32 i = 0; i < nexperiments; i++) {
+			run_experiment(i);
+		}
+	}
+	if (1 && "enable all experiments") {
+		for (u32 i = 0; i < nexperiments; i++) {
+			experiments[i].support_qemu = true;
+			experiments[i].support_bochs = true;
+			experiments[i].support_xmhf = true;
 			run_experiment(i);
 		}
 	}
