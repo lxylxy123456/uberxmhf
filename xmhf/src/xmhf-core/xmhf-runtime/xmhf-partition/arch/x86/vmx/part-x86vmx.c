@@ -102,6 +102,16 @@ static void _vmx_initVT(VCPU *vcpu){
 	{
 	  hva_t gdtstart = (hva_t)&x_gdt_start[vcpu->idx];
 	  u16 trselector = 	__TRSEL;
+	  static volatile u32 lock = 1;
+	  /*
+	   * The following assembly code modifies the GDT shared by all CPUs. Race
+	   * condition between CPUs will cause a CPU to see incorrect value in the
+	   * LTR instruction. Thus, locking is required.
+	   *
+	   * TODO: all code other than the LTR instruction can be converted to C.
+	   * TODO: can probably change GDT before SMP to elimiate race condition.
+	   */
+	  spin_lock(&lock);
 	  #ifndef __XMHF_VERIFICATION__
 #ifdef __AMD64__
 	  asm volatile("movq %0, %%rdi\r\n"
@@ -133,6 +143,7 @@ static void _vmx_initVT(VCPU *vcpu){
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
 	  #endif
+	  spin_unlock(&lock);
 	}
 
 
@@ -434,7 +445,7 @@ static void vmx_prepare_msr_bitmap(VCPU *vcpu) {
 	set_msrbitmap(bitmap, IA32_VMX_VMFUNC_MSR);
 	// Note: IA32_VMX_VMFUNC_MSR temporarily not supported
 	//set_msrbitmap(bitmap, IA32_VMX_VMFUNC_MSR);
-#endif /* !__NESTED_VIRTUALIZATION__ */
+#endif /* __NESTED_VIRTUALIZATION__ */
 }
 
 // Remove IA32_X2APIC_ICR from vmx_msr_bitmaps for the current VCPU. This
@@ -752,7 +763,7 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 
 #ifdef __NESTED_VIRTUALIZATION__
 	xmhf_nested_arch_x86vmx_vcpu_init(vcpu);
-#endif /* !__NESTED_VIRTUALIZATION__ */
+#endif /* __NESTED_VIRTUALIZATION__ */
 
 	//flush guest TLB to start with
 	{
@@ -886,7 +897,7 @@ void __vmx_vmentry_fail_callback(ulong_t is_resume, ulong_t valid)
 			xmhf_nested_arch_x86vmx_handle_vmentry_fail(vcpu, is_resume);
 			HALT_ON_ERRORCOND(0 && "Should not return");
 		}
-#endif /* !__NESTED_VIRTUALIZATION__ */
+#endif /* __NESTED_VIRTUALIZATION__ */
 		{
 			unsigned long code;
 			HALT_ON_ERRORCOND(__vmx_vmread(VMCSENC_info_vminstr_error, &code));

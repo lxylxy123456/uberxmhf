@@ -1,7 +1,7 @@
 # Compile amd64 pal_demo for Linux on amd64 Linux:
 #   make
 # Compile i386 pal_demo for Linux on amd64 Debian:
-#   make CC=i686-linux-gnu-gcc LD=i686-linux-gnu-ld make
+#   make CC=i686-linux-gnu-gcc LD=i686-linux-gnu-ld
 # Compile i386 pal_demo for Linux on amd64 Fedora:
 #   make I386=y
 # Compile i386 pal_demo for Windows on Linux:

@@ -151,10 +151,10 @@ Other arguments
 * `--disable-debug-serial --enable-debug-vga`: print debug messages on VGA, not
   serial port.
 * `--with-opt=<COMPILER FLAGS>`: compile XMHF with optimization. For example,
-  `--with-opt='-O3 -Wno-stringop-overflow'` adds `-O3` and
-  `-Wno-stringop-overflow` to GCC's arguments to compile in optimization `-O3`.
-  As of writing of this documentation, `-Wno-stringop-overflow` is needed due
-  to a bug in GCC: <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105100>
+  `--with-opt='-O3 -Wno-array-bounds'` adds `-O3` and `-Wno-array-bounds` to
+  GCC's arguments to compile in optimization `-O3`.
+  As of writing of this documentation, `-Wno-array-bounds` is needed due to a
+  bug in GCC 12: <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104657>.
 * `--enable-optimize-nested-virt`: enable some risky optimizations in intercept
   handling.
 	* When running XMHF under many levels of nested virtualization, VMREAD and
