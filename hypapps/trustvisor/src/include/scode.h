@@ -123,7 +123,6 @@ typedef struct whitelist_entry{
   hpt_pa_t  saved_pt_l1l2_root_pa; /* When nested virtualization, EPT12 */
   hptw_emhf_host_ctx_t saved_hptw_reg_host_ctx; /* ctx to walk EPT / NPT */
   u32 saved_exception_intercepts;
-  bool saved_cr0_em; /* Save whether CR0.EM bit is set */
   bool saved_nested_intr_exit; /* Save VCPU_disable_nested_interrupt_exit() */
   u32 saved_nested_timer; /* Save VCPU_disable_nested_timer_exit() */
   u32 saved_nested_mem_bitmap; /* Save VCPU_disable_memory_bitmap() */
@@ -170,7 +169,7 @@ int copy_to_current_guest(VCPU * vcpu, gva_t gvaddr, void *src, size_t len);
 
 /* PAL operations (HPT) */
 u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r);
-u32 hpt_scode_switch_regular(VCPU * vcpu, struct regs *r);
+u32 hpt_scode_switch_regular(VCPU * vcpu);
 u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r);
 bool hpt_scode_is_scode(VCPU * vcpu);
 int hpt_scode_get_scode_id(VCPU * vcpu);

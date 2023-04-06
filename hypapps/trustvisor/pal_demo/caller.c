@@ -205,10 +205,10 @@ void *register_pal(struct tv_pal_params *params, void *entry, void *begin_pal,
 	struct tv_pal_sections sections = {
 		num_sections: 4,
 		sections: {
-			{ .type=TV_PAL_SECTION_CODE, .page_num=1, .start_addr=(uintptr_t) code },
-			{ .type=TV_PAL_SECTION_DATA, .page_num=1, .start_addr=(uintptr_t) data },
-			{ .type=TV_PAL_SECTION_STACK, .page_num=1, .start_addr=(uintptr_t) stack },
-			{ .type=TV_PAL_SECTION_PARAM, .page_num=1, .start_addr=(uintptr_t) param }
+			{ TV_PAL_SECTION_CODE, 1, (uintptr_t) code },
+			{ TV_PAL_SECTION_DATA, 1, (uintptr_t) data },
+			{ TV_PAL_SECTION_STACK, 1, (uintptr_t) stack },
+			{ TV_PAL_SECTION_PARAM, 1, (uintptr_t) param }
 		}
 	};
 	for (uint32_t i = 0; i < sections.num_sections; i++) {
