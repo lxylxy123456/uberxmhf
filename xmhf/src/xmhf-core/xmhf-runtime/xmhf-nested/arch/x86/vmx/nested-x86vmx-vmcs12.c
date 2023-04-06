@@ -494,8 +494,8 @@ static void _vmcs12_to_vmcs02_flip_bits(vmx_ctls_t * ctls02)
 	_vmx_clearctl_use_msr_bitmaps(ctls02);
 #endif							/* __VMX_NESTED_MSR_BITMAP__ */
 	/*
-	 * The "IA-32e mode guest" bit need to match XMHF. A mismatch can only
-	 * happen when amd64 XMHF runs i386 guest hypervisor.
+	 * The "Host address-space size" bit need to match XMHF. A mismatch can
+	 * only happen when amd64 XMHF runs i386 guest hypervisor.
 	 */
 #ifdef __AMD64__
 	_vmx_setctl_vmexit_host_address_space_size(ctls02);

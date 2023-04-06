@@ -246,9 +246,9 @@ if [ "$UCODE" == "y" ]; then
 fi
 
 if [ "$OPT" == "O3" ]; then
-	# -Wno-stringop-overflow is set due to a compile bug in GCC 10 / GCC 11
-	# Reported in https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105100
-	CONF+=("--with-opt=-O3 -Wno-stringop-overflow -Wno-array-bounds")
+	# -Wno-array-bounds is set due to a compile bug in GCC 12.
+	# See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104657
+	CONF+=("--with-opt=-O3 -Wno-array-bounds")
 fi
 
 if [ "$NO_X2APIC" == "y" ]; then

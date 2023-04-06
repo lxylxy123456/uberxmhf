@@ -1156,6 +1156,15 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
     VCPU_grflags_set(vcpu, rflags & ~EFLAGS_IF);
   }
 
+  /* save and set CR0.EM, which disables FPU (not supported by TrustVisor) */
+  {
+    ulong_t cr0 = VCPU_gcr0(vcpu);
+    whitelist[curr].saved_cr0_em = !!(cr0 & CR0_EM);
+    cr0 |= CR0_EM;
+    VCPU_gcr0_set(vcpu, cr0);
+  }
+
+  /* save state related to nested virtualization */
   whitelist[curr].saved_nested_intr_exit = VCPU_disable_nested_interrupt_exit(vcpu);
   whitelist[curr].saved_nested_timer = VCPU_disable_nested_timer_exit(vcpu);
   whitelist[curr].saved_nested_mem_bitmap = VCPU_disable_memory_bitmap(vcpu);
@@ -1197,7 +1206,7 @@ u32 hpt_scode_switch_scode(VCPU * vcpu, struct regs *r)
   return err;
 }
 
-u32 scode_unmarshall(VCPU * vcpu)
+u32 scode_unmarshall(VCPU * vcpu, struct regs *r)
 {
   uintptr_t pm_addr_base, pm_addr;
   size_t i;
@@ -1292,13 +1301,34 @@ u32 scode_unmarshall(VCPU * vcpu)
 
     } //end for loop
 
+  /* clear caller saved registers to prevent leaking PAL's secret */
+  if (VCPU_g64(vcpu)) {
+#ifdef __AMD64__
+    r->rcx = 0;
+    r->rdx = 0;
+    r->rsi = 0;
+    r->rdi = 0;
+    r->r8 = 0;
+    r->r9 = 0;
+    r->r10 = 0;
+    r->r11 = 0;
+#elif defined(__I386__)
+    HALT_ON_ERRORCOND(0 && "32-bit TrustVisor to handling 64-bit PAL?");
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+  } else {
+    r->ecx = 0;
+    r->edx = 0;
+  }
+
   err=0;
  out:
   return err;
 }
 
 //switch from sensitive code to regular code
-u32 hpt_scode_switch_regular(VCPU * vcpu)
+u32 hpt_scode_switch_regular(VCPU * vcpu, struct regs *r)
 {
   int curr=scode_curr[vcpu->id];
   u32 rv=1;
@@ -1312,7 +1342,7 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
   EU_CHK( g_did_change_root_mappings );
 
   /* marshalling parameters back to regular code */
-  EU_CHKN( scode_unmarshall(vcpu));
+  EU_CHKN( scode_unmarshall(vcpu, r));
 
   /* whether or not marshalling succeeded, we switch back to reg world.
    * nothing below can fail.
@@ -1356,6 +1386,16 @@ u32 hpt_scode_switch_regular(VCPU * vcpu)
     u64 rflags = VCPU_grflags(vcpu);
     EU_CHK((rflags & EFLAGS_IF) == 0);
     VCPU_grflags_set(vcpu, rflags | EFLAGS_IF);
+  }
+
+  /* restore CR0.EM, check that CR0.EM is set during PAL */
+  {
+    ulong_t cr0 = VCPU_gcr0(vcpu);
+    EU_CHK((cr0 & CR0_EM) == CR0_EM);
+    if (!whitelist[curr].saved_cr0_em) {
+      cr0 &= ~CR0_EM;
+    }
+    VCPU_gcr0_set(vcpu, cr0);
   }
 
   VCPU_enable_memory_bitmap(vcpu, whitelist[curr].saved_nested_mem_bitmap);
@@ -1438,7 +1478,7 @@ u32 hpt_scode_npf(VCPU * vcpu, uintptr_t gpaddr, u64 errorcode, struct regs *r)
     /* valid return point, switch from sensitive code to regular code */
 
     /* XXX FIXME: now return ponit is extracted from regular code stack, only support one scode function call */
-    EU_CHKN( hpt_scode_switch_regular(vcpu));
+    EU_CHKN( hpt_scode_switch_regular(vcpu, r));
     *curr = -1;
   } else if ((*curr >=0) && (index >= 0)) {
     /* sensitive code to sensitive code */
