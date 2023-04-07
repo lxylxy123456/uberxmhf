@@ -85,11 +85,13 @@ void handle_interrupt_cpu1(u32 source, uintptr_t rip)
 		if (!quiet) {
 			printf("      Interrupt recorded:       %s\n",
 				   exit_source_str[source]);
+#if 0
 			if (source == EXIT_NMI_H) {
 				ulong_t reason = vmcs_vmread(NULL, VMCS_info_vmexit_reason);
 				printf("      At instruction:           0x%08lx\n", exit_rip);
 				printf("      VM-exit reason:           0x%08lx\n", reason);
 			}
+#endif
 		}
 		exit_source = source;
 		exit_rip = rip;
@@ -367,8 +369,10 @@ static void assert_measure(u32 source, uintptr_t rip)
 	if (exit_source != source) {
 		printf("\nsource:      %s", exit_source_str[source]);
 		printf("\nexit_source: %s", exit_source_str[exit_source]);
+#if 0
 		printf("\nrip:         0x%08lx", rip);
 		printf("\nexit_rip:    0x%08lx", exit_rip);
+#endif
 		TEST_ASSERT(0 && (exit_source == source));
 	}
 	if (exit_source != EXIT_MEASURE) {
@@ -1593,7 +1597,7 @@ static struct {
 	{experiment_2,  experiment_2_vmcall,  1, 1, 0, 1},
 	{experiment_3,  experiment_3_vmcall,  1, 1, 0, 0},
 	{experiment_4,  experiment_4_vmcall,  1, 1, 0, 1},
-	{experiment_5,  experiment_5_vmcall,  1, 1, 1, 1},
+	{experiment_5,  experiment_5_vmcall,  1, 1, 1, 0},
 	{experiment_6,  experiment_6_vmcall,  1, 1, 0, 1},
 	{experiment_7,  experiment_7_vmcall,  1, 1, 1, 0},
 	{experiment_8,  experiment_8_vmcall,  1, 1, 1, 1},
@@ -1609,7 +1613,7 @@ static struct {
 	{experiment_18, experiment_18_vmcall, 1, 0, 0, 0},
 	{experiment_19, experiment_19_vmcall, 1, 1, 0, 0},
 	{experiment_20, experiment_20_vmcall, 1, 1, 1, 1},
-	{experiment_21, experiment_21_vmcall, 1, 1, 1, 1},
+	{experiment_21, experiment_21_vmcall, 1, 1, 1, 0},
 	{experiment_22, experiment_22_vmcall, 1, 1, 1, 1},
 	{experiment_23, experiment_23_vmcall, 1, 1, 1, 1},
 	{experiment_24, experiment_24_vmcall, 1, 1, 0, 0},
@@ -1698,14 +1702,14 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	asm volatile ("sti");
 	if (1 && "hardcode") {
-		experiment_17();
+		//experiment_17();
 	}
 	if (1 && "sequential") {
 		for (u32 i = 0; i < nexperiments; i++) {
 			run_experiment(i);
 		}
 	}
-	if (1 && "enable all experiments") {
+	if (0 && "enable all experiments") {
 		for (u32 i = 0; i < nexperiments; i++) {
 			experiments[i].support_qemu = true;
 			experiments[i].support_bochs = true;
