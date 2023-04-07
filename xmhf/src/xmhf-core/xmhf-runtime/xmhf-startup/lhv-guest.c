@@ -1619,10 +1619,10 @@ static struct {
 	{experiment_24, experiment_24_vmcall, 1, 1, 0, 0},
 	{experiment_25, experiment_25_vmcall, 1, 1, 1, 1},
 	{experiment_26, experiment_26_vmcall, 1, 0, 1, 0},
-	{experiment_27, experiment_27_vmcall, 1, 1, 1, 0 /*?*/},
-	{experiment_28, experiment_28_vmcall, 1, 1, 1, 0 /*?*/},
-	{experiment_29, experiment_29_vmcall, 1, 1, 1, 0 /*?*/},
-	{experiment_30, experiment_30_vmcall, 1, 1, 1, 0 /*?*/},
+	{experiment_27, experiment_27_vmcall, 1, 1, 1, 0},
+	{experiment_28, experiment_28_vmcall, 1, 1, 1, 0},
+	{experiment_29, experiment_29_vmcall, 1, 1, 1, 1},
+	{experiment_30, experiment_30_vmcall, 1, 1, 1, 0},
 	/*                                    a  x  q  b */
 };
 
