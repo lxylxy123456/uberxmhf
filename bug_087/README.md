@@ -631,8 +631,9 @@ Actual behavior:
 * Bare metal: L1 does not block NMI (good)
 * KVM: L1 blocks NMI
 * Bochs: L1 blocks NMI
-* VirtualBox: TODO
-* VMware: TODO
+* VirtualBox: Cannot run LHV
+* VMware: Passes experiments 1 - 14, fails experiment 15, 16, 17
+* Hyper-V: TODO
 
 ## Fix
 
