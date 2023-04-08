@@ -622,10 +622,15 @@ Related files
 	* `log_bochs.txt`: bochs log
 	* `bochsrc`: Bochs configuration file
 	* `bug_bochs.txt`: bug report
+	* Stanislav Shwartsman sent a fix at Fri Apr 07, 2023 05:28 AM UTC. This
+	  fixes 3, 10, 13, 15, 24, 26. Still fail: 5, 7, 11, 14, 16-19, 21.
+	  Unknown: 27-30. Total 1-30.
 * KVM
 	* `serial_kvm.txt`: serial output of KVM 5.10.0-21-amd64
 	* `bug_kvm.txt`: bug report
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=217304>
+	* Sean Christopherson sent a fix at 2023-04-06 19:14:25 UTC. This fixes
+	  experiment 3, 13, 14. Still fail: 2, 4, 6, 18, 19, 24. Total 1-30.
 
 Actual behavior:
 * Bare metal: L1 does not block NMI (good)
