@@ -625,6 +625,7 @@ Related files
 	* Stanislav Shwartsman sent a fix at Fri Apr 07, 2023 05:28 AM UTC. This
 	  fixes 3, 10, 13, 15, 24, 26. Still fail: 5, 7, 11, 14, 16-19, 21.
 	  Unknown: 27-30. Total 1-30.
+	* Fix merged to master <https://github.com/bochs-emu/Bochs/commit/bd51ec5f8>
 * KVM
 	* `serial_kvm.txt`: serial output of KVM 5.10.0-21-amd64
 	* `bug_kvm.txt`: bug report
