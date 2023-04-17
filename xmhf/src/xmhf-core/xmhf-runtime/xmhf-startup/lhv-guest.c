@@ -1026,7 +1026,7 @@ static void experiment_16_vmcall(void)
 
 /*
  * Experiment 17: NMI Exiting = 1, virtual NMIs = 1
- * L1 (host) blocks NMI. L2 (guest) does not block NMI. L1 VMENTRY to L2, and
+ * L1 (host) blocks NMI. L2 (guest) blocks NMI. L1 VMENTRY to L2, and
  * inject a keyboard interrupt at the same time. Result: L2 executes the first
  * instruction of the keyboard interrupt before NMI VMEXIT.
  * This test does not work on Bochs.
