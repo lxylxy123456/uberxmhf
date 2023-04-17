@@ -1,0 +1,116 @@
+Subject: Bug: NMI incorrectly blocked in guest if host blocks NMI and injects interrupt to guest
+
+Hi,
+
+I am recently experimenting with how VMware handles NMI interrupts, and I find that the behavior of VMware is incorrect in a corner case.
+
+The version of VMware and my host OS are:
+* Product: VMware(R) Workstation 17 Pro
+* Version: 17.0.1 build-21139696
+* Host OS: Debian 11, kernel version 5.10.0-21-amd64
+
+To reproduce this bug:
+1. Create a new virtual machine, choose "Other" as guest OS
+2. Open "Edit Virtual Machine Settings"
+3. Remove the default disk, add attached VMDK file (d.vmdk) instead
+4. Change number of processors from 1 to 2
+5. Enable "Virtualize Intel VT-x/EPT or AMD-V/RVI"
+6. Add a serial port to the virtual machine, be able to read it (e.g. use output file)
+7. Keep other configurations as default (for me, it is 256 MB memory, ...)
+8. Start the virtual machine
+9. Observe the serial port output
+
+The source code of the VMDK file can be found at: https://github.com/lxylxy123456/uberxmhf/blob/9eb50d71910b2586c11f92462f37096a7066502b/xmhf/src/xmhf-core/xmhf-runtime/xmhf-startup/lhv-guest.c#L1030
+
+Actual output (on VMware):
+...
+Detecting environment
+End detecting environment
+Experiment: 17
+  Enter host, exp=17, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+      At instruction:           0x00000000
+      VM-exit reason:           0x00000012
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_NMI_H   (5)
+      At instruction:           0x00000000
+      VM-exit reason:           0x0000000a
+CPU(0x02): key press: 65, guest=1
+
+source:      EXIT_VMEXIT  (7)
+exit_source: EXIT_NMI_H   (5)
+rip:         0x082013df
+exit_rip:    0x08208488
+TEST_ASSERT '0 && (exit_source == source)' failed, line 372, file lhv-guest.c
+
+Expected output (reproducible on real Intel hardware):
+...
+Detecting environment
+End detecting environment
+Experiment: 17
+  Enter host, exp=17, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+      At instruction:           0x00000000
+      VM-exit reason:           0x00000012
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_VMEXIT  (7)
+CPU(0x01): key press: 250, guest=1
+  Enter host, exp=17, state=1
+    iret_wait() begin, source = EXIT_MEASURE (1)
+    iret_wait() end
+  Leave host
+Experiment: 1
+... (endless)
+
+Explanation:
+
+The VMDK file (d.vmdk) contains a micro-hypervisor called LHV. Assume VMware runs in L0, LHV runs in L1, the guest of LHV runs in L2.
+
+The code in LHV performs an experiment (called "Experiment 17" in serial output) on CPU 0 to test the behavior of NMI blocking. The experiment steps are:
+1. Prepare state such that the CPU is currently in L1 (LHV), and NMI is blocked
+2. An NMI interrupt arrives at the CPU. However, since NMI is blocked, the NMI interrupt handler of L1 is not invoked
+3. Modify VMCS to make sure that L2 has virtual NMIs enabled (NMI exiting = 1, Virtual NMIs = 1), and L2 blocks NMI (Blocking by NMI = 1)
+4. Modify VMCS to inject a normal interrupt (vector 0x21) to L2 at VM entry
+5. VM entry to L2
+
+The expected behavior is:
+6. Immediately after VM entry L2's interrupt 0x21 handler is invoked
+7. VM exit happens immediately due to the NMI interrupt at step 2
+
+However, on VMware, the behavior appears to be:
+6. Immediately after VM entry L2's interrupt 0x21 handler is invoked
+7. After executing some instructions, L2 executes the CPUID instruction, which causes VM exit to L1
+8. Immediately after VM exit, L1's NMI interrupt handler is executed
+
+It appears that VMware's implementation is incorrect. NMI is blocked in L2, but Intel's SDM says that NMI is always unblocked in L2
+
+> The following items describe the use of bit 3 (blocking by NMI) in the interruptibility-state field if the “virtual NMIs” VM-execution control is 1:
+> The bit’s value does not affect the blocking of NMIs after VM entry. NMIs are not blocked in VMX non-root operation (except for ordinary blocking for other reasons, such as by the MOV SS instruction, the wait-for-SIPI state, etc.)
+> ...
+
+Could you please fix this implementation problem in VMware? Thank you.
+

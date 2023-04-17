@@ -211,6 +211,13 @@ We can give it a try.
 
 Maybe we can compare this with the list of PCI devices from UEFI shell / app.
 
+Note the comment in <https://forum.osdev.org/viewtopic.php?f=1&t=36568>:
+> you are not supposed to program any peripheral device controller in UEFI,
+> unless you write a UEFI driver for it, which you don't. instead, you should
+> be using UEFI protocols for accessing appropriate hardware.
+
+Thus, we should probably work on `bug_071` first.
+
 # tmp
 
 TODO: check stackoverflow

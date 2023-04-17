@@ -316,6 +316,8 @@ This page will be used to track various bugs reported to QEMU / KVM
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=217304>
 * `bug_087`: Bochs incorrect behavior on nested NMI
 	* <https://sourceforge.net/p/bochs/bugs/1456/>
+* `bug_087`: VMware incorrect behavior on nested NMI
+	* <https://communities.vmware.com/t5/VMware-Workstation-Pro/Bug-NMI-incorrectly-blocked-in-guest-if-host-blocks-NMI-and/m-p/2964057#M180905>
 * `bug_105`: Pathos kernel panic in LMM
 	* Private email with 15410 instructor, patch donated to CMU
 	* <https://github.com/OSPreservProject/oskit/issues/1>

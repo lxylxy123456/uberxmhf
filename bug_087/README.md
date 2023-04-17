@@ -632,6 +632,12 @@ Related files
 	* <https://bugzilla.kernel.org/show_bug.cgi?id=217304>
 	* Sean Christopherson sent a fix at 2023-04-06 19:14:25 UTC. This fixes
 	  experiment 3, 13, 14. Still fail: 2, 4, 6, 18, 19, 24. Total 1-30.
+* VMware
+	* `serial_vmware.txt`: serial of VMware Workstation 17.0.1 build-21139696
+		* 0x082013df
+	* `bug_vmware.txt`: bug report
+	* `d.vmdk.xz`: commit `lhv-nmi 9eb50d7191`, hardcode experiment 17
+	* <https://communities.vmware.com/t5/VMware-Workstation-Pro/Bug-NMI-incorrectly-blocked-in-guest-if-host-blocks-NMI-and/m-p/2964057#M180905>
 
 Actual behavior:
 * Bare metal: L1 does not block NMI (good)

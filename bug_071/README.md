@@ -170,5 +170,53 @@ See `bug_073`. This may be a big project. We should continue working on
 tboot-1.10.4's `tboot/common/boot.S` is a good reference for multiboot2 header.
 Following this we can update `xmhf/src/xmhf-core/xmhf-bootloader/header.S`.
 
+### UEFI development
+
+OSDev has some good resources related to UEFI. Can try to follow them. We can
+use GNU-EFI. Temporarily forget about XMHF.
+* <https://wiki.osdev.org/UEFI>
+* <https://wiki.osdev.org/GNU-EFI>
+* <https://wiki.osdev.org/UEFI_App_Bare_Bones>
+
+Install
+
+```sh
+sudo dnf install xorriso
+```
+
+Following tutorial
+```sh
+git clone https://git.code.sf.net/p/gnu-efi/code gnu-efi
+cd gnu-efi
+make
+cd ..
+
+# put tutorial provided file in main.c
+gcc -Ignu-efi/inc -fpic -ffreestanding -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -maccumulate-outgoing-args -c main.c -o main.o
+ld -shared -Bsymbolic -Lgnu-efi/x86_64/lib -Lgnu-efi/x86_64/gnuefi -Tgnu-efi/gnuefi/elf_x86_64_efi.lds gnu-efi/x86_64/gnuefi/crt0-efi-x86_64.o main.o -o main.so -lgnuefi -lefi
+objcopy -j .text -j .sdata -j .data -j .dynamic -j .dynsym  -j .rel -j .rela -j .rel.* -j .rela.* -j .reloc --target efi-app-x86_64 --subsystem=10 main.so main.efi
+
+dd if=/dev/zero of=fat.img bs=1k count=1440
+mformat -i fat.img -f 1440 ::
+mmd -i fat.img ::/EFI
+mmd -i fat.img ::/EFI/BOOT
+mcopy -i fat.img main.efi ::/EFI/BOOT
+
+mkdir iso
+cp fat.img iso
+xorriso -as mkisofs -R -f -e fat.img -no-emul-boot -o cdimage.iso iso
+
+cp /usr/share/edk2/ovmf/OVMF_{CODE,VARS}.fd .
+
+qemu-system-x86_64 -cpu qemu64 -drive if=pflash,format=raw,unit=0,file=OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=OVMF_VARS.fd -net none -enable-kvm -cdrom cdimage.iso
+
+# In EFI Shell:
+#  FS0:
+#  cd EFI/boot
+#  main.efi
+```
+
 TODO: use multiboot2
+TODO: try boot on real hardware
+TODO: try to enable EFI shell on real hardware
 

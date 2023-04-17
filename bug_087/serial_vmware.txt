@@ -1,0 +1,151 @@
+Lightweight Hypervisor (LHV) v6.1.0
+Build revision: HEAD-9eb50d71910b2586c11f92462f37096a7066502b
+LHV_OPT = 0x0000000000000000
+Subarch: i386
+
+INIT(early): initializing, total modules=1
+INIT(early): detected an Intel CPU
+Finding SMP info. via ACPI...
+ACPI RSDP at 0x000f6a00
+ACPI RSDT at 0x0feeea93
+	len=0x00000040, headerlen=0x00000024, numentries=7
+ACPI MADT at 0x0feeec0f
+	len=0x0000005e, record-length=50 bytes
+rec type=0x00, length=8 bytes, flags=0x00000001, id=0x00
+rec type=0x00, length=8 bytes, flags=0x00000001, id=0x02
+rec type=0x01, length=12 bytes, flags=0xfec00000, id=0x00
+rec type=0x02, length=10 bytes, flags=0x00000002, id=0x00
+rec type=0x04, length=6 bytes, flags=0x06040100, id=0x05
+rec type=0x04, length=6 bytes, flags=0x4f420100, id=0x05
+
+original system E820 map follows:
+0x0000000000000000, size=0x000000000009f800 (1)
+0x000000000009f800, size=0x0000000000000800 (2)
+0x00000000000dc000, size=0x0000000000024000 (2)
+0x0000000000100000, size=0x000000000fde0000 (1)
+0x000000000fee0000, size=0x000000000001f000 (3)
+0x000000000feff000, size=0x0000000000001000 (4)
+0x000000000ff00000, size=0x0000000000100000 (1)
+0x00000000f0000000, size=0x0000000008000000 (2)
+0x00000000fec00000, size=0x0000000000010000 (2)
+0x00000000fee00000, size=0x0000000000001000 (2)
+0x00000000fffe0000, size=0x0000000000020000 (2)
+proceeding to revise E820...
+E820 revision complete.
+
+revised system E820 map follows:
+0x0000000000000000, size=0x000000000009f800 (1)
+0x000000000009f800, size=0x0000000000000800 (2)
+0x00000000000dc000, size=0x0000000000024000 (2)
+0x0000000000100000, size=0x0000000007f00000 (1)
+0x0000000008000000, size=0x0000000001e00000 (2)
+0x0000000009e00000, size=0x00000000060e0000 (1)
+0x000000000fee0000, size=0x000000000001f000 (3)
+0x000000000feff000, size=0x0000000000001000 (4)
+0x000000000ff00000, size=0x0000000000100000 (1)
+0x00000000f0000000, size=0x0000000008000000 (2)
+0x00000000fec00000, size=0x0000000000010000 (2)
+0x00000000fee00000, size=0x0000000000001000 (2)
+0x00000000fffe0000, size=0x0000000000020000 (2)
+INIT(early): relocated hypervisor binary image to 0x08000000
+INIT(early): 2M aligned size = 0x00400000
+INIT(early): un-aligned size = 0x0022f330
+setupvcpus: cpustacks range 0x01e0d000-0x01e2d000 in 0x00004000 chunks
+setupvcpus: vcpubuffers range 0x01e06080-0x01e084e0 in 0x0000048c chunks
+CPU #0: vcpu_vaddr_ptr=0x01e06080, esp=0x01e11000
+CPU #1: vcpu_vaddr_ptr=0x01e0650c, esp=0x01e15000
+BSP(0x00): Rallying APs...
+BSP(0x00): APs ready, doing DRTM...
+LAPIC base and status=0xfee00900
+Sending INIT IPI to all APs...
+
+Done.
+INIT(early): sent INIT IPI to APs
+
+****** NO DRTM startup ******
+slbase=0x08000000, sl_entry_point_offset=0x00003080
+SL entry point to transfer control to: 0x08003080
+SL(early-init): at 0x08000000, starting...
+SL: slpb at = 0x00010000
+	errorHandler=0x00000000
+	isEarlyInit=0x00000001
+	numE820Entries=13
+	system memory map buffer at 0x00010010
+	numCPUEntries=2
+	cpuinfo buffer at 0x00010514
+	runtime size= 193328 bytes
+	OS bootmodule at 0x00000000, size=20 bytes
+  OS boot_drive is 0x81
+	cmdline = "serial=115200,8n1,0x3f8 boot_drive=0x81"
+SL: RDTSC before_drtm 0x0, after_drtm 0x181ac0d91
+SL: [PERF] RDTSC DRTM elapsed cycles: 0x181ac0d91
+SL: runtime at 0x08200000; size=0x0002f330 bytes adjusted to 0x00200000 bytes (2M aligned)
+SL: RPB, magic=0xf00ddead
+xmhf_baseplatform_arch_x86_pci_initialize: PCI type-1 access supported.
+xmhf_baseplatform_arch_x86_pci_initialize: PCI bus enumeration follows:
+xmhf_baseplatform_arch_x86_pci_initialize: Done with PCI bus enumeration.
+SL: setup runtime TSS.
+SL (xmhf_sl_arch_x86_setup_runtime_paging): runtime_spa=08200000, runtime_sva=08200000, totalsize=00200000
+	pa xpdpt=0x0xb77000, xpdt=0x0xb78000
+SL: setup runtime paging structures.
+Transferring control to runtime
+runtime initializing...
+xmhf_baseplatform_arch_x86_pci_initialize: PCI type-1 access supported.
+xmhf_baseplatform_arch_x86_pci_initialize: PCI bus enumeration follows:
+xmhf_baseplatform_arch_x86_pci_initialize: Done with PCI bus enumeration.
+Number of E820 entries = 13
+0x0000000000000000, size=0x000000000009f800 (1)
+0x000000000009f800, size=0x0000000000000800 (2)
+0x00000000000dc000, size=0x0000000000024000 (2)
+0x0000000000100000, size=0x0000000007f00000 (1)
+0x0000000008000000, size=0x0000000001e00000 (2)
+0x0000000009e00000, size=0x00000000060e0000 (1)
+0x000000000fee0000, size=0x000000000001f000 (3)
+0x000000000feff000, size=0x0000000000001000 (4)
+0x000000000ff00000, size=0x0000000000100000 (1)
+0x00000000f0000000, size=0x0000000008000000 (2)
+0x00000000fec00000, size=0x0000000000010000 (2)
+0x00000000fee00000, size=0x0000000000001000 (2)
+0x00000000fffe0000, size=0x0000000000020000 (2)
+Number of MP entries = 2
+CPU #0: bsp=1, lapic_id=0x00
+CPU #1: bsp=0, lapic_id=0x02
+xmhf_xcphandler_arch_initialize: setting up runtime IDT...
+xmhf_xcphandler_arch_initialize: IDT setup done.
+BSP: Using APIC to awaken APs...
+BSP: APs should be awake.
+Relinquishing BSP thread and moving to common...
+BSP rallying APs...
+BSP(0x00): My ESP is 0x09d04000
+APs all awake...Setting them free...
+AP(0x02): My ESP is 0x09d08000, proceeding...
+Detecting environment
+End detecting environment
+Experiment: 17
+  Enter host, exp=17, state=0
+    hlt_wait() begin, source =  EXIT_NMI_H   (5)
+      Inject NMI
+      Interrupt recorded:       EXIT_NMI_H   (5)
+      At instruction:           0x00000000
+      VM-exit reason:           0x00000012
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+    hlt_wait() begin, source =  EXIT_TIMER_H (6)
+      Inject NMI
+      Inject interrupt
+      Interrupt recorded:       EXIT_TIMER_H (6)
+    hlt_wait() end
+  Leave host
+      Interrupt recorded:       EXIT_NMI_H   (5)
+      At instruction:           0x00000000
+      VM-exit reason:           0x0000000a
+CPU(0x02): key press: 65, guest=1
+
+source:      EXIT_VMEXIT  (7)
+exit_source: EXIT_NMI_H   (5)
+rip:         0x082013df
+exit_rip:    0x08208488
+TEST_ASSERT '0 && (exit_source == source)' failed, line 372, file lhv-guest.c
