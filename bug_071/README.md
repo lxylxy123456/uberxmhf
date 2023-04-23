@@ -216,6 +216,18 @@ qemu-system-x86_64 -cpu qemu64 -drive if=pflash,format=raw,unit=0,file=OVMF_CODE
 #  main.efi
 ```
 
+### EFI Shell on real hardware
+
+Can use `/usr/share/edk2/ovmf/Shell.efi` to replace
+`/boot/efi/EFI/fedora/grubx64.efi`, this will cause UEFI shell instead of GRUB
+to be booted
+
+Maybe can boot from a USB? See `BOOTX64.EFI`
+* Ref: <https://github.com/KilianKegel/HowTo-create-a-UEFI-Shell-Boot-Drive>
+
+Using the `pci` command in UEFI shell, can see Intel AMT's serial port
+(00:16.3 in Linux).
+
 TODO: use multiboot2
 TODO: try boot on real hardware
 TODO: try to enable EFI shell on real hardware

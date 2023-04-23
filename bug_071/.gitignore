@@ -1,0 +1,8 @@
+gnu-efi/
+main.o
+main.so
+main.efi
+OVMF_CODE.fd
+OVMF_VARS.fd
+cdimage.iso
+fat.img
