@@ -1,6 +1,8 @@
 # gnu-efi/: see README.md
 
 CFLAGS = -Ignu-efi/inc
+CFLAGS += -Wall -Werror
+CFLAGS += -g
 CFLAGS += -fpic -ffreestanding -fno-stack-protector -fno-stack-check
 CFLAGS += -fshort-wchar -mno-red-zone -maccumulate-outgoing-args
 
@@ -28,6 +30,11 @@ fat.img: main.efi
 	mmd -i fat.img ::/EFI
 	mmd -i fat.img ::/EFI/BOOT
 	mcopy -i fat.img main.efi ::/EFI/BOOT
+	ln main.efi BOOTX64.EFI
+	# If the following line is commented, need to run main.efi using EFI shell.
+	# Otherwise, BOOTX64.EFI will run automatically.
+	mcopy -i fat.img BOOTX64.EFI ::/EFI/BOOT
+	rm -f BOOTX64.EFI
 
 cdimage.iso: fat.img
 	mkdir iso

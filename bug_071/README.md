@@ -216,19 +216,39 @@ qemu-system-x86_64 -cpu qemu64 -drive if=pflash,format=raw,unit=0,file=OVMF_CODE
 #  main.efi
 ```
 
+Using this way, can boot rich OS (e.g. boot GRUB using `grubx64.efi`).
+
+If place the `main.efi` to `/EFI/BOOT/BOOTX64.EFI` instead, then it will be
+booted without entering the shell. However, after `main.efi` exits, the output
+is gone, etc.
+
+Other references
+* <https://www.rodsbooks.com/efi-programming/efi_services.html>
+
+#### Debugging using QEMU and GDB
+
+Use LoadedImageProtocol to find out relocation offset. Follow
+<https://wiki.osdev.org/Debugging_UEFI_applications_with_GDB>. Suppose during
+runtime "Image Base: 0x677a000" is printed. Then in GDB:
+`symbol-file main.so -o 0x677a000`
+
+Ref
+* <https://wiki.osdev.org/Debugging_UEFI_applications_with_GDB>
+
 ### EFI Shell on real hardware
 
 Can use `/usr/share/edk2/ovmf/Shell.efi` to replace
 `/boot/efi/EFI/fedora/grubx64.efi`, this will cause UEFI shell instead of GRUB
 to be booted
 
-Maybe can boot from a USB? See `BOOTX64.EFI`
-* Ref: <https://github.com/KilianKegel/HowTo-create-a-UEFI-Shell-Boot-Drive>
+Maybe can boot from a USB? Not tested:
+<https://github.com/KilianKegel/HowTo-create-a-UEFI-Shell-Boot-Drive>
 
 Using the `pci` command in UEFI shell, can see Intel AMT's serial port
 (00:16.3 in Linux).
 
 TODO: use multiboot2
 TODO: try boot on real hardware
-TODO: try to enable EFI shell on real hardware
+TODO: try to enable EFI shell on real hardware, use cleaner way
+TODO: LocateHandle, HandleProtocol, `EFI_SERIAL_IO_PROTOCOL`
 
