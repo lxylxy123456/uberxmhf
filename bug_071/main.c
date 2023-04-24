@@ -39,7 +39,7 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 	uefi_call_wrapper(ST->ConOut->OutputString, 2, ST->ConOut, L"Hello\r\n");
 
 	/* Look for serial device, from u-boot. */
-	{
+	if (0) {
 		EFI_STATUS status;
 		EFI_SERIAL_IO_PROTOCOL *Interface = NULL;
 		status = uefi_call_wrapper(ST->BootServices->LocateProtocol, 3
@@ -53,6 +53,7 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 		EFI_STATUS status;
 		UINTN NoHandles;
 		EFI_HANDLE *Buffer;
+		/* Also: gEfiSimpleTextOutProtocolGuid */
 		status = uefi_call_wrapper(ST->BootServices->LocateHandleBuffer, 4,
 								   ByProtocol, &SerialIoProtocol, NULL,
 								   &NoHandles, &Buffer);
@@ -69,8 +70,12 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 				status = uefi_call_wrapper(ST->BootServices->HandleProtocol, 3
 										   Buffer[i], &SerialIoProtocol,
 										   (void **)&Interface);
+				if (EFI_ERROR(status)) {
+					Print(L"    Fail: %r\n", status);
+					continue;
+				}
 				CHK_EFI_ERROR(status);
-				Print(L"\tInterface: %p\n", Interface);
+				Print(L"    Interface: %p\n", Interface);
 			}
 		}
 	}

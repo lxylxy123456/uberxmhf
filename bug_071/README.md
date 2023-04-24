@@ -247,6 +247,19 @@ Maybe can boot from a USB? Not tested:
 Using the `pci` command in UEFI shell, can see Intel AMT's serial port
 (00:16.3 in Linux).
 
+### `EFI_SERIAL_IO_PROTOCOL`
+
+It is possible that Intel AMT can be accessed through UEFI using
+`EFI_SERIAL_IO_PROTOCOL`. The idea is to first LocateHandle, then
+HandleProtocol.
+
+However, by trying on real machine, looks like this is not the case.
+HP 2540p shows `LocateHandleBuffer` `EFI_SERIAL_IO_PROTOCOL` gives not found,
+Dell 7050 gives one result (likely the physical serial port, not AMT).
+
+Also, we are unable to call `HandleProtocol` correctly after
+`LocateHandleBuffer`. (TODO: ask)
+
 TODO: use multiboot2
 TODO: try boot on real hardware
 TODO: try to enable EFI shell on real hardware, use cleaner way
