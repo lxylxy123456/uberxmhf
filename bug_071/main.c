@@ -38,6 +38,16 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 	/* https://www.rodsbooks.com/efi-programming/efi_services.html */
 	uefi_call_wrapper(ST->ConOut->OutputString, 2, ST->ConOut, L"Hello\r\n");
 
+	/* Look for serial device, from u-boot. */
+	{
+		EFI_STATUS status;
+		EFI_SERIAL_IO_PROTOCOL *Interface = NULL;
+		status = uefi_call_wrapper(ST->BootServices->LocateProtocol, 3
+								   &SerialIoProtocol, NULL,
+								   (void **)&Interface);
+		CHK_EFI_ERROR(status);
+	}
+
 	/* Look for serial device. */
 	{
 		EFI_STATUS status;
