@@ -261,8 +261,14 @@ Also, we are unable to call `HandleProtocol` correctly after
 `LocateHandleBuffer`. Always see invalid parameter error not explainable by
 the standard. Asking on <https://stackoverflow.com/questions/76096271/>.
 
+### E820
+
+We do not need to wrap UEFI's `GetMemoryMap` function. We simply need to make
+XMHF bootloader a EFI runtime service. The XMHF bootloader can then call
+`AllocatePool` with `Type=AllocateAddress`. This allows the XMHF BL to select
+exact memory address to allocate.
+
 TODO: use multiboot2
 TODO: try boot on real hardware
-TODO: try to enable EFI shell on real hardware, use cleaner way
-TODO: LocateHandle, HandleProtocol, `EFI_SERIAL_IO_PROTOCOL`
+TODO: how does GRUB installation make GRUB the default instead of Windows?
 

@@ -1,5 +1,6 @@
 #include <efi.h>
 #include <efilib.h>
+#include <wchar.h>
 
 #define CHK_EFI_ERROR(status) \
 	do { \
@@ -38,44 +39,36 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 	/* https://www.rodsbooks.com/efi-programming/efi_services.html */
 	uefi_call_wrapper(ST->ConOut->OutputString, 2, ST->ConOut, L"Hello\r\n");
 
-	/* Look for serial device, from u-boot. */
-	if (0) {
-		EFI_STATUS status;
-		EFI_SERIAL_IO_PROTOCOL *Interface = NULL;
-		status = uefi_call_wrapper(ST->BootServices->LocateProtocol, 3,
-								   &SerialIoProtocol, NULL,
-								   (void **)&Interface);
-		CHK_EFI_ERROR(status);
-	}
-
-	/* Look for serial device. */
+	/* Look for serial device (use LocateProtocol to only look for one). */
 	{
 		EFI_STATUS status;
 		UINTN NoHandles;
 		EFI_HANDLE *Buffer;
-		/* Also: gEfiSimpleTextOutProtocolGuid */
+		/* Also: SerialIoProtocol */
+		EFI_GUID *Protocol = &TextOutProtocol;
 		status = uefi_call_wrapper(ST->BootServices->LocateHandleBuffer, 5,
-								   ByProtocol, &SerialIoProtocol, NULL,
-								   &NoHandles, &Buffer);
+								   ByProtocol, Protocol, NULL, &NoHandles,
+								   &Buffer);
 		CHK_EFI_ERROR(status);
 		Print(L"NoHandles: 0x%ld\n", NoHandles);
 		Print(L"Buffer: 0x%p\n", Buffer);
 
 		for (UINTN i = 0; i < NoHandles; i++) {
 			Print(L"Buffer[%ld]: 0x%p\n", i, Buffer[i]);
-			debug_nop();
+			EFI_SIMPLE_TEXT_OUT_PROTOCOL *Interface = NULL;
 			{
 				EFI_STATUS status;
-				EFI_SERIAL_IO_PROTOCOL *Interface = NULL;
 				status = uefi_call_wrapper(ST->BootServices->HandleProtocol, 3,
-										   Buffer[i], &SerialIoProtocol,
+										   Buffer[i], Protocol,
 										   (void **)&Interface);
-				if (EFI_ERROR(status)) {
-					Print(L"    Fail: %r\n", status);
-					continue;
-				}
 				CHK_EFI_ERROR(status);
 				Print(L"    Interface: %p\n", Interface);
+			}
+			{
+				EFI_STATUS status;
+				status = uefi_call_wrapper(Interface->OutputString, 2,
+										   Interface, L"    Hello\r\n");
+				CHK_EFI_ERROR(status);
 			}
 		}
 	}
@@ -85,9 +78,9 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 		EFI_STATUS status;
 		EFI_PHYSICAL_ADDRESS addr = 0x10000000;
 		status = uefi_call_wrapper(ST->BootServices->AllocatePages, 4,
-								   AllocateAnyPages, //AllocateAddress,
+								   AllocateAddress,
 								   EfiRuntimeServicesData,
-								   1,
+								   32768,
 								   &addr);
 		CHK_EFI_ERROR(status);
 		Print(L"Allocated: %p\n", addr);
