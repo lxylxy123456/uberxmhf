@@ -54,7 +54,7 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 		UINTN NoHandles;
 		EFI_HANDLE *Buffer;
 		/* Also: gEfiSimpleTextOutProtocolGuid */
-		status = uefi_call_wrapper(ST->BootServices->LocateHandleBuffer, 4,
+		status = uefi_call_wrapper(ST->BootServices->LocateHandleBuffer, 5,
 								   ByProtocol, &SerialIoProtocol, NULL,
 								   &NoHandles, &Buffer);
 		CHK_EFI_ERROR(status);
@@ -80,8 +80,22 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 		}
 	}
 
+	/* Allocate memory */
+	{
+		EFI_STATUS status;
+		EFI_PHYSICAL_ADDRESS addr = 0x10000000;
+		status = uefi_call_wrapper(ST->BootServices->AllocatePages, 4
+								   AllocateAnyPages, //AllocateAddress,
+								   EfiRuntimeServicesData,
+								   1,
+								   &addr);
+		// TODO: fails for unknown reason. See gnu-efi/apps/AllocPages.c
+		CHK_EFI_ERROR(status);
+		Print(L"Allocated: %p\n", addr);
+	}
+
 	/* Prevent exiting, useful if not using EFI shell. */
-	if (1) {
+	if (0) {
 		Print(L"Completed\n");
 		while (1) {
 			uefi_call_wrapper(BS->Stall, 1, 1000000);

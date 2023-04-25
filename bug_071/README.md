@@ -258,7 +258,8 @@ HP 2540p shows `LocateHandleBuffer` `EFI_SERIAL_IO_PROTOCOL` gives not found,
 Dell 7050 gives one result (likely the physical serial port, not AMT).
 
 Also, we are unable to call `HandleProtocol` correctly after
-`LocateHandleBuffer`. (TODO: ask)
+`LocateHandleBuffer`. Always see invalid parameter error not explainable by
+the standard. Asking on <https://stackoverflow.com/questions/76096271/>.
 
 TODO: use multiboot2
 TODO: try boot on real hardware

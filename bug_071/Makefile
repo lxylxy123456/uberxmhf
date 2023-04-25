@@ -12,7 +12,7 @@ LDLIBS = -lgnuefi -lefi
 
 OBJCOPY_FLAGS = -j .text -j .sdata -j .data -j .dynamic -j .dynsym  -j .rel
 OBJCOPY_FLAGS += -j .rela -j .rel.* -j .rela.* -j .reloc
-OBJCOPY_FLAGS += --target efi-app-x86_64 --subsystem=10
+OBJCOPY_FLAGS += --target efi-app-x86_64 --subsystem=12
 
 all: cdimage.iso
 
@@ -24,17 +24,18 @@ main.efi: main.so
 	objcopy $(OBJCOPY_FLAGS) main.so main.efi
 	chmod -x main.efi
 
-fat.img: main.efi
+fat.img: main.efi startup.nsh
 	dd if=/dev/zero of=fat.img bs=1k count=1440
 	mformat -i fat.img -f 1440 ::
 	mmd -i fat.img ::/EFI
 	mmd -i fat.img ::/EFI/BOOT
 	mcopy -i fat.img main.efi ::/EFI/BOOT
 	ln main.efi BOOTX64.EFI
-	# If the following line is commented, need to run main.efi using EFI shell.
-	# Otherwise, BOOTX64.EFI will run automatically.
-	mcopy -i fat.img BOOTX64.EFI ::/EFI/BOOT
+	# If the following line is uncommented, will run main.efi without EFI shell.
+	#mcopy -i fat.img BOOTX64.EFI ::/EFI/BOOT
 	rm -f BOOTX64.EFI
+	# Copy startup.nsh to automatically run.
+	mcopy -i fat.img startup.nsh ::/EFI/BOOT
 
 cdimage.iso: fat.img
 	mkdir iso
