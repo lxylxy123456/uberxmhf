@@ -42,7 +42,7 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 	if (0) {
 		EFI_STATUS status;
 		EFI_SERIAL_IO_PROTOCOL *Interface = NULL;
-		status = uefi_call_wrapper(ST->BootServices->LocateProtocol, 3
+		status = uefi_call_wrapper(ST->BootServices->LocateProtocol, 3,
 								   &SerialIoProtocol, NULL,
 								   (void **)&Interface);
 		CHK_EFI_ERROR(status);
@@ -67,7 +67,7 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 			{
 				EFI_STATUS status;
 				EFI_SERIAL_IO_PROTOCOL *Interface = NULL;
-				status = uefi_call_wrapper(ST->BootServices->HandleProtocol, 3
+				status = uefi_call_wrapper(ST->BootServices->HandleProtocol, 3,
 										   Buffer[i], &SerialIoProtocol,
 										   (void **)&Interface);
 				if (EFI_ERROR(status)) {
@@ -84,12 +84,11 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 	{
 		EFI_STATUS status;
 		EFI_PHYSICAL_ADDRESS addr = 0x10000000;
-		status = uefi_call_wrapper(ST->BootServices->AllocatePages, 4
+		status = uefi_call_wrapper(ST->BootServices->AllocatePages, 4,
 								   AllocateAnyPages, //AllocateAddress,
 								   EfiRuntimeServicesData,
 								   1,
 								   &addr);
-		// TODO: fails for unknown reason. See gnu-efi/apps/AllocPages.c
 		CHK_EFI_ERROR(status);
 		Print(L"Allocated: %p\n", addr);
 	}
