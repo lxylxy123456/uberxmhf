@@ -2,6 +2,7 @@
 FS0:
 cd EFI
 cd BOOT
+load standalone.efi
 load main.efi
 
 # Sleep 5

@@ -24,18 +24,21 @@ main.efi: main.so
 	objcopy $(OBJCOPY_FLAGS) main.so main.efi
 	chmod -x main.efi
 
-fat.img: main.efi startup.nsh
+standalone.so: crt0-efi-x86_64.o reloc_x86_64.o standalone.o
+	$(LD) $(LDFLAGS) $^ -o $@
+	chmod -x main.so
+
+standalone.efi: standalone.so
+	objcopy $(OBJCOPY_FLAGS) standalone.so standalone.efi
+	chmod -x standalone.efi
+
+fat.img: main.efi standalone.efi startup.nsh
 	dd if=/dev/zero of=fat.img bs=1k count=1440
 	mformat -i fat.img -f 1440 ::
 	mmd -i fat.img ::/EFI
 	mmd -i fat.img ::/EFI/BOOT
-	mcopy -i fat.img main.efi ::/EFI/BOOT
-	ln main.efi BOOTX64.EFI
-	# If the following line is uncommented, will run main.efi without EFI shell.
-	#mcopy -i fat.img BOOTX64.EFI ::/EFI/BOOT
-	rm -f BOOTX64.EFI
-	# Copy startup.nsh to automatically run.
-	mcopy -i fat.img startup.nsh ::/EFI/BOOT
+	for i in $^; do mcopy -i fat.img "$$i" ::/EFI/BOOT; done
+	# If BOOTX64.EFI is present and startup.nsh is not, will run automatically.
 
 cdimage.iso: fat.img
 	mkdir iso
@@ -45,6 +48,6 @@ cdimage.iso: fat.img
 	rm -d iso
 
 clean:
-	rm -f main.o main.so main.efi fat.img cdimage.iso
+	rm -f *.o *.so *.efi fat.img cdimage.iso
 	rm -rf iso/
 
