@@ -1,0 +1,7 @@
+*.efi
+*.efi.debug
+*.o
+*.a
+*.tar.*
+*.tar
+x86_64
