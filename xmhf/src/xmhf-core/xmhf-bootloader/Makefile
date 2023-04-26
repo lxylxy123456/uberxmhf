@@ -102,7 +102,9 @@ OBJCOPY_FLAGS += -j .rela -j .rel.* -j .rela.* -j .reloc
 OBJCOPY_FLAGS += --target efi-app-x86_64 --subsystem=12
 
 # TODO
-all: efi.efi
+all: efi.efi fat.img cdimage.iso
+
+# TODO: add make clean
 
 # TODO: rename efi -> init
 efi.o: efi.c
@@ -115,6 +117,21 @@ efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o efi.o
 efi.efi: efi.so
 	objcopy $(OBJCOPY_FLAGS) efi.so efi.efi
 	chmod -x efi.efi
+
+fat.img: efi.efi startup.nsh
+	dd if=/dev/zero of=fat.img bs=1k count=1440
+	mformat -i fat.img -f 1440 ::
+	mmd -i fat.img ::/EFI
+	mmd -i fat.img ::/EFI/BOOT
+	for i in $^; do mcopy -i fat.img "$$i" ::/EFI/BOOT; done
+	# If BOOTX64.EFI is present and startup.nsh is not, will run automatically.
+
+cdimage.iso: fat.img
+	mkdir iso
+	ln fat.img iso
+	xorriso -as mkisofs -R -f -e fat.img -no-emul-boot -o cdimage.iso iso
+	rm iso/fat.img
+	rm -d iso
 # TODO: end added for UEFI
 
 .PHONY: clean
