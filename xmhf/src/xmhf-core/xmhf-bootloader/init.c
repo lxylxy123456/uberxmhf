@@ -1015,6 +1015,9 @@ void cstartup(multiboot_info_t *mbi){
     #error "Unsupported Arch"
 #endif /* !defined(__XMHF_I386__) && !defined(__XMHF_AMD64__) */
 
+//	printf("HALT\n");
+//	HALT();
+
     printf("INIT(early): initializing, total modules=%u\n", mods_count);
 
     //check CPU type (Intel vs AMD)

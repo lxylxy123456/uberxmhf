@@ -373,6 +373,12 @@ BCFLAGS := $(CFLAGS)
 # __XMHF_I386__: XMHF runtime will run in i386 (32-bit)
 # __XMHF_AMD64__: XMHF runtime will run in amd64 (64-bit)
 
+# TODO: begin added for UEFI
+BCFLAGS := $(filter-out -fno-pic -fno-pie,$(BCFLAGS))
+BCFLAGS += -fpic -fpie
+BCFLAGS += -fshort-wchar
+# TODO: end added for UEFI
+
 ifeq ($(TARGET_SUBARCH), amd64)
 	CFLAGS += -D__AMD64__ -D__XMHF_AMD64__
 	BCFLAGS += -D__I386__ -D__XMHF_AMD64__
