@@ -125,6 +125,12 @@ LIBBAREMETAL_INC = $(foreach dir,$(LIBBAREMETAL_SUBLIBS),-I$(dir)/include)
 # libbaremetal build directory
 LIBBAREMETAL_BUILD = $(CURDIR)/_build_libbaremetal
 
+# TODO: begin added for UEFI
+# TODO: make it a configuration option
+export GNUEFI_SRC := $(realpath ./xmhf/third-party/gnu-efi/)
+GNUEFI_BUILD = $(CURDIR)/_build_gnuefi
+# TODO: end added for UEFI
+
 # For bootloader (always i386 regardless of runtime subarch), compile separate
 # i386 versions of libraries if runtime is amd64.
 ifeq ($(TARGET_SUBARCH), amd64)
@@ -168,6 +174,9 @@ export LIB_SUBDIRS :=
 LIB_SUBDIRS += $(LIBBAREMETAL_BUILD)
 LIB_SUBDIRS += $(LIBTOMCRYPT_BUILD)
 LIB_SUBDIRS += $(LIBTOMMATH_BUILD)
+# TODO: begin added for UEFI
+LIB_SUBDIRS += $(GNUEFI_BUILD)
+# TODO: end added for UEFI
 ifeq ($(TARGET_SUBARCH), amd64)
 LIB_SUBDIRS += $(LIBBAREMETAL_BUILD32)
 LIB_SUBDIRS += $(LIBTOMCRYPT_BUILD32)
@@ -449,6 +458,18 @@ $(LIBBAREMETAL_BUILD):
 	@echo ---------------------------------------------------------------
 	@echo libbaremetal.a build SUCCESS
 	@echo ---------------------------------------------------------------
+
+# TODO: begin added for UEFI
+$(GNUEFI_BUILD):
+	@echo ---------------------------------------------------------------
+	@echo Building gnu-efi...
+	@echo ---------------------------------------------------------------
+	mkdir -p $(GNUEFI_BUILD)
+	cd $(GNUEFI_BUILD) && $(MAKE) -f $(GNUEFI_SRC)/Makefile CFLAGS= -w
+	@echo ---------------------------------------------------------------
+	@echo gnu-efi build SUCCESS
+	@echo ---------------------------------------------------------------
+# TODO: end added for UEFI
 
 ifeq ($(TARGET_SUBARCH), amd64)
 

@@ -1,4 +1,4 @@
-prefix=@PREFIX@
+gnuefi_prefix=@PREFIX@
 exec_prefix=@EXEC_PREFIX@
 includedir=@INCLUDEDIR@
 libdir=@LIBDIR@

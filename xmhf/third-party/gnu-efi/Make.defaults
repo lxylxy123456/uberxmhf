@@ -65,13 +65,13 @@ INCLUDEDIR   := $(PREFIX)/include
 INSTALL	 := install
 
 # Compilation tools
-HOSTCC       := $(prefix)gcc
-CC           := $(prefix)$(CROSS_COMPILE)gcc
-AS           := $(prefix)$(CROSS_COMPILE)as
-LD           := $(prefix)$(CROSS_COMPILE)ld
-AR           := $(prefix)$(CROSS_COMPILE)ar
-RANLIB       := $(prefix)$(CROSS_COMPILE)ranlib
-OBJCOPY      := $(prefix)$(CROSS_COMPILE)objcopy
+HOSTCC       := $(gnuefi_prefix)gcc
+CC           := $(gnuefi_prefix)$(CROSS_COMPILE)gcc
+AS           := $(gnuefi_prefix)$(CROSS_COMPILE)as
+LD           := $(gnuefi_prefix)$(CROSS_COMPILE)ld
+AR           := $(gnuefi_prefix)$(CROSS_COMPILE)ar
+RANLIB       := $(gnuefi_prefix)$(CROSS_COMPILE)ranlib
+OBJCOPY      := $(gnuefi_prefix)$(CROSS_COMPILE)objcopy
 
 
 # Host/target identification

@@ -69,6 +69,10 @@ ifdef SLBELOW64K_INTEGRITY_HASH
 CFLAGS += -D___SLBELOW64K_INTEGRITY_HASH___=\"$(SLBELOW64K_INTEGRITY_HASH)\"
 endif
 
+# TODO: begin added for UEFI
+#LDFLAGS += -shared
+# TODO: end added for UEFI
+
 
 # targets
 .PHONY: all
@@ -80,6 +84,8 @@ init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin: $(OBJECTS) $(OBJECTS_PRECOMPILE
 	$(CP) init.exe init_syms.exe
 	$(STRIP) -s init.exe
 	$(OBJCOPY) --output-format=binary init.exe init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
+	# TODO: begin added for UEFI
+	# TODO: end added for UEFI
 
 .PHONY: clean
 clean:
