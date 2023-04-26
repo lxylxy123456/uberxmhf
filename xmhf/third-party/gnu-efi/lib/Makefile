@@ -64,15 +64,15 @@ endif
 
 OBJS  = $(FILES:%=%.o) ctors.o
 
-SUBDIRS = ia32 x86_64 ia64 aarch64 arm mips64el riscv64 loongarch64 runtime
+SUBDIRS = ia32 x86_64 runtime
 
 LIBDIRINSTALL = $(INSTALLROOT)$(LIBDIR)
 
 all: libsubdirs libefi.a
 
-.PHONY: libsubdirs
 libsubdirs:
 	@set -e ; for sdir in $(SUBDIRS); do mkdir -p $$sdir; done
+	touch libsubdirs
 
 $(OBJS): libsubdirs
 

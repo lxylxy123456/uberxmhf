@@ -128,7 +128,7 @@ LIBBAREMETAL_BUILD = $(CURDIR)/_build_libbaremetal
 # TODO: begin added for UEFI
 # TODO: make it a configuration option
 export GNUEFI_SRC := $(realpath ./xmhf/third-party/gnu-efi/)
-GNUEFI_BUILD = $(CURDIR)/_build_gnuefi
+export GNUEFI_BUILD := $(CURDIR)/_build_gnuefi
 # TODO: end added for UEFI
 
 # For bootloader (always i386 regardless of runtime subarch), compile separate
@@ -465,7 +465,7 @@ $(GNUEFI_BUILD):
 	@echo Building gnu-efi...
 	@echo ---------------------------------------------------------------
 	mkdir -p $(GNUEFI_BUILD)
-	cd $(GNUEFI_BUILD) && $(MAKE) -f $(GNUEFI_SRC)/Makefile CFLAGS= -w
+	cd $(GNUEFI_BUILD) && CFLAGS= $(MAKE) -f $(GNUEFI_SRC)/Makefile -w
 	@echo ---------------------------------------------------------------
 	@echo gnu-efi build SUCCESS
 	@echo ---------------------------------------------------------------

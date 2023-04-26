@@ -84,8 +84,38 @@ init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin: $(OBJECTS) $(OBJECTS_PRECOMPILE
 	$(CP) init.exe init_syms.exe
 	$(STRIP) -s init.exe
 	$(OBJCOPY) --output-format=binary init.exe init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
-	# TODO: begin added for UEFI
-	# TODO: end added for UEFI
+
+# TODO: begin added for UEFI
+EFI_CFLAGS = -I$(GNUEFI_SRC)/inc
+EFI_CFLAGS += -Wall -Werror
+EFI_CFLAGS += -g
+EFI_CFLAGS += -fpic -ffreestanding -fno-stack-protector -fno-stack-check
+EFI_CFLAGS += -fshort-wchar -mno-red-zone -maccumulate-outgoing-args
+
+EFI_LDFLAGS = -shared -Bsymbolic -L$(GNUEFI_BUILD)/x86_64/lib
+EFI_LDFLAGS += -L$(GNUEFI_BUILD)/x86_64/gnuefi
+EFI_LDFLAGS += -T$(GNUEFI_SRC)/gnuefi/elf_x86_64_efi.lds
+EFI_LDLIBS = -lgnuefi -lefi
+
+OBJCOPY_FLAGS = -j .text -j .sdata -j .data -j .dynamic -j .dynsym  -j .rel
+OBJCOPY_FLAGS += -j .rela -j .rel.* -j .rela.* -j .reloc
+OBJCOPY_FLAGS += --target efi-app-x86_64 --subsystem=12
+
+# TODO
+all: efi.efi
+
+# TODO: rename efi -> init
+efi.o: efi.c
+	$(CC) $(EFI_CFLAGS) -c $< -o $@
+
+efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o efi.o
+	$(LD) $(EFI_LDFLAGS) $^ $(EFI_LDLIBS) -o $@
+	chmod -x efi.so
+
+efi.efi: efi.so
+	objcopy $(OBJCOPY_FLAGS) efi.so efi.efi
+	chmod -x efi.efi
+# TODO: end added for UEFI
 
 .PHONY: clean
 clean:
