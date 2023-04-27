@@ -877,24 +877,26 @@ void setupvcpus(u32 cpu_vendor, MIDTAB *midtable, u32 midtable_numentries){
     u32 i;
     VCPU *vcpu;
 
-    printf("%s: cpustacks range 0x%08x-0x%08x in 0x%08x chunks\n",
-           __FUNCTION__, (u32)cpustacks, (u32)cpustacks + (RUNTIME_STACK_SIZE * MAX_VCPU_ENTRIES),
-           RUNTIME_STACK_SIZE);
-    printf("%s: vcpubuffers range 0x%08x-0x%08x in 0x%08x chunks\n",
-           __FUNCTION__, (u32)vcpubuffers, (u32)vcpubuffers + (SIZE_STRUCT_VCPU * MAX_VCPU_ENTRIES),
-           SIZE_STRUCT_VCPU);
+    printf("%s: cpustacks range 0x%08lx-0x%08lx in 0x%08lx chunks\n",
+           __FUNCTION__, (uintptr_t)cpustacks,
+           (uintptr_t)cpustacks + (RUNTIME_STACK_SIZE * MAX_VCPU_ENTRIES),
+           (size_t)RUNTIME_STACK_SIZE);
+    printf("%s: vcpubuffers range 0x%08lx-0x%08lx in 0x%08lx chunks\n",
+           __FUNCTION__, (uintptr_t)vcpubuffers,
+           (uintptr_t)vcpubuffers + (SIZE_STRUCT_VCPU * MAX_VCPU_ENTRIES),
+           (size_t)SIZE_STRUCT_VCPU);
 
     for(i=0; i < midtable_numentries; i++){
-        vcpu = (VCPU *)((u32)vcpubuffers + (u32)(i * SIZE_STRUCT_VCPU));
+        vcpu = (VCPU *)((uintptr_t)vcpubuffers + (i * SIZE_STRUCT_VCPU));
         memset((void *)vcpu, 0, sizeof(VCPU));
 
         vcpu->cpu_vendor = cpu_vendor;
 
-        vcpu->esp = ((u32)cpustacks + (i * RUNTIME_STACK_SIZE)) + RUNTIME_STACK_SIZE;
+        vcpu->esp = ((uintptr_t)cpustacks + (i * RUNTIME_STACK_SIZE)) + RUNTIME_STACK_SIZE;
         vcpu->id = midtable[i].cpu_lapic_id;
 
-        midtable[i].vcpu_vaddr_ptr = (u32)vcpu;
-        printf("CPU #%u: vcpu_vaddr_ptr=0x%08x, esp=0x%08x\n", i, midtable[i].vcpu_vaddr_ptr,
+        midtable[i].vcpu_vaddr_ptr = (uintptr_t)vcpu;
+        printf("CPU #%u: vcpu_vaddr_ptr=0x%08lx, esp=0x%08lx\n", i, midtable[i].vcpu_vaddr_ptr,
                vcpu->esp);
     }
 }
@@ -914,7 +916,7 @@ void wakeupAPs(void){
 
     {
         extern u32 _ap_bootstrap_start[], _ap_bootstrap_end[];
-        memcpy((void *)0x10000, (void *)_ap_bootstrap_start, (u32)_ap_bootstrap_end - (u32)_ap_bootstrap_start + 1);
+        memcpy((void *)0x10000, (void *)_ap_bootstrap_start, (uintptr_t)_ap_bootstrap_end - (uintptr_t)_ap_bootstrap_start + 1);
     }
 
     //our test code is at 1000:0000, we need to send 10 as vector
