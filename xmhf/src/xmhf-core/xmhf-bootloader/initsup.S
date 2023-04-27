@@ -95,7 +95,9 @@
       movw %ax, %fs
       movw %ax, %gs
 
-      movl $init_core_lowlevel_setup, %eax
+// TODO: begin removed for UEFI
+//      movl $init_core_lowlevel_setup, %eax
+// TODO: end removed for UEFI
       jmpl *%eax
       hlt
 
@@ -112,7 +114,9 @@
   init_core_lowlevel_setup:
 
 	//load our gdt
-  lgdt init_gdt
+// TODO: begin removed for UEFI
+//  lgdt init_gdt
+// TODO: end removed for UEFI
 
   //get hold of local APIC id
   mov $(MSR_APIC_BASE), %ecx
@@ -122,10 +126,14 @@
   movl (%eax), %eax
   shr $24, %eax
 
-  movl midtable_numentries, %edx
+// TODO: begin removed for UEFI
+//  movl midtable_numentries, %edx
+// TODO: end removed for UEFI
 
   //get vcpu virtual address of this CPU/core
-    movl $(midtable), %ebx
+// TODO: begin removed for UEFI
+//    movl $(midtable), %ebx
+// TODO: end removed for UEFI
     xorl %ecx, %ecx
 getvcpuloop:
 #ifdef __XMHF_I386__
@@ -165,7 +173,9 @@ gotvcpu:
 	//the GDT
 	init_gdt:
 	.word	init_gdt_end - init_gdt_start - 1
-	.long	init_gdt_start
+// TODO: begin removed for UEFI
+//	.long	init_gdt_start
+// TODO: end removed for UEFI
 
 	.align	16
 	init_gdt_start:
