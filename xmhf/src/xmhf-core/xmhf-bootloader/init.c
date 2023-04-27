@@ -925,13 +925,15 @@ void wakeupAPs(void){
 
     icr = (u32 *) (((u32)eax & 0xFFFFF000UL) + 0x300);
 
-#ifdef __UEFI__
-    HALT_ON_ERRORCOND(0 && "TODO");
-#else /* !__UEFI__ */
     {
         extern u32 _ap_bootstrap_start[], _ap_bootstrap_end[];
         memcpy((void *)0x10000, (void *)_ap_bootstrap_start, (uintptr_t)_ap_bootstrap_end - (uintptr_t)_ap_bootstrap_start + 1);
     }
+
+#ifdef __UEFI__
+    HALT_ON_ERRORCOND(0 && "TODO");
+    // See __UEFI__ in initsup.S
+    // Probably better to split to i386 (non-UEFI) and amd64 (UEFI) versions.
 #endif /* __UEFI__ */
 
     //our test code is at 1000:0000, we need to send 10 as vector

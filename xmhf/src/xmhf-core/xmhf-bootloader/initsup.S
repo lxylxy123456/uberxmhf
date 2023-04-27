@@ -133,16 +133,18 @@ ud2
   shr $24, %eax
 
 #ifdef __UEFI__
-// TODO UEFI
-ud2
+  call 0f
+0:popl %edx
+  addl $(midtable_numentries-0b), %edx
 #else /* !__UEFI__ */
   movl midtable_numentries, %edx
 #endif /* __UEFI__ */
 
   //get vcpu virtual address of this CPU/core
 #ifdef __UEFI__
-// TODO UEFI
-ud2
+    call 0f
+0:  popl %ebx
+    addl $(midtable-0b), %ebx
 #else /* !__UEFI__ */
     movl $(midtable), %ebx
 #endif /* __UEFI__ */
@@ -186,8 +188,8 @@ gotvcpu:
 	init_gdt:
 	.word	init_gdt_end - init_gdt_start - 1
 #ifdef __UEFI__
-// TODO UEFI
-ud2
+  // TODO UEFI: Will be set up by C code.
+  .long 0
 #else /* !__UEFI__ */
 	.long	init_gdt_start
 #endif /* __UEFI__ */
