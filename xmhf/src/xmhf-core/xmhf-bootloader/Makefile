@@ -6,7 +6,11 @@ ASFLAGS := $(BASFLAGS)
 CCLIB := $(BCCLIB)
 
 # source files
-AS_SOURCES = header.S initsup.S
+AS_SOURCES =
+# TODO: begin removed for UEFI
+#AS_SOURCES += header.S
+# TODO: end removed for UEFI
+AS_SOURCES += initsup.S
 C_SOURCES = init.c smp.c cmdline.c
 ifeq ($(DRT), y)
 C_SOURCES += txt.c txt_acmod.c txt_heap.c txt_hash.c
@@ -72,10 +76,6 @@ ifdef SLBELOW64K_INTEGRITY_HASH
 CFLAGS += -D___SLBELOW64K_INTEGRITY_HASH___=\"$(SLBELOW64K_INTEGRITY_HASH)\"
 endif
 
-# TODO: begin added for UEFI
-#LDFLAGS += -shared
-# TODO: end added for UEFI
-
 
 # targets
 .PHONY: all
@@ -117,7 +117,7 @@ all: efi.efi fat.img cdimage.iso
 efi.o: efi.c
 	$(CC) $(EFI_CFLAGS) -c $< -o $@
 
-efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o efi.o ../xmhf-runtime/xmhf-debug/lib.i386.a cmdline.o init.o smp.o cmdline.o initsup.o
+efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS_BOOTLOADER) $(OBJECTS_PRECOMPILED_LIBBACKENDS)
 	$(LD) $(EFI_LDFLAGS) $^ $(EFI_LDLIBS) -o $@
 	chmod -x efi.so
 

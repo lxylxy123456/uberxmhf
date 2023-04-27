@@ -178,6 +178,8 @@ EFIDebugVariable (
     }
 }
 
+/* Removed for XMHF because XMHF already implements memset and memcpy. */
+#if 0
 /*
  * Calls to memset/memcpy may be emitted implicitly by GCC or MSVC
  * even when -ffreestanding or /NODEFAULTLIB are in effect.
@@ -207,3 +209,4 @@ void *memcpy(void *dest, const void *src, __SIZE_TYPE__ n)
 
     return dest;
 }
+#endif
