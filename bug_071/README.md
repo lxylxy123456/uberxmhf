@@ -3,7 +3,9 @@
 ## Scope
 * x64 XMHF, (maybe x86 XMHF)
 * New machines
-* Git `ca07e6b54`
+* Git `ca07e6b54` (when creating this bug)
+* Git `xmhf64 b8e4149e8` (when starting development)
+* Git `xmhf64-dev b32eb891f`
 
 ## Behavior
 On new machines, XMHF cannot boot, probably because new machines do not support
