@@ -50,6 +50,8 @@ export TARGET_HWPLATFORM := x86
 export XMHF_TARGET_PLATFORM := @TARGET_PLATFORM@
 export XMHF_TARGET_ARCH := @TARGET_ARCH@
 export TARGET_SUBARCH := @TARGET_SUBARCH@
+# TODO UEFI: make it a configuration option
+export TARGET_UEFI := y
 export AMD64_MAX_PHYS_ADDR := @AMD64_MAX_PHYS_ADDR@
 export SL_BASE := @SL_BASE@
 export OPT_FLAGS := @OPT_FLAGS@
@@ -125,11 +127,11 @@ LIBBAREMETAL_INC = $(foreach dir,$(LIBBAREMETAL_SUBLIBS),-I$(dir)/include)
 # libbaremetal build directory
 LIBBAREMETAL_BUILD = $(CURDIR)/_build_libbaremetal
 
-# TODO: begin added for UEFI
-# TODO: make it a configuration option
+ifeq ($(TARGET_UEFI), y)
+# TODO UEFI: make it a configuration option
 export GNUEFI_SRC := $(realpath ./xmhf/third-party/gnu-efi/)
 export GNUEFI_BUILD := $(CURDIR)/_build_gnuefi
-# TODO: end added for UEFI
+endif
 
 # For bootloader (always i386 regardless of runtime subarch), compile separate
 # i386 versions of libraries if runtime is amd64.
@@ -174,9 +176,9 @@ export LIB_SUBDIRS :=
 LIB_SUBDIRS += $(LIBBAREMETAL_BUILD)
 LIB_SUBDIRS += $(LIBTOMCRYPT_BUILD)
 LIB_SUBDIRS += $(LIBTOMMATH_BUILD)
-# TODO: begin added for UEFI
+ifeq ($(TARGET_UEFI), y)
 LIB_SUBDIRS += $(GNUEFI_BUILD)
-# TODO: end added for UEFI
+endif
 ifeq ($(TARGET_SUBARCH), amd64)
 LIB_SUBDIRS += $(LIBBAREMETAL_BUILD32)
 LIB_SUBDIRS += $(LIBTOMCRYPT_BUILD32)
@@ -382,12 +384,6 @@ BCFLAGS := $(CFLAGS)
 # __XMHF_I386__: XMHF runtime will run in i386 (32-bit)
 # __XMHF_AMD64__: XMHF runtime will run in amd64 (64-bit)
 
-# TODO: begin added for UEFI
-BCFLAGS := $(filter-out -fno-pic -fno-pie,$(BCFLAGS))
-BCFLAGS += -fpic -fpie
-BCFLAGS += -fshort-wchar
-# TODO: end added for UEFI
-
 ifeq ($(TARGET_SUBARCH), amd64)
 	CFLAGS += -D__AMD64__ -D__XMHF_AMD64__
 	BCFLAGS += -D__I386__ -D__XMHF_AMD64__
@@ -406,13 +402,19 @@ ifeq ($(TARGET_SUBARCH), i386)
 	BCFLAGS += -m32
 endif
 
-# TODO: begin added for UEFI
-BCFLAGS := $(filter-out -m32,$(BCFLAGS))
-BCFLAGS += -m64
-BCFLAGS := $(filter-out -D__I386__,$(BCFLAGS))
-BCFLAGS += -D__AMD64__
-BCFLAGS += -D__UEFI__
-# TODO: end added for UEFI
+ifeq ($(TARGET_UEFI), y)
+	BCFLAGS := $(filter-out -fno-pic -fno-pie,$(BCFLAGS))
+	BCFLAGS += -fpic -fpie
+	BCFLAGS += -fshort-wchar
+	BCFLAGS := $(filter-out -m32,$(BCFLAGS))
+	BCFLAGS += -m64
+	BCFLAGS := $(filter-out -D__I386__,$(BCFLAGS))
+	BCFLAGS += -D__AMD64__
+	BCFLAGS += -D__UEFI__
+	ifneq ($(TARGET_SUBARCH), amd64)
+		$(XMHF: UEFI only supported with amd64)
+	endif
+endif
 
 #-----export CFLAGS and ASFLAGS
 ASFLAGS = $(CFLAGS) -D__ASSEMBLY__
@@ -467,7 +469,7 @@ $(LIBBAREMETAL_BUILD):
 	@echo libbaremetal.a build SUCCESS
 	@echo ---------------------------------------------------------------
 
-# TODO: begin added for UEFI
+ifeq ($(TARGET_UEFI), y)
 $(GNUEFI_BUILD):
 	@echo ---------------------------------------------------------------
 	@echo Building gnu-efi...
@@ -477,7 +479,7 @@ $(GNUEFI_BUILD):
 	@echo ---------------------------------------------------------------
 	@echo gnu-efi build SUCCESS
 	@echo ---------------------------------------------------------------
-# TODO: end added for UEFI
+endif
 
 ifeq ($(TARGET_SUBARCH), amd64)
 
@@ -562,6 +564,15 @@ clean:
 	@echo ---------------------------------------------------------------
 	@echo libtommath and libtomcrypt clean SUCCESS...
 	@echo ---------------------------------------------------------------
+ifeq ($(TARGET_UEFI), y)
+	@echo ---------------------------------------------------------------
+	@echo Cleaning gnu-efi
+	@echo ---------------------------------------------------------------
+	rm -rf $(GNUEFI_BUILD)
+	@echo ---------------------------------------------------------------
+	@echo gnu-efi clean SUCCESS
+	@echo ---------------------------------------------------------------
+endif
 ifeq ($(TARGET_SUBARCH), amd64)
 	@echo ---------------------------------------------------------------
 	@echo Cleaning 32-bits external libraries...

@@ -7,9 +7,9 @@ CCLIB := $(BCCLIB)
 
 # source files
 AS_SOURCES =
-# TODO: begin removed for UEFI
-#AS_SOURCES += header.S
-# TODO: end removed for UEFI
+ifneq ($(TARGET_UEFI), y)
+AS_SOURCES += header.S
+endif
 AS_SOURCES += initsup.S
 C_SOURCES = init.c smp.c cmdline.c
 ifeq ($(DRT), y)
@@ -19,11 +19,11 @@ endif
 OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))
 OBJECTS += $(patsubst %.c, %.o, $(C_SOURCES))
 
-# TODO: begin added for UEFI
+ifeq ($(TARGET_UEFI), y)
 OBJECTS += $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o
-# TODO: ideally should be C_SOURCES
+# Note: efi.o is compiled differently with other object files
 OBJECTS += efi.o
-# TODO: end added for UEFI
+endif
 
 OBJECTS_PRECOMPILED = ../xmhf-runtime/xmhf-debug/lib.a
 
@@ -35,10 +35,11 @@ OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-tpm/arch/x86/vmx/tpm-x86vmx.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pci.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-acpi.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pit.o
-# TODO: begin modified for UEFI
-#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-i386-smplock.o
+ifeq ($(TARGET_UEFI), y)
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-amd64-smplock.o
-# TODO: end modified for UEFI
+else
+OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-i386-smplock.o
+endif
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
 
@@ -53,9 +54,9 @@ CFLAGS += $(ADDL_INCLUDES_BOOTLOADER)
 # separate from OBJECTS_PRECOMPILED becasue needs to come after libs on link line
 OBJECTS_PRECOMPILED_LIBBACKENDS = ../xmhf-runtime/xmhf-xmhfcbackend/xmhfc-putchar.o
 
-# TODO: begin added for UEFI
+ifeq ($(TARGET_UEFI), y)
 OBJECTS_PRECOMPILED_LIBBACKENDS += ../xmhf-runtime/xmhf-debug/lib.a
-# TODO: end added for UEFI
+endif
 
 I_SOURCES =  $(wildcard $(INCLUDEDIR)/*.h)
 
@@ -66,9 +67,7 @@ ifeq ($(TARGET_SUBARCH), amd64)
 OBJECTS_PRECOMPILED := $(patsubst %.o, %.i386.o, $(OBJECTS_PRECOMPILED))
 OBJECTS_PRECOMPILED := $(patsubst %.a, %.i386.a, $(OBJECTS_PRECOMPILED))
 OBJECTS_PRECOMPILED_LIBBACKENDS := $(patsubst %.o, %.i386.o, $(OBJECTS_PRECOMPILED_LIBBACKENDS))
-# TODO: begin added for UEFI
 OBJECTS_PRECOMPILED_LIBBACKENDS := $(patsubst %.a, %.i386.a, $(OBJECTS_PRECOMPILED_LIBBACKENDS))
-# TODO: end added for UEFI
 endif
 
 
@@ -92,11 +91,13 @@ endif
 
 # targets
 .PHONY: all
-# TODO: begin modified for UEFI
-#all: init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
-all:
+ifeq ($(TARGET_UEFI), y)
+# TODO UEFI: generate files
+all: fat.img
 	touch init-x86-amd64.bin
-# TODO: end modified for UEFI
+else
+all: init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
+endif
 
 # FIXME: ADDL_LIBS is overly general; init/ doesn't need all of them
 init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin: $(OBJECTS) $(OBJECTS_PRECOMPILED) init.lds.S
@@ -105,25 +106,24 @@ init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin: $(OBJECTS) $(OBJECTS_PRECOMPILE
 	$(STRIP) -s init.exe
 	$(OBJCOPY) --output-format=binary init.exe init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
 
-# TODO: begin added for UEFI
+ifeq ($(TARGET_UEFI), y)
+
+# CFLAGS from gnu-efi tutorial
 EFI_CFLAGS = -I$(GNUEFI_SRC)/inc
 EFI_CFLAGS += -Wall -Werror
 EFI_CFLAGS += -g
 EFI_CFLAGS += -fpic -ffreestanding -fno-stack-protector -fno-stack-check
 EFI_CFLAGS += -fshort-wchar -mno-red-zone -maccumulate-outgoing-args
 
+# LD flags from gnu-efi tutorial
 EFI_LDFLAGS = -shared -Bsymbolic -L$(GNUEFI_BUILD)/x86_64/lib
 EFI_LDFLAGS += -L$(GNUEFI_BUILD)/x86_64/gnuefi
 EFI_LDLIBS = -lgnuefi -lefi
 
+# OBJCOPY flags from gnu-efi tutorial
 OBJCOPY_FLAGS = -j .text -j .sdata -j .data -j .dynamic -j .dynsym  -j .rel
 OBJCOPY_FLAGS += -j .rela -j .rel.* -j .rela.* -j .reloc
 OBJCOPY_FLAGS += --target efi-app-x86_64 --subsystem=12
-
-# TODO
-all: efi.efi fat.img cdimage.iso
-
-# TODO: add make clean
 
 # TODO: rename efi -> init
 efi.o: efi.c
@@ -145,13 +145,7 @@ fat.img: efi.efi startup.nsh
 	for i in $^; do mcopy -i fat.img "$$i" ::/EFI/BOOT; done
 	# If BOOTX64.EFI is present and startup.nsh is not, will run automatically.
 
-cdimage.iso: fat.img
-	mkdir iso
-	ln fat.img iso
-	xorriso -as mkisofs -R -f -e fat.img -no-emul-boot -o cdimage.iso iso
-	rm iso/fat.img
-	rm -d iso
-# TODO: end added for UEFI
+endif
 
 .PHONY: clean
 clean:
@@ -159,4 +153,5 @@ clean:
 	$(RM) -rf *.exe
 	$(RM) -rf *.bin
 	$(RM) -rf *.gz
+	$(RM) -f fat.img efi.so efi.efi
 
