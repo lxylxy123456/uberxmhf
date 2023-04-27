@@ -151,6 +151,7 @@ void send_init_ipi_to_all_APs(void) {
 
 
 
+#ifndef __UEFI__
 //---E820 parsing and handling--------------------------------------------------
 //runtimesize is assumed to be 2M aligned
 u32 dealwithE820(multiboot_info_t *mbi, u32 runtimesize __attribute__((unused))){
@@ -307,6 +308,7 @@ u32 dealwithE820(multiboot_info_t *mbi, u32 runtimesize __attribute__((unused)))
     }
 
 }
+#endif /* !__UEFI__ */
 
 #ifdef __DRT__
 
@@ -887,18 +889,26 @@ void setupvcpus(u32 cpu_vendor, MIDTAB *midtable, u32 midtable_numentries){
            (size_t)SIZE_STRUCT_VCPU);
 
     for(i=0; i < midtable_numentries; i++){
+        hva_t esp;
         vcpu = (VCPU *)((uintptr_t)vcpubuffers + (i * SIZE_STRUCT_VCPU));
         memset((void *)vcpu, 0, sizeof(VCPU));
 
         vcpu->cpu_vendor = cpu_vendor;
 
-        vcpu->esp = ((uintptr_t)cpustacks + (i * RUNTIME_STACK_SIZE)) + RUNTIME_STACK_SIZE;
+        esp = ((uintptr_t)cpustacks + (i * RUNTIME_STACK_SIZE)) + RUNTIME_STACK_SIZE;
+#ifdef __I386__
+        vcpu->esp = esp;
+#elif defined(__AMD64__)
+        vcpu->rsp = esp;
+#else
+    #error "Unsupported Arch"
+#endif /* __I386__ */
         vcpu->id = midtable[i].cpu_lapic_id;
 
         midtable[i].vcpu_vaddr_ptr = (uintptr_t)vcpu;
         printf("CPU #%u: vcpu_vaddr_ptr=0x%08lx, esp=0x%08lx\n", i,
                (uintptr_t)midtable[i].vcpu_vaddr_ptr,
-               (uintptr_t)vcpu->esp);
+               (uintptr_t)esp);
     }
 }
 
@@ -915,10 +925,14 @@ void wakeupAPs(void){
 
     icr = (u32 *) (((u32)eax & 0xFFFFF000UL) + 0x300);
 
+#ifdef __UEFI__
+    HALT_ON_ERRORCOND(0 && "TODO");
+#else /* !__UEFI__ */
     {
         extern u32 _ap_bootstrap_start[], _ap_bootstrap_end[];
         memcpy((void *)0x10000, (void *)_ap_bootstrap_start, (uintptr_t)_ap_bootstrap_end - (uintptr_t)_ap_bootstrap_start + 1);
     }
+#endif /* __UEFI__ */
 
     //our test code is at 1000:0000, we need to send 10 as vector
     //send INIT
@@ -986,7 +1000,12 @@ void cstartup(multiboot_info_t *mbi){
 
     /* parse command line */
     memset(g_cmdline, '\0', sizeof(g_cmdline));
+#ifdef __UEFI__
+    (void)mbi;
+    HALT_ON_ERRORCOND(0 && "TODO");
+#else /* !__UEFI__ */
     strncpy(g_cmdline, (char*)mbi->cmdline, sizeof(g_cmdline)-1);
+#endif /* __UEFI__ */
     g_cmdline[sizeof(g_cmdline)-1] = '\0'; /* in case strncpy truncated */
     tboot_parse_cmdline();
 
@@ -1004,8 +1023,12 @@ void cstartup(multiboot_info_t *mbi){
 	xmhf_debug_init((char *)&g_uart_config);
 #endif
 
+#ifdef __UEFI__
+    HALT_ON_ERRORCOND(0 && "TODO");
+#else /* !__UEFI__ */
     mod_array = (module_t*)mbi->mods_addr;
     mods_count = mbi->mods_count;
+#endif /* __UEFI__ */
 
 	//welcome banner
 	printf("eXtensible Modular Hypervisor Framework (XMHF) %s\n", ___XMHF_BUILD_VERSION___);
@@ -1021,7 +1044,11 @@ void cstartup(multiboot_info_t *mbi){
 //	printf("HALT\n");
 //	HALT();
 
+#ifdef __UEFI__
+    HALT_ON_ERRORCOND(0 && "TODO");
+#else /* !__UEFI__ */
     printf("INIT(early): initializing, total modules=%u\n", mods_count);
+#endif /* __UEFI__ */
 
     //check CPU type (Intel vs AMD)
     cpu_vendor = get_cpu_vendor_or_die(); // HALT()'s if unrecognized
@@ -1030,11 +1057,15 @@ void cstartup(multiboot_info_t *mbi){
         printf("INIT(early): detected an Intel CPU\n");
 
 #ifdef __DRT__
+#ifdef __UEFI__
+        HALT_ON_ERRORCOND(0 && "TODO");
+#else /* !__UEFI__ */
         /* Intel systems require an SINIT module */
         if(!txt_parse_sinit(mod_array, mods_count)) {
             printf("INIT(early): FATAL ERROR: Intel CPU without SINIT module!\n");
             HALT();
         }
+#endif /* __UEFI__ */
 #endif /* __DRT__ */
     } else if(CPU_VENDOR_AMD == cpu_vendor) {
         printf("INIT(early): detected an AMD CPU\n");
@@ -1068,12 +1099,19 @@ void cstartup(multiboot_info_t *mbi){
     sl_rt_size = sl_rt_nonzero_size;
 
 #ifdef __SKIP_RUNTIME_BSS__
+#ifdef __UEFI__
+    HALT_ON_ERRORCOND(0 && "TODO");
+#else /* !__UEFI__ */
     {
         RPB *rpb = (RPB *) (mod_array[0].mod_start + 0x200000);
         sl_rt_size = PAGE_ALIGN_UP_2M((u32)rpb->XtVmmRuntimeBssEnd - __TARGET_BASE_SL);
     }
+#endif /* __UEFI__ */
 #endif /* __SKIP_RUNTIME_BSS__ */
 
+#ifdef __UEFI__
+    HALT_ON_ERRORCOND(0 && "TODO");
+#else /* !__UEFI__ */
     hypervisor_image_baseaddress = dealwithE820(mbi, PAGE_ALIGN_UP_2M((sl_rt_size)));
 
     //check whether multiboot modules overlap with SL+RT. mod_array[0] can
@@ -1095,6 +1133,7 @@ void cstartup(multiboot_info_t *mbi){
     //relocate the hypervisor binary to the above calculated address
     HALT_ON_ERRORCOND(sl_rt_nonzero_size <= sl_rt_size);
     memmove((void*)hypervisor_image_baseaddress, (void*)mod_array[0].mod_start, sl_rt_nonzero_size);
+#endif /* __UEFI__ */
 
     HALT_ON_ERRORCOND(sl_rt_size > 0x200000); /* 2M */
 
@@ -1116,10 +1155,14 @@ void cstartup(multiboot_info_t *mbi){
                  (u8*)hypervisor_image_baseaddress+0x10000, 0x200000-0x10000);
 #endif /* !__SKIP_BOOTLOADER_HASH__ */
 
+#ifdef __UEFI__
+    HALT_ON_ERRORCOND(0 && "TODO");
+#else /* !__UEFI__ */
     //print out stats
     printf("INIT(early): relocated hypervisor binary image to 0x%08lx\n", hypervisor_image_baseaddress);
     printf("INIT(early): 2M aligned size = 0x%08lx\n", PAGE_ALIGN_UP_2M((mod_array[0].mod_end - mod_array[0].mod_start)));
     printf("INIT(early): un-aligned size = 0x%08x\n", mod_array[0].mod_end - mod_array[0].mod_start);
+#endif /* __UEFI__ */
 
     //fill in "sl" parameter block
     {
@@ -1168,7 +1211,11 @@ void cstartup(multiboot_info_t *mbi){
 #if defined (__DEBUG_SERIAL__)
         slpb->uart_config = g_uart_config;
 #endif
+#ifdef __UEFI__
+        HALT_ON_ERRORCOND(0 && "TODO");
+#else /* !__UEFI__ */
         strncpy(slpb->cmdline, (const char *)mbi->cmdline, sizeof(slpb->cmdline));
+#endif /* __UEFI__ */
     }
 
     //switch to MP mode

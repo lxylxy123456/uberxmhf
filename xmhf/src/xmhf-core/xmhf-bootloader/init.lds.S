@@ -88,10 +88,6 @@ SECTIONS
     *(.bss.*)
     *(.rel.bss)
     *(.rel.bss.*)
-    /* TODO: begin added for UEFI */
-    *(.got)
-    *(.got.plt)
-    /* TODO: end added for UEFI */
     . = ALIGN(4096);
   } =0x9090
 
