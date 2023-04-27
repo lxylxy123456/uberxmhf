@@ -19,6 +19,12 @@ endif
 OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))
 OBJECTS += $(patsubst %.c, %.o, $(C_SOURCES))
 
+# TODO: begin added for UEFI
+OBJECTS += $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o
+# TODO: ideally should be C_SOURCES
+OBJECTS += efi.o
+# TODO: end added for UEFI
+
 OBJECTS_PRECOMPILED = ../xmhf-runtime/xmhf-debug/lib.a
 
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-tpm/tpm-interface.o
@@ -47,6 +53,10 @@ CFLAGS += $(ADDL_INCLUDES_BOOTLOADER)
 # separate from OBJECTS_PRECOMPILED becasue needs to come after libs on link line
 OBJECTS_PRECOMPILED_LIBBACKENDS = ../xmhf-runtime/xmhf-xmhfcbackend/xmhfc-putchar.o
 
+# TODO: begin added for UEFI
+OBJECTS_PRECOMPILED_LIBBACKENDS += ../xmhf-runtime/xmhf-debug/lib.a
+# TODO: end added for UEFI
+
 I_SOURCES =  $(wildcard $(INCLUDEDIR)/*.h)
 
 
@@ -56,6 +66,9 @@ ifeq ($(TARGET_SUBARCH), amd64)
 OBJECTS_PRECOMPILED := $(patsubst %.o, %.i386.o, $(OBJECTS_PRECOMPILED))
 OBJECTS_PRECOMPILED := $(patsubst %.a, %.i386.a, $(OBJECTS_PRECOMPILED))
 OBJECTS_PRECOMPILED_LIBBACKENDS := $(patsubst %.o, %.i386.o, $(OBJECTS_PRECOMPILED_LIBBACKENDS))
+# TODO: begin added for UEFI
+OBJECTS_PRECOMPILED_LIBBACKENDS := $(patsubst %.a, %.i386.a, $(OBJECTS_PRECOMPILED_LIBBACKENDS))
+# TODO: end added for UEFI
 endif
 
 
@@ -101,7 +114,6 @@ EFI_CFLAGS += -fshort-wchar -mno-red-zone -maccumulate-outgoing-args
 
 EFI_LDFLAGS = -shared -Bsymbolic -L$(GNUEFI_BUILD)/x86_64/lib
 EFI_LDFLAGS += -L$(GNUEFI_BUILD)/x86_64/gnuefi
-EFI_LDFLAGS += -T$(GNUEFI_SRC)/gnuefi/elf_x86_64_efi.lds
 EFI_LDLIBS = -lgnuefi -lefi
 
 OBJCOPY_FLAGS = -j .text -j .sdata -j .data -j .dynamic -j .dynsym  -j .rel
@@ -117,13 +129,13 @@ all: efi.efi fat.img cdimage.iso
 efi.o: efi.c
 	$(CC) $(EFI_CFLAGS) -c $< -o $@
 
-efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o efi.o $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS_BOOTLOADER) $(OBJECTS_PRECOMPILED_LIBBACKENDS)
-	$(LD) $(EFI_LDFLAGS) $^ $(EFI_LDLIBS) -o $@
-	chmod -x efi.so
+efi.so: $(OBJECTS) $(OBJECTS_PRECOMPILED) $(GNUEFI_SRC)/gnuefi/elf_x86_64_efi.lds
+	$(LD) $(EFI_LDFLAGS) -T$(GNUEFI_SRC)/gnuefi/elf_x86_64_efi.lds $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS_BOOTLOADER) $(OBJECTS_PRECOMPILED_LIBBACKENDS) $(EFI_LDLIBS) -o $@
+	chmod -x $@
 
 efi.efi: efi.so
 	objcopy $(OBJCOPY_FLAGS) efi.so efi.efi
-	chmod -x efi.efi
+	chmod -x $@
 
 fat.img: efi.efi startup.nsh
 	dd if=/dev/zero of=fat.img bs=1k count=1440
