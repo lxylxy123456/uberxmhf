@@ -117,7 +117,7 @@ all: efi.efi fat.img cdimage.iso
 efi.o: efi.c
 	$(CC) $(EFI_CFLAGS) -c $< -o $@
 
-efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o efi.o ../xmhf-runtime/xmhf-debug/lib.i386.a cmdline.o init.o
+efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o efi.o ../xmhf-runtime/xmhf-debug/lib.i386.a cmdline.o init.o smp.o
 	$(LD) $(EFI_LDFLAGS) $^ $(EFI_LDLIBS) -o $@
 	chmod -x efi.so
 
