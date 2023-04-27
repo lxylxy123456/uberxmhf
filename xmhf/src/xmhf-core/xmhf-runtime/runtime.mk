@@ -2,13 +2,15 @@
 # author: Eric Li (xiaoyili@andrew.cmu.edu)
 #
 # Currently there are two subarch configurations:
-#   * Boot loader is i386, secure loader and runtime are also i386
-#   * Boot loader is i386, secure loader and runtime are amd64
+#   * Boot loader is i386 BIOS booting, secure loader and runtime are also i386
+#   * Boot loader is i386 BIOS booting, secure loader and runtime are amd64
+#   * Boot loader is amd64 UEFI booting, secure loader and runtime are amd64
 #
 # In the first case, object files need to be only compiled once. In the second
 # case, objects needed by the boot loader need to be copied in both i386 and
-# amd64. So each component needs to declare whether a source is needed by the
-# bootloader.
+# amd64. In the third case, boot loader's object files need to be compiled
+# differently (need GCC -fpic). So each component needs to declare whether a
+# source is needed by the bootloader.
 #
 # These variables should have been already defined when including this file
 #   * C_SOURCES: .c files needed by secure loader / runtime
@@ -24,7 +26,7 @@
 # This file will define these targets
 #   * all: the default target, contains OBJECTS and OBJECTS_BL
 #   * *.o: built for secure loader / runtime
-#   * *.i386.o: built for boot loader when runtime is amd64
+#   * *.bl.o: built for boot loader when runtime is amd64
 #   * clean: remove object files and EXTRA_CLEAN
 
 _AS_OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))
@@ -45,17 +47,17 @@ $(_AS_OBJECTS): %.o: %.S $(M_SOURCES)
 $(_C_OBJECTS): %.o: %.c $(M_SOURCES)
 	$(CC) -c $(CFLAGS) $(DEPFLAGS) -o $@ $<
 
-# If runtime is amd64, compile i386 version of object files for bootloader
+# If runtime is amd64, compile bootloader version of object files
 ifeq ($(TARGET_SUBARCH), amd64)
-_AS_OBJECTS_BL = $(patsubst %.S, %.i386.o, $(AS_SOURCES_BL))
-_C_OBJECTS_BL = $(patsubst %.c, %.i386.o, $(C_SOURCES_BL))
+_AS_OBJECTS_BL = $(patsubst %.S, %.bl.o, $(AS_SOURCES_BL))
+_C_OBJECTS_BL = $(patsubst %.c, %.bl.o, $(C_SOURCES_BL))
 OBJECTS_BL = $(_AS_OBJECTS_BL) $(_C_OBJECTS_BL)
 
 all: $(OBJECTS_BL)
 
-$(_AS_OBJECTS_BL): %.i386.o: %.S $(M_SOURCES)
+$(_AS_OBJECTS_BL): %.bl.o: %.S $(M_SOURCES)
 	$(CC32) -c $(BASFLAGS) $(DEPFLAGS) -o $@ $<
-$(_C_OBJECTS_BL): %.i386.o: %.c $(M_SOURCES)
+$(_C_OBJECTS_BL): %.bl.o: %.c $(M_SOURCES)
 	$(CC32) -c $(BCFLAGS) $(DEPFLAGS) -o $@ $<
 endif
 
