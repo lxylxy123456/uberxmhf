@@ -94,6 +94,13 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 		Print(L"Allocated: %p\n", addr);
 	}
 
+	/* Call XMHF init */
+	{
+		// TODO: pass arguments
+		extern void cstartup(void *mbi);
+		cstartup(NULL);
+	}
+
 	/* Prevent exiting, useful if not using EFI shell. */
 	if (0) {
 		Print(L"Completed\n");
