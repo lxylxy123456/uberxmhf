@@ -41,6 +41,16 @@ AC_ARG_WITH([amd64_max_phys_addr],
                 , [with_amd64_max_phys_addr=0x400000000])
 AMD64_MAX_PHYS_ADDR=$[]with_amd64_max_phys_addr
 
+# UEFI?
+AC_SUBST([TARGET_UEFI])
+AC_ARG_ENABLE([target_uefi],
+        AS_HELP_STRING([--enable-target-uefi@<:@=yes|no@:>@],
+                [enable target UEFI]),
+                , [enable_target_uefi=no])
+AS_IF([test "x${enable_target_uefi}" != "xno"],
+      [TARGET_UEFI=y],
+      [TARGET_UEFI=n])
+
 # find path to -lgcc
 AC_SUBST([CCLIB])
 AS_IF([test "x${with_target_subarch}" != "xamd64"],
@@ -329,6 +339,17 @@ LIBTOMCRYPT_SRC=$[]with_libtomcryptsrc
 AC_CHECK_FILE([${LIBTOMCRYPT_SRC}/src/headers/tomcrypt.h],
         ,
         AC_MSG_FAILURE([libtomcrypt not found at "${LIBTOMCRYPT_SRC}"]))
+
+# gnu-efi source directory
+AC_SUBST([GNUEFI_SRC])
+AC_ARG_WITH([gnuefisrc],
+        AS_HELP_STRING([--with-gnuefisrc=@<:@path@:>@],
+                [path to gnu-efi source directory]),
+                , [with_gnuefisrc=./xmhf/third-party/gnu-efi])
+GNUEFI_SRC=$[]with_gnuefisrc
+AC_CHECK_FILE([${GNUEFI_SRC}/inc/efi.h],
+        ,
+        AC_MSG_FAILURE([gnu-efi not found at "${GNUEFI_SRC}"]))
 
 # EMHF app root directory
 AC_SUBST([APP_ROOT])
