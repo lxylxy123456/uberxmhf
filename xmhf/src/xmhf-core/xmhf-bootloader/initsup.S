@@ -95,9 +95,12 @@
       movw %ax, %fs
       movw %ax, %gs
 
-// TODO: begin removed for UEFI
-//      movl $init_core_lowlevel_setup, %eax
-// TODO: end removed for UEFI
+#ifdef __UEFI__
+// TODO UEFI
+ud2
+#else /* !__UEFI__ */
+      movl $init_core_lowlevel_setup, %eax
+#endif /* __UEFI__ */
       jmpl *%eax
       hlt
 
@@ -114,9 +117,12 @@
   init_core_lowlevel_setup:
 
 	//load our gdt
-// TODO: begin removed for UEFI
-//  lgdt init_gdt
-// TODO: end removed for UEFI
+#ifdef __UEFI__
+// TODO UEFI
+ud2
+#else /* !__UEFI__ */
+  lgdt init_gdt
+#endif /* __UEFI__ */
 
   //get hold of local APIC id
   mov $(MSR_APIC_BASE), %ecx
@@ -126,14 +132,20 @@
   movl (%eax), %eax
   shr $24, %eax
 
-// TODO: begin removed for UEFI
-//  movl midtable_numentries, %edx
-// TODO: end removed for UEFI
+#ifdef __UEFI__
+// TODO UEFI
+ud2
+#else /* !__UEFI__ */
+  movl midtable_numentries, %edx
+#endif /* __UEFI__ */
 
   //get vcpu virtual address of this CPU/core
-// TODO: begin removed for UEFI
-//    movl $(midtable), %ebx
-// TODO: end removed for UEFI
+#ifdef __UEFI__
+// TODO UEFI
+ud2
+#else /* !__UEFI__ */
+    movl $(midtable), %ebx
+#endif /* __UEFI__ */
     xorl %ecx, %ecx
 getvcpuloop:
 #ifdef __XMHF_I386__
@@ -173,9 +185,12 @@ gotvcpu:
 	//the GDT
 	init_gdt:
 	.word	init_gdt_end - init_gdt_start - 1
-// TODO: begin removed for UEFI
-//	.long	init_gdt_start
-// TODO: end removed for UEFI
+#ifdef __UEFI__
+// TODO UEFI
+ud2
+#else /* !__UEFI__ */
+	.long	init_gdt_start
+#endif /* __UEFI__ */
 
 	.align	16
 	init_gdt_start:
