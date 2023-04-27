@@ -25,7 +25,10 @@ OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-tpm/arch/x86/vmx/tpm-x86vmx.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pci.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-acpi.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pit.o
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-i386-smplock.o
+# TODO: begin modified for UEFI
+#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-i386-smplock.o
+OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-amd64-smplock.o
+# TODO: end modified for UEFI
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
 
@@ -76,7 +79,11 @@ endif
 
 # targets
 .PHONY: all
-all: init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
+# TODO: begin modified for UEFI
+#all: init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
+all:
+	touch init-x86-amd64.bin
+# TODO: end modified for UEFI
 
 # FIXME: ADDL_LIBS is overly general; init/ doesn't need all of them
 init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin: $(OBJECTS) $(OBJECTS_PRECOMPILED) init.lds.S
@@ -110,7 +117,7 @@ all: efi.efi fat.img cdimage.iso
 efi.o: efi.c
 	$(CC) $(EFI_CFLAGS) -c $< -o $@
 
-efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o efi.o
+efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o efi.o ../xmhf-runtime/xmhf-debug/lib.i386.a
 	$(LD) $(EFI_LDFLAGS) $^ $(EFI_LDLIBS) -o $@
 	chmod -x efi.so
 

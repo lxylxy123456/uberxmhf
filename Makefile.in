@@ -406,6 +406,14 @@ ifeq ($(TARGET_SUBARCH), i386)
 	BCFLAGS += -m32
 endif
 
+# TODO: begin added for UEFI
+BCFLAGS := $(filter-out -m32,$(BCFLAGS))
+BCFLAGS += -m64
+BCFLAGS := $(filter-out -D__I386__,$(BCFLAGS))
+BCFLAGS += -D__AMD64__
+BCFLAGS += -D__UEFI__
+# TODO: end added for UEFI
+
 #-----export CFLAGS and ASFLAGS
 ASFLAGS = $(CFLAGS) -D__ASSEMBLY__
 BASFLAGS = $(BCFLAGS) -D__ASSEMBLY__
