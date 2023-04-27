@@ -2,7 +2,7 @@
 FS0:
 cd EFI
 cd BOOT
-load efi.efi
+load init-x86-amd64.efi
 
 # Sleep 5
 stall 5000000

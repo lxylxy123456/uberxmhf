@@ -3,6 +3,7 @@
 
 # e.g. init-x86-i386.bin or init-x86-amd64.bin
 INIT_BIN := init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
+INIT_EFI := init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).efi
 
 # e.g. hypervisor-x86-i386.bin.gz or hypervisor-x86-amd64.bin.gz
 HYPERVISOR_BIN_GZ := hypervisor-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin.gz
@@ -37,13 +38,19 @@ bootloader: secureloader runtime
 # $(HYPERVISOR_BIN_GZ) a phony target and always make it.
 .PHONY: $(HYPERVISOR_BIN_GZ)
 $(HYPERVISOR_BIN_GZ): runtime secureloader bootloader
-	# concatenate sl image and runtime image 
+	# concatenate sl image and runtime image
 	$(CAT) ./xmhf-secureloader/sl.bin ./xmhf-runtime/runtime.bin > ./hypervisor.tmp.img
 	gzip -c ./hypervisor.tmp.img > $(HYPERVISOR_BIN_GZ)
-	$(RM) -rf ./hypervisor.tmp.img 
+	$(RM) -rf ./hypervisor.tmp.img
 	# install loader and runtime images to INSTALLDIR
+ifeq ($(TARGET_UEFI), y)
+	$(CP) ./xmhf-bootloader/$(INIT_EFI) $(HYPOUTDIR)/$(INIT_EFI)
+	# TODO UEFI: Can we decomress gz in UEFI?
+	$(CP) $(HYPERVISOR_BIN_GZ) $(HYPOUTDIR)/$(HYPERVISOR_BIN_GZ)
+else
 	$(CP) ./xmhf-bootloader/$(INIT_BIN) $(HYPOUTDIR)/$(INIT_BIN)
 	$(CP) $(HYPERVISOR_BIN_GZ) $(HYPOUTDIR)/$(HYPERVISOR_BIN_GZ)
+endif
 
 
 # cleanup rules
@@ -60,6 +67,7 @@ clean:
 
 	rm -rf ./$(HYPERVISOR_BIN_GZ)
 	$(RM) -rf $(HYPOUTDIR)/$(INIT_BIN)
+	$(RM) -rf $(HYPOUTDIR)/$(INIT_EFI)
 	$(RM) -rf $(HYPOUTDIR)/$(HYPERVISOR_BIN_GZ)
 
 

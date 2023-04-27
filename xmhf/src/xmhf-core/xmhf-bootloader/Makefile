@@ -92,9 +92,7 @@ endif
 # targets
 .PHONY: all
 ifeq ($(TARGET_UEFI), y)
-# TODO UEFI: generate files
-all: fat.img
-	touch init-x86-amd64.bin
+all: init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).efi
 else
 all: init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
 endif
@@ -125,25 +123,16 @@ OBJCOPY_FLAGS = -j .text -j .sdata -j .data -j .dynamic -j .dynsym  -j .rel
 OBJCOPY_FLAGS += -j .rela -j .rel.* -j .rela.* -j .reloc
 OBJCOPY_FLAGS += --target efi-app-x86_64 --subsystem=12
 
-# TODO: rename efi -> init
 efi.o: efi.c
 	$(CC) $(EFI_CFLAGS) -c $< -o $@
 
-efi.so: $(OBJECTS) $(OBJECTS_PRECOMPILED) $(GNUEFI_SRC)/gnuefi/elf_x86_64_efi.lds
+init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).so: $(OBJECTS) $(OBJECTS_PRECOMPILED) $(GNUEFI_SRC)/gnuefi/elf_x86_64_efi.lds
 	$(LD) $(EFI_LDFLAGS) -T$(GNUEFI_SRC)/gnuefi/elf_x86_64_efi.lds $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS_BOOTLOADER) $(OBJECTS_PRECOMPILED_LIBBACKENDS) $(EFI_LDLIBS) -o $@
 	chmod -x $@
 
-efi.efi: efi.so
-	objcopy $(OBJCOPY_FLAGS) efi.so efi.efi
+init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).efi: init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).so
+	objcopy $(OBJCOPY_FLAGS) $^ $@
 	chmod -x $@
-
-fat.img: efi.efi startup.nsh
-	dd if=/dev/zero of=fat.img bs=1k count=1440
-	mformat -i fat.img -f 1440 ::
-	mmd -i fat.img ::/EFI
-	mmd -i fat.img ::/EFI/BOOT
-	for i in $^; do mcopy -i fat.img "$$i" ::/EFI/BOOT; done
-	# If BOOTX64.EFI is present and startup.nsh is not, will run automatically.
 
 endif
 
@@ -153,5 +142,6 @@ clean:
 	$(RM) -rf *.exe
 	$(RM) -rf *.bin
 	$(RM) -rf *.gz
-	$(RM) -f fat.img efi.so efi.efi
+	$(RM) -rf *.so
+	$(RM) -rf *.efi
 
