@@ -896,8 +896,9 @@ void setupvcpus(u32 cpu_vendor, MIDTAB *midtable, u32 midtable_numentries){
         vcpu->id = midtable[i].cpu_lapic_id;
 
         midtable[i].vcpu_vaddr_ptr = (uintptr_t)vcpu;
-        printf("CPU #%u: vcpu_vaddr_ptr=0x%08lx, esp=0x%08lx\n", i, midtable[i].vcpu_vaddr_ptr,
-               vcpu->esp);
+        printf("CPU #%u: vcpu_vaddr_ptr=0x%08lx, esp=0x%08lx\n", i,
+               (uintptr_t)midtable[i].vcpu_vaddr_ptr,
+               (uintptr_t)vcpu->esp);
     }
 }
 

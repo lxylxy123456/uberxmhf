@@ -128,7 +128,14 @@
     movl $(midtable), %ebx
     xorl %ecx, %ecx
 getvcpuloop:
+#ifdef __XMHF_I386__
     movl 0x0(%ebx, %ecx, 8), %ebp  //ebp contains the lapic id
+#elif defined(__XMHF_AMD64__)
+    leal 0x0(%ebx, %ecx, 8), %esp
+    movl 0x0(%esp, %ecx, 8), %ebp  //ebp contains the lapic id
+#else
+    #error "Unsupported Arch"
+#endif /* __I386__ */
     cmpl %eax, %ebp
     jz gotvcpu
     incl %ecx
@@ -137,7 +144,13 @@ getvcpuloop:
     //we should never get here, if so just halt
     hlt
 gotvcpu:
+#ifdef __XMHF_I386__
    movl 0x4(%ebx, %ecx, 8), %esi //esi contains vcpu pointer
+#elif defined(__XMHF_AMD64__)
+   movl 0x8(%esp, %ecx, 8), %esi //esi contains vcpu pointer
+#else
+    #error "Unsupported Arch"
+#endif /* __I386__ */
    movl 0x0(%esi), %esp     //load stack for this CPU
    pushl %esi
    call mp_cstartup
