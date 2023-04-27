@@ -62,7 +62,7 @@ u32 isbsp(void);
 PCPU pcpus[MAX_PCPU_ENTRIES];
 u32 pcpus_numentries=0;
 u32 cpu_vendor;    //CPU_VENDOR_INTEL or CPU_VENDOR_AMD
-u32 hypervisor_image_baseaddress;    //2M aligned highest physical memory address
+uintptr_t hypervisor_image_baseaddress;    //2M aligned highest physical memory address
 //where the hypervisor binary is relocated to
 GRUBE820 grube820list[MAX_E820_ENTRIES];
 u32 grube820list_numentries=0;        //actual number of e820 entries returned
@@ -816,7 +816,7 @@ static bool svm_prepare_cpu(void)
 //inputs:
 //cpu_vendor = intel or amd
 //slbase= physical memory address of start of sl
-void do_drtm(VCPU __attribute__((unused))*vcpu, u32 slbase, size_t mle_size __attribute__((unused))){
+void do_drtm(VCPU __attribute__((unused))*vcpu, uintptr_t slbase, size_t mle_size __attribute__((unused))){
 #ifdef __MP_VERSION__
     HALT_ON_ERRORCOND(vcpu->id == 0);
     //send INIT IPI to all APs
@@ -843,7 +843,7 @@ void do_drtm(VCPU __attribute__((unused))*vcpu, u32 slbase, size_t mle_size __at
             slpb->rdtsc_before_drtm = rdtsc64();
         }
 		#endif
-        skinit((u32)slbase);
+        skinit(slbase);
     } else {
         printf("\n******  INIT(early): Begin TXT Stuff  ******\n");
         txt_do_senter((void*)(slbase+3*PAGE_SIZE_4K), TEMPORARY_HARDCODED_MLE_SIZE);
@@ -854,16 +854,16 @@ void do_drtm(VCPU __attribute__((unused))*vcpu, u32 slbase, size_t mle_size __at
 #else  //!__DRT__
 	//don't use SKINIT or SENTER
 	{
-		u32 sl_entry_point;
+		uintptr_t sl_entry_point;
 		u16 *sl_entry_point_offset = (u16 *)slbase;
 		typedef void(*FCALL)(void);
 		FCALL invokesl;
 
 		printf("\n****** NO DRTM startup ******\n");
-		printf("slbase=0x%08x, sl_entry_point_offset=0x%08x\n", (u32)slbase, *sl_entry_point_offset);
-		sl_entry_point = (u32)slbase + (u32) (*sl_entry_point_offset);
-		invokesl = (FCALL)(u32)sl_entry_point;
-		printf("SL entry point to transfer control to: 0x%08x\n", invokesl);
+		printf("slbase=0x%08lx, sl_entry_point_offset=0x%08hx\n", slbase, *sl_entry_point_offset);
+		sl_entry_point = slbase + (uintptr_t)(*sl_entry_point_offset);
+		invokesl = (FCALL)sl_entry_point;
+		printf("SL entry point to transfer control to: 0x%08lx\n", invokesl);
 		invokesl();
         printf("INIT(early): error(fatal), should never come here!\n");
         HALT();
@@ -1078,6 +1078,7 @@ void cstartup(multiboot_info_t *mbi){
     //will panic if other mod_array[i] overlaps with SL+RT.
     {
         u32 i;
+        _Static_assert(sizeof(hypervisor_image_baseaddress) == 4, "!");
         u32 sl_rt_start = hypervisor_image_baseaddress;
         u32 sl_rt_end;
         HALT_ON_ERRORCOND(!plus_overflow_u32(sl_rt_start, sl_rt_size));
@@ -1113,14 +1114,14 @@ void cstartup(multiboot_info_t *mbi){
 #endif /* !__SKIP_BOOTLOADER_HASH__ */
 
     //print out stats
-    printf("INIT(early): relocated hypervisor binary image to 0x%08x\n", hypervisor_image_baseaddress);
+    printf("INIT(early): relocated hypervisor binary image to 0x%08lx\n", hypervisor_image_baseaddress);
     printf("INIT(early): 2M aligned size = 0x%08lx\n", PAGE_ALIGN_UP_2M((mod_array[0].mod_end - mod_array[0].mod_start)));
     printf("INIT(early): un-aligned size = 0x%08x\n", mod_array[0].mod_end - mod_array[0].mod_start);
 
     //fill in "sl" parameter block
     {
         //"sl" parameter block is at hypervisor_image_baseaddress + 0x10000
-        slpb = (SL_PARAMETER_BLOCK *)((u32)hypervisor_image_baseaddress + 0x10000);
+        slpb = (SL_PARAMETER_BLOCK *)(hypervisor_image_baseaddress + 0x10000);
         HALT_ON_ERRORCOND(slpb->magic == SL_PARAMETER_BLOCK_MAGIC);
         slpb->errorHandler = 0;
         slpb->isEarlyInit = 1;    //this is an "early" init
