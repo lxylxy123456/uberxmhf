@@ -409,9 +409,12 @@ ifeq ($(TARGET_UEFI), y)
 	BCFLAGS := $(filter-out -D__I386__,$(BCFLAGS))
 	BCFLAGS += -D__AMD64__
 	BCFLAGS += -D__UEFI__
-	ifneq ($(TARGET_SUBARCH), amd64)
-		$(XMHF: UEFI only supported with amd64)
-	endif
+endif
+
+ifeq ($(TARGET_UEFI), y)
+ifneq ($(TARGET_SUBARCH), amd64)
+$(error XMHF: UEFI only supported with amd64)
+endif
 endif
 
 #-----export CFLAGS and ASFLAGS
