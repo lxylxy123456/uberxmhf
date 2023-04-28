@@ -125,6 +125,10 @@ u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus){
 
   rsdtentrylist=(u32 *) ( (uintptr_t)rsdt + sizeof(ACPI_RSDT) );
 
+printf("old RSDT: *0xbb3fe0b0 = 0x%08x\n", *(u32*)0xbb3fe0b0UL);
+rsdt->length -= 4;
+printf("new RSDT: *0xbb3fe0b0 = 0x%08x\n", *(u32*)0xbb3fe0b0UL);
+
 	for(i=0; i< n_rsdt_entries; i++){
     madt=(ACPI_MADT *)( (uintptr_t)rsdtentrylist[i]);
     if(madt->signature == ACPI_MADT_SIGNATURE){

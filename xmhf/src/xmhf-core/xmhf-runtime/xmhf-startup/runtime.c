@@ -65,6 +65,8 @@ void xmhf_runtime_entry(void){
 	xmhf_debug_init((char *)&rpb->RtmUartConfig);
 	printf("runtime initializing...\n");
 
+printf("rt  RSDT: *0xbb3fe0b0 = 0x%08x\n", *(u32*)0xbb3fe0b0UL);
+
   // initialize memory management
 	xmhf_mm_init();
 	printf("memory management initialized\n");

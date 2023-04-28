@@ -1313,9 +1313,9 @@ void txt_post_launch(void)
     apply_policy(err);
 
     /* always set the TXT.CMD.SECRETS flag */
-    write_priv_config_reg(TXTCR_CMD_SECRETS, 0x01);
-    read_priv_config_reg(TXTCR_E2STS);   /* just a fence, so ignore return */
-    printf("set TXT.CMD.SECRETS flag\n");
+#    write_priv_config_reg(TXTCR_CMD_SECRETS, 0x01);
+#    read_priv_config_reg(TXTCR_E2STS);   /* just a fence, so ignore return */
+#    printf("set TXT.CMD.SECRETS flag\n");
 
     /* open TPM locality 1 */
     write_priv_config_reg(TXTCR_CMD_OPEN_LOCALITY1, 0x01);
