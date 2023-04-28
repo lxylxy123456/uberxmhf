@@ -543,7 +543,8 @@ u32 xmhf_parteventhub_arch_x86vmx_handle_wrmsr(VCPU *vcpu, u32 index, u64 value)
 		case IA32_RTIT_ADDR2_B: /* fallthrough */
 		case IA32_RTIT_ADDR3_A: /* fallthrough */
 		case IA32_RTIT_ADDR3_B:
-			HALT_ON_ERRORCOND(0 && "Intel PT disabled");
+			/* See related comments in _vmx_handle_intercept_cpuid() */
+			HALT_ON_ERRORCOND(0 && "Writing Intel PT disabled");
 			break;
 #ifdef __NESTED_VIRTUALIZATION__
 		case IA32_VMX_BASIC_MSR: /* fallthrough */
@@ -695,21 +696,7 @@ u32 xmhf_parteventhub_arch_x86vmx_handle_rdmsr(VCPU *vcpu, u32 index, u64 *value
 			// TODO: we can probably just forward it to hardware x2APIC
 			HALT_ON_ERRORCOND(0 && "TODO: x2APIC ICR read not implemented");
 			break;
-		case IA32_RTIT_OUTPUT_BASE: /* fallthrough */
-		case IA32_RTIT_OUTPUT_MASK_PTRS: /* fallthrough */
-		case IA32_RTIT_CTL: /* fallthrough */
-		case IA32_RTIT_STATUS: /* fallthrough */
-		case IA32_RTIT_CR3_MATCH: /* fallthrough */
-		case IA32_RTIT_ADDR0_A: /* fallthrough */
-		case IA32_RTIT_ADDR0_B: /* fallthrough */
-		case IA32_RTIT_ADDR1_A: /* fallthrough */
-		case IA32_RTIT_ADDR1_B: /* fallthrough */
-		case IA32_RTIT_ADDR2_A: /* fallthrough */
-		case IA32_RTIT_ADDR2_B: /* fallthrough */
-		case IA32_RTIT_ADDR3_A: /* fallthrough */
-		case IA32_RTIT_ADDR3_B:
-			HALT_ON_ERRORCOND(0 && "Intel PT disabled");
-			break;
+		/* Note: reading Intel PT related MSRs is not disabled */
 #ifdef __NESTED_VIRTUALIZATION__
 		case IA32_VMX_BASIC_MSR: /* fallthrough */
 		case IA32_VMX_PINBASED_CTLS_MSR: /* fallthrough */
