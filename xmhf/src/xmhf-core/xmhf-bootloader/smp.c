@@ -58,100 +58,6 @@ static u32 mp_scan_config(u32 base, u32 length, MPFP **mpfp);
 static u32 mp_getebda(void);
 ACPI_RSDP * ACPIGetRSDP(void);
 
-static void xxd(uintptr_t start, uintptr_t end) {
-	if ((start & 0xf) != 0 || (end & 0xf) != 0) {
-		HALT_ON_ERRORCOND(0);
-		//printf("xxd assertion failed");
-		//while (1) {
-		//	asm volatile ("hlt");
-		//}
-	}
-	for (uintptr_t i = start; i < end; i += 0x10) {
-		printf("LXY XXD: %08lx: ", i);
-		for (uintptr_t j = 0; j < 0x10; j++) {
-			if (j & 1) {
-				printf("%02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
-			} else {
-				printf(" %02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
-			}
-		}
-		printf("\n");
-	}
-}
-
-#define ACPI_DESC_HEADER_SIZE 0x000000b8UL
-#define ACPI_DESC_SIGNATURE_OFF 0
-#define ACPI_DESC_LENGTH_OFF 4
-#define ACPI_DESC_CHECKSUM_OFF 9
-
-/*
-$ sudo hexdump -C /sys/firmware/acpi/tables/DMAR
-00000000  44 4d 41 52 b8 00 00 00  01 e9 49 4e 54 45 4c 20  |DMAR......INTEL |
-00000010  43 50 5f 44 41 4c 45 20  01 00 00 00 49 4e 54 4c  |CP_DALE ....INTL|
-00000020  01 00 00 00 23 00 00 00  00 00 00 00 00 00 00 00  |....#...........|
-00000030  00 00 18 00 00 00 00 00  00 00 d9 fe 00 00 00 00  |................|
-00000040  01 08 00 00 00 00 1b 00  00 00 18 00 00 00 00 00  |................|
-00000050  00 10 d9 fe 00 00 00 00  01 08 00 00 00 00 02 00  |................|
-00000060  00 00 10 00 01 00 00 00  00 30 d9 fe 00 00 00 00  |.........0......|
-00000070  01 00 28 00 00 00 00 00  00 00 00 00 00 00 00 00  |..(.............|
-00000080  ff 0f 00 00 00 00 00 00  01 08 00 00 00 00 1d 00  |................|
-00000090  01 08 00 00 00 00 1a 00  01 00 20 00 00 00 00 00  |.......... .....|
-000000a0  00 00 c0 bd 00 00 00 00  ff ff ff bf 00 00 00 00  |................|
-000000b0  01 08 00 00 00 00 02 00                           |........|
-000000b8
-$ 
-
-LXY: old
-LXY XXD: bb3d0000:  444d 4152 b800 0000 01e9 494e 5445 4c20
-LXY XXD: bb3d0010:  4350 5f44 414c 4520 0100 0000 494e 544c
-LXY XXD: bb3d0020:  0100 0000 2300 0000 0000 0000 0000 0000
-LXY XXD: bb3d0030:  0000 1800 0000 0000 0000 d9fe 0000 0000
-LXY XXD: bb3d0040:  0108 0000 0000 1b00 0000 1800 0000 0000
-LXY XXD: bb3d0050:  0010 d9fe 0000 0000 0108 0000 0000 0200
-LXY XXD: bb3d0060:  0000 1000 0100 0000 0030 d9fe 0000 0000
-LXY XXD: bb3d0070:  0100 2800 0000 0000 0000 0000 0000 0000
-LXY XXD: bb3d0080:  ff0f 0000 0000 0000 0108 0000 0000 1d00
-LXY XXD: bb3d0090:  0108 0000 0000 1a00 0100 2000 0000 0000
-LXY XXD: bb3d00a0:  0000 c0bd 0000 0000 ffff ffbf 0000 0000
-LXY XXD: bb3d00b0:  0108 0000 0000 0200 0000 0000 0000 0000
-LXY: new
-LXY XXD: bb3d0000:  444d 4152 b800 0000 01e9 494e 5445 4c20
-LXY XXD: bb3d0010:  4350 5f44 414c 4520 0100 0000 494e 544c
-LXY XXD: bb3d0020:  0100 0000 2300 0000 0000 0000 0000 0000
-LXY XXD: bb3d0030:  0000 1800 0000 0000 0000 d9fe 0000 0000
-LXY XXD: bb3d0040:  0108 0000 0000 1b00 0000 1800 0000 0000
-LXY XXD: bb3d0050:  0030 d9fe 0000 0000 0108 0000 0000 0200
-LXY XXD: bb3d0060:  0000 1000 0100 0000 0010 d9fe 0000 0000
-LXY XXD: bb3d0070:  0100 2800 0000 0000 0000 0000 0000 0000
-LXY XXD: bb3d0080:  ff0f 0000 0000 0000 0108 0000 0000 1d00
-LXY XXD: bb3d0090:  0108 0000 0000 1a00 0100 2000 0000 0000
-LXY XXD: bb3d00a0:  0000 c0bd 0000 0000 ffff ffbf 0000 0000
-LXY XXD: bb3d00b0:  0108 0000 0000 0200 0000 0000 0000 0000
-*/
-void vmx_dmar_zap(spa_t dmaraddrphys)
-{
-	u8 buffer[ACPI_DESC_HEADER_SIZE];
-	u8 checksum = 0;
-	/* Signature */
-	HALT_ON_ERRORCOND(*(u32 *)((uintptr_t)dmaraddrphys + 0x00) == 0x52414d44UL);
-	/* Len */
-	HALT_ON_ERRORCOND(*(u32 *)((uintptr_t)dmaraddrphys + 0x04) == ACPI_DESC_HEADER_SIZE);
-	/* DRHD addresses */
-	HALT_ON_ERRORCOND(*(u64 *)((uintptr_t)dmaraddrphys + 0x38) == 0xfed90000UL);
-	HALT_ON_ERRORCOND(*(u64 *)((uintptr_t)dmaraddrphys + 0x50) == 0xfed91000UL);
-	HALT_ON_ERRORCOND(*(u64 *)((uintptr_t)dmaraddrphys + 0x68) == 0xfed93000UL);
-	/* Modify */
-	*(u64 *)((uintptr_t)dmaraddrphys + 0x68) = 0xfed91000UL;
-	*(u64 *)((uintptr_t)dmaraddrphys + 0x50) = 0xfed93000UL;
-	/* Compute checksum */
-	xmhf_baseplatform_arch_flat_copy(buffer, (u8 *)(uintptr_t)dmaraddrphys, ACPI_DESC_HEADER_SIZE);
-	buffer[ACPI_DESC_CHECKSUM_OFF] = 0;
-	for (size_t i = 0; i < ACPI_DESC_HEADER_SIZE; i++) {
-		checksum -= buffer[i];
-	}
-	xmhf_baseplatform_arch_flat_writeu8(dmaraddrphys + ACPI_DESC_CHECKSUM_OFF, checksum);
-}
-
 //exposed interface to the outside world
 //inputs: array of type PCPU and pointer to u32 which will
 //receive the number of cores/CPUs in the system
@@ -218,15 +124,6 @@ u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus){
 			rsdt->length, sizeof(ACPI_RSDT), n_rsdt_entries);
 
   rsdtentrylist=(u32 *) ( (uintptr_t)rsdt + sizeof(ACPI_RSDT) );
-
-printf("LXY: old\n");
-xxd(0xbb3d0000, 0xbb3d00c0);
-
-//rsdt->length -= 4;
-vmx_dmar_zap(0xbb3d0000);
-
-printf("LXY: new\n");
-xxd(0xbb3d0000, 0xbb3d00c0);
 
 	for(i=0; i< n_rsdt_entries; i++){
     madt=(ACPI_MADT *)( (uintptr_t)rsdtentrylist[i]);
