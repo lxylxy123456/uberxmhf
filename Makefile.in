@@ -50,6 +50,7 @@ export TARGET_HWPLATFORM := x86
 export XMHF_TARGET_PLATFORM := @TARGET_PLATFORM@
 export XMHF_TARGET_ARCH := @TARGET_ARCH@
 export TARGET_SUBARCH := @TARGET_SUBARCH@
+export TARGET_UEFI := @TARGET_UEFI@
 export AMD64_MAX_PHYS_ADDR := @AMD64_MAX_PHYS_ADDR@
 export SL_BASE := @SL_BASE@
 export OPT_FLAGS := @OPT_FLAGS@
@@ -116,6 +117,11 @@ LIBBAREMETAL_INC = $(foreach dir,$(LIBBAREMETAL_SUBLIBS),-I$(dir)/include)
 # libbaremetal build directory
 LIBBAREMETAL_BUILD = $(CURDIR)/_build_libbaremetal
 
+ifeq ($(TARGET_UEFI), y)
+export GNUEFI_SRC := $(realpath @GNUEFI_SRC@)
+export GNUEFI_BUILD := $(CURDIR)/_build_gnuefi
+endif
+
 # For bootloader (always i386 regardless of runtime subarch), compile separate
 # i386 versions of libraries if runtime is amd64.
 ifeq ($(TARGET_SUBARCH), amd64)
@@ -145,6 +151,9 @@ ADDL_INCLUDES_BOOTLOADER += -I$(EMHF_INCLUDE) $(LIBBAREMETAL_INC)
 # List of subdirs need to be built
 export LIB_SUBDIRS :=
 LIB_SUBDIRS += $(LIBBAREMETAL_BUILD)
+ifeq ($(TARGET_UEFI), y)
+LIB_SUBDIRS += $(GNUEFI_BUILD)
+endif
 ifeq ($(TARGET_SUBARCH), amd64)
 LIB_SUBDIRS += $(LIBBAREMETAL_BUILD32)
 endif
@@ -369,6 +378,23 @@ ifeq ($(TARGET_SUBARCH), i386)
 	BCFLAGS += -m32
 endif
 
+ifeq ($(TARGET_UEFI), y)
+	BCFLAGS := $(filter-out -fno-pic -fno-pie,$(BCFLAGS))
+	BCFLAGS += -fpic -fpie
+	BCFLAGS += -fshort-wchar
+	BCFLAGS := $(filter-out -m32,$(BCFLAGS))
+	BCFLAGS += -m64
+	BCFLAGS := $(filter-out -D__I386__,$(BCFLAGS))
+	BCFLAGS += -D__AMD64__
+	BCFLAGS += -D__UEFI__
+endif
+
+ifeq ($(TARGET_UEFI), y)
+ifneq ($(TARGET_SUBARCH), amd64)
+$(error XMHF: UEFI only supported with amd64)
+endif
+endif
+
 #-----export CFLAGS and ASFLAGS
 ASFLAGS = $(CFLAGS) -D__ASSEMBLY__
 BASFLAGS = $(BCFLAGS) -D__ASSEMBLY__
@@ -401,6 +427,18 @@ $(LIBBAREMETAL_BUILD):
 	@echo ---------------------------------------------------------------
 	@echo libbaremetal.a build SUCCESS
 	@echo ---------------------------------------------------------------
+
+ifeq ($(TARGET_UEFI), y)
+$(GNUEFI_BUILD):
+	@echo ---------------------------------------------------------------
+	@echo Building gnu-efi...
+	@echo ---------------------------------------------------------------
+	mkdir -p $(GNUEFI_BUILD)
+	cd $(GNUEFI_BUILD) && CFLAGS= $(MAKE) -f $(GNUEFI_SRC)/Makefile -w
+	@echo ---------------------------------------------------------------
+	@echo gnu-efi build SUCCESS
+	@echo ---------------------------------------------------------------
+endif
 
 ifeq ($(TARGET_SUBARCH), amd64)
 
@@ -467,6 +505,15 @@ clean:
 	@echo ---------------------------------------------------------------
 	@echo libbaremetal.a clean SUCCESS
 	@echo ---------------------------------------------------------------
+ifeq ($(TARGET_UEFI), y)
+	@echo ---------------------------------------------------------------
+	@echo Cleaning gnu-efi
+	@echo ---------------------------------------------------------------
+	rm -rf $(GNUEFI_BUILD)
+	@echo ---------------------------------------------------------------
+	@echo gnu-efi clean SUCCESS
+	@echo ---------------------------------------------------------------
+endif
 	@echo ---------------------------------------------------------------
 	@echo Cleaning XMHF core/hyperapp...
 	@echo ---------------------------------------------------------------

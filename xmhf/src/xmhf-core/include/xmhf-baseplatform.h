@@ -183,36 +183,34 @@ extern bool xmhf_baseplatform_x86_e820_paddr_range(spa_t* machine_base_spa, spa_
 	//note: secure loader runs in a DS relative addressing mode and
 	//rest of hypervisor runtime is at secure loader base address + 2MB
 	static inline void * hva2sla(void *hva){
-		return (void*)((hva_t)hva - rpb->XtVmmRuntimePhysBase + PAGE_SIZE_2M);
+		_Static_assert(sizeof(hva_t) >= sizeof(uintptr_t));
+		hva_t addr = (hva_t)(uintptr_t)hva - rpb->XtVmmRuntimePhysBase + PAGE_SIZE_2M;
+		/* Check for truncation */
+		HALT_ON_ERRORCOND(addr == (hva_t)(uintptr_t)addr);
+		return (void*)(uintptr_t)addr;
 	}
 
 	//secure loader address to system physical address
 	//note: secure loader runs in a DS relative addressing mode
 	//(relative to secure loader base address)
 	static inline spa_t sla2spa(void *sla){
-		return (spa_t) ((sla_t)sla + (rpb->XtVmmRuntimePhysBase - PAGE_SIZE_2M));
+		_Static_assert(sizeof(sla_t) >= sizeof(uintptr_t));
+		return (spa_t) ((sla_t)(uintptr_t)sla + (rpb->XtVmmRuntimePhysBase - PAGE_SIZE_2M));
 	}
 
 	// XMHF runtime virtual-address to system-physical-address and vice-versa
 	// Note: since we are unity mapped, runtime VA = system PA
 	static inline spa_t hva2spa(void *hva){
-		hva_t hva_ui = (hva_t)hva;
+		_Static_assert(sizeof(hva_t) >= sizeof(uintptr_t));
+		hva_t hva_ui = (hva_t)(uintptr_t)hva;
 		return hva_ui;
 	}
 
 	static inline void * spa2hva(spa_t spa){
-#ifdef __I386__
-		/*
-		 * In i386 XMHF, casting from spa_t (64 bits) to hva_t (32 bits) will
-		 * result in higher bits to be lost. This can lead to security issues.
-		 * So we require the upper 32-bits to be 0. Ideally we do not support
-		 * PAE in i386 XMHF, so this limitation should be fine.
-		 */
-		HALT_ON_ERRORCOND((spa >> 32) == 0ULL);
-#elif !defined(__AMD64__)
-    #error "Unsupported Arch"
-#endif /* !defined(__AMD64__) */
-		return (void *)(hva_t)spa;
+		/* Check for truncation */
+		uintptr_t addr = (uintptr_t)(hva_t)spa;
+		HALT_ON_ERRORCOND(spa == (spa_t)(hva_t)addr);
+		return (void *)addr;
 	}
 
 	static inline spa_t gpa2spa(gpa_t gpa) { return gpa; }

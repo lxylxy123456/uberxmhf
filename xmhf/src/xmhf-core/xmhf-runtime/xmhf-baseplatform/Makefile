@@ -34,7 +34,11 @@ C_SOURCES += ./arch/x86/vmx/bplt-x86vmx-reboot.c
 #C_SOURCES += ./arch/x86/svm/bplt-x86svm-data.c
 #C_SOURCES += ./arch/x86/svm/bplt-x86svm-smp.c
 
+ifeq ($(TARGET_UEFI), y)
+AS_SOURCES_BL =  ./arch/x86/bplt-x86-amd64-smplock.S
+else
 AS_SOURCES_BL =  ./arch/x86/bplt-x86-i386-smplock.S
+endif
 
 C_SOURCES_BL =  ./arch/x86/bplt-x86-pci.c
 C_SOURCES_BL += ./arch/x86/bplt-x86-acpi.c

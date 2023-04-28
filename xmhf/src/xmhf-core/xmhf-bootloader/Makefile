@@ -6,7 +6,11 @@ ASFLAGS := $(BASFLAGS)
 CCLIB := $(BCCLIB)
 
 # source files
-AS_SOURCES = header.S initsup.S
+AS_SOURCES =
+ifneq ($(TARGET_UEFI), y)
+AS_SOURCES += header.S
+endif
+AS_SOURCES += initsup.S
 C_SOURCES = init.c smp.c cmdline.c
 ifeq ($(DRT), y)
 C_SOURCES += txt.c txt_acmod.c txt_heap.c txt_hash.c
@@ -14,6 +18,12 @@ endif
 
 OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))
 OBJECTS += $(patsubst %.c, %.o, $(C_SOURCES))
+
+ifeq ($(TARGET_UEFI), y)
+OBJECTS += $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o
+# Note: efi.o is compiled differently with other object files
+OBJECTS += efi.o
+endif
 
 OBJECTS_PRECOMPILED = ../xmhf-runtime/xmhf-debug/lib.a
 
@@ -25,7 +35,11 @@ OBJECTS_PRECOMPILED = ../xmhf-runtime/xmhf-debug/lib.a
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pci.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-acpi.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pit.o
+ifeq ($(TARGET_UEFI), y)
+OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-amd64-smplock.o
+else
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-i386-smplock.o
+endif
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
 
@@ -40,15 +54,20 @@ CFLAGS += $(ADDL_INCLUDES_BOOTLOADER)
 # separate from OBJECTS_PRECOMPILED becasue needs to come after libs on link line
 OBJECTS_PRECOMPILED_LIBBACKENDS = ../xmhf-runtime/xmhf-xmhfcbackend/xmhfc-putchar.o
 
+ifeq ($(TARGET_UEFI), y)
+OBJECTS_PRECOMPILED_LIBBACKENDS += ../xmhf-runtime/xmhf-debug/lib.a
+endif
+
 I_SOURCES =  $(wildcard $(INCLUDEDIR)/*.h)
 
 
-# Bootloader is always i386. If runtime is amd64, bootloader need to switch to
-# i386 version of precompiled object files.
+# If runtime is amd64, bootloader need to switch to precompiled object files
+# with special CFLAGS.
 ifeq ($(TARGET_SUBARCH), amd64)
-OBJECTS_PRECOMPILED := $(patsubst %.o, %.i386.o, $(OBJECTS_PRECOMPILED))
-OBJECTS_PRECOMPILED := $(patsubst %.a, %.i386.a, $(OBJECTS_PRECOMPILED))
-OBJECTS_PRECOMPILED_LIBBACKENDS := $(patsubst %.o, %.i386.o, $(OBJECTS_PRECOMPILED_LIBBACKENDS))
+OBJECTS_PRECOMPILED := $(patsubst %.o, %.bl.o, $(OBJECTS_PRECOMPILED))
+OBJECTS_PRECOMPILED := $(patsubst %.a, %.bl.a, $(OBJECTS_PRECOMPILED))
+OBJECTS_PRECOMPILED_LIBBACKENDS := $(patsubst %.o, %.bl.o, $(OBJECTS_PRECOMPILED_LIBBACKENDS))
+OBJECTS_PRECOMPILED_LIBBACKENDS := $(patsubst %.a, %.bl.a, $(OBJECTS_PRECOMPILED_LIBBACKENDS))
 endif
 
 
@@ -72,7 +91,11 @@ endif
 
 # targets
 .PHONY: all
+ifeq ($(TARGET_UEFI), y)
+all: init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).efi
+else
 all: init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
+endif
 
 # FIXME: ADDL_LIBS is overly general; init/ doesn't need all of them
 init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin: $(OBJECTS) $(OBJECTS_PRECOMPILED) init.lds.S
@@ -81,10 +104,44 @@ init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin: $(OBJECTS) $(OBJECTS_PRECOMPILE
 	$(STRIP) -s init.exe
 	$(OBJCOPY) --output-format=binary init.exe init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
 
+ifeq ($(TARGET_UEFI), y)
+
+# CFLAGS from gnu-efi tutorial
+EFI_CFLAGS = -I$(GNUEFI_SRC)/inc
+EFI_CFLAGS += -Wall -Werror
+EFI_CFLAGS += -g
+EFI_CFLAGS += -fpic -ffreestanding -fno-stack-protector -fno-stack-check
+EFI_CFLAGS += -fshort-wchar -mno-red-zone -maccumulate-outgoing-args
+
+# LD flags from gnu-efi tutorial
+EFI_LDFLAGS = -shared -Bsymbolic -L$(GNUEFI_BUILD)/x86_64/lib
+EFI_LDFLAGS += -L$(GNUEFI_BUILD)/x86_64/gnuefi
+EFI_LDLIBS = -lgnuefi -lefi
+
+# OBJCOPY flags from gnu-efi tutorial
+OBJCOPY_FLAGS = -j .text -j .sdata -j .data -j .dynamic -j .dynsym  -j .rel
+OBJCOPY_FLAGS += -j .rela -j .rel.* -j .rela.* -j .reloc
+OBJCOPY_FLAGS += --target efi-app-x86_64 --subsystem=12
+
+efi.o: efi.c
+	$(CC) $(EFI_CFLAGS) -c $< -o $@
+
+init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).so: $(OBJECTS) $(OBJECTS_PRECOMPILED) $(GNUEFI_SRC)/gnuefi/elf_x86_64_efi.lds
+	$(LD) $(EFI_LDFLAGS) -T$(GNUEFI_SRC)/gnuefi/elf_x86_64_efi.lds $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS_BOOTLOADER) $(OBJECTS_PRECOMPILED_LIBBACKENDS) $(EFI_LDLIBS) -o $@
+	chmod -x $@
+
+init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).efi: init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).so
+	objcopy $(OBJCOPY_FLAGS) $^ $@
+	chmod -x $@
+
+endif
+
 .PHONY: clean
 clean:
 	$(RM) -rf *.o
 	$(RM) -rf *.exe
 	$(RM) -rf *.bin
 	$(RM) -rf *.gz
+	$(RM) -rf *.so
+	$(RM) -rf *.efi
 

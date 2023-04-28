@@ -96,7 +96,7 @@ u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus){
 		goto fallthrough;
 	}
 
-	printf("ACPI RSDP at 0x%08x\n", (u32)rsdp);
+	printf("ACPI RSDP at 0x%08lx\n", rsdp);
 
 #if 0
 	xsdt=(ACPI_XSDT *)(u32)rsdp->xsdtaddress;
@@ -116,17 +116,17 @@ u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus){
     }
 	}
 #else
-	rsdt=(ACPI_RSDT *)(u32)rsdp->rsdtaddress;
+	rsdt=(ACPI_RSDT *)(uintptr_t)rsdp->rsdtaddress;
 	n_rsdt_entries=(u32)((rsdt->length-sizeof(ACPI_RSDT))/4);
 
-	printf("ACPI RSDT at 0x%08x\n", (u32)rsdt);
+	printf("ACPI RSDT at 0x%08lx\n", rsdt);
   printf("	len=0x%08x, headerlen=0x%08x, numentries=%u\n",
 			rsdt->length, sizeof(ACPI_RSDT), n_rsdt_entries);
 
-  rsdtentrylist=(u32 *) ( (u32)rsdt + sizeof(ACPI_RSDT) );
+  rsdtentrylist=(u32 *) ( (uintptr_t)rsdt + sizeof(ACPI_RSDT) );
 
 	for(i=0; i< n_rsdt_entries; i++){
-    madt=(ACPI_MADT *)( (u32)rsdtentrylist[i]);
+    madt=(ACPI_MADT *)( (uintptr_t)rsdtentrylist[i]);
     if(madt->signature == ACPI_MADT_SIGNATURE){
     	madt_found=1;
     	break;
@@ -141,7 +141,7 @@ u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus){
 		goto fallthrough;
 	}
 
-	printf("ACPI MADT at 0x%08x\n", (u32)madt);
+	printf("ACPI MADT at 0x%08lx\n", madt);
 	printf("	len=0x%08x, record-length=%u bytes\n", madt->length,
 			madt->length - sizeof(ACPI_MADT));
 
@@ -154,7 +154,7 @@ u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus){
 		u32 foundcores=0;
 
 		do{
-			ACPI_MADT_APIC *apicrecord = (ACPI_MADT_APIC *)((u32)madt + sizeof(ACPI_MADT) + madtcurrentrecordoffset);
+			ACPI_MADT_APIC *apicrecord = (ACPI_MADT_APIC *)((uintptr_t)madt + sizeof(ACPI_MADT) + madtcurrentrecordoffset);
  		  printf("rec type=0x%02x, length=%u bytes, flags=0x%08x, id=0x%02x\n", apicrecord->type,
 			 		apicrecord->length, apicrecord->flags, apicrecord->lapicid);
 
@@ -195,14 +195,14 @@ fallthrough:
 			mp_scan_config(mp_getebda(), 0x400, &mpfp) ||
 			mp_scan_config(0xF0000, 0x10000, &mpfp) ){
 
-	    printf("MP table found at: 0x%08x\n", (u32)mpfp);
+	    printf("MP table found at: 0x%08lx\n", mpfp);
   		printf("MP spec rev=0x%02x\n", mpfp->spec_rev);
   		printf("MP feature info1=0x%02x\n", mpfp->mpfeatureinfo1);
   		printf("MP feature info2=0x%02x\n", mpfp->mpfeatureinfo2);
   		printf("MP Configuration table at 0x%08x\n", mpfp->paddrpointer);
 
   		HALT_ON_ERRORCOND( mpfp->paddrpointer != 0 );
-			mpctable = (MPCONFTABLE *)mpfp->paddrpointer;
+			mpctable = (MPCONFTABLE *)(uintptr_t)(mpfp->paddrpointer);
   		HALT_ON_ERRORCOND(mpctable->signature == MPCONFTABLE_SIGNATURE);
 
 		  {//debug
@@ -226,7 +226,7 @@ fallthrough:
 
 			{
 		    int i;
-		    u32 addrofnextentry= (u32)mpctable + sizeof(MPCONFTABLE);
+		    uintptr_t addrofnextentry= (uintptr_t)mpctable + sizeof(MPCONFTABLE);
 
 		    for(i=0; i < mpctable->entrycount; i++){
 		      MPENTRYCPU *cpu = (MPENTRYCPU *)addrofnextentry;
@@ -235,8 +235,8 @@ fallthrough:
 
 		      if(cpu->cpuflags & 0x1){
  		        HALT_ON_ERRORCOND( *num_pcpus < MAX_PCPU_ENTRIES);
-						printf("CPU (0x%08x) #%u: lapic id=0x%02x, ver=0x%02x, cpusig=0x%08x\n",
-		          (u32)cpu, i, cpu->lapicid, cpu->lapicver, cpu->cpusig);
+						printf("CPU (0x%08lx) #%u: lapic id=0x%02x, ver=0x%02x, cpusig=0x%08x\n",
+		          cpu, i, cpu->lapicid, cpu->lapicver, cpu->cpusig);
 		        pcpus[i].lapic_id = cpu->lapicid;
 		        pcpus[i].lapic_ver = cpu->lapicver;
 		        pcpus[i].lapic_base = mpctable->lapicaddr;
@@ -271,11 +271,11 @@ static int mp_checksum(unsigned char *mp, int len){
 //returns 1 if MP table found and populates mpfp with MP table pointer
 //returns 0 if no MP table and makes mpfp=NULL
 static u32 mp_scan_config(u32 base, u32 length, MPFP **mpfp){
-	u32 *bp = (u32 *)base;
+	u32 *bp = (u32 *)(uintptr_t)base;
   MPFP *mpf;
 
-  printf("%s: Finding MP table from 0x%08x for %u bytes\n",
-                        __FUNCTION__, (u32)bp, length);
+  printf("%s: Finding MP table from 0x%08lx for %u bytes\n",
+                        __FUNCTION__, bp, length);
 
   while (length > 0) {
      mpf = (MPFP *)bp;
@@ -285,8 +285,8 @@ static u32 mp_scan_config(u32 base, u32 length, MPFP **mpfp){
                     ((mpf->spec_rev == 1)
                      || (mpf->spec_rev == 4))) {
 
-                        printf("%s: found SMP MP-table at 0x%08x\n",
-                               __FUNCTION__, (u32)mpf);
+                        printf("%s: found SMP MP-table at 0x%08lx\n",
+                               __FUNCTION__, mpf);
 
 												*mpfp = mpf;
                         return 1;
@@ -316,7 +316,7 @@ u32 _ACPIGetRSDPComputeChecksum(u32 spaddr, u32 size){
   char checksum=0;
   u32 i;
 
-  p=(char *)spaddr;
+  p=(char *)(uintptr_t)spaddr;
 
   for(i=0; i< size; i++)
     checksum+= (char)(*(p+i));
@@ -338,9 +338,11 @@ ACPI_RSDP * ACPIGetRSDP(void){
   ebdaphys=(u32)(ebdaseg * 16);
   //search first 1KB of ebda for rsdp signature (8 bytes long)
   for(i=0; i < (1024-8); i+=16){
-    rsdp=(ACPI_RSDP *)(ebdaphys+i);
+    rsdp=(ACPI_RSDP *)(uintptr_t)(ebdaphys+i);
     if(rsdp->signature == ACPI_RSDP_SIGNATURE){
-      if(!_ACPIGetRSDPComputeChecksum((u32)rsdp, 20)){
+      /* Check for truncation */
+      HALT_ON_ERRORCOND((uintptr_t)rsdp == (uintptr_t)(u32)(uintptr_t)rsdp);
+      if(!_ACPIGetRSDPComputeChecksum((u32)(uintptr_t)rsdp, 20)){
         found=1;
         break;
       }
@@ -352,9 +354,10 @@ ACPI_RSDP * ACPIGetRSDP(void){
 
   //search within BIOS areas 0xE0000 to 0xFFFFF
   for(i=0xE0000; i < (0xFFFFF-8); i+=16){
-    rsdp=(ACPI_RSDP *)i;
+    rsdp=(ACPI_RSDP *)(uintptr_t)i;
     if(rsdp->signature == ACPI_RSDP_SIGNATURE){
-      if(!_ACPIGetRSDPComputeChecksum((u32)rsdp, 20)){
+      HALT_ON_ERRORCOND((uintptr_t)rsdp == (uintptr_t)(u32)(uintptr_t)rsdp);
+      if(!_ACPIGetRSDPComputeChecksum((u32)(uintptr_t)rsdp, 20)){
         found=1;
         break;
       }

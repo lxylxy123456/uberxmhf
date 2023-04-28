@@ -1,6 +1,6 @@
 #!/bin/bash
 # Usage: build.sh subarch [arguments [...]]
-# subarch: i386 or amd64
+# subarch: i386 or amd64 or uefi
 # arguments:
 #   --drt: enable DRT (--disable-drt)
 #   --dmap: enable DMAP (--disable-dmap)
@@ -90,9 +90,15 @@ esac
 case "$1" in
 	i386)
 		SUBARCH="i386"
+		UEFI="n"
 		;;
 	amd64)
 		SUBARCH="amd64"
+		UEFI="n"
+		;;
+	uefi)
+		SUBARCH="amd64"
+		UEFI="y"
 		;;
 	*)
 		echo 'Error: subarch incorrect, should be i386 or amd64'; exit 1
@@ -220,6 +226,10 @@ else if [ "$SUBARCH" == "amd64" ]; then
 else
 	echo 'Error: unexpected $SUBARCH'; exit 1
 fi; fi
+
+if [ "$UEFI" == "y" ]; then
+	CONF+=("--enable-target-uefi")
+fi
 
 if [ "$DRT" == "n" ]; then
 	CONF+=("--disable-drt")
