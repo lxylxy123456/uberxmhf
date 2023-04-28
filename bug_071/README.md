@@ -270,7 +270,126 @@ XMHF bootloader a EFI runtime service. The XMHF bootloader can then call
 `AllocatePool` with `Type=AllocateAddress`. This allows the XMHF BL to select
 exact memory address to allocate.
 
-TODO: use multiboot2
+### QEMU emulation failure
+
+Starting to compile XMHF bl in EFI environment, developing in `xmhf64-dev`
+branch.
+
+In `xmhf64-dev 1b4bf7ffb`, if remove `efi.o` from Makefile (see following
+patch), then build XMHF.
+```diff
+diff --git a/xmhf/src/xmhf-core/xmhf-bootloader/Makefile b/xmhf/src/xmhf-core/xmhf-bootloader/Makefile
+index f51d6e81d..e5d43e6a6 100644
+--- a/xmhf/src/xmhf-core/xmhf-bootloader/Makefile
++++ b/xmhf/src/xmhf-core/xmhf-bootloader/Makefile
+@@ -117,7 +117,7 @@ all: efi.efi fat.img cdimage.iso
+ efi.o: efi.c
+        $(CC) $(EFI_CFLAGS) -c $< -o $@
+ 
+-efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o efi.o $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS_BOOTLOADER) $(OBJECTS_PRECOMPILED_LIBBACKENDS)
++efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS_BOOTLOADER) $(OBJECTS_PRECOMPILED_LIBBACKENDS)
+        $(LD) $(EFI_LDFLAGS) $^ $(EFI_LDLIBS) -o $@
+        chmod -x efi.so
+ 
+```
+
+Then run QEMU using the following command
+```sh
+qemu-system-x86_64 -m 2G -drive if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.fd,readonly=on -net none -cdrom ./xmhf/src/xmhf-core/xmhf-bootloader/fat.img -serial file:/dev/stdout -enable-kvm
+```
+
+See error in KVM
+```
+Press ESC in 5 seconds to skip startup.nsh or any other key to continue.
+Shell> FS0:
+FS0:\> cd EFI
+FS0:\EFI\> cd BOOT
+FS0:\EFI\BOOT\> load efi.efi
+KVM internal error. Suberror: 1
+extra data[0]: 0x0000000000000000
+extra data[1]: 0x0000000000000030
+extra data[2]: 0x0000000000000584
+extra data[3]: 0x0000000000000000
+extra data[4]: 0x0000000000000000
+extra data[5]: 0x0000000000000000
+emulation failure
+RAX=0000000000000000 RBX=000000007fa24190 RCX=000000007fedaafd RDX=0000000000000004
+RSI=000000007f9ec018 RDI=000000007e7823d8 RBP=000000007e780698 RSP=000000007fecd1f0
+R8 =0000000000000004 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+R12=000000007f9ec018 R13=000000007fa24190 R14=0000000000000001 R15=000000007e65acda
+RIP=000000008ba1b049 RFL=00010287 [--S--PC] CPL=0 II=0 A20=1 SMM=0 HLT=0
+ES =0030 0000000000000000 ffffffff 00c09300 DPL=0 DS   [-WA]
+CS =0038 0000000000000000 ffffffff 00a09b00 DPL=0 CS64 [-RA]
+SS =0030 0000000000000000 ffffffff 00c09300 DPL=0 DS   [-WA]
+DS =0030 0000000000000000 ffffffff 00c09300 DPL=0 DS   [-WA]
+FS =0030 0000000000000000 ffffffff 00c09300 DPL=0 DS   [-WA]
+GS =0030 0000000000000000 ffffffff 00c09300 DPL=0 DS   [-WA]
+LDT=0000 0000000000000000 0000ffff 00008200 DPL=0 LDT
+TR =0000 0000000000000000 0000ffff 00008b00 DPL=0 TSS64-busy
+GDT=     000000007f9dc000 00000047
+IDT=     000000007f413018 00000fff
+CR0=80010033 CR2=0000000000000000 CR3=000000007fc01000 CR4=00000668
+DR0=0000000000000000 DR1=0000000000000000 DR2=0000000000000000 DR3=0000000000000000 
+DR6=00000000ffff0ff0 DR7=0000000000000400
+EFER=0000000000000d00
+Code=?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? <??> ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ??
+```
+
+Can further reduce the Makefile to:
+```diff
+diff --git a/xmhf/src/xmhf-core/xmhf-bootloader/Makefile b/xmhf/src/xmhf-core/xmhf-bootloader/Makefile
+index f51d6e81d..be85ace52 100644
+--- a/xmhf/src/xmhf-core/xmhf-bootloader/Makefile
++++ b/xmhf/src/xmhf-core/xmhf-bootloader/Makefile
+@@ -118,7 +118,29 @@ efi.o: efi.c
+ 	$(CC) $(EFI_CFLAGS) -c $< -o $@
+ 
+ efi.so: $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o efi.o $(OBJECTS) $(OBJECTS_PRECOMPILED) $(ADDL_LIBS_BOOTLOADER) $(OBJECTS_PRECOMPILED_LIBBACKENDS)
+-	$(LD) $(EFI_LDFLAGS) $^ $(EFI_LDLIBS) -o $@
++	# $(LD) $(EFI_LDFLAGS) $^ $(EFI_LDLIBS) -o $@
++	ld -shared -Bsymbolic -L../../../../_build_gnuefi/x86_64/lib \
++	 -L../../../../_build_gnuefi/x86_64/gnuefi \
++	 -T../../../../xmhf/third-party/gnu-efi/gnuefi/elf_x86_64_efi.lds \
++	 ../../../../_build_gnuefi/x86_64/gnuefi/crt0-efi-x86_64.o \
++	 initsup.o \
++	 init.o \
++	 smp.o \
++	 cmdline.o \
++	 ../xmhf-runtime/xmhf-debug/lib.i386.a \
++	 ../xmhf-runtime/xmhf-tpm/tpm-interface.i386.o \
++	 ../xmhf-runtime/xmhf-tpm/arch/x86/tpm-x86.i386.o \
++	 ../xmhf-runtime/xmhf-tpm/arch/x86/svm/tpm-x86svm.i386.o \
++	 ../xmhf-runtime/xmhf-tpm/arch/x86/vmx/tpm-x86vmx.i386.o \
++	 ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pci.i386.o \
++	 ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pit.i386.o \
++	 ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-amd64-smplock.i386.o \
++	 ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-addressing.i386.o \
++	 ../../../../_build_libbaremetal32/_objects/libbaremetal.a \
++	 ../xmhf-runtime/xmhf-xmhfcbackend/xmhfc-putchar.i386.o \
++	 -lgnuefi \
++	 -lefi \
++	 -o efi.so
+ 	chmod -x efi.so
+ 
+ efi.efi: efi.so
+```
+
+Versions
+* Fedora, kernel `6.2.10-200.fc37.x86_64`
+* `gcc (GCC) 12.2.1 20221121 (Red Hat 12.2.1-4)`
+* `QEMU emulator version 7.0.0 (qemu-7.0.0-15.fc37)`
+
+### Development progress
+
+In `xmhf64-dev b32eb891f..195c7e6ca`, started porting bootloader to UEFI
+environment. Now all bootloader code can compile under UEFI's PIC. The entry
+point is starter code from GNU-EFI, instead of XMHF's `header.S`. Currently
+most XMHF code do not run.
+
+Rebase the above to `xmhf64 b8e4149e8..4f4c8b088` (the last commit contains
+UEFI, other commits contain other things)
+
+TODO: report "KVM internal error" bug to KVM
 TODO: try boot on real hardware
 TODO: how does GRUB installation make GRUB the default instead of Windows?
 
