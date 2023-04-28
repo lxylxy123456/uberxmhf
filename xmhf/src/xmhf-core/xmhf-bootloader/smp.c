@@ -58,6 +58,28 @@ static u32 mp_scan_config(u32 base, u32 length, MPFP **mpfp);
 static u32 mp_getebda(void);
 ACPI_RSDP * ACPIGetRSDP(void);
 
+#define ACPI_DESC_HEADER_SIZE 36
+#define ACPI_DESC_SIGNATURE_OFF 0
+#define ACPI_DESC_LENGTH_OFF 4
+#define ACPI_DESC_CHECKSUM_OFF 9
+
+void vmx_dmar_zap(spa_t dmaraddrphys)
+{
+	u8 buffer[ACPI_DESC_HEADER_SIZE];
+	u8 checksum = 0;
+	/* Signature: "XMHF" */
+	xmhf_baseplatform_arch_flat_writeu32(dmaraddrphys + ACPI_DESC_SIGNATURE_OFF, 0x46484d58UL);
+	/* Length: 36 */
+	xmhf_baseplatform_arch_flat_writeu32(dmaraddrphys + ACPI_DESC_LENGTH_OFF, 36UL);
+	/* Compute checksum */
+	xmhf_baseplatform_arch_flat_copy(buffer, (u8 *)(uintptr_t)dmaraddrphys, ACPI_DESC_HEADER_SIZE);
+	buffer[ACPI_DESC_CHECKSUM_OFF] = 0;
+	for (size_t i = 0; i < ACPI_DESC_HEADER_SIZE; i++) {
+		checksum -= buffer[i];
+	}
+	xmhf_baseplatform_arch_flat_writeu8(dmaraddrphys + ACPI_DESC_CHECKSUM_OFF, checksum);
+}
+
 //exposed interface to the outside world
 //inputs: array of type PCPU and pointer to u32 which will
 //receive the number of cores/CPUs in the system
@@ -125,9 +147,10 @@ u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus){
 
   rsdtentrylist=(u32 *) ( (uintptr_t)rsdt + sizeof(ACPI_RSDT) );
 
-printf("old RSDT: *0xbb3fe0b0 = 0x%08x\n", *(u32*)0xbb3fe0b0UL);
-rsdt->length -= 4;
-printf("new RSDT: *0xbb3fe0b0 = 0x%08x\n", *(u32*)0xbb3fe0b0UL);
+printf("LXY: old RSDT: *0xbb3d0000 = 0x%08x\n", *(u32*)0xbb3d0000UL);
+//rsdt->length -= 4;
+vmx_dmar_zap(0xbb3d0000);
+printf("LXY: new RSDT: *0xbb3d0000 = 0x%08x\n", *(u32*)0xbb3d0000UL);
 
 	for(i=0; i< n_rsdt_entries; i++){
     madt=(ACPI_MADT *)( (uintptr_t)rsdtentrylist[i]);

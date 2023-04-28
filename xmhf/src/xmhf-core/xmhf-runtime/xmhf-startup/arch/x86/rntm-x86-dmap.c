@@ -191,6 +191,7 @@ void vmx_eap_zap(void)
 {
     VTD_DMAR dmar;
     spa_t dmaraddrphys = vmx_find_dmar_paddr(&dmar);
+    printf("LXY: dmaraddrphys = 0x%08llx\n", dmaraddrphys);
     if (dmaraddrphys == 0) {
         return;
     }
