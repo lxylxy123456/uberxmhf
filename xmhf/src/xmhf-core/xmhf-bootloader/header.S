@@ -82,6 +82,6 @@ halt:
 	hlt
 	jmp halt
 
-	.section .stack
+	.section .stack, "aw"
 init_stack:
 	.fill	INIT_STACK_SIZE, 1, 0

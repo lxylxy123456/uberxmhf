@@ -22,7 +22,7 @@ endif
 
 C_SOURCES_BL = $(C_SOURCES)
 
-EXTRA_CLEAN = lib.a lib.i386.a
+EXTRA_CLEAN = lib.a lib.bl.a
 
 # targets
 include ../runtime.mk
@@ -32,11 +32,11 @@ all: lib.a
 lib.a: $(OBJECTS)
 	$(AR) rvs $@ $^
 
-# If runtime is amd64, compile i386 version of this library for bootloader
+# If runtime is amd64, compile bootloader version of this library
 ifeq ($(TARGET_SUBARCH), amd64)
-all: lib.i386.a
+all: lib.bl.a
 
-lib.i386.a: $(OBJECTS_BL)
+lib.bl.a: $(OBJECTS_BL)
 	$(AR) rvs $@ $^
 endif
 

@@ -95,7 +95,12 @@
       movw %ax, %fs
       movw %ax, %gs
 
+#ifdef __UEFI__
+// TODO UEFI
+ud2
+#else /* !__UEFI__ */
       movl $init_core_lowlevel_setup, %eax
+#endif /* __UEFI__ */
       jmpl *%eax
       hlt
 
@@ -112,7 +117,12 @@
   init_core_lowlevel_setup:
 
 	//load our gdt
+#ifdef __UEFI__
+// TODO UEFI
+ud2
+#else /* !__UEFI__ */
   lgdt init_gdt
+#endif /* __UEFI__ */
 
   //get hold of local APIC id
   mov $(MSR_APIC_BASE), %ecx
@@ -122,13 +132,32 @@
   movl (%eax), %eax
   shr $24, %eax
 
+#ifdef __UEFI__
+  call 0f
+0:popl %edx
+  addl $(midtable_numentries-0b), %edx
+#else /* !__UEFI__ */
   movl midtable_numentries, %edx
+#endif /* __UEFI__ */
 
   //get vcpu virtual address of this CPU/core
+#ifdef __UEFI__
+    call 0f
+0:  popl %ebx
+    addl $(midtable-0b), %ebx
+#else /* !__UEFI__ */
     movl $(midtable), %ebx
+#endif /* __UEFI__ */
     xorl %ecx, %ecx
 getvcpuloop:
+#ifdef __XMHF_I386__
     movl 0x0(%ebx, %ecx, 8), %ebp  //ebp contains the lapic id
+#elif defined(__XMHF_AMD64__)
+    leal 0x0(%ebx, %ecx, 8), %esp
+    movl 0x0(%esp, %ecx, 8), %ebp  //ebp contains the lapic id
+#else
+    #error "Unsupported Arch"
+#endif /* __I386__ */
     cmpl %eax, %ebp
     jz gotvcpu
     incl %ecx
@@ -137,7 +166,13 @@ getvcpuloop:
     //we should never get here, if so just halt
     hlt
 gotvcpu:
+#ifdef __XMHF_I386__
    movl 0x4(%ebx, %ecx, 8), %esi //esi contains vcpu pointer
+#elif defined(__XMHF_AMD64__)
+   movl 0x8(%esp, %ecx, 8), %esi //esi contains vcpu pointer
+#else
+    #error "Unsupported Arch"
+#endif /* __I386__ */
    movl 0x0(%esi), %esp     //load stack for this CPU
    pushl %esi
    call mp_cstartup
@@ -152,7 +187,12 @@ gotvcpu:
 	//the GDT
 	init_gdt:
 	.word	init_gdt_end - init_gdt_start - 1
+#ifdef __UEFI__
+  // TODO UEFI: Will be set up by C code.
+  .long 0
+#else /* !__UEFI__ */
 	.long	init_gdt_start
+#endif /* __UEFI__ */
 
 	.align	16
 	init_gdt_start:
