@@ -238,6 +238,7 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 }
 
 
+#ifndef __UEFI__
 //---vmx int 15 intercept handler-----------------------------------------------
 static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 	u16 cs, ip;
@@ -418,8 +419,7 @@ static void _vmx_int15_handleintercept(VCPU *vcpu, struct regs *r){
 	vcpu->vmcs.guest_CS_base = cs * 16;
 	vcpu->vmcs.guest_CS_selector = cs;
 }
-
-
+#endif /* !__UEFI__ */
 
 
 //------------------------------------------------------------------------------
@@ -797,7 +797,15 @@ static void _vmx_handle_intercept_eptviolation(VCPU *vcpu, struct regs *r){
 	gva = (uintptr_t)vcpu->vmcs.info_guest_linear_address;
 
 	//check if EPT violation is due to LAPIC interception
-	if(vcpu->isbsp && (gpa >= g_vmx_lapic_base) && (gpa < (g_vmx_lapic_base + PAGE_SIZE_4K)) ){
+	//Before the rich OS boots all CPUs, g_all_cores_booted_up = false, the EPT
+	//violation in LAPIC page is handled by XMHF. After the rich OS boots all
+	//CPUs, g_all_cores_booted_up = true, XMHF modifies EPT to allow the rich
+	//OS direct access to LAPIC page. The EPT violation in LAPIC page is then
+	//handled by hypapp.
+	if(vcpu->isbsp && !g_all_cores_booted_up && 
+		(gpa >= g_vmx_lapic_base) && (gpa < (g_vmx_lapic_base + PAGE_SIZE_4K))
+	)
+	{
 		xmhf_smpguest_arch_x86_eventhandler_hwpgtblviolation(vcpu, (u32)gpa, errorcode);
 	}else{ //no, pass it to hypapp
 		u32 app_ret_status;
@@ -1326,6 +1334,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		//--------------------------------------------------------------
 
 		case VMX_VMEXIT_VMCALL:{
+#ifndef __UEFI__
 			//if INT 15h E820 hypercall, then let the xmhf-core handle it
 			if(vcpu->vmcs.guest_CS_base == (VMX_UG_E820HOOK_CS << 4) &&
 				vcpu->vmcs.guest_RIP == VMX_UG_E820HOOK_IP){
@@ -1335,7 +1344,10 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 					( (vcpu->vmcs.guest_CR0 & CR0_PE) && (vcpu->vmcs.guest_CR0 & CR0_PG) &&
 						(vcpu->vmcs.guest_RFLAGS & EFLAGS_VM)  ) );
 				_vmx_int15_handleintercept(vcpu, r);
-			}else{	//if not E820 hook, give hypapp a chance to handle the hypercall
+			}else
+#endif /* !__UEFI__ */
+			//if not E820 hook, give hypapp a chance to handle the hypercall
+			{
 				xmhf_smpguest_arch_x86vmx_quiesce(vcpu);
 				if( xmhf_app_handlehypercall(vcpu, r) != APP_SUCCESS){
 					printf("CPU(0x%02x): error(halt), unhandled hypercall 0x%08x!\n", vcpu->id, r->eax);
@@ -1430,7 +1442,9 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 					HALT_ON_ERRORCOND(
 						(vcpu->vmcs.info_vmexit_interrupt_information &
 						 INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_HW_EXCEPTION);
-					xmhf_smpguest_arch_x86_eventhandler_dbexception(vcpu, r);
+					if(!g_all_cores_booted_up)
+						xmhf_smpguest_arch_x86_eventhandler_dbexception(vcpu, r);
+
 					break;
 
 				case NMI_VECTOR:

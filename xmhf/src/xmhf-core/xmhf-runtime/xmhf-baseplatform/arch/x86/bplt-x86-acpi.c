@@ -51,6 +51,7 @@
 
 #include <xmhf.h>
 
+uintptr_t g_uefi_rsdp = 0;
 
 
 //------------------------------------------------------------------------------
@@ -78,6 +79,11 @@ uintptr_t xmhf_baseplatform_arch_x86_acpi_getRSDP(ACPI_RSDP *rsdp){
   uintptr_t ebdaphys;
   uintptr_t i;
   u32 found=0;
+
+  if (g_uefi_rsdp != 0) {
+    HALT_ON_ERRORCOND(!_acpi_computetablechecksum(g_uefi_rsdp, 20));
+    return g_uefi_rsdp;
+  }
 
   //get EBDA segment from 040E:0000h in BIOS data area
   xmhf_baseplatform_arch_flat_copy((u8 *)&ebdaseg, (u8 *)0x0000040E, sizeof(u16));

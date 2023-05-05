@@ -413,6 +413,8 @@ extern u32 _ap_cr3_value;
 //variable by the runtime before waking up the APs (bplt-x86-smptrampoline.S)
 extern u32 _ap_cr4_value;
 
+// RSDP pointer from UEFI, or NULL if not booted from UEFI.
+extern uintptr_t g_uefi_rsdp;
 
 
 //return 1 if the calling CPU is the BSP

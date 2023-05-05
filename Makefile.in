@@ -401,6 +401,7 @@ ifeq ($(TARGET_SUBARCH), i386)
 endif
 
 ifeq ($(TARGET_UEFI), y)
+	CFLAGS += -D__UEFI__
 	BCFLAGS := $(filter-out -fno-pic -fno-pie,$(BCFLAGS))
 	BCFLAGS += -fpic -fpie
 	BCFLAGS += -fshort-wchar

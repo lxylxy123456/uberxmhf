@@ -64,8 +64,10 @@
 
 #define MSR_APIC_BASE 0x0000001B
 
-#define IA32_X2APIC_ICR 0x830
-#define IA32_X2APIC_APICID 0x802
+#define IA32_X2APIC_APICID                  0x802
+#define IA32_X2APIC_EOI                     0x80B
+#define IA32_X2APIC_ICR                     0x830
+
 
 #define IA32_PERF_GLOBAL_CTRL 0x38f
 #define IA32_PKRS 0x6e1

@@ -131,6 +131,8 @@ typedef struct {
     hva_t   XtGuestOSBootModuleSize;
     hva_t   runtime_appmodule_base;
     hva_t   runtime_appmodule_size;
+    hva_t   uefi_acpi_rsdp;
+    hva_t   uefi_info;
     u8      XtGuestOSBootDrive;         /* drive used to boot (can be passed to INT 13h) */
     hva_t   XtVmmStackBase;
     hva_t   XtVmmStackSize;
@@ -166,6 +168,8 @@ typedef struct _sl_parameter_block {
     u32     runtime_osbootmodule_size;  // guest OS bootmodule size
     u32     runtime_appmodule_base;     // XMHF hypapp optional module base
     u32     runtime_appmodule_size;     // XMHF hypapp optional module size
+    u64     uefi_acpi_rsdp;             // APIC RSDP when boot with UEFI, or 0
+    u64     uefi_info;                  // Pointer to xmhf_efi_info_t data structure
     u64     rdtsc_before_drtm;          // Performance measurements related to DRTM
     u64     rdtsc_after_drtm;
     u8      runtime_osbootdrive;        // Boot drive number (usually 0x80)

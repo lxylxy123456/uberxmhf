@@ -2,8 +2,12 @@
 # author: amit vasudevan (amitvasudevan@acm.org)
 
 # source files
-AS_SOURCES = ./arch/x86/sl-x86-$(TARGET_SUBARCH)-entry.S
-AS_SOURCES += ./arch/x86/sl-x86-$(TARGET_SUBARCH)-sup.S
+AS_SOURCES = ./arch/x86/sl-x86-$(TARGET_SUBARCH)-sup.S
+ifeq ($(TARGET_UEFI), y)
+AS_SOURCES += ./arch/x86/sl-x86-$(TARGET_SUBARCH)-uefi-entry.S
+else
+AS_SOURCES += ./arch/x86/sl-x86-$(TARGET_SUBARCH)-entry.S
+endif
 
 C_SOURCES = sl.c
 C_SOURCES += ./arch/x86/sl-x86.c

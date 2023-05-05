@@ -86,6 +86,10 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 	//we currently only support x86 (AMD and Intel)
 	HALT_ON_ERRORCOND (cpu_vendor == CPU_VENDOR_AMD || cpu_vendor == CPU_VENDOR_INTEL);
 
+	//Set global variable g_uefi_rsdp, or
+	//xmhf_baseplatform_arch_x86_acpi_getRSDP() cannot find ACPI RSDP.
+	g_uefi_rsdp = slpb.uefi_acpi_rsdp;
+
 	//initialize debugging early on
 	xmhf_debug_init((char *)&slpb.uart_config);
 
@@ -185,6 +189,10 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 		//pass optional app module if any
 		rpb->runtime_appmodule_base = (hva_t)(slpb.runtime_appmodule_base);
 		rpb->runtime_appmodule_size = (hva_t)(slpb.runtime_appmodule_size);
+
+		//pass ACPI RSDP
+		rpb->uefi_acpi_rsdp = (hva_t)(slpb.uefi_acpi_rsdp);
+		rpb->uefi_info = (hva_t)(slpb.uefi_info);
 
 		rpb->XtGuestOSBootDrive = slpb.runtime_osbootdrive;
 

@@ -6,11 +6,11 @@ ASFLAGS := $(BASFLAGS)
 CCLIB := $(BCCLIB)
 
 # source files
-AS_SOURCES =
-ifneq ($(TARGET_UEFI), y)
-AS_SOURCES += header.S
+ifeq ($(TARGET_UEFI), y)
+AS_SOURCES = efi2init.S initsup_uefi.S
+else
+AS_SOURCES = header.S initsup_bios.S
 endif
-AS_SOURCES += initsup.S
 C_SOURCES = init.c smp.c cmdline.c
 ifeq ($(DRT), y)
 C_SOURCES += txt.c txt_acmod.c txt_heap.c txt_hash.c
@@ -112,6 +112,8 @@ EFI_CFLAGS += -Wall -Werror
 EFI_CFLAGS += -g
 EFI_CFLAGS += -fpic -ffreestanding -fno-stack-protector -fno-stack-check
 EFI_CFLAGS += -fshort-wchar -mno-red-zone -maccumulate-outgoing-args
+EFI_CFLAGS += $(BCFLAGS)
+EFI_CFLAGS += -Wno-strict-prototypes
 
 # LD flags from gnu-efi tutorial
 EFI_LDFLAGS = -shared -Bsymbolic -L$(GNUEFI_BUILD)/x86_64/lib

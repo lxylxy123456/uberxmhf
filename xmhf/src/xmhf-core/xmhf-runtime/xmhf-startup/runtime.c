@@ -65,6 +65,10 @@ void xmhf_runtime_entry(void){
 	xmhf_debug_init((char *)&rpb->RtmUartConfig);
 	printf("runtime initializing...\n");
 
+	//Set global variable g_uefi_rsdp, or
+	//xmhf_baseplatform_arch_x86_acpi_getRSDP() cannot find ACPI RSDP.
+	g_uefi_rsdp = rpb->uefi_acpi_rsdp;
+
   // initialize memory management
 	xmhf_mm_init();
 	printf("memory management initialized\n");
