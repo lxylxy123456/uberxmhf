@@ -389,6 +389,19 @@ most XMHF code do not run.
 Rebase the above to `xmhf64 b8e4149e8..4f4c8b088` (the last commit contains
 UEFI, other commits contain other things)
 
+...
+
+After some development, at `xmhf64 cb1f707e7`. We can boot Debian 11 x64
+net install ISO with UP (SMP has a problem due to double INIT-SIPI-SIPI).
+
+Possible problems
+* Cannot reload TR. This will be a trouble if UEFI firmware uses TR. However
+  it is possible to workaround this problem. See commit `cb1f707e7`.
+* We need to assume UEFI firmware does not start other CPUs. Otherwise there is
+  no way XMHF knows the state of other CPUs.
+
+Maybe refer to newbluepill code to see how it initializes the VMCS guest state.
+
 TODO: report "KVM internal error" bug to KVM
 TODO: try boot on real hardware
 TODO: how does GRUB installation make GRUB the default instead of Windows?
