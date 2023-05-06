@@ -402,6 +402,59 @@ Possible problems
 
 Maybe refer to newbluepill code to see how it initializes the VMCS guest state.
 
+### Redesign INIT intercept handler
+
+Currently, at `xmhf64 8cc6eea5d`. (KVM UEFI, XMHF, Debian 11 UP / Windows 10 UP)
+can boot correctly.
+
+Originally, XMHF only supports the guest to perform INIT-SIPI-SIPI once. The
+next time XMHF see INIT, it assumes the guest is trying to shutdown.
+
+However, this does not work on UEFI. When SMP Linux is booting, it first starts
+all CPUs with INIT-SIPI-SIPI on xAPIC (using destination shorthand "All
+Including Self"). Then it starts all CPUs again with INIT-SIPI-SIPI on x2APIC
+(using destination shorthand "No Shorthand").
+
+We need to modify how XMHF handles INIT signals after normal OS boots.
+* When BSP receives INIT interrupt, assume guest OS is requesting shutdown.
+* When AP receives INIT interrupt, let it wait in a while loop like in
+  `xmhf_smpguest_arch_initialize`. If BSP detects an SIPI, it starts the AP.
+  If BSP receives INIT interrupt, it resumes the AP to start shutdown process.
+
+### Real Serial Port
+
+Try to debug UEFI on real hardware using traditional serial port (3f8).
+However, see XMHF output gibberish.
+
+Need to use putty (can install on Linux and Windows), set baud rate to 115200.
+Instead of `cat /dev/ttyUSB0`. On Windows, need to install driver from USB
+serial cable manufacturer's website. Sample command for Linux:
+```sh
+sudo plink -sercfg 115200 -serial /dev/ttyUSB0
+```
+
+To speed up development, can write UEFI shell script to automatically try XMHF:
+```
+FS0:
+
+# Test whether should try XMHF
+# sudo touch /boot/efi/XMHF_TRY
+if exists \XMHF_TRY then
+	rm \XMHF_TRY
+	# Load XMHF
+	load \EFI\BOOT\init-x86-amd64.efi
+	# Sleep 1
+	stall 1000000
+endif
+
+# Load Linux
+\EFI\fedora\grubx64.efi_old
+```
+
+After some bug fixes, at `xmhf64 7be54b0e4`, can boot Fedora 37 SMP on Dell.
+
+TODO: `### Redesign INIT intercept handler`
+
 TODO: report "KVM internal error" bug to KVM
 TODO: try boot on real hardware
 TODO: how does GRUB installation make GRUB the default instead of Windows?
