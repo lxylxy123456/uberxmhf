@@ -421,6 +421,12 @@ We need to modify how XMHF handles INIT signals after normal OS boots.
   `xmhf_smpguest_arch_initialize`. If BSP detects an SIPI, it starts the AP.
   If BSP receives INIT interrupt, it resumes the AP to start shutdown process.
 
+`8cc6eea5d..4c16e1435` contains relevant commit, then focused on other things.
+
+...
+
+TODO
+
 ### Real Serial Port
 
 Try to debug UEFI on real hardware using traditional serial port (3f8).
@@ -453,9 +459,77 @@ endif
 
 After some bug fixes, at `xmhf64 7be54b0e4`, can boot Fedora 37 SMP on Dell.
 
+### Windows 10 on physical machine
+
+To boot Windows, use `\EFI\Microsoft\Boot\bootmgfw.efi` in EFI shell. There is
+another file called `bootmgr.efi`, but don't use it.
+
+I tried to boot Windows on real machine, but receive error
+`Unhandled intercept: 11`. SDM says it is related to GETSEC instruction. I
+think it is likely that we need to hide this functionality.
+
+To hide SMX (name of feature that provides GETSEC), we need to set
+`CPUID.01H:ECX[6] = 0`. Implemented in `xmhf64 bfea3c42e`.
+
+After that, Windows 10 UEFI can boot in Dell 7050. PAL demo also works well.
+
+### Windows 11 on physical machine
+
+Windows 11 says the PC does not meet minimum requirement, so cannot install
+Windows 11 on Dell 7050. e.g.
+<https://www.dell.com/community/Optiplex-Desktops/optiplex-7050-not-supporting-windows-11/td-p/8050523>
+
+Need to bypass TPM and CPU check. Create a registry key with name
+`AllowUpgradesWithUnsupportedTPMOrCPU` and value 1 in
+`HKEY_LOCAL_MACHINE\SYSTEM\Setup\MoSetup`. Then restart and re-install using
+ISO file.
+
+Ref:
+* <https://www.tomshardware.com/how-to/bypass-windows-11-tpm-requirement>
+* <https://support.microsoft.com/en-us/windows/ways-to-install-windows-11-e0edbbfb-cfc5-4011-868b-2ce77ac7c70e>
+
+After installing Windows 11, see XMHF run into `Unhandled intercept: 2` (triple
+fault) during Windows 11 boot.
+
+TODO
+
+### DRT in UEFI
+
+Currently at `xmhf64 60f25cb2b`, find a strange problem. When DRT and UEFI are
+enabled, the `rep stosb` instruction in `xmhf_sl_main()` is very slow. It takes
+around 80 seconds (measured using RDTSC). When only UEFI is enabled, the
+instruction takes around 0.03 seconds.
+
+If I replace `rep stosb` with `memset()`, it is even slower. Around 580 seconds.
+Is it related to caching?
+
+Looks like the problem is related to caching. MTRR is not restored, so all
+memory are not cached. Fixed in `xmhf64 232401115`.
+
+Now the new problem is that after printing "Transferring control to runtime",
+the machine resets (maybe triple fault?). See `TXT.ERRORCODE: 0xc0060000`.
+
+The problem is that XMHF assumes the start of SL's .text section is `_mle_hdr`.
+However, I previously modified Makefile and make it
+`xmhf_sl_arch_x86_invoke_runtime_entrypoint`. Fixed in `xmhf64 74ba167a4`. Now
+Fedora 35 can boot in XMHF UEFI DRT.
+
+### Windows 11 on QEMU KVM
+
+When installing, set memory to 8G and smp to 4.
+
+We need to bypass Windows 11's TPM check to run on QEMU and KVM. Following
+<https://www.tomshardware.com/how-to/bypass-windows-11-tpm-requirement>, use
+Shift+F10 to open CMD, then open `regedit`.
+* Go to `HKEY_LOCAL_MACHINE\SYSTEM\Setup`
+* Create new key (like a folder) `LabConfig`, then go to it
+* Create DWORD value `BypassTPMCheck`
+* Create DWORD value `BypassSecureBoot`
+* Create DWORD value `BypassRAMCheck`
+
 TODO: `### Redesign INIT intercept handler`
+TODO: try Windows 11 on KVM
 
 TODO: report "KVM internal error" bug to KVM
-TODO: try boot on real hardware
 TODO: how does GRUB installation make GRUB the default instead of Windows?
 
