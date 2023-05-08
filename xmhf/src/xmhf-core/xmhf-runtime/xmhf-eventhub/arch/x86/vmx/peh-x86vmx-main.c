@@ -170,10 +170,15 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 			/* Clear VMX capability */
 			r->ecx &= ~(1U << 5);
 #endif /* !__NESTED_VIRTUALIZATION__ */
+
+			/* Clear SMX capability (XMHF does not support GETSEC) */
+			r->ecx &= ~(1U << 6);
+
 #ifdef __HIDE_X2APIC__
 			/* Clear x2APIC capability (not stable in Circle CI and HP 840) */
 			r->ecx &= ~(1U << 21);
 #endif /* __HIDE_X2APIC__ */
+
 #ifndef __UPDATE_INTEL_UCODE__
 			/*
 			 * Set Hypervisor Present bit.
@@ -998,8 +1003,9 @@ static void vmx_handle_intercept_cr0access_ug(VCPU *vcpu, struct regs *r, u32 gp
 
 //---CR4 access handler---------------------------------------------------------
 static void vmx_handle_intercept_cr4access_ug(VCPU *vcpu, struct regs *r, u32 gpr, u32 tofrom){
-  if(tofrom == VMX_CRX_ACCESS_TO){
 	ulong_t cr4_proposed_value;
+
+	HALT_ON_ERRORCOND(tofrom == VMX_CRX_ACCESS_TO);
 
 	cr4_proposed_value = *((uintptr_t *)_vmx_decode_reg(gpr, vcpu, r));
 
@@ -1015,9 +1021,8 @@ static void vmx_handle_intercept_cr4access_ug(VCPU *vcpu, struct regs *r, u32 gp
 	 */
 	vcpu->vmcs.control_CR4_shadow = cr4_proposed_value;
 	vcpu->vmcs.guest_CR4 = (cr4_proposed_value | vcpu->vmcs.control_CR4_mask);
-  }
 
-  vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
+	vcpu->vmcs.guest_RIP += vcpu->vmcs.info_vmexit_instruction_length;
 }
 
 //---XSETBV intercept handler-------------------------------------------
@@ -1519,41 +1524,35 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 			u32 tofrom, gpr, crx;
 			//printf("VMEXIT_CRX_ACCESS:\n");
 			//printf("instruction length: %u\n", info_vmexit_instruction_length);
-			crx=(u32) ((u64)vcpu->vmcs.info_exit_qualification & 0x000000000000000FULL);
-			gpr=
-			 (u32) (((u64)vcpu->vmcs.info_exit_qualification & 0x0000000000000F00ULL) >> (u64)8);
-			tofrom =
-			(u32) (((u64)vcpu->vmcs.info_exit_qualification & 0x0000000000000030ULL) >> (u64)4);
+			crx = (u32)(vcpu->vmcs.info_exit_qualification & 0x0000000FUL);
+			gpr = (u32)((vcpu->vmcs.info_exit_qualification & 0x00000F00UL) >> 8);
+			tofrom = (u32)((vcpu->vmcs.info_exit_qualification & 0x00000030UL) >> 4);
 			//printf("crx=%u, gpr=%u, tofrom=%u\n", crx, gpr, tofrom);
 
 #ifdef __AMD64__
-			if ( ((int)gpr >=0) && ((int)gpr <= 15) ){
+			HALT_ON_ERRORCOND(gpr < 16);
 #elif defined(__I386__)
-			if ( ((int)gpr >=0) && ((int)gpr <= 7) ){
+			HALT_ON_ERRORCOND(gpr < 8);
 #else /* !defined(__I386__) && !defined(__AMD64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
-				switch(crx){
-					case 0x0: //CR0 access
-						vmx_handle_intercept_cr0access_ug(vcpu, r, gpr, tofrom);
-						break;
 
-					case 0x4: //CR4 access
-						if(!vcpu->vmx_guest_unrestricted){
-							printf("HALT: v86 monitor based real-mode exec. unsupported!\n");
-							HALT();
-						}else{
-							vmx_handle_intercept_cr4access_ug(vcpu, r, gpr, tofrom);
-						}
-						break;
+			switch(crx){
+			case 0x0: //CR0 access
+				vmx_handle_intercept_cr0access_ug(vcpu, r, gpr, tofrom);
+				break;
 
-					default:
-						printf("unhandled crx, halting!\n");
-						HALT();
+			case 0x4: //CR4 access
+				if(!vcpu->vmx_guest_unrestricted){
+					printf("HALT: v86 monitor based real-mode exec. unsupported!\n");
+					HALT();
+				}else{
+					vmx_handle_intercept_cr4access_ug(vcpu, r, gpr, tofrom);
 				}
-			}else{
-				printf("[%02x]%s: invalid gpr value (%u). halting!\n", vcpu->id,
-					__FUNCTION__, gpr);
+				break;
+
+			default:
+				printf("unhandled crx, halting!\n");
 				HALT();
 			}
 		}

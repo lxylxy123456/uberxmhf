@@ -84,7 +84,7 @@ SL_PARAMETER_BLOCK *slpb = NULL;
 /* TODO: refactor to eliminate a lot of these globals, or at least use
  * static where appropriate */
 static u8 *g_sinit_module_ptr = NULL;
-static u32 g_sinit_module_size = 0;
+static size_t g_sinit_module_size = 0;
 #endif /* __DRT__ */
 
 extern void init_core_lowlevel_setup(void);
@@ -681,6 +681,28 @@ bool txt_do_senter(void *phys_mle_start, size_t mle_size) {
     return false; /* unreachable if launch is successful, thus should return failure */
 }
 
+#ifdef __UEFI__
+/*
+ * Get SINIT module information from UEFI information.
+ */
+static bool txt_parse_sinit(u64 start, u64 end)
+{
+	void *ptr = (void *)start;
+	size_t size = end - start;
+
+	if (start == 0 || end == 0) {
+		return false;
+	}
+
+	if (!is_sinit_acmod(ptr, size, false)) {
+		return false;
+	}
+
+	g_sinit_module_ptr = ptr;
+	g_sinit_module_size = size;
+	return true;
+}
+#else /* !__UEFI__ */
 /**
  * Check each module to see if it is an SINIT module.  If it is, set
  * the globals g_sinit_module_ptr and g_sinit_module_size to point to
@@ -714,6 +736,7 @@ static bool txt_parse_sinit(module_t *mod_array, unsigned int mods_count) {
 
     return false;
 }
+#endif /* __UEFI__ */
 
 //---svm_verify_platform-------------------------------------------------------
 //do some basic checks on SVM platform to ensure DRTM should work as expected
@@ -1067,7 +1090,7 @@ void cstartup(multiboot_info_t *mbi)
 #ifdef __DRT__
         /* Intel systems require an SINIT module */
 #ifdef __UEFI__
-        if (xei->sinit_end == 0)
+        if(!txt_parse_sinit(xei->sinit_start, xei->sinit_end))
 #else /* !__UEFI__ */
         if(!txt_parse_sinit(mod_array, mods_count))
 #endif /* __UEFI__ */
@@ -1232,7 +1255,7 @@ void cstartup(multiboot_info_t *mbi)
 #ifdef __DRT__
 		{
 			uintptr_t start = xei->sinit_start;
-			uintptr_t bytes = start - xei->sinit_end;
+			uintptr_t bytes = xei->sinit_end - start;
 			HALT_ON_ERRORCOND(is_sinit_acmod((void *)start, bytes, false));
 		}
 #endif /* __DRT__ */

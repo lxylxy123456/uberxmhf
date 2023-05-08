@@ -60,6 +60,41 @@ struct _sl_parameter_block slpb __attribute__(( section(".sl_untrusted_params") 
 	.magic = SL_PARAMETER_BLOCK_MAGIC,
 };
 
+#ifdef __SKIP_RUNTIME_BSS__
+/*
+ * When the binary only contains non-bss portion of XMHF runtime, clear the
+ * .bss portion of XMHF runtime to zero.
+ */
+static void xmhf_sl_clear_rt_bss(void)
+{
+	uintptr_t rt_bss_phys_begin, rt_bss_size;
+
+#ifdef __DRT__
+#ifdef __UEFI__
+	/*
+	 * In UEFI booting, decompressing gzip runtime binary requires
+	 * additional code. Not compressing runtime binary will result in
+	 * large amount of space wasted in EFI partition. Thus, we allow
+	 * __SKIP_RUNTIME_BSS__ to decrease size of runtime binary.
+	 */
+	printf("Warning: __SKIP_RUNTIME_BSS__ not recommended when __DRT__.\n");
+	printf("This changes the trusted booting design of XMHF SL+RT.\n");
+#else /* !__UEFI__ */
+	/*
+	 * In BIOS booting, GRUB can easily decompress gzip runtime binary.
+	 * So we disallow __SKIP_RUNTIME_BSS__ for now.
+	 */
+	#error "__SKIP_RUNTIME_BSS__ not supported when __DRT__"
+#endif /* __UEFI__ */
+#endif /* __DRT__ */
+
+	rt_bss_phys_begin = rpb->XtVmmRuntimeBssBegin - __TARGET_BASE_SL;
+	rt_bss_size = rpb->XtVmmRuntimeBssEnd - rpb->XtVmmRuntimeBssBegin;
+	//memset((void *)(uintptr_t)rt_bss_phys_begin, 0, rt_bss_size);
+	asm volatile ("cld; rep stosb;" : : "a" (0), "c" (rt_bss_size),
+				  "D" (rt_bss_phys_begin) : "memory", "cc");
+}
+#endif /* __SKIP_RUNTIME_BSS__ */
 
 //we get here from slheader.S
 // rdtsc_* are valid only if PERF_CRIT is not defined.  slheader.S
@@ -156,20 +191,6 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 		rpb->XtVmmRuntimeVirtBase = __TARGET_BASE;
 		rpb->XtVmmRuntimeSize = slpb.runtime_size;
 
-#ifdef __SKIP_RUNTIME_BSS__
-#ifdef __DRT__
-	#error "__SKIP_RUNTIME_BSS__ not supported when __DRT__"
-#endif /* __DRT__ */
-
-		{
-			u32 rt_bss_phys_begin = rpb->XtVmmRuntimeBssBegin - __TARGET_BASE_SL;
-			u32 rt_bss_size = rpb->XtVmmRuntimeBssEnd - rpb->XtVmmRuntimeBssBegin;
-			// memset((void *)(uintptr_t)rt_bss_phys_begin, 0, rt_bss_size);
-			asm volatile ("cld; rep stosb;" : : "a" (0), "c" (rt_bss_size),
-						  "D" (rt_bss_phys_begin) : "memory", "cc");
-		}
-#endif /* __SKIP_RUNTIME_BSS__ */
-
 		//store revised E820 map and number of entries
 		#ifndef __XMHF_VERIFICATION__
 		memcpy(hva2sla((void *)rpb->XtVmmE820Buffer), (void *)&slpb.memmapbuffer, (sizeof(slpb.memmapbuffer)) );
@@ -217,6 +238,13 @@ void xmhf_sl_main(u32 cpu_vendor, u32 baseaddr, u32 rdtsc_eax, u32 rdtsc_edx){
 #if defined (__DRT__)
     xmhf_sl_arch_sanitize_post_launch();
 #endif	//__DRT__
+
+	// Zero .bss section of XMHF runtime.
+	// We call this function after MTRR is restored, otherwise memory is not
+	// cached and zeroing .bss is very slow.
+#ifdef __SKIP_RUNTIME_BSS__
+	xmhf_sl_clear_rt_bss();
+#endif /* __SKIP_RUNTIME_BSS__ */
 
 #if defined (__DMAP__)
 	//setup DMA protection on runtime (secure loader is already DMA protected)

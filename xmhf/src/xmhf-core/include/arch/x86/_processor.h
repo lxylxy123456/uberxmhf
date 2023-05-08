@@ -409,8 +409,7 @@ static inline void write_cr4(unsigned long val){
 }
 
 static inline void skinit(unsigned long eax) {
-    __asm__ __volatile__("mov %0, %%eax": :"r" (eax));
-    __asm__ __volatile__("skinit":);
+    __asm__ __volatile__("skinit" : : "a"(eax));
 }
 
 

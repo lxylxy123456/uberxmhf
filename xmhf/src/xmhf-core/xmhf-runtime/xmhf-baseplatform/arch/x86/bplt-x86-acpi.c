@@ -81,7 +81,9 @@ uintptr_t xmhf_baseplatform_arch_x86_acpi_getRSDP(ACPI_RSDP *rsdp){
   u32 found=0;
 
   if (g_uefi_rsdp != 0) {
-    HALT_ON_ERRORCOND(!_acpi_computetablechecksum(g_uefi_rsdp, 20));
+    xmhf_baseplatform_arch_flat_copy((u8 *)rsdp, (u8 *)g_uefi_rsdp, sizeof(ACPI_RSDP));
+    HALT_ON_ERRORCOND(rsdp->signature == ACPI_RSDP_SIGNATURE);
+    HALT_ON_ERRORCOND(!_acpi_computetablechecksum((uintptr_t)rsdp, 20));
     return g_uefi_rsdp;
   }
 
