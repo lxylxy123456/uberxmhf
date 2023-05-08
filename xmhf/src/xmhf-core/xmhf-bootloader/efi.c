@@ -153,6 +153,13 @@ static void xmhf_efi_check_max_phys_mem(void)
 		HALT_ON_ERRORCOND(status == EFI_BUFFER_TOO_SMALL);
 	}
 
+	/* Increase buf_size, ref: https://stackoverflow.com/a/39674958 */
+	{
+		UINTN new_buf_size = buf_size + 2 * desc_size;
+		HALT_ON_ERRORCOND(new_buf_size > buf_size);
+		buf_size = new_buf_size;
+	}
+
 	/* Allocate buffer */
 	{
 		HALT_ON_ERRORCOND((memory_map = AllocatePool(buf_size)) != NULL);

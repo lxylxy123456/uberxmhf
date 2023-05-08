@@ -147,6 +147,12 @@ u64 _vmx_get_guest_efer(VCPU *vcpu)
 	}
 }
 
+/* Return the CR4 register value perceived by the guest. */
+static ulong_t get_guest_cr4(VCPU *vcpu)
+{
+	return ((vcpu->vmcs.control_CR4_shadow & vcpu->vmcs.control_CR4_mask) |
+			(vcpu->vmcs.guest_CR4 & ~vcpu->vmcs.control_CR4_mask));
+}
 
 //---intercept handler (CPUID)--------------------------------------------------
 static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
@@ -179,6 +185,16 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 			r->ecx &= ~(1U << 21);
 #endif /* __HIDE_X2APIC__ */
 
+			/*
+			 * Set CPUID.01H:ECX.OSXSAVE[bit 27] to guest CR4.OSXSAVE[bit 18].
+			 * Because guest CR4 and host CR4 can be different.
+			 */
+			if ((get_guest_cr4(vcpu) & CR4_OSXSAVE) != 0) {
+				r->ecx |= (1U << 27);
+			} else {
+				r->ecx &= ~(1U << 27);
+			}
+
 #ifndef __UPDATE_INTEL_UCODE__
 			/*
 			 * Set Hypervisor Present bit.
@@ -189,17 +205,67 @@ static void _vmx_handle_intercept_cpuid(VCPU *vcpu, struct regs *r){
 			r->ecx |= (1U << 31);
 #endif /* !__UPDATE_INTEL_UCODE__ */
 		}
-		/*
-		 * Hide Intel Processor Trace (Intel PT).
-		 * If Intel PT is not hidden, an attacker can set IA32_RTIT_OUTPUT_BASE
-		 * to XMHF memory, which violates XMHF memory integrity. For now we
-		 * hide Intel PT. It is possible to virtualize Intel PT using the
-		 * "Intel PT uses guest physical addresses" bit in VMCS. However,
-		 * implementing this is left as future work.
-		 */
+
 		if (old_eax == 0x7U && old_ecx == 0x0U) {
+			/*
+			 * Hide Intel Processor Trace (Intel PT).
+			 * If Intel PT is not hidden, an attacker can set
+			 * IA32_RTIT_OUTPUT_BASE to XMHF memory, which violates XMHF memory
+			 * integrity. For now we hide Intel PT. It is possible to
+			 * virtualize Intel PT using the "Intel PT uses guest physical
+			 * addresses" bit in VMCS. However, implementing this is left as
+			 * future work.
+			 */
 			r->ebx &= ~(1U << 25);
+
+			/*
+			 * Set CPUID.(EAX=07H,ECX=0H):ECX.OSPKE[bit 4] to guest
+			 * CR4.PKE[bit 22]. Because guest CR4 and host CR4 can be
+			 * different.
+			 */
+			if ((get_guest_cr4(vcpu) & CR4_PKE) != 0) {
+				r->ecx |= (1U << 4);
+			} else {
+				r->ecx &= ~(1U << 4);
+			}
 		}
+
+		if (old_eax == 0x19U) {
+			/*
+			 * Set CPUID.19H:EBX.AESKLE[bit 0] to guest's value. Because guest
+			 * CR4 and host CR4 can be different.
+			 */
+			bool aeskle = false;
+
+			if ((get_guest_cr4(vcpu) & CR4_KL) != 0) {
+				/*
+				 * Temporarily set host CR4 to enable CR4.KL, and execute CPUID
+				 * again.
+				 */
+				u32 eax, ebx, ecx, edx;
+				ulong_t host_cr4_old = read_cr4();
+				ulong_t host_cr4_new = host_cr4_old | CR4_KL;
+				if (host_cr4_old != host_cr4_new) {
+					write_cr4(host_cr4_new);
+				}
+
+				cpuid(0x19U, &eax, &ebx, &ecx, &edx);
+				if (ebx & (1U << 0)) {
+					aeskle = true;
+				}
+
+				if (host_cr4_old != host_cr4_new) {
+					write_cr4(host_cr4_old);
+				}
+			}
+
+			if (aeskle) {
+				r->ebx |= (1U << 0);
+			} else {
+				r->ebx &= ~(1U << 0);
+			}
+		}
+
 #ifdef __I386__
 		/*
 		 * For i386 XMHF running on an AMD64 CPU, make the guest think that the
@@ -1046,12 +1112,7 @@ static void _vmx_handle_intercept_xsetbv(VCPU *vcpu, struct regs *r){
 	 * Check that CR4.OSXSAVE is set. If this check fails, should inject #UD
 	 * to the guest. However, currently not implemented.
 	 */
-	{
-		uintptr_t cr4 = 0;
-		cr4 |= vcpu->vmcs.control_CR4_shadow & vcpu->vmcs.control_CR4_mask;
-		cr4 |= vcpu->vmcs.guest_CR4 & ~vcpu->vmcs.control_CR4_mask;
-		HALT_ON_ERRORCOND((cr4 & CR4_OSXSAVE) != 0);
-	}
+	HALT_ON_ERRORCOND((get_guest_cr4(vcpu) & CR4_OSXSAVE) != 0);
 
 	//XXX: TODO: check for invalid states and inject GP accordingly
 

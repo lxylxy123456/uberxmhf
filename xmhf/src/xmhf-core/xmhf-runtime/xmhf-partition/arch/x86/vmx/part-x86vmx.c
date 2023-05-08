@@ -164,7 +164,7 @@ static void _vmx_initVT(VCPU *vcpu){
     u32 eax, ebx, ecx, edx;
     cpuid(1, &eax, &ebx, &ecx, &edx);
     if ( ( ecx & (1<<5) ) == 0 ){
-      printf("CPU(0x%02x) does not support VT. Halting!", vcpu->id);
+      printf("CPU(0x%02x) does not support VT. Halting!\n", vcpu->id);
       HALT();
     }
     #endif
