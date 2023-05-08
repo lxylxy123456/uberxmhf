@@ -1596,19 +1596,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		}
 		break;
 
-		case 2:
-			if (vcpu->vmcs.guest_RIP % 0x1000 == 0x292) {
-				guestmem_hptw_ctx_pair_t ctx_pair;
-				unsigned char b[3];
-				guestmem_init(vcpu, &ctx_pair);
-				guestmem_copy_gv2h(&ctx_pair, 0, b, vcpu->vmcs.guest_RIP, 3);
-				if (b[0] == 0x0f && b[1] == 0x01 && b[2] == 0xd0) {
-					printf("LXY: found triple fault xgetbv\n");
-					vcpu->vmcs.guest_CR4 |= CR4_OSXSAVE;
-					break;
-				}
-			}
-			/* fallthrough */
 
 		default:{
 			printf("CPU(0x%02x): Unhandled intercept: %d (0x%08x)\n",
