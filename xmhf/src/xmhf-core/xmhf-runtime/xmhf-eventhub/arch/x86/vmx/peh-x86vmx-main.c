@@ -1032,9 +1032,21 @@ static void _vmx_handle_intercept_xsetbv(VCPU *vcpu, struct regs *r){
 	xcr_value = ((u64)r->edx << 32) + (u64)r->eax;
 
 	if(r->ecx != XCR_XFEATURE_ENABLED_MASK){
-			printf("%s: unhandled XCR register %u\n", __FUNCTION__, r->ecx);
-			HALT();
+		printf("%s: unhandled XCR register %u\n", __FUNCTION__, r->ecx);
+		HALT();
 	}
+
+	/*
+	 * Check that guest's CPL is 0. If this check fails, should inject #GP(0)
+	 * to the guest. However, currently not implemented.
+	 */
+	HALT_ON_ERRORCOND(((vcpu->vmcs.guest_CS_access_rights >> 5) & 0x3) == 0);
+
+	/*
+	 * Check that CR4.OSXSAVE is set. If this check fails, should inject #UD
+	 * to the guest. However, currently not implemented.
+	 */
+	HALT_ON_ERRORCOND((vcpu->vmcs.control_CR4_shadow & CR4_OSXSAVE) != 0);
 
 	//XXX: TODO: check for invalid states and inject GP accordingly
 
