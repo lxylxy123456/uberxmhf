@@ -1046,7 +1046,12 @@ static void _vmx_handle_intercept_xsetbv(VCPU *vcpu, struct regs *r){
 	 * Check that CR4.OSXSAVE is set. If this check fails, should inject #UD
 	 * to the guest. However, currently not implemented.
 	 */
-	HALT_ON_ERRORCOND((vcpu->vmcs.control_CR4_shadow & CR4_OSXSAVE) != 0);
+	{
+		uintptr_t cr4 = 0;
+		cr4 |= vcpu->vmcs.control_CR4_shadow & vcpu->vmcs.control_CR4_mask;
+		cr4 |= vcpu->vmcs.guest_CR4 & ~vcpu->vmcs.control_CR4_mask;
+		HALT_ON_ERRORCOND((cr4 & CR4_OSXSAVE) != 0);
+	}
 
 	//XXX: TODO: check for invalid states and inject GP accordingly
 
