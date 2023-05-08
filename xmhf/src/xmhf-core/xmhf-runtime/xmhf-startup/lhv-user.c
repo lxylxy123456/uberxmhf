@@ -245,6 +245,11 @@ static void user_main_pal_demo(VCPU *vcpu, ulong_t arg)
 
 void user_main(VCPU *vcpu, ulong_t arg)
 {
+	{
+		printf("LXY3\n");
+		asm volatile ("xsetbv" : : "a"(1), "d"(0), "c"(0));
+		printf("LXY4\n");
+	}
 	/* Acquire semaphore */
 	{
 		while (1) {

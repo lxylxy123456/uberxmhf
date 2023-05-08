@@ -858,6 +858,12 @@ void lhv_guest_main(ulong_t cpu_id)
 	VCPU *vcpu = _svm_and_vmx_getvcpu();
 	HALT_ON_ERRORCOND(cpu_id == vcpu->idx);
 	{
+		write_cr4(read_cr4() | CR4_OSXSAVE);
+		printf("LXY1\n");
+//		asm volatile ("xsetbv" : : "a"(1), "d"(0), "c"(0));
+		printf("LXY2\n");
+	}
+	{
 		u32 eax, ebx, ecx, edx;
 		cpuid(0x46484d58U, &eax, &ebx, &ecx, &edx);
 		in_xmhf = (eax == 0x46484d58U);
@@ -877,6 +883,12 @@ void lhv_guest_main(ulong_t cpu_id)
 	}
 	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 		asm volatile ("sti");
+	}
+	{
+		write_cr4(read_cr4() | CR4_OSXSAVE);
+		printf("LXY1\n");
+//		asm volatile ("xsetbv" : : "a"(1), "d"(0), "c"(0));
+		printf("LXY2\n");
 	}
 	while (1) {
 		/* Assume that iter never wraps around */
