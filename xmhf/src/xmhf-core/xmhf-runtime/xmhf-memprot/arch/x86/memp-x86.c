@@ -165,6 +165,11 @@ bool xmhf_arch_get_machine_paddr_range(spa_t* machine_base_spa, spa_t* machine_l
 		return false;
 
 #ifdef __AMD64__
+
+#ifdef __UEFI__
+    *machine_base_spa = 0;
+    *machine_limit_spa = MAX_PHYS_ADDR;
+#else /* !__UEFI__ */
     // Get the base and limit used system physical address from the E820 map
     if (!xmhf_baseplatform_x86_e820_paddr_range(machine_base_spa, machine_limit_spa))
     {
@@ -175,6 +180,8 @@ bool xmhf_arch_get_machine_paddr_range(spa_t* machine_base_spa, spa_t* machine_l
     // 4K-align the return the address
     *machine_base_spa = PAGE_ALIGN_4K(*machine_base_spa);
     *machine_limit_spa = PAGE_ALIGN_UP_4K(*machine_limit_spa);
+#endif /* __UEFI__ */
+
 #elif defined(__I386__)
     *machine_base_spa = 0;
     *machine_limit_spa = ADDR_4GB;
