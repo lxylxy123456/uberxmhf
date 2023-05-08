@@ -491,7 +491,7 @@ Ref:
 After installing Windows 11, see XMHF run into `Unhandled intercept: 2` (triple
 fault) during Windows 11 boot.
 
-TODO
+(Continue on `### Windows 11 on QEMU KVM` below)
 
 ### DRT in UEFI
 
@@ -527,9 +527,159 @@ Shift+F10 to open CMD, then open `regedit`.
 * Create DWORD value `BypassSecureBoot`
 * Create DWORD value `BypassRAMCheck`
 
-TODO: `### Redesign INIT intercept handler`
-TODO: try Windows 11 on KVM
+In QEMU/KVM, can also reproduce the triple fault intercept in Windows 11.
+Reproducible on UP. Error message looks like (Note Windows 11 has KASLR-like
+feature):
+```
+CPU(0x00): Unhandled intercept: 2 (0x00000002)
+        CPU(0x00): RFLAGS=0x0000000000010046
+        SS:RSP =0x0000:0xfffff803344e0e50
+        CS:RIP =0x0010:0xfffff80334ded292
+        IDTR base:limit=0xfffff803344d4000:0x0fff
+        GDTR base:limit=0xfffff803344d6fb0:0x0057
+```
 
-TODO: report "KVM internal error" bug to KVM
-TODO: how does GRUB installation make GRUB the default instead of Windows?
+Interrupts are disabled because RFLAGS = 0x10046. Using GDB script `page.gdb`
+to walk Windows 11's page table, can see that it is trying to execute
+instruction `0x7c764292: xgetbv`
+
+Intel SDM says possible cause of exceptions are:
+* Invalid register specified in ECX
+	* However, GDB shows `r->ecx == 0`, so this is not the problem
+* `CPUID.01H:ECX.XSAVE[bit 26] = 0`
+	* However, in KVM `CPUID.01H:ECX = 0xfffa3223`, so XGETBV is supported
+* `CR4.OSXSAVE[bit 18] = 0`
+	* Looks like this is the problem. There is `control_CR4_shadow = 0x668`,
+	  `control_CR4_mask = 0x26e8`, and `guest_CR4 = 0x2000`.
+* LOCK prefix is used
+	* However, LOCK prefix is not used here
+
+There are two possibilities
+* Windows 11 intends to set CR4.OSXSAVE, but it is not set in XMHF.
+* Windows 11 does not set CR4.OSXSAVE, and should receive `#UD`. However, for
+  some reason triple fault occurs.
+
+Using GDB, see below. Can see that all 512 entries in IDT are 0. So an `#UD`
+exception will result in triple fault. Now the problem is why CR4.OSXSAVE is
+not set.
+```
+(gdb) p/x vcpu->vmcs.guest_IDTR_limit 
+$10 = 0xfff
+(gdb) p/x vcpu->vmcs.guest_IDTR_base
+$11 = 0xfffff806512a0000
+(gdb) walk_pt 0xfffff806512a0000
+$12 = "4-level paging"
+$13 = "Page size = 4K"
+$14 = 0x327a000
+(gdb) x/10gx 0x327a000
+0x327a000:	0x0000000000000000	0x0000000000000000
+0x327a010:	0x0000000000000000	0x0000000000000000
+0x327a020:	0x0000000000000000	0x0000000000000000
+0x327a030:	0x0000000000000000	0x0000000000000000
+0x327a040:	0x0000000000000000	0x0000000000000000
+(gdb) 
+```
+
+#### Hiding XSAVE
+
+I try to hide the XSAVE feature in `_vmx_handle_intercept_cpuid`. Then I see an
+exception earlier in bootmgfw:
+```
+!!!! X64 Exception Type - 06(#UD - Invalid Opcode)  CPU Apic ID - 00000000 !!!!
+RIP  - 000000007D9271F4, CS  - 0000000000000038, RFLAGS - 0000000000010346
+RAX  - 00000000000306C4, RCX - 0000000000000000, RDX - 00000000078BFBFF
+RBX  - 0000000000000800, RSP - 000000007FECD010, RBP - 000000007FECD030
+RSI  - 000000000000000D, RDI - 0000000000000007
+R8   - 00000000FFFFFD60, R9  - 000000007D76D0EA, R10 - 0000000000000007
+R11  - 0000000000000013, R12 - 000000007D9D9A7C, R13 - 0000000000000000
+R14  - 0000000000000001, R15 - 000000007D9D9C44
+DS   - 0000000000000030, ES  - 0000000000000030, FS  - 0000000000000030
+GS   - 0000000000000030, SS  - 0000000000000030
+CR0  - 0000000080010033, CR2 - 0000000000000000, CR3 - 000000007FC01000
+CR4  - 0000000000002668, CR8 - 0000000000000000
+DR0  - 0000000000000000, DR1 - 0000000000000000, DR2 - 0000000000000000
+DR3  - 0000000000000000, DR6 - 00000000FFFF0FF0, DR7 - 0000000000000400
+GDTR - 000000007F9DC000 0000000000000047, LDTR - 0000000000000000
+IDTR - 000000007F413018 0000000000000FFF,   TR - 0000000000000000
+FXSAVE_STATE - 000000007FECCC70
+!!!! Find image based on IP(0x7D9271F4) bootmgfw.pdb (ImageBase=000000007D746000, EntryPoint=000000007D7779C0) !!!!
+```
+
+It is possible to use GDB to break at RIP. The instruction is still XGETBV. We
+can see that before executing XSETBV, CR4 is
+`0x2668 [ VMXE OSXMMEXCPT OSFXSR MCE PAE DE ]`. However, if XMHF does not hide
+XSAVE in CPUID, then CR4 is
+`0x42668 [ OSXSAVE VMXE OSXMMEXCPT OSFXSR MCE PAE DE ]`. So XMHF cannot hide
+XSAVE to workaround this problem.
+
+#### Continue investigating
+
+XMHF's `host_CR4 = 0x00042668`. This is set in
+`xmhf_baseplatform_arch_cpuinitialize()`. UEFI firmware does not set this bit.
+We probably need to debug Windows 11's boot process.
+
+A workaround is shown in `xmhf64-dev 5a5f782ef`. When Windows triggers the
+triple fault, we set CR4.OSXSAVE and retry the instruction. With this
+workaround, Windows 11 can boot in QEMU/KVM UP. Can also boot in Dell 7050. PAL
+demo also passes.
+
+Plan for further investigation:
+* Compare behavior of QEMU TCG and KVM XMHF
+* Use QEMU TCG to record Windows 11's trace, and perform reverse debugging
+  (otherwise it is hard to find a break point, because all addresses are
+  randomized / relocatable)
+* Use XMHF intercepts to find a break point, then start debugging using GDB /
+  monitor trap. There are a lot of CPUID intercepts, but less other intercepts.
+
+Continue in `bug_119`.
+
+### DMAP
+
+In `xmhf64 d2759ec0c`, fixed a bug in DMAP. Now when DMAP is enabled, Fedora
+can run. However, Windows 11 runs into blue screen. Information using
+BlueScreenViewer:
+* Bug Check String: `KMODE_EXCEPTION_NOT_HANDLED`
+* Bug Check Code: `0x0000001e`
+* Parameter 1: `ffffffffc000001d`
+* Parameter 2: `fffff8035dd01562` (likely randomized address)
+* Parameter 3: `0000000000000000`
+* Parameter 4: `fffff8035dd015a0` (likely randomized address)
+* Caused By Driver: `intelppm.sys`
+* Caused By Address: `intelppm.sys+15a0`
+* File Description: Processor Device Driver
+* File Version: `10.0.22621.1 (WinBuild.160101.0800)`
+* Processor: x64
+* Crash Address: ntoskrnl.exe+420fb0
+* Major Version: 15
+* Minor Version: 22621
+
+Note: not tried Windows 11 DMAP on KVM yet.
+
+TODO
+
+### Summary
+
+In this bug, developed a lot to enable UEFI support. However, there are still
+3 problems remaining.
+* Need to redesign INIT intercept handler to support INIT-SIPI-SIPI twice. This
+  will allow running UEFI SMP in KVM. See
+  `### Redesign INIT intercept handler`.
+* Need to fix the bug that Windows 11 does not set CR4.OSXSAVE before XGETBV.
+  See `#### Continue investigating`.
+* Need to support Windows 11 when DMAP is enabled. See `### DMAP`.
+
+Also, we need to
+* Report "KVM internal error" bug to KVM
+
+Also, an interesting question is
+* How does GRUB installation make GRUB the default instead of Windows? This may
+  be helpful to design how XMHF can be installed.
+
+## Fix
+
+`xmhf64 b8e4149e8..d2759ec0c`
+* Support UEFI
+
+`xmhf64-dev b32eb891f..945400857`
+* Code for workaround CR4.OSXSAVE (reverted)
 

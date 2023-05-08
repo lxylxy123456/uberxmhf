@@ -220,11 +220,20 @@ Thus, we should probably work on `bug_071` first.
 
 # tmp
 
-TODO: check stackoverflow
-TODO: maybe ask BareFlake people
-TODO: see whether UEFI provides serial initialization (back to `bug_071`)
-TODO: see whether UEFI provides PCI support
-TODO: read Linux code, see how PCI is initialized
-TODO: read OVMF code, see whether it touches PCI
-TODO: try Xen
+Untried ideas
+* check stackoverflow
+* maybe ask BareFlank people
+	* BareFlank requires serial cable, not PCI serial port
+* see whether UEFI provides serial initialization (back to `bug_071`)
+* see whether UEFI provides PCI support
+	* No, not for Dell 7050. However, QEMU supports it
+* read Linux code, see how PCI is initialized
+	* I guess the related source code is `/drivers/tty/serial/8250/8250_pci.c`?
+* read OVMF code, see whether it touches PCI
+* try Xen
+
+## Result
+Not going to use Intel AMT. Instead, just buy serial to USB cable. A possible
+alternative is to copy the "serial" driver code from Linux, but it is too much
+work.
 
