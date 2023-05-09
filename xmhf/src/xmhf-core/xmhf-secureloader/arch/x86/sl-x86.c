@@ -263,6 +263,8 @@ void xmhf_sl_arch_sanitize_post_launch(void){
         /// compensate for special DS here in SL
         os_mle_data = get_os_mle_data_start((txt_heap_t*)((uintptr_t)txt_heap - sl_baseaddr));
         printf("SL: os_mle_data = 0x%08lx\n", (uintptr_t)os_mle_data);
+        /* restore pre-SENTER IA32_MISC_ENABLE_MSR */
+        wrmsr64(MSR_IA32_MISC_ENABLE, os_mle_data->saved_misc_enable_msr);
         // restore pre-SENTER MTRRs that were overwritten for SINIT launch
         if(!validate_mtrrs(&(os_mle_data->saved_mtrr_state))) {
             printf("SECURITY FAILURE: validate_mtrrs() failed.\n");
