@@ -52,7 +52,7 @@
 
 #include <xmhf.h>
 
-#if defined(__DRT__) || defined(__DMAP__)
+//#if defined(__DRT__) || defined(__DMAP__)
 
 /* Maximum number of RSDT entries we support */
 #define ACPI_MAX_RSDT_ENTRIES (256)
@@ -183,9 +183,9 @@ spa_t vmx_find_dmar_paddr(VTD_DMAR *dmar)
     return dmaraddrphys;
 }
 
-#endif /* defined(__DRT__) || defined(__DMAP__) */
+//#endif /* defined(__DRT__) || defined(__DMAP__) */
 
-#if defined(__DRT__) && !defined(__DMAP__)
+//#if defined(__DRT__) && !defined(__DMAP__)
 
 void vmx_eap_zap(void)
 {
@@ -204,5 +204,5 @@ void vmx_eap_zap(void)
     printf("%s: success, leaving...\n", __FUNCTION__);
 }
 
-#endif /* defined(__DRT__) && !defined(__DMAP__) */
+//#endif /* defined(__DRT__) && !defined(__DMAP__) */
 

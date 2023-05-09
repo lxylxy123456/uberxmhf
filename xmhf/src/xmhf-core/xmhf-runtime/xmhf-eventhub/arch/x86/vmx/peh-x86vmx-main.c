@@ -49,6 +49,7 @@
 // author: amit vasudevan (amitvasudevan@acm.org)
 #include <xmhf.h>
 
+#if 0
 static void xxd(uintptr_t start, uintptr_t end) {
 	if ((start & 0xf) != 0 || (end & 0xf) != 0) {
 		HALT_ON_ERRORCOND(0);
@@ -69,6 +70,7 @@ static void xxd(uintptr_t start, uintptr_t end) {
 		printf("\n");
 	}
 }
+#endif
 
 //---VMX decode assist----------------------------------------------------------
 //map a CPU register index into appropriate VCPU *vcpu or struct regs *r field
@@ -1589,6 +1591,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		vcpu->vmcs.info_vmexit_interrupt_information;
 	vcpu->vmcs.control_VM_entry_exception_errorcode =
 		vcpu->vmcs.info_vmexit_interrupt_error_code;
+#if 0
 	if (vcpu->vmcs.control_VM_entry_interruption_information == 0x80000300) {
 		guestmem_hptw_ctx_pair_t ctx_pair;
 		u8 val[PAGE_SIZE_4K] __attribute__((aligned(PAGE_SIZE_4K)));
@@ -1597,6 +1600,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 						   PAGE_SIZE_4K);
 		xxd((uintptr_t)val, (uintptr_t)val + PAGE_SIZE_4K);
 	}
+#endif
 }
 					break;
 

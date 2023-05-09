@@ -137,13 +137,13 @@ void xmhf_runtime_entry(void){
 
 #else //!__DMAP__
 
-	#if defined (__DRT__)
+//	#if defined (__DRT__)
 	//if __DRT__ is enabled without DMA protections, zap DMAR device
 	//from ACPI tables
 	if(cpu_vendor == CPU_VENDOR_INTEL){
 		vmx_eap_zap();
 	}
-	#endif	//__DRT__
+//	#endif	//__DRT__
 
 #endif
 
