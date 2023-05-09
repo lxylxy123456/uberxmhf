@@ -837,6 +837,11 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 		xmhf_partition_arch_x86vmx_guestVMCS_INIT(vcpu);
 	}
 
+	{
+		printf("CPU(0x%02x): LXY: MSR_IA32_MISC_ENABLE = 0x%08llx\n", vcpu->id,
+			   rdmsr64(MSR_IA32_MISC_ENABLE));
+	}
+
 	//activate secondary processor controls
 	_vmx_setctl_activate_secondary_controls(&vmx_ctls);
 
