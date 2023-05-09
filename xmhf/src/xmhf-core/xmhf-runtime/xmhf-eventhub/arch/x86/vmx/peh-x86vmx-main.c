@@ -1684,15 +1684,6 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		}
 	} //end switch((u32)vcpu->vmcs.info_vmexit_reason)
 
-
-	/*
-	 * Check and clear guest interruptibility state.
-	 * However, ignore bit 3, because it is for virtual NMI.
-	 */
-	if ((vcpu->vmcs.guest_interruptibility & ~VMX_GUEST_INTR_BLOCK_NMI) != 0){
-		vcpu->vmcs.guest_interruptibility &= VMX_GUEST_INTR_BLOCK_NMI;
-	}
-
 	//make sure we have no nested events
 	if(vcpu->vmcs.info_IDT_vectoring_information & 0x80000000){
 		printf("CPU(0x%02x): HALT; Nested events unhandled with hwp:0x%08x\n",
