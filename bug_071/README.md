@@ -655,7 +655,7 @@ BlueScreenViewer:
 
 Note: not tried Windows 11 DMAP on KVM yet.
 
-TODO
+Continue in `bug_120`.
 
 ### Summary
 
