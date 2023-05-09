@@ -49,6 +49,26 @@
 // author: amit vasudevan (amitvasudevan@acm.org)
 #include <xmhf.h>
 
+static void xxd(uintptr_t start, uintptr_t end) {
+	if ((start & 0xf) != 0 || (end & 0xf) != 0) {
+		HALT_ON_ERRORCOND(0);
+		//printf("xxd assertion failed");
+		//while (1) {
+		//	asm volatile ("hlt");
+		//}
+	}
+	for (uintptr_t i = start; i < end; i += 0x10) {
+		printf("XXD: %08lx:", i);
+		for (uintptr_t j = 0; j < 0x10; j++) {
+			if (j & 1) {
+				printf("%02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
+			} else {
+				printf(" %02x", (unsigned)*(unsigned char*)(uintptr_t)(i + j));
+			}
+		}
+		printf("\n");
+	}
+}
 
 //---VMX decode assist----------------------------------------------------------
 //map a CPU register index into appropriate VCPU *vcpu or struct regs *r field
@@ -1544,31 +1564,40 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 					break;
 
 				default:
-					{
-						printf(
-							"CPU(0x%02x): LXY: exception!"
-							" xcp_b=0x%08x"
-							" intr_i=0x%08x"
-							" errc=0x%08x"
-							" %s"
-							" rip=0x%08lx"
-							" cs=0x%04hx"
-							" cr3=0x%08lx"
-							"\n",
-							vcpu->id,
-							vcpu->vmcs.control_exception_bitmap,
-							vcpu->vmcs.info_vmexit_interrupt_information,
-							vcpu->vmcs.info_vmexit_interrupt_error_code,
-							(vcpu->vmcs.control_VM_entry_controls & (1U << VMX_VMENTRY_IA_32E_MODE_GUEST)) ? "64-bit" : "32-bit",
-							vcpu->vmcs.guest_RIP,
-							vcpu->vmcs.guest_CS_selector,
-							vcpu->vmcs.guest_CR3
-						);
-						vcpu->vmcs.control_VM_entry_interruption_information =
-							vcpu->vmcs.info_vmexit_interrupt_information;
-						vcpu->vmcs.control_VM_entry_exception_errorcode =
-							vcpu->vmcs.info_vmexit_interrupt_error_code;
-					}
+{
+	printf(
+		"CPU(0x%02x): LXY: exception!"
+		" xcp_b=0x%08x"
+		" intr_i=0x%08x"
+		" errc=0x%08x"
+		" %s"
+		" rip=0x%08lx"
+		" cs=0x%04hx"
+		" cr3=0x%08lx"
+		"\n",
+		vcpu->id,
+		vcpu->vmcs.control_exception_bitmap,
+		vcpu->vmcs.info_vmexit_interrupt_information,
+		vcpu->vmcs.info_vmexit_interrupt_error_code,
+		((vcpu->vmcs.control_VM_entry_controls &
+		  (1U << VMX_VMENTRY_IA_32E_MODE_GUEST)) ? "64-bit" : "32-bit"),
+		vcpu->vmcs.guest_RIP,
+		vcpu->vmcs.guest_CS_selector,
+		vcpu->vmcs.guest_CR3
+	);
+	vcpu->vmcs.control_VM_entry_interruption_information =
+		vcpu->vmcs.info_vmexit_interrupt_information;
+	vcpu->vmcs.control_VM_entry_exception_errorcode =
+		vcpu->vmcs.info_vmexit_interrupt_error_code;
+	if (vcpu->vmcs.control_VM_entry_interruption_information == 0x80000300) {
+		guestmem_hptw_ctx_pair_t ctx_pair;
+		u8 val[PAGE_SIZE_4K] __attribute__((aligned(PAGE_SIZE_4K)));
+		guestmem_init(vcpu, &ctx_pair);
+		guestmem_copy_gv2h(&ctx_pair, 0, val, vcpu->vmcs.guest_RIP & ~0xfffUL,
+						   PAGE_SIZE_4K);
+		xxd((uintptr_t)val, (uintptr_t)val + PAGE_SIZE_4K);
+	}
+}
 					break;
 
 					printf("VMEXIT-EXCEPTION:\n");
