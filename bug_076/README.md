@@ -333,4 +333,6 @@ This page will be used to track various bugs reported to QEMU / KVM
 	* Limitation in KVM: KVM's ABI does not support LOCK on MMIO
 * `bug_111`: VMware VGA MMIO does not honor atomic instruction
 	* <https://communities.vmware.com/t5/VMware-Workstation-Player/LOCK-instruction-atomicity-broken-on-VGA-memory-mapped-IO/m-p/2946505#M39982>
+* `bug_120`: tboot integer truncation in `saved_misc_enable_msr`
+	* TODO: tboot-devel mailing list waiting for approval
 

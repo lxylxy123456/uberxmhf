@@ -1,0 +1,10 @@
+Subject: Bug report: integer truncation in saved_misc_enable_msr
+
+I recently found that in tboot/include/txt/heap.h, os_mle_data_t defines saved_misc_enable_msr with type uint32_t. However, MSRs contain 64 bits, so uint64_t should be used. The consequence of this bug is that in tboot/txt/txt.c, "os_mle_data->saved_misc_enable_msr = rdmsr(MSR_IA32_MISC_ENABLE);" results in integer truncation.
+
+On my machine (Dell 7050 with Intel(R) Core(TM) i5-7600 CPU @ 3.50GHz), I see that IA32_MISC_ENABLE before SENTER is 0x4000840089. However, IA32_MISC_ENABLE after SENTER is restored to 0x840089, where the 34th bit is lost.
+
+This bug appears in tboot-1.11.1, it also appears in the latest version on sourceforge: https://sourceforge.net/p/tboot/code/ci/20d511/tree/tboot/include/txt/heap.h#l288
+
+Could you please fix this bug in tboot? Thank you.
+

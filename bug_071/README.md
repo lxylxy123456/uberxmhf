@@ -425,7 +425,7 @@ We need to modify how XMHF handles INIT signals after normal OS boots.
 
 ...
 
-TODO
+Continue in `bug_121`.
 
 ### Real Serial Port
 
