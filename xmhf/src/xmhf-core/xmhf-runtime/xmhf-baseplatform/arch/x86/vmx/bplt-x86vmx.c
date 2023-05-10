@@ -65,16 +65,19 @@ void xmhf_baseplatform_arch_x86vmx_cpuinitialize(void){
 		write_cr0(bcr0);
 
 #if defined (__DRT__)
-        // restore pre-SENTER MTRRs that were overwritten for SINIT launch
-        // NOTE: XXX TODO; BSP MTRRs ALREADY RESTORED IN SL; IS IT
-        //   DANGEROUS TO DO THIS TWICE?
-        // sl.c unity-maps 0xfed00000 for 2M so these should work fine
 	#ifndef __XMHF_VERIFICATION__
         txt_heap = get_txt_heap();
         printf("txt_heap = 0x%08lx\n", (uintptr_t)txt_heap);
         os_mle_data = get_os_mle_data_start(txt_heap);
         printf("os_mle_data = 0x%08lx\n", (uintptr_t)os_mle_data);
 
+        /* restore pre-SENTER IA32_MISC_ENABLE_MSR */
+        wrmsr64(MSR_IA32_MISC_ENABLE, os_mle_data->saved_misc_enable_msr);
+
+        // restore pre-SENTER MTRRs that were overwritten for SINIT launch
+        // NOTE: XXX TODO; BSP MTRRs ALREADY RESTORED IN SL; IS IT
+        //   DANGEROUS TO DO THIS TWICE?
+        // sl.c unity-maps 0xfed00000 for 2M so these should work fine
         if(!validate_mtrrs(&(os_mle_data->saved_mtrr_state))) {
              printf("SECURITY FAILURE: validate_mtrrs() failed.\n");
              HALT();

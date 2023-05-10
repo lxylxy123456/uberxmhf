@@ -50,10 +50,8 @@
 //---includes-------------------------------------------------------------------
 #include <xmhf.h>
 
-
 //---forward prototypes---------------------------------------------------------
-u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus);
-void cstartup(multiboot_info_t *mbi);
+u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus, void *uefi_rsdp);
 MPFP * MP_GetFPStructure(void);
 u32 _MPFPComputeChecksum(u32 spaddr, u32 size);
 u32 isbsp(void);
@@ -86,7 +84,7 @@ SL_PARAMETER_BLOCK *slpb = NULL;
 /* TODO: refactor to eliminate a lot of these globals, or at least use
  * static where appropriate */
 static u8 *g_sinit_module_ptr = NULL;
-static u32 g_sinit_module_size = 0;
+static size_t g_sinit_module_size = 0;
 #endif /* __DRT__ */
 
 extern void init_core_lowlevel_setup(void);
@@ -115,8 +113,8 @@ size_t sl_rt_size;
 
 
 //---MP config table handling---------------------------------------------------
-void dealwithMP(void){
-    if(!smp_getinfo(pcpus, &pcpus_numentries)){
+void dealwithMP(void *uefi_rsdp){
+    if(!smp_getinfo(pcpus, &pcpus_numentries, uefi_rsdp)){
         printf("Fatal error with SMP detection. Halting!\n");
         HALT();
     }
@@ -683,6 +681,28 @@ bool txt_do_senter(void *phys_mle_start, size_t mle_size) {
     return false; /* unreachable if launch is successful, thus should return failure */
 }
 
+#ifdef __UEFI__
+/*
+ * Get SINIT module information from UEFI information.
+ */
+static bool txt_parse_sinit(u64 start, u64 end)
+{
+	void *ptr = (void *)start;
+	size_t size = end - start;
+
+	if (start == 0 || end == 0) {
+		return false;
+	}
+
+	if (!is_sinit_acmod(ptr, size, false)) {
+		return false;
+	}
+
+	g_sinit_module_ptr = ptr;
+	g_sinit_module_size = size;
+	return true;
+}
+#else /* !__UEFI__ */
 /**
  * Check each module to see if it is an SINIT module.  If it is, set
  * the globals g_sinit_module_ptr and g_sinit_module_size to point to
@@ -716,6 +736,7 @@ static bool txt_parse_sinit(module_t *mod_array, unsigned int mods_count) {
 
     return false;
 }
+#endif /* __UEFI__ */
 
 //---svm_verify_platform-------------------------------------------------------
 //do some basic checks on SVM platform to ensure DRTM should work as expected
@@ -997,16 +1018,22 @@ bool svm_prepare_tpm(void) {
 #endif
 
 //---init main----------------------------------------------------------------
-void cstartup(multiboot_info_t *mbi){
+#ifdef __UEFI__
+void cstartup(xmhf_efi_info_t *xei)
+#else /* !__UEFI__ */
+void cstartup(multiboot_info_t *mbi)
+#endif /* __UEFI__ */
+{
+#ifndef __UEFI__
     module_t *mod_array;
     u32 mods_count;
     size_t sl_rt_nonzero_size;
+#endif /* !__UEFI__ */
 
     /* parse command line */
     memset(g_cmdline, '\0', sizeof(g_cmdline));
 #ifdef __UEFI__
-    (void)mbi;
-    HALT_ON_ERRORCOND(0 && "TODO");
+    strncpy(g_cmdline, xei->cmdline, sizeof(g_cmdline)-1);
 #else /* !__UEFI__ */
     strncpy(g_cmdline, (char*)mbi->cmdline, sizeof(g_cmdline)-1);
 #endif /* __UEFI__ */
@@ -1027,12 +1054,10 @@ void cstartup(multiboot_info_t *mbi){
 	xmhf_debug_init((char *)&g_uart_config);
 #endif
 
-#ifdef __UEFI__
-    HALT_ON_ERRORCOND(0 && "TODO");
-#else /* !__UEFI__ */
+#ifndef __UEFI__
     mod_array = (module_t*)mbi->mods_addr;
     mods_count = mbi->mods_count;
-#endif /* __UEFI__ */
+#endif /* !__UEFI__ */
 
 	//welcome banner
 	printf("Lightweight Hypervisor (LHV) %s\n", ___XMHF_BUILD_VERSION___);
@@ -1046,11 +1071,15 @@ void cstartup(multiboot_info_t *mbi){
     #error "Unsupported Arch"
 #endif /* !defined(__XMHF_I386__) && !defined(__XMHF_AMD64__) */
 
-//	printf("HALT\n");
-//	HALT();
+#ifdef __UEFI__
+    printf("Boot method: UEFI\n");
+#else /* !__UEFI__ */
+    printf("Boot method: BIOS\n");
+#endif /* __UEFI__ */
 
 #ifdef __UEFI__
-    HALT_ON_ERRORCOND(0 && "TODO");
+    printf("INIT(early): initializing, total modules=%u\n",
+    	   xei->sinit_end == 0 ? 1 : 2);
 #else /* !__UEFI__ */
     printf("INIT(early): initializing, total modules=%u\n", mods_count);
 #endif /* __UEFI__ */
@@ -1062,15 +1091,16 @@ void cstartup(multiboot_info_t *mbi){
         printf("INIT(early): detected an Intel CPU\n");
 
 #ifdef __DRT__
-#ifdef __UEFI__
-        HALT_ON_ERRORCOND(0 && "TODO");
-#else /* !__UEFI__ */
         /* Intel systems require an SINIT module */
-        if(!txt_parse_sinit(mod_array, mods_count)) {
+#ifdef __UEFI__
+        if(!txt_parse_sinit(xei->sinit_start, xei->sinit_end))
+#else /* !__UEFI__ */
+        if(!txt_parse_sinit(mod_array, mods_count))
+#endif /* __UEFI__ */
+        {
             printf("INIT(early): FATAL ERROR: Intel CPU without SINIT module!\n");
             HALT();
         }
-#endif /* __UEFI__ */
 #endif /* __DRT__ */
     } else if(CPU_VENDOR_AMD == cpu_vendor) {
         printf("INIT(early): detected an AMD CPU\n");
@@ -1092,7 +1122,36 @@ void cstartup(multiboot_info_t *mbi){
 #endif /* !defined(__XMHF_I386__) */
 
     //deal with MP and get CPU table
-    dealwithMP();
+#ifdef __UEFI__
+    dealwithMP((void *)(uintptr_t)xei->acpi_rsdp);
+#else /* !__UEFI__ */
+    dealwithMP(NULL);
+#endif /* __UEFI__ */
+
+#ifdef __UEFI__
+
+	/*
+	 * In UEFI, SL+RT is already moved to correct memory location by efi.c.
+	 *
+	 * We also do not need to deal with E820, because UEFI AllocatePages will
+	 * hide SL+RT memory from guest for us.
+	 *
+	 * When __SKIP_RUNTIME_BSS__, the zero part of SL+RT is not initialized
+	 * here. It is initialized in secure loader.
+	 *
+	 * Just set global variables, e.g. hypervisor_image_baseaddress.
+	 */
+	hypervisor_image_baseaddress = xei->slrt_start;
+	HALT_ON_ERRORCOND((u64)hypervisor_image_baseaddress == xei->slrt_start);
+
+	/* Set sl_rt_size */
+	{
+		u64 size64 = xei->slrt_end - xei->slrt_start;
+		sl_rt_size = size64;
+		HALT_ON_ERRORCOND((u64)sl_rt_size == size64);
+	}
+
+#else /* !__UEFI__ */
 
     //check number of elements in mod_array. Currently bootloader assumes that
     //mod_array[0] is SL+RT, mod_array[1] is guest OS boot module.
@@ -1105,19 +1164,12 @@ void cstartup(multiboot_info_t *mbi){
     sl_rt_size = sl_rt_nonzero_size;
 
 #ifdef __SKIP_RUNTIME_BSS__
-#ifdef __UEFI__
-    HALT_ON_ERRORCOND(0 && "TODO");
-#else /* !__UEFI__ */
     {
         RPB *rpb = (RPB *) (mod_array[0].mod_start + 0x200000);
         sl_rt_size = PAGE_ALIGN_UP_2M((u32)rpb->XtVmmRuntimeBssEnd - __TARGET_BASE_SL);
     }
-#endif /* __UEFI__ */
 #endif /* __SKIP_RUNTIME_BSS__ */
 
-#ifdef __UEFI__
-    HALT_ON_ERRORCOND(0 && "TODO");
-#else /* !__UEFI__ */
     hypervisor_image_baseaddress = dealwithE820(mbi, PAGE_ALIGN_UP_2M((sl_rt_size)));
 
     //check whether multiboot modules overlap with SL+RT. mod_array[0] can
@@ -1139,6 +1191,7 @@ void cstartup(multiboot_info_t *mbi){
     //relocate the hypervisor binary to the above calculated address
     HALT_ON_ERRORCOND(sl_rt_nonzero_size <= sl_rt_size);
     memmove((void*)hypervisor_image_baseaddress, (void*)mod_array[0].mod_start, sl_rt_nonzero_size);
+
 #endif /* __UEFI__ */
 
     HALT_ON_ERRORCOND(sl_rt_size > 0x200000); /* 2M */
@@ -1163,14 +1216,12 @@ void cstartup(multiboot_info_t *mbi){
 #endif /* !__SKIP_BOOTLOADER_HASH__ */
 #endif
 
-#ifdef __UEFI__
-    HALT_ON_ERRORCOND(0 && "TODO");
-#else /* !__UEFI__ */
+#ifndef __UEFI__
     //print out stats
     printf("INIT(early): relocated hypervisor binary image to 0x%08lx\n", hypervisor_image_baseaddress);
     printf("INIT(early): 2M aligned size = 0x%08lx\n", PAGE_ALIGN_UP_2M((mod_array[0].mod_end - mod_array[0].mod_start)));
     printf("INIT(early): un-aligned size = 0x%08x\n", mod_array[0].mod_end - mod_array[0].mod_start);
-#endif /* __UEFI__ */
+#endif /* !__UEFI__ */
 
     //fill in "sl" parameter block
     {
@@ -1185,6 +1236,38 @@ void cstartup(multiboot_info_t *mbi){
         slpb->numCPUEntries = pcpus_numentries;
         //memcpy((void *)&slpb->pcpus, (void *)&pcpus, (sizeof(PCPU) * pcpus_numentries));
         memcpy((void *)&slpb->cpuinfobuffer, (void *)&pcpus, (sizeof(PCPU) * pcpus_numentries));
+
+#ifdef __UEFI__
+
+        slpb->runtime_size = sl_rt_size - PAGE_SIZE_2M;
+
+        /*
+         * When UEFI, runtime_osboot* are ignored, because XMHF does not boot
+         * guest OS directly.
+         */
+        slpb->runtime_osbootmodule_base = 0;
+        slpb->runtime_osbootmodule_size = 0;
+        slpb->runtime_osbootdrive = 0;
+
+        /*
+         * When UEFI, runtime_appmodule_* are ignored, because XMHF does not
+         * support it yet.
+         */
+		slpb->runtime_appmodule_base = 0;
+		slpb->runtime_appmodule_size = 0;
+
+		slpb->uefi_acpi_rsdp = xei->acpi_rsdp;
+		slpb->uefi_info = (uintptr_t)xei;
+#ifdef __DRT__
+		{
+			uintptr_t start = xei->sinit_start;
+			uintptr_t bytes = xei->sinit_end - start;
+			HALT_ON_ERRORCOND(is_sinit_acmod((void *)start, bytes, false));
+		}
+#endif /* __DRT__ */
+
+#else /* !__UEFI__ */
+
         slpb->runtime_size = (mod_array[0].mod_end - mod_array[0].mod_start) - PAGE_SIZE_2M;
         slpb->runtime_osbootmodule_base = 0; // mod_array[1].mod_start;
         slpb->runtime_osbootmodule_size = 0; // (mod_array[1].mod_end - mod_array[1].mod_start);
@@ -1216,11 +1299,15 @@ void cstartup(multiboot_info_t *mbi){
 			}
 		}
 
+		slpb->uefi_acpi_rsdp = 0;
+
+#endif /* __UEFI__ */
+
 #if defined (__DEBUG_SERIAL__)
         slpb->uart_config = g_uart_config;
 #endif
 #ifdef __UEFI__
-        HALT_ON_ERRORCOND(0 && "TODO");
+        strncpy(slpb->cmdline, xei->cmdline, sizeof(slpb->cmdline));
 #else /* !__UEFI__ */
         strncpy(slpb->cmdline, (const char *)mbi->cmdline, sizeof(slpb->cmdline));
 #endif /* __UEFI__ */
@@ -1240,11 +1327,25 @@ void cstartup(multiboot_info_t *mbi){
     //setup vcpus
     setupvcpus(cpu_vendor, midtable, midtable_numentries);
 
+#ifdef __UEFI__
+	/* Need C code help to set *init_gdt_base = init_gdt_start */
+	{
+		extern u64 init_gdt_base[];
+		extern u64 init_gdt_start[];
+		*init_gdt_base = (uintptr_t)init_gdt_start;
+	}
+
+#ifndef __SKIP_INIT_SMP__
+    #error "INIT SMP in UEFI is not supported"
+#endif /* __SKIP_INIT_SMP__ */
+
+#endif /* __UEFI__ */
+
 #ifndef __SKIP_INIT_SMP__
     //wakeup all APs
     if(midtable_numentries > 1)
         wakeupAPs();
-#endif /* __SKIP_INIT_SMP__ */
+#endif /* !__SKIP_INIT_SMP__ */
 
     //fall through and enter mp_cstartup via init_core_lowlevel_setup
     init_core_lowlevel_setup();

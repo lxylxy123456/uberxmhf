@@ -215,8 +215,28 @@ void xmhf_smpguest_arch_x86vmx_initialize(VCPU *vcpu, u32 unmaplapic){
 //----------------------------------------------------------------------
 
 
+/*
+ * When this function is called, XMHF is interested in guest's LAPIC access.
+ */
+void xmhf_smpguest_arch_x86vmx_link_lapic(VCPU *vcpu)
+{
+	printf("%s: linking LAPIC interception to watch for SIPI\n", __FUNCTION__);
+	vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_UNMAP);
+	xmhf_partition_arch_x86vmx_set_msrbitmap_x2apic_icr(vcpu);
+	g_all_cores_booted_up = 0;
+}
 
-
+/*
+ * When this function is called, XMHF is no longer interested in guest's LAPIC
+ * access.
+ */
+static void xmhf_smpguest_arch_x86vmx_delink_lapic(VCPU *vcpu)
+{
+    printf("%s: delinking LAPIC interception since all cores have SIPI\n", __FUNCTION__);
+	vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_MAP);
+	xmhf_partition_arch_x86vmx_clear_msrbitmap_x2apic_icr(vcpu);
+	g_all_cores_booted_up = 1;
+}
 
 #ifdef __XMHF_VERIFICATION_DRIVEASSERTS__
 	bool g_vmx_lapic_npf_verification_guesttrapping = false;
@@ -398,9 +418,7 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_dbexception(VCPU *vcpu, struct regs 
 
   //remove LAPIC interception if all cores have booted up
   if(delink_lapic_interception){
-    printf("%s: delinking LAPIC interception since all cores have SIPI\n", __FUNCTION__);
-	vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_MAP);
-	xmhf_partition_arch_x86vmx_clear_msrbitmap_x2apic_icr(vcpu);
+    xmhf_smpguest_arch_x86vmx_delink_lapic(vcpu);
   }else{
 	vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_UNMAP);
   }
@@ -451,13 +469,7 @@ int xmhf_smpguest_arch_x86vmx_eventhandler_x2apic_icrwrite(VCPU *vcpu, u64 value
 		 */
 		HALT_ON_ERRORCOND(edx <= 0xff);
 		if (processSIPI(vcpu, eax, edx)) {
-			/*
-			 * Ideally the guest should only be using x2APIC and not APIC.
-			 * But we nevertheless delink LAPIC interception.
-			 */
-			printf("%s: delinking LAPIC interception since all cores have SIPI\n", __FUNCTION__);
-			vmx_lapic_changemapping(vcpu, g_vmx_lapic_base, g_vmx_lapic_base, VMX_LAPIC_MAP);
-			xmhf_partition_arch_x86vmx_clear_msrbitmap_x2apic_icr(vcpu);
+			xmhf_smpguest_arch_x86vmx_delink_lapic(vcpu);
 		}
 		return 1;
 	default:

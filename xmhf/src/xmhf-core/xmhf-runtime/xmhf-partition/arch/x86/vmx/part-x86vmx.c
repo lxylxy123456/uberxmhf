@@ -164,7 +164,7 @@ static void _vmx_initVT(VCPU *vcpu){
     u32 eax, ebx, ecx, edx;
     cpuid(1, &eax, &ebx, &ecx, &edx);
     if ( ( ecx & (1<<5) ) == 0 ){
-      printf("CPU(0x%02x) does not support VT. Halting!", vcpu->id);
+      printf("CPU(0x%02x) does not support VT. Halting!\n", vcpu->id);
       HALT();
     }
     #endif
@@ -296,6 +296,7 @@ static void _vmx_initVT(VCPU *vcpu){
 
 }
 
+#ifndef __UEFI__
 //---vmx int 15 hook enabling function------------------------------------------
 static void	_vmx_int15_initializehook(VCPU *vcpu){
 	//we should only be called from the BSP
@@ -344,6 +345,7 @@ static void	_vmx_int15_initializehook(VCPU *vcpu){
 		}
 	}
 }
+#endif /* !__UEFI__ */
 
 // Set msr to cause VMEXIT when read or write in bitmap
 static void set_msrbitmap(u8 *bitmap, u32 msr) {
@@ -448,12 +450,238 @@ static void vmx_prepare_msr_bitmap(VCPU *vcpu) {
 #endif /* __NESTED_VIRTUALIZATION__ */
 }
 
+// Add IA32_X2APIC_ICR to vmx_msr_bitmaps for the current VCPU. This function
+// is intended to be called when XMHF needs to intercept SIPI again.
+void xmhf_partition_arch_x86vmx_set_msrbitmap_x2apic_icr(VCPU *vcpu) {
+	u8 *bitmap = vmx_msr_bitmaps[vcpu->idx];
+	set_msrbitmap(bitmap, IA32_X2APIC_ICR);
+}
+
 // Remove IA32_X2APIC_ICR from vmx_msr_bitmaps for the current VCPU. This
 // function is intended to be called after SMP guest bootup completes.
 void xmhf_partition_arch_x86vmx_clear_msrbitmap_x2apic_icr(VCPU *vcpu) {
 	u8 *bitmap = vmx_msr_bitmaps[vcpu->idx];
 	clear_msrbitmap(bitmap, IA32_X2APIC_ICR);
 }
+
+/* Set the state of guest to after INIT interrupt, as specified by Intel SDM */
+void xmhf_partition_arch_x86vmx_guestVMCS_INIT(VCPU *vcpu)
+{
+	//Let guest think CR0 is set to 0x60000010U, but actually set fixed bits
+	// 0x60000010U means real-mode, PE and PG bits cleared, set ET bit
+	// Modify mask to trap access to CR0 fixed bits.
+	// Make sure to change vmx_handle_intercept_cr0access_ug() if changing
+	// control_CR0_mask.
+	vcpu->vmcs.guest_CR0 = vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED0_MSR];
+	vcpu->vmcs.guest_CR0 &= ~(CR0_PE);
+	vcpu->vmcs.guest_CR0 &= ~(CR0_PG);
+	vcpu->vmcs.guest_CR0 |= CR0_ET;
+	vcpu->vmcs.control_CR0_mask = vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED0_MSR];
+	vcpu->vmcs.control_CR0_mask &= ~(CR0_PE);
+	vcpu->vmcs.control_CR0_mask &= ~(CR0_PG);
+	vcpu->vmcs.control_CR0_mask |= CR0_CD;
+	vcpu->vmcs.control_CR0_mask |= CR0_NW;
+	vcpu->vmcs.control_CR0_shadow = CR0_CD | CR0_NW | CR0_ET;
+	//Let guest think CR4 is set to 0, but actually set fixed bits
+	// Modify mask to trap access to CR4 fixed bits.
+	// Make sure to change vmx_handle_intercept_cr4access_ug() if changing
+	// control_CR4_mask.
+	vcpu->vmcs.guest_CR4 = vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED0_MSR];
+	vcpu->vmcs.control_CR4_mask = vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED0_MSR];
+	vcpu->vmcs.control_CR4_shadow = 0;
+	//CR3 set to 0, does not matter
+	vcpu->vmcs.guest_CR3 = 0;
+	//IDTR
+	vcpu->vmcs.guest_IDTR_base = 0;
+	vcpu->vmcs.guest_IDTR_limit = 0xffff;
+	//GDTR
+	vcpu->vmcs.guest_GDTR_base = 0;
+	vcpu->vmcs.guest_GDTR_limit = 0xffff;
+	//LDTR, unusable
+	vcpu->vmcs.guest_LDTR_base = 0;
+	vcpu->vmcs.guest_LDTR_limit = 0xffff;
+	vcpu->vmcs.guest_LDTR_selector = 0;
+	vcpu->vmcs.guest_LDTR_access_rights = 0x10000;
+	// TR, should be usable for VMX to work, but not used by guest
+	// In 32-bit guest, TR access rights can be 0x83 (16-bit busy TSS) or 0x8b
+	// (32-bit busy TSS). In 64-bit guest, it has to be 0x8b. So use 0x8b
+	// (64-bit busy TSS). So use 0x8b here.
+	vcpu->vmcs.guest_TR_base = 0;
+	vcpu->vmcs.guest_TR_limit = 0;
+	vcpu->vmcs.guest_TR_selector = 0;
+	vcpu->vmcs.guest_TR_access_rights = 0x8b; //present, 32/64-bit busy TSS
+	//DR7
+	vcpu->vmcs.guest_DR7 = 0x400;
+	//RSP
+	vcpu->vmcs.guest_RSP = 0x0;
+	//RIP
+	vcpu->vmcs.guest_CS_selector = (vcpu->sipivector * PAGE_SIZE_4K) >> 4;
+	vcpu->vmcs.guest_CS_base = (vcpu->sipivector * PAGE_SIZE_4K);
+	vcpu->vmcs.guest_RIP = 0x0ULL;
+	//RFLAGS
+	vcpu->vmcs.guest_RFLAGS = (1<<1);					// reserved 1-bits
+	//CS, DS, ES, FS, GS and SS segments
+	vcpu->vmcs.guest_CS_limit = 0xFFFF;	//64K
+	vcpu->vmcs.guest_CS_access_rights = 0x93; //present, system, read-write accessed
+	vcpu->vmcs.guest_DS_selector = 0;
+	vcpu->vmcs.guest_DS_base = 0;
+	vcpu->vmcs.guest_DS_limit = 0xFFFF;	//64K
+	vcpu->vmcs.guest_DS_access_rights = 0x93; //present, system, read-write accessed
+	vcpu->vmcs.guest_ES_selector = 0;
+	vcpu->vmcs.guest_ES_base = 0;
+	vcpu->vmcs.guest_ES_limit = 0xFFFF;	//64K
+	vcpu->vmcs.guest_ES_access_rights = 0x93; //present, system, read-write accessed
+	vcpu->vmcs.guest_FS_selector = 0;
+	vcpu->vmcs.guest_FS_base = 0;
+	vcpu->vmcs.guest_FS_limit = 0xFFFF;	//64K
+	vcpu->vmcs.guest_FS_access_rights = 0x93; //present, system, read-write accessed
+	vcpu->vmcs.guest_GS_selector = 0;
+	vcpu->vmcs.guest_GS_base = 0;
+	vcpu->vmcs.guest_GS_limit = 0xFFFF;	//64K
+	vcpu->vmcs.guest_GS_access_rights = 0x93; //present, system, read-write accessed
+	vcpu->vmcs.guest_SS_selector = 0x0;
+	vcpu->vmcs.guest_SS_base = 0x0;
+	vcpu->vmcs.guest_SS_limit = 0xFFFF;	//64K
+	vcpu->vmcs.guest_SS_access_rights = 0x93; //present, system, read-write accessed
+}
+
+#ifdef __UEFI__
+
+/*
+ * Set the state of guest for BSP when booted by UEFI, as recorded in
+ * bootloader's efi.c.
+ */
+static void xmhf_partition_arch_x86vmx_guestVMCS_UEFI(VCPU *vcpu,
+													  vmx_ctls_t *vmx_ctls)
+{
+	/*
+	 * For UEFI, BSP needs to resume the EFI service. Thus, load guest state
+	 * from bootloader data (untrusted).
+	 */
+	xmhf_efi_info_t *xei = (xmhf_efi_info_t *)(uintptr_t)rpb->uefi_info;
+
+#define LOAD_XEI(x) do { vcpu->vmcs.x = xei->x; } while (0)
+	LOAD_XEI(guest_ES_selector);
+	LOAD_XEI(guest_CS_selector);
+	LOAD_XEI(guest_SS_selector);
+	LOAD_XEI(guest_DS_selector);
+	LOAD_XEI(guest_FS_selector);
+	LOAD_XEI(guest_GS_selector);
+	LOAD_XEI(guest_LDTR_selector);
+	LOAD_XEI(guest_TR_selector);
+	LOAD_XEI(guest_PDPTE0);
+	LOAD_XEI(guest_PDPTE1);
+	LOAD_XEI(guest_PDPTE2);
+	LOAD_XEI(guest_PDPTE3);
+	LOAD_XEI(guest_ES_limit);
+	LOAD_XEI(guest_CS_limit);
+	LOAD_XEI(guest_SS_limit);
+	LOAD_XEI(guest_DS_limit);
+	LOAD_XEI(guest_FS_limit);
+	LOAD_XEI(guest_GS_limit);
+	LOAD_XEI(guest_LDTR_limit);
+	LOAD_XEI(guest_TR_limit);
+	LOAD_XEI(guest_GDTR_limit);
+	LOAD_XEI(guest_IDTR_limit);
+	LOAD_XEI(guest_ES_access_rights);
+	LOAD_XEI(guest_CS_access_rights);
+	LOAD_XEI(guest_SS_access_rights);
+	LOAD_XEI(guest_DS_access_rights);
+	LOAD_XEI(guest_FS_access_rights);
+	LOAD_XEI(guest_GS_access_rights);
+	LOAD_XEI(guest_LDTR_access_rights);
+	LOAD_XEI(guest_TR_access_rights);
+	LOAD_XEI(guest_SYSENTER_CS);
+	LOAD_XEI(guest_CR3);
+	LOAD_XEI(guest_ES_base);
+	LOAD_XEI(guest_CS_base);
+	LOAD_XEI(guest_SS_base);
+	LOAD_XEI(guest_DS_base);
+	LOAD_XEI(guest_FS_base);
+	LOAD_XEI(guest_GS_base);
+	LOAD_XEI(guest_LDTR_base);
+	LOAD_XEI(guest_TR_base);
+	LOAD_XEI(guest_GDTR_base);
+	LOAD_XEI(guest_IDTR_base);
+	LOAD_XEI(guest_DR7);
+	LOAD_XEI(guest_RSP);
+	LOAD_XEI(guest_RIP);
+	LOAD_XEI(guest_RFLAGS);
+	LOAD_XEI(guest_SYSENTER_ESP);
+	LOAD_XEI(guest_SYSENTER_EIP);
+#undef LOAD_XEI
+
+	/* CR0 need to be restored to guest_CR0 and control_CR0_shadow. */
+	{
+		ulong_t fixed0 = vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED0_MSR];
+		ulong_t fixed1 = vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED1_MSR];
+		fixed0 &= ~(CR0_PG | CR0_PE);
+		vcpu->vmcs.control_CR0_mask = fixed0;
+		vcpu->vmcs.control_CR0_mask &= ~(CR0_PE);
+		vcpu->vmcs.control_CR0_mask &= ~(CR0_PG);
+		vcpu->vmcs.control_CR0_mask |= CR0_CD;
+		vcpu->vmcs.control_CR0_mask |= CR0_NW;
+		vcpu->vmcs.control_CR0_shadow = xei->guest_CR0;
+		vcpu->vmcs.guest_CR0 = xei->guest_CR0;
+		vcpu->vmcs.guest_CR0 |= fixed0;
+		vcpu->vmcs.guest_CR0 &= fixed1;
+	}
+
+	/* CR4 need to be restored to guest_CR4 and control_CR4_shadow. */
+	{
+		ulong_t fixed0 = vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED0_MSR];
+		ulong_t fixed1 = vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED1_MSR];
+		vcpu->vmcs.control_CR4_mask = fixed0;
+		vcpu->vmcs.control_CR4_shadow = xei->guest_CR4;
+		vcpu->vmcs.guest_CR4 = xei->guest_CR4;
+		vcpu->vmcs.guest_CR4 |= fixed0;
+		vcpu->vmcs.guest_CR4 &= fixed1;
+	}
+
+	/* Handle MSR load area */
+	{
+		msr_entry_t *gmsr = (msr_entry_t *)vcpu->vmx_vaddr_msr_area_guest;
+		HALT_ON_ERRORCOND(vmx_msr_area_msrs_count == 2);
+		HALT_ON_ERRORCOND(gmsr[0].index == MSR_EFER);
+		gmsr[0].data = xei->guest_IA32_EFER;
+		HALT_ON_ERRORCOND(gmsr[1].index == MSR_IA32_PAT);
+		gmsr[1].data = xei->guest_IA32_PAT;
+	}
+
+	/* Handle IA-32e guest */
+	if (xei->guest_IA32_EFER & (1U << EFER_LME)) {
+		_vmx_setctl_vmentry_ia_32e_mode_guest(vmx_ctls);
+	}
+}
+
+#else /* !__UEFI__ */
+
+/* Set the state of guest for BSP when booted by BIOS, as specified by BIOS */
+static void xmhf_partition_arch_x86vmx_guestVMCS_BIOS(VCPU *vcpu)
+{
+	/* Reuse code for setting VMCS to state of INIT */
+	xmhf_partition_arch_x86vmx_guestVMCS_INIT(vcpu);
+
+	// Set CR0 = 0x00000010U (e.g. after QEMU's SeaBIOS jumps to 0x7c00)
+	vcpu->vmcs.control_CR0_shadow = CR0_ET;
+	vcpu->vmcs.guest_IDTR_limit = 0x3ff;	//16-bit IVT
+	vcpu->vmcs.guest_GDTR_limit = 0;		//no GDT
+	vcpu->vmcs.guest_LDTR_limit = 0;
+	vcpu->vmcs.guest_CS_selector = 0;
+	vcpu->vmcs.guest_CS_base = 0;
+	vcpu->vmcs.guest_RIP = 0x7c00ULL;
+	vcpu->vmcs.guest_RFLAGS &= ~((1<<3)|(1<<5)|(1<<15));	// reserved 0-bits
+	vcpu->vmcs.guest_RFLAGS |= (1<<9);				// IF = enable
+	vcpu->vmcs.guest_RFLAGS &= ~(1<<14);			// Nested Task = disable
+
+	//Copy first sector of disk to boot
+	printf("BSP(0x%02x): copying boot-module to boot guest\n", vcpu->id);
+	#ifndef __XMHF_VERIFICATION__
+	memcpy((void *)__GUESTOSBOOTMODULE_BASE, (void *)rpb->XtGuestOSBootModuleBase, rpb->XtGuestOSBootModuleSize);
+	#endif
+}
+
+#endif /* __UEFI__ */
 
 //--initunrestrictedguestVMCS: initializes VMCS for unrestricted guest ---------
 void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
@@ -599,96 +827,15 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	vcpu->vmcs.control_CR3_target_count = 0;
 
 	//setup guest state
-	//CR0, real-mode, PE and PG bits cleared, set ET bit
-	vcpu->vmcs.guest_CR0 = vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED0_MSR];
-	vcpu->vmcs.guest_CR0 &= ~(CR0_PE);
-	vcpu->vmcs.guest_CR0 &= ~(CR0_PG);
-	vcpu->vmcs.guest_CR0 |= CR0_ET;
-	//CR4, required bits set (usually VMX enabled bit)
-	vcpu->vmcs.guest_CR4 = vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED0_MSR];
-	//CR3 set to 0, does not matter
-	vcpu->vmcs.guest_CR3 = 0;
-	//IDTR
-	vcpu->vmcs.guest_IDTR_base = 0;
-	if (vcpu->isbsp) {
-		vcpu->vmcs.guest_IDTR_limit = 0x3ff;	//16-bit IVT
-	} else {
-		vcpu->vmcs.guest_IDTR_limit = 0xffff;
-	}
-	//GDTR
-	vcpu->vmcs.guest_GDTR_base = 0;
-	if (vcpu->isbsp) {
-		vcpu->vmcs.guest_GDTR_limit = 0;		//no GDT
-	} else {
-		vcpu->vmcs.guest_GDTR_limit = 0xffff;
-	}
-	//LDTR, unusable
-	vcpu->vmcs.guest_LDTR_base = 0;
-	if (vcpu->isbsp) {
-		vcpu->vmcs.guest_LDTR_limit = 0;
-	} else {
-		vcpu->vmcs.guest_LDTR_limit = 0xffff;
-	}
-	vcpu->vmcs.guest_LDTR_selector = 0;
-	vcpu->vmcs.guest_LDTR_access_rights = 0x10000;
-	// TR, should be usable for VMX to work, but not used by guest
-	// In 32-bit guest, TR access rights can be 0x83 (16-bit busy TSS) or 0x8b
-	// (32-bit busy TSS). In 64-bit guest, it has to be 0x8b. So use 0x8b
-	// (64-bit busy TSS). So use 0x8b here.
-	vcpu->vmcs.guest_TR_base = 0;
-	vcpu->vmcs.guest_TR_limit = 0;
-	vcpu->vmcs.guest_TR_selector = 0;
-	vcpu->vmcs.guest_TR_access_rights = 0x8b; //present, 32/64-bit busy TSS
-	//DR7
-	vcpu->vmcs.guest_DR7 = 0x400;
-	//RSP
-	vcpu->vmcs.guest_RSP = 0x0;
-	//RIP
 	if(vcpu->isbsp){
-		printf("BSP(0x%02x): copying boot-module to boot guest\n", vcpu->id);
-		#ifndef __XMHF_VERIFICATION__
-		memcpy((void *)__GUESTOSBOOTMODULE_BASE, (void *)rpb->XtGuestOSBootModuleBase, rpb->XtGuestOSBootModuleSize);
-		#endif
-		vcpu->vmcs.guest_CS_selector = 0;
-		vcpu->vmcs.guest_CS_base = 0;
-		vcpu->vmcs.guest_RIP = 0x7c00ULL;
-	}else{
-		vcpu->vmcs.guest_CS_selector = (vcpu->sipivector * PAGE_SIZE_4K) >> 4;
-		vcpu->vmcs.guest_CS_base = (vcpu->sipivector * PAGE_SIZE_4K);
-		vcpu->vmcs.guest_RIP = 0x0ULL;
+#ifdef __UEFI__
+		xmhf_partition_arch_x86vmx_guestVMCS_UEFI(vcpu, &vmx_ctls);
+#else /* !__UEFI__ */
+		xmhf_partition_arch_x86vmx_guestVMCS_BIOS(vcpu);
+#endif /* __UEFI__ */
+	} else {
+		xmhf_partition_arch_x86vmx_guestVMCS_INIT(vcpu);
 	}
-
-	//RFLAGS
-	vcpu->vmcs.guest_RFLAGS = (1<<1);					// reserved 1-bits
-	if (vcpu->isbsp) {
-		vcpu->vmcs.guest_RFLAGS &= ~((1<<3)|(1<<5)|(1<<15));	// reserved 0-bits
-		vcpu->vmcs.guest_RFLAGS |= (1<<9);				// IF = enable
-		vcpu->vmcs.guest_RFLAGS &= ~(1<<14);			// Nested Task = disable
-	}
-
-	//CS, DS, ES, FS, GS and SS segments
-	vcpu->vmcs.guest_CS_limit = 0xFFFF;	//64K
-	vcpu->vmcs.guest_CS_access_rights = 0x93; //present, system, read-write accessed
-	vcpu->vmcs.guest_DS_selector = 0;
-	vcpu->vmcs.guest_DS_base = 0;
-	vcpu->vmcs.guest_DS_limit = 0xFFFF;	//64K
-	vcpu->vmcs.guest_DS_access_rights = 0x93; //present, system, read-write accessed
-	vcpu->vmcs.guest_ES_selector = 0;
-	vcpu->vmcs.guest_ES_base = 0;
-	vcpu->vmcs.guest_ES_limit = 0xFFFF;	//64K
-	vcpu->vmcs.guest_ES_access_rights = 0x93; //present, system, read-write accessed
-	vcpu->vmcs.guest_FS_selector = 0;
-	vcpu->vmcs.guest_FS_base = 0;
-	vcpu->vmcs.guest_FS_limit = 0xFFFF;	//64K
-	vcpu->vmcs.guest_FS_access_rights = 0x93; //present, system, read-write accessed
-	vcpu->vmcs.guest_GS_selector = 0;
-	vcpu->vmcs.guest_GS_base = 0;
-	vcpu->vmcs.guest_GS_limit = 0xFFFF;	//64K
-	vcpu->vmcs.guest_GS_access_rights = 0x93; //present, system, read-write accessed
-	vcpu->vmcs.guest_SS_selector = 0x0;
-	vcpu->vmcs.guest_SS_base = 0x0;
-	vcpu->vmcs.guest_SS_limit = 0xFFFF;	//64K
-	vcpu->vmcs.guest_SS_access_rights = 0x93; //present, system, read-write accessed
 
 	//activate secondary processor controls
 	_vmx_setctl_activate_secondary_controls(&vmx_ctls);
@@ -731,28 +878,6 @@ void vmx_initunrestrictedguestVMCS(VCPU *vcpu){
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_block = false;
 	vcpu->vmx_guest_nmi_cfg.guest_nmi_pending = 0;
 	vcpu->vmx_eptlock_reading = false;
-
-	//trap access to CR0 fixed 1-bits
-	// Make sure to change vmx_handle_intercept_cr0access_ug() if changing
-	// control_CR0_mask.
-	vcpu->vmcs.control_CR0_mask = vcpu->vmx_msrs[INDEX_IA32_VMX_CR0_FIXED0_MSR];
-	vcpu->vmcs.control_CR0_mask &= ~(CR0_PE);
-	vcpu->vmcs.control_CR0_mask &= ~(CR0_PG);
-	vcpu->vmcs.control_CR0_mask |= CR0_CD;
-	vcpu->vmcs.control_CR0_mask |= CR0_NW;
-	if (vcpu->isbsp) {
-		/* 0x00000010U (e.g. after QEMU's SeaBIOS jumps to 0x7c00) */
-		vcpu->vmcs.control_CR0_shadow = CR0_ET;
-	} else {
-		/* 0x60000010U (Intel's spec on processor state after INIT) */
-		vcpu->vmcs.control_CR0_shadow = CR0_CD | CR0_NW | CR0_ET;
-	}
-
-	//trap access to CR4 fixed bits (this includes the VMXE bit)
-	// Make sure to change vmx_handle_intercept_cr4access_ug() if changing
-	// control_CR4_mask.
-	vcpu->vmcs.control_CR4_mask = vcpu->vmx_msrs[INDEX_IA32_VMX_CR4_FIXED0_MSR];
-	vcpu->vmcs.control_CR4_shadow = 0;
 
 	//write VMX controls to VMCS
 	vcpu->vmcs.control_VMX_pin_based = vmx_ctls.pinbased_ctls;
@@ -837,12 +962,14 @@ void xmhf_partition_arch_x86vmx_initializemonitor(VCPU *vcpu){
   memset((void *)&vcpu->vmcs, 0, sizeof(struct _vmx_vmcsfields));
    #endif
 
+#ifndef __UEFI__
 	//INT 15h E820 hook enablement for VMX unrestricted guest mode
 	//note: this only happens for the BSP
 	if(vcpu->isbsp){
 		printf("CPU(0x%02x, BSP): initializing INT 15 hook for UG mode...\n", vcpu->id);
 		_vmx_int15_initializehook(vcpu);
 	}
+#endif /* !__UEFI__ */
 
 }
 
