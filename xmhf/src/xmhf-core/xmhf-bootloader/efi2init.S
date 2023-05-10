@@ -44,48 +44,40 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-/*
- * EMHF base platform component
- * arch. independent data definitions
- * author: amit vasudevan (amitvasudevan@acm.org)
- */
+// efi2init.S - Call from efi.c to init.c for UEFI
+// author: Eric Li (xiaoyili@andrew.cmu.edu)
 
 #include <xmhf.h>
 
-//system e820 map
-GRUBE820 g_e820map[MAX_E820_ENTRIES] __attribute__(( section(".data") ));
+/*
+ * Save all GPRs in this function.
+ * Save RSP to memory pointed by RSI.
+ * Save RIP to memory pointed by RDX.
+ * Save RFLAGS to memory pointed by RCX.
+ * Call cstartup with argument RDI.
+ * Restore
+ */
+.global efi2init
+efi2init:
 
-//SMP CPU map; lapic id, base, ver and bsp indication for each available core
-PCPU	g_cpumap[MAX_PCPU_ENTRIES] __attribute__(( section(".data") ));
+	/* Save GPRs */
+	PUSHAQ
+	movq	%rsp, (%rsi)
 
-//runtime stacks for individual cores
-// TODO: Removed the section(".bss.stack") attribute. Maybe we want to keep the stack at the end of bss.
-u8 g_cpustacks[RUNTIME_STACK_SIZE * MAX_PCPU_ENTRIES] __attribute__((aligned(PAGE_SIZE_4K)));
+	/* Save RIP */
+	leaq	1f(%rip), %rax
+	movq	%rax, (%rdx)
 
-//VCPU structure for each "guest OS" core
-VCPU g_vcpubuffers[MAX_VCPU_ENTRIES] __attribute__(( section(".data") ));
+	/* Save RFLAGS */
+	pushfq
+	popq	(%rcx)
 
-//master id table, contains core lapic id to VCPU mapping information
-MIDTAB g_midtable[MAX_MIDTAB_ENTRIES] __attribute__(( section(".data") ));
+	/* Call init.c */
+	call	cstartup
 
-//number of entries in the master id table, in essence the number of
-//physical cores in the system
-u32 g_midtable_numentries __attribute__(( section(".data") )) = 0;
+1:
+	/* Restore GPRs */
+	POPAQ
 
-//variable that is incremented by 1 by all cores that boot up, this should
-//be finally equal to g_midtable_numentries at runtime which signifies
-//that all physical cores have been booted up and initialized by the runtime
-volatile u32 g_cpus_active __attribute__(( section(".data") )) = 0;
+	ret
 
-//SMP lock for the above variable
-volatile u32 g_lock_cpus_active __attribute__(( section(".data") )) = 1;
-
-//variable that is set to 1 by the BSP after rallying all the other cores.
-//this is used by the application cores to enter the "wait-for-SIPI" state
-volatile u32 g_ap_go_signal __attribute__(( section(".data") )) = 0;
-
-//SMP lock for the above variable
-volatile u32 g_lock_ap_go_signal __attribute__(( section(".data") )) = 1;
-
-//Flag of whether all cores have booted up. Set to 1 if so, otherwise 0.
-u32 g_all_cores_booted_up __attribute__(( section(".data") )) = 0;

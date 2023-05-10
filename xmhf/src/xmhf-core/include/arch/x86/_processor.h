@@ -78,34 +78,43 @@
 #define EFLAGS_VIP	0x00100000 /* Virtual Interrupt Pending */
 #define EFLAGS_ID	0x00200000 /* CPUID detection flag */
 
-#define CR0_PE              0x00000001 /* Enable Protected Mode    (RW) */
-#define CR0_MP              0x00000002 /* Monitor Coprocessor      (RW) */
-#define CR0_EM              0x00000004 /* Require FPU Emulation    (RO) */
-#define CR0_TS              0x00000008 /* Task Switched            (RW) */
-#define CR0_ET              0x00000010 /* Extension type           (RO) */
-#define CR0_NE              0x00000020 /* Numeric Error Reporting  (RW) */
-#define CR0_WP              0x00010000 /* Supervisor Write Protect (RW) */
-#define CR0_AM              0x00040000 /* Alignment Checking       (RW) */
-#define CR0_NW              0x20000000 /* Not Write-Through        (RW) */
-#define CR0_CD              0x40000000 /* Cache Disable            (RW) */
-#define CR0_PG              0x80000000 /* Paging                   (RW) */
+#define CR0_PE		0x00000001 /* Enable Protected Mode    (RW) */
+#define CR0_MP		0x00000002 /* Monitor Coprocessor      (RW) */
+#define CR0_EM		0x00000004 /* Require FPU Emulation    (RO) */
+#define CR0_TS		0x00000008 /* Task Switched            (RW) */
+#define CR0_ET		0x00000010 /* Extension type           (RO) */
+#define CR0_NE		0x00000020 /* Numeric Error Reporting  (RW) */
+#define CR0_WP		0x00010000 /* Supervisor Write Protect (RW) */
+#define CR0_AM		0x00040000 /* Alignment Checking       (RW) */
+#define CR0_NW		0x20000000 /* Not Write-Through        (RW) */
+#define CR0_CD		0x40000000 /* Cache Disable            (RW) */
+#define CR0_PG		0x80000000 /* Paging                   (RW) */
 
-#define CR4_VME		0x0001	/* enable vm86 extensions */
-#define CR4_PVI		0x0002	/* virtual interrupts flag enable */
-#define CR4_TSD		0x0004	/* disable time stamp at ipl 3 */
-#define CR4_DE		0x0008	/* enable debugging extensions */
-#define CR4_PSE		0x0010	/* enable page size extensions */
-#define CR4_PAE		0x0020	/* enable physical address extensions */
-#define CR4_MCE		0x0040	/* Machine check enable */
-#define CR4_PGE		0x0080	/* enable global pages */
-#define CR4_PCE		0x0100	/* enable performance counters at ipl 3 */
-#define CR4_OSFXSR		0x0200	/* enable fast FPU save and restore */
-#define CR4_OSXMMEXCPT	0x0400	/* enable unmasked SSE exceptions */
-#define CR4_LA57		0x1000	/* enable 5-level paging */
-#define CR4_VMXE		0x2000  /* enable VMX */
-#define CR4_SMXE		0x4000  /* enable SMX */
-#define CR4_PCIDE	(1UL << 17)	// PCID-Enable Bit
-#define CR4_OSXSAVE	(1UL << 18)	// XSAVE and Processor Extended States Enable bit
+#define CR4_VME			0x00000001	/* enable vm86 extensions */
+#define CR4_PVI			0x00000002	/* virtual interrupts flag enable */
+#define CR4_TSD			0x00000004	/* disable time stamp at ipl 3 */
+#define CR4_DE			0x00000008	/* enable debugging extensions */
+#define CR4_PSE			0x00000010	/* enable page size extensions */
+#define CR4_PAE			0x00000020	/* enable physical address extensions */
+#define CR4_MCE			0x00000040	/* Machine check enable */
+#define CR4_PGE			0x00000080	/* enable global pages */
+#define CR4_PCE			0x00000100	/* enable performance counters at ipl 3 */
+#define CR4_OSFXSR		0x00000200	/* enable fast FPU save and restore */
+#define CR4_OSXMMEXCPT	0x00000400	/* enable unmasked SSE exceptions */
+#define CR4_UMIP		0x00000800	/* enable user-mode instruction prevention */
+#define CR4_LA57		0x00001000	/* enable 5-level paging */
+#define CR4_VMXE		0x00002000	/* enable VMX */
+#define CR4_SMXE		0x00004000	/* enable SMX */
+#define CR4_FSGSBASE	0x00010000	/* FSGSBASE-Enable Bit */
+#define CR4_PCIDE		0x00020000	/* PCID-Enable Bit */
+#define CR4_OSXSAVE		0x00040000	/* XSAVE and Processor Extended States-Enable bit */
+#define CR4_KL			0x00080000	/* Key-Locker-Enable Bit */
+#define CR4_SMEP		0x00100000	/* SMEP-Enable Bit */
+#define CR4_SMAP		0x00200000	/* SMAP-Enable Bit */
+#define CR4_PKE			0x00400000	/* Enable protection keys for user-mode pages */
+#define CR4_CET			0x00800000	/* Control-flow Enforcement Technology */
+#define CR4_PKS			0x01000000	/* Enable protection keys for supervisor-mode pages */
+
 
 //CPUID related
 #define EDX_PAE 6
@@ -409,8 +418,7 @@ static inline void write_cr4(unsigned long val){
 }
 
 static inline void skinit(unsigned long eax) {
-    __asm__ __volatile__("mov %0, %%eax": :"r" (eax));
-    __asm__ __volatile__("skinit":);
+    __asm__ __volatile__("skinit" : : "a"(eax));
 }
 
 

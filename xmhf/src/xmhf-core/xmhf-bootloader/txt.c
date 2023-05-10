@@ -221,14 +221,14 @@ static void print_mle_hdr(const mle_hdr_t *mle_hdr)
 //static __mlept uint8_t g_mle_pt[3 * PAGE_SIZE_4K];
 /* pgdir ptr + pgdir + ptab = 3 */
 
-static void *build_mle_pagetable(uint32_t mle_start, uint32_t mle_size)
+static void *build_mle_pagetable(uintptr_t mle_start, uintptr_t mle_size)
 {
     void *ptab_base;
     uint32_t ptab_size, mle_off;
     void *pg_dir_ptr_tab, *pg_dir, *pg_tab;
     uint64_t *pte;
 
-    printf("MLE start=0x%x, end=0x%x, size=0x%x\n",
+    printf("MLE start=0x%lx, end=0x%lx, size=0x%lx\n",
            mle_start, mle_start+mle_size, mle_size);
     if ( mle_size > 512*PAGE_SIZE_4K ) {
         printf("MLE size too big for single page table\n");
@@ -697,7 +697,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
      * OS/loader to MLE data
      */
     os_mle_data = get_os_mle_data_start(txt_heap);
-    size = (uint64_t *)((uint32_t)os_mle_data - sizeof(uint64_t));
+    size = (uint64_t *)((uintptr_t)os_mle_data - sizeof(uint64_t));
     *size = sizeof(*os_mle_data) + sizeof(uint64_t);
     memset(os_mle_data, 0, sizeof(*os_mle_data));
     os_mle_data->version = 3;
@@ -720,7 +720,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
         version = MAX_OS_SINIT_DATA_VER;
 
     os_sinit_data = get_os_sinit_data_start(txt_heap);
-    size = (uint64_t *)((uint32_t)os_sinit_data - sizeof(uint64_t));
+    size = (uint64_t *)((uintptr_t)os_sinit_data - sizeof(uint64_t));
     *size = calc_os_sinit_data_size(version);
     memset(os_sinit_data, 0, *size);
     os_sinit_data->version = version;
@@ -731,8 +731,8 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     // XMHF: Copy populated MLE header into SL
     HALT_ON_ERRORCOND(sizeof(mle_hdr_t) < TEMPORARY_MAX_MLE_HEADER_SIZE);
     memcpy(phys_mle_start, &g_mle_hdr, sizeof(mle_hdr_t));
-    printf("Copied mle_hdr (0x%08x, 0x%x bytes) into SL (0x%08x)\n",
-           (u32)&g_mle_hdr, sizeof(mle_hdr_t), (u32)phys_mle_start);
+    printf("Copied mle_hdr (0x%08lx, 0x%x bytes) into SL (0x%08lx)\n",
+           (uintptr_t)&g_mle_hdr, sizeof(mle_hdr_t), (uintptr_t)phys_mle_start);
     /* this is linear addr (offset from MLE base) of mle header */
     // XMHF: Remove unused symbols.
     //os_sinit_data->mle_hdr_base = (uint64_t)(unsigned long)&g_mle_hdr -
@@ -748,7 +748,7 @@ static txt_heap_t *init_txt_heap(void *ptab_base, acm_hdr_t *sinit,
     //set_vtd_pmrs(os_sinit_data, min_lo_ram, max_lo_ram, min_hi_ram,
     //             max_hi_ram);
     {
-		extern u32 sl_rt_size;	//XXX: Ugly hack to bring in SL + runtime size; ideally this should be passed in as another parameter
+		extern size_t sl_rt_size;	//XXX: Ugly hack to bring in SL + runtime size; ideally this should be passed in as another parameter
 		(void)mle_size;
 		os_sinit_data->vtd_pmr_lo_base = (u64)__TARGET_BASE_SL;
 		os_sinit_data->vtd_pmr_lo_size = (u64)PAGE_ALIGN_UP_2M(sl_rt_size);
@@ -1014,7 +1014,7 @@ tb_error_t txt_launch_environment(void *sinit_ptr, size_t sinit_size,
     //mle_ptab_base = build_mle_pagetable(
     //                         g_mle_hdr.mle_start_off + TBOOT_BASE_ADDR,
     //                         g_mle_hdr.mle_end_off - g_mle_hdr.mle_start_off);
-    mle_ptab_base = build_mle_pagetable((u32)phys_mle_start, mle_size);
+    mle_ptab_base = build_mle_pagetable((uintptr_t)phys_mle_start, mle_size);
     if ( mle_ptab_base == NULL )
         return TB_ERR_FATAL;
 
@@ -1074,7 +1074,8 @@ tb_error_t txt_launch_environment(void *sinit_ptr, size_t sinit_size,
     //    delay(g_vga_delay * 1000);
     delay(0x80000000);
     // XMHF: Use sinit = sinit_ptr instead of g_sinit.
-    __getsec_senter((uint32_t)sinit, (sinit->size)*4);
+    HALT_ON_ERRORCOND((uintptr_t)sinit < ADDR_4GB);
+    __getsec_senter((uintptr_t)sinit, (sinit->size)*4);
     printf("ERROR--we should not get here!\n");
     return TB_ERR_FATAL;
 }

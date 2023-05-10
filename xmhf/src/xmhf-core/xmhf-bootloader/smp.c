@@ -58,11 +58,14 @@ static u32 mp_scan_config(u32 base, u32 length, MPFP **mpfp);
 static u32 mp_getebda(void);
 ACPI_RSDP * ACPIGetRSDP(void);
 
+u32 _ACPIGetRSDPComputeChecksum(uintptr_t spaddr, size_t size);
+
 //exposed interface to the outside world
 //inputs: array of type PCPU and pointer to u32 which will
 //receive the number of cores/CPUs in the system
+//uefi_rsdp: RSDP pointer from UEFI, or NULL
 //returns: 1 on succes, 0 on any failure
-u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus){
+u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus, void *uefi_rsdp){
 	MPFP *mpfp;
 	MPCONFTABLE *mpctable;
 
@@ -90,7 +93,12 @@ u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus){
 	//(e.g HP8540p laptop with Core i5) are reported only using ACPI MADT
 	//and there is no MP structures on such systems!
 	printf("Finding SMP info. via ACPI...\n");
-	rsdp=(ACPI_RSDP *)ACPIGetRSDP();
+	if (uefi_rsdp == NULL) {
+		rsdp=(ACPI_RSDP *)ACPIGetRSDP();
+	} else {
+		rsdp = (ACPI_RSDP *)uefi_rsdp;
+		HALT_ON_ERRORCOND(_ACPIGetRSDPComputeChecksum((uintptr_t)rsdp, 20) == 0);
+	}
 	if(!rsdp){
 		printf("System is not ACPI Compliant, falling through...\n");
 		goto fallthrough;
@@ -311,12 +319,12 @@ u32 mp_getebda(void){
 }
 
 //------------------------------------------------------------------------------
-u32 _ACPIGetRSDPComputeChecksum(u32 spaddr, u32 size){
+u32 _ACPIGetRSDPComputeChecksum(uintptr_t spaddr, size_t size){
   char *p;
   char checksum=0;
-  u32 i;
+  size_t i;
 
-  p=(char *)(uintptr_t)spaddr;
+  p=(char *)spaddr;
 
   for(i=0; i< size; i++)
     checksum+= (char)(*(p+i));
@@ -342,7 +350,7 @@ ACPI_RSDP * ACPIGetRSDP(void){
     if(rsdp->signature == ACPI_RSDP_SIGNATURE){
       /* Check for truncation */
       HALT_ON_ERRORCOND((uintptr_t)rsdp == (uintptr_t)(u32)(uintptr_t)rsdp);
-      if(!_ACPIGetRSDPComputeChecksum((u32)(uintptr_t)rsdp, 20)){
+      if(!_ACPIGetRSDPComputeChecksum((uintptr_t)rsdp, 20)){
         found=1;
         break;
       }
@@ -357,7 +365,7 @@ ACPI_RSDP * ACPIGetRSDP(void){
     rsdp=(ACPI_RSDP *)(uintptr_t)i;
     if(rsdp->signature == ACPI_RSDP_SIGNATURE){
       HALT_ON_ERRORCOND((uintptr_t)rsdp == (uintptr_t)(u32)(uintptr_t)rsdp);
-      if(!_ACPIGetRSDPComputeChecksum((u32)(uintptr_t)rsdp, 20)){
+      if(!_ACPIGetRSDPComputeChecksum((uintptr_t)rsdp, 20)){
         found=1;
         break;
       }

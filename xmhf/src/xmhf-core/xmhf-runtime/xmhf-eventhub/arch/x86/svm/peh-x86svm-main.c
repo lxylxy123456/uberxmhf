@@ -155,7 +155,7 @@ static void _svm_handle_npf(VCPU *vcpu, struct regs *r){
   u32 gpa = vmcb->exitinfo2;
   u32 errorcode = vmcb->exitinfo1;
 
-  if(gpa >= g_svm_lapic_base && gpa < (g_svm_lapic_base + PAGE_SIZE_4K)){
+  if(!g_all_cores_booted_up && (gpa >= g_svm_lapic_base && gpa < (g_svm_lapic_base + PAGE_SIZE_4K))){
     //LAPIC access, xfer control to apropriate handler
     HALT_ON_ERRORCOND( vcpu->isbsp == 1); //only BSP gets a NPF during LAPIC SIPI detection
     xmhf_smpguest_arch_x86_eventhandler_hwpgtblviolation(vcpu, gpa, errorcode);

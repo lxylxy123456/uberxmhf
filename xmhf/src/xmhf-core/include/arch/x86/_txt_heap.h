@@ -48,7 +48,8 @@
  * XMHF: The following file is taken from:
  *  tboot-1.10.5/tboot/include/txt/heap.h
  * Changes made include:
- *  Change type of lctx_addr from void * to uint32_t.
+ *  For BIOS boot, change type of lctx_addr from void * to uint32_t.
+ *  Fix tboot bug: should store MSRs are 64-bit integers
  */
 
 /*
@@ -337,9 +338,14 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint32_t          version;           /* currently 3 */
     mtrr_state_t      saved_mtrr_state;  /* saved prior to changes for SINIT */
-    // XMHF: Change type of lctx_addr from void * to uint32_t.
+    // XMHF: For BIOS boot, change type of lctx_addr from void * to uint32_t.
+#ifdef __UEFI__
+    void             *lctx_addr;         /* needs to be restored to ebx */
+#else /* !__UEFI__ */
     uint32_t          lctx_addr;         /* needs to be restored to ebx */
-    uint32_t          saved_misc_enable_msr;  /* saved prior to SENTER */
+#endif /* __UEFI__ */
+    // XMHF: Fix tboot bug: should store MSRs are 64-bit integers
+    uint64_t          saved_misc_enable_msr;  /* saved prior to SENTER */
                                          /* PO policy data */
     uint8_t           lcp_po_data[MAX_LCP_PO_DATA_SIZE];
                                          /* buffer for tpm event log */

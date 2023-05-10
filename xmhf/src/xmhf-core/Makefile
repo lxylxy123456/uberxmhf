@@ -5,12 +5,20 @@
 INIT_BIN := init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
 INIT_EFI := init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).efi
 
-# e.g. hypervisor-x86-i386.bin.gz or hypervisor-x86-amd64.bin.gz
+# Generated when UEFI, e.g. hypervisor-x86-amd64.bin
+HYPERVISOR_BIN := hypervisor-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin
+
+# Generated when BIOS, e.g. hypervisor-x86-i386.bin.gz or
+# hypervisor-x86-amd64.bin.gz
 HYPERVISOR_BIN_GZ := hypervisor-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin.gz
 
 #-----build rules
 .PHONY: all
+ifeq ($(TARGET_UEFI), y)
+all: runtime secureloader bootloader $(HYPERVISOR_BIN)
+else
 all: runtime secureloader bootloader $(HYPERVISOR_BIN_GZ)
+endif
 
 .PHONY: runtime
 runtime:
@@ -36,6 +44,20 @@ bootloader: secureloader runtime
 # Makefile prerequisits correct we need to list all these files' prerequisits
 # here (e.g. xmhf-runtime/xmhf-baseplatform/bplt-data.c). So we instead make
 # $(HYPERVISOR_BIN_GZ) a phony target and always make it.
+#
+# In UEFI, we cannot decompress gzip files, so we do not compress here.
+# The file name for SL+RT naturally becomes $(HYPERVISOR_BIN).
+ifeq ($(TARGET_UEFI), y)
+.PHONY: $(HYPERVISOR_BIN)
+$(HYPERVISOR_BIN): runtime secureloader bootloader
+	# concatenate sl image and runtime image
+	$(CAT) ./xmhf-secureloader/sl.bin ./xmhf-runtime/runtime.bin > $(HYPERVISOR_BIN)
+	# Optional: use sparse file for runtime.bin to reduce fs space usage
+	-fallocate -d $(HYPERVISOR_BIN)
+	# install loader and runtime images to INSTALLDIR
+	$(CP) ./xmhf-bootloader/$(INIT_EFI) $(HYPOUTDIR)/$(INIT_EFI)
+	$(CP) $(HYPERVISOR_BIN) $(HYPOUTDIR)/$(HYPERVISOR_BIN)
+else
 .PHONY: $(HYPERVISOR_BIN_GZ)
 $(HYPERVISOR_BIN_GZ): runtime secureloader bootloader
 	# concatenate sl image and runtime image
@@ -43,11 +65,6 @@ $(HYPERVISOR_BIN_GZ): runtime secureloader bootloader
 	gzip -c ./hypervisor.tmp.img > $(HYPERVISOR_BIN_GZ)
 	$(RM) -rf ./hypervisor.tmp.img
 	# install loader and runtime images to INSTALLDIR
-ifeq ($(TARGET_UEFI), y)
-	$(CP) ./xmhf-bootloader/$(INIT_EFI) $(HYPOUTDIR)/$(INIT_EFI)
-	# TODO UEFI: Can we decomress gz in UEFI?
-	$(CP) $(HYPERVISOR_BIN_GZ) $(HYPOUTDIR)/$(HYPERVISOR_BIN_GZ)
-else
 	$(CP) ./xmhf-bootloader/$(INIT_BIN) $(HYPOUTDIR)/$(INIT_BIN)
 	$(CP) $(HYPERVISOR_BIN_GZ) $(HYPOUTDIR)/$(HYPERVISOR_BIN_GZ)
 endif
@@ -65,9 +82,11 @@ clean:
 
 	rm -rf $(APPOBJECTSDIR)
 
+	rm -rf ./$(HYPERVISOR_BIN)
 	rm -rf ./$(HYPERVISOR_BIN_GZ)
 	$(RM) -rf $(HYPOUTDIR)/$(INIT_BIN)
 	$(RM) -rf $(HYPOUTDIR)/$(INIT_EFI)
+	$(RM) -rf $(HYPOUTDIR)/$(HYPERVISOR_BIN)
 	$(RM) -rf $(HYPOUTDIR)/$(HYPERVISOR_BIN_GZ)
 
 
