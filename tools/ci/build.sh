@@ -14,6 +14,7 @@
 #   --no-rt-bss: skip runtime bss in image (--enable-skip-runtime-bss)
 #   --no-bl-hash: skip bootloader hashing (--enable-skip-bootloader-hash)
 #   --no-init-smp: disable SMP in bootloader (--enable-skip-init-smp)
+#   --iss NUM: set number of extra INIT-SIPI-SIPI (--with-extra-ap-init-count)
 #   --sl-base BASE: set SL+RT base to BASE instead of 256M (--with-sl-base)
 #   fast: equivalent to --no-rt-bss --no-bl-hash (For running XMHF quickly)
 #   nv: enable nested virtualization (--enable-nested-virtualization)
@@ -49,6 +50,7 @@ NO_X2APIC="n"
 NO_RT_BSS="n"
 NO_BL_HASH="n"
 NO_INIT_SMP="n"
+EXTRA_AP_INIT_COUNT="0"
 SL_BASE="0x10000000"
 NV="y"
 EPT_NUM="8"
@@ -137,6 +139,10 @@ while [ "$#" -gt 0 ]; do
 			;;
 		--no-init-smp)
 			NO_INIT_SMP="y"
+			;;
+		--iss)
+			EXTRA_AP_INIT_COUNT="$2"
+			shift
 			;;
 		--sl-base)
 			SL_BASE="$2"
@@ -263,6 +269,8 @@ fi
 if [ "$NO_INIT_SMP" == "y" ]; then
 	CONF+=("--enable-skip-init-smp")
 fi
+
+CONF+=("--with-extra-ap-init-count=$EXTRA_AP_INIT_COUNT")
 
 CONF+=("--with-sl-base=$SL_BASE")
 

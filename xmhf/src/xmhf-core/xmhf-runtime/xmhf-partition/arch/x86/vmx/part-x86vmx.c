@@ -467,6 +467,8 @@ void xmhf_partition_arch_x86vmx_clear_msrbitmap_x2apic_icr(VCPU *vcpu) {
 /* Set the state of guest to after INIT interrupt, as specified by Intel SDM */
 void xmhf_partition_arch_x86vmx_guestVMCS_INIT(VCPU *vcpu)
 {
+	/* Guest is active */
+	vcpu->vmcs.guest_activity_state = 0;
 	//Let guest think CR0 is set to 0x60000010U, but actually set fixed bits
 	// 0x60000010U means real-mode, PE and PG bits cleared, set ET bit
 	// Modify mask to trap access to CR0 fixed bits.
@@ -610,6 +612,11 @@ static void xmhf_partition_arch_x86vmx_guestVMCS_UEFI(VCPU *vcpu,
 	LOAD_XEI(guest_SYSENTER_ESP);
 	LOAD_XEI(guest_SYSENTER_EIP);
 #undef LOAD_XEI
+
+	/* Guest is active */
+	{
+		vcpu->vmcs.guest_activity_state = 0;
+	}
 
 	/* CR0 need to be restored to guest_CR0 and control_CR0_shadow. */
 	{
