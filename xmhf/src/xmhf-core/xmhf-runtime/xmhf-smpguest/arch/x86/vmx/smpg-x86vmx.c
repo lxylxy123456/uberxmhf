@@ -123,17 +123,112 @@ static u32 have_all_cores_recievedSIPI(void){
 
 		if(!vcpu->sipireceived)
 			return 0;	//one or more logical cores have not received SIPI
+
+#ifdef __EXTRA_INIT_COUNT__
+		if (vcpu->extra_init_count > 0)
+			return 0;	//one or more logical cores need INIT in the future
+#endif /* __EXTRA_INIT_COUNT__ */
   }
 
   return 1;	//all logical cores have received SIPI
+}
+
+#ifdef __EXTRA_INIT_COUNT__
+static void processINITcpu(VCPU *vcpu, VCPU *dest_vcpu)
+{
+	HALT_ON_ERRORCOND( dest_vcpu != (VCPU *)0 );
+
+	if (dest_vcpu->sipireceived) {
+		/* Send a real INIT interrupt using LAPIC */
+		u32 eax, edx;
+
+		printf("CPU(0x%02x): Send INIT to CPU 0x%02x (vcpu=0x%08lx)\n",
+			   vcpu->id, dest_vcpu->id, dest_vcpu);
+
+		/* Check whether x2APIC is enabled */
+		rdmsr(MSR_APIC_BASE, &eax, &edx);
+
+		if (eax & (1U << 10)) {
+			/* x2APIC enabled, use it */
+			u32 eax = 0x00000500U;
+			u32 edx = dest_vcpu->id;
+			wrmsr(IA32_X2APIC_ICR, eax, edx);
+		} else {
+			/* use LAPIC */
+			volatile u32 *icr_low = (u32 *)(0xFEE00000 + 0x300);
+			volatile u32 *icr_high = (u32 *)(0xFEE00000 + 0x310);
+			u32 icr_high_value= (dest_vcpu->id) << 24;
+			u32 prev_icr_high_value;
+
+			prev_icr_high_value = *icr_high;
+
+			*icr_high = icr_high_value;    //send to all but self
+			*icr_low = 0x00000500U;      //send NMI
+
+			//check if IPI has been delivered successfully
+#ifndef __XMHF_VERIFICATION__
+			while ((*icr_low) & 0x00001000U) {
+				xmhf_cpu_relax();
+			}
+#else
+			//TODO: plug in h/w model of LAPIC, for now assume hardware just
+			//works
+#endif
+
+			//restore icr high
+			*icr_high = prev_icr_high_value;
+		}
+	} else {
+		printf("CPU(0x%02x): INIT IPI skipped for CPU 0x%02x\n",
+			   vcpu->id, dest_vcpu->id);
+	}
+}
+#endif /* __EXTRA_INIT_COUNT__ */
+
+static void processINIT(VCPU *vcpu, u32 icr_low_value, u32 dest_lapic_id)
+{
+#ifdef __EXTRA_INIT_COUNT__
+	VCPU *dest_vcpu = NULL;
+	if ((icr_low_value & 0x000C0000) == 0x0) {
+		printf("CPU(0x%02x): %s, dest_lapic_id is 0x%02x\n",
+			   vcpu->id, __FUNCTION__, dest_lapic_id);
+		//find the vcpu entry of the core with dest_lapic_id
+		for(u32 i = 0; i < g_midtable_numentries; i++) {
+			if (g_midtable[i].cpu_lapic_id == dest_lapic_id) {
+				dest_vcpu = (VCPU *)g_midtable[i].vcpu_vaddr_ptr;
+				HALT_ON_ERRORCOND(dest_vcpu->id == dest_lapic_id);
+				break;
+			}
+		}
+		processINITcpu(vcpu, dest_vcpu);
+	} else {
+		// make sure that the INIT is not sending to self
+		HALT_ON_ERRORCOND((icr_low_value & 0x000C0000) == 0x000C0000);
+		printf("CPU(0x%02x): %s, sending to All Excluding Self\n",
+			   vcpu->id, __FUNCTION__);
+		//send the interrupt to all CPUs but self
+		for(u32 i = 0; i < g_midtable_numentries; i++) {
+			dest_vcpu = (VCPU *)g_midtable[i].vcpu_vaddr_ptr;
+			if (dest_vcpu->id == vcpu->id) {
+				continue;
+			}
+			processINITcpu(vcpu, dest_vcpu);
+		}
+	}
+#else /* !__EXTRA_INIT_COUNT__ */
+	/* If the guest only needs INIT-SIPI-SIPI once, we ignore the INIT */
+	printf("CPU(0x%02x): INIT IPI skipped\n", vcpu->id);
+	(void) icr_low_value;
+	(void) dest_lapic_id;
+#endif /* __EXTRA_INIT_COUNT__ */
 }
 
 //---SIPI processing logic------------------------------------------------------
 // send SIPI to a single CPU
 static void processSIPIcpu(VCPU *vcpu, VCPU *dest_vcpu, u32 icr_low_value) {
   HALT_ON_ERRORCOND( dest_vcpu != (VCPU *)0 );
-  printf("CPU(0x%02x): found AP to pass SIPI; id=0x%02x, vcpu=0x%08x\n",
-      vcpu->id, dest_vcpu->id, (uintptr_t)dest_vcpu);
+  printf("CPU(0x%02x): found AP to pass SIPI; id=0x%02x, vcpu=0x%08lx\n",
+      vcpu->id, dest_vcpu->id, dest_vcpu);
 
   //send the sipireceived flag to trigger the AP to start the HVM
   if(dest_vcpu->sipireceived){
@@ -367,9 +462,11 @@ void xmhf_smpguest_arch_x86vmx_eventhandler_dbexception(VCPU *vcpu, struct regs 
 
     if(g_vmx_lapic_reg == LAPIC_ICR_LOW){
       if ( (value_tobe_written & 0x00000F00) == 0x500){
-        //this is an INIT IPI, we just void it
-        printf("0x%04x:0x%08x -> (ICR=0x%08x write) INIT IPI detected and skipped, value=0x%08x\n",
+        //this is an INIT IPI
+        u32 icr_value_high = *((u32 *)((hva_t)g_vmx_virtual_LAPIC_base + (u32)LAPIC_ICR_HIGH));
+        printf("0x%04x:0x%08x -> (ICR=0x%08x write) INIT IPI detected, value=0x%08x\n",
           (u16)vcpu->vmcs.guest_CS_selector, (u32)vcpu->vmcs.guest_RIP, g_vmx_lapic_reg, value_tobe_written);
+        processINIT(vcpu, value_tobe_written, icr_value_high >> 24);
         #ifdef __XMHF_VERIFICATION_DRIVEASSERTS__
 			g_vmx_lapic_db_verification_coreprotected = true;
 		#endif
@@ -452,9 +549,18 @@ int xmhf_smpguest_arch_x86vmx_eventhandler_x2apic_icrwrite(VCPU *vcpu, u64 value
 	u32 edx;
 	switch (value & 0x00000F00ULL) {
 	case 0x500:
-		/* INIT IPI, we just void it */
-		printf("0x%04x:0x%08llx -> (x2APIC ICR write) INIT IPI skipped, EDX:EAX=0x%016llx\n",
-				(u16)vcpu->vmcs.guest_CS_selector, vcpu->vmcs.guest_RIP, value);
+		/* INIT IPI */
+		eax = (u32) value;
+		edx = value >> 32;
+		printf("0x%04x:0x%08llx -> (x2APIC ICR write) INIT IPI detected, EAX=0x%08x, EDX=0x%08x\n",
+				(u16)vcpu->vmcs.guest_CS_selector, vcpu->vmcs.guest_RIP, eax, edx);
+		/*
+		 * In LAPIC, the destination field is bit 56-63. In x2APIC is 32-63.
+		 * As a workaround, we simply left shift the destination field in
+		 * x2APIC. The disadvantage is that this only supports 256 LAPIC IDs.
+		 */
+		HALT_ON_ERRORCOND(edx <= 0xff);
+		processINIT(vcpu, eax, edx);
 		return 1;
 	case 0x600:
 		eax = (u32) value;

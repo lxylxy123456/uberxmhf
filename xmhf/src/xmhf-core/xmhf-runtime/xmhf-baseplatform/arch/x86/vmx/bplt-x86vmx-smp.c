@@ -125,6 +125,9 @@ void xmhf_baseplatform_arch_x86vmx_allocandsetupvcpus(u32 cpu_vendor){
     vcpu->idx = i;
     vcpu->sipivector = 0;
     vcpu->sipireceived = 0;
+#ifdef __EXTRA_INIT_COUNT__
+    vcpu->extra_init_count = __EXTRA_INIT_COUNT__;
+#endif /* __EXTRA_INIT_COUNT__ */
 
 	//map LAPIC to VCPU in midtable
     g_midtable[i].vcpu_vaddr_ptr = (hva_t)vcpu;

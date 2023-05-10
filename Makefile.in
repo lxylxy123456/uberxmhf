@@ -303,6 +303,10 @@ ifeq ($(SKIP_INIT_SMP), y)
 	VFLAGS += -D__SKIP_INIT_SMP__
 endif
 
+# TODO: make this a configuration option
+CFLAGS += -D__EXTRA_INIT_COUNT__=1
+VFLAGS += -D__EXTRA_INIT_COUNT__=1
+
 ifeq ($(NESTED_VIRTUALIZATION), y)
 	CFLAGS += -D__NESTED_VIRTUALIZATION__
 	VFLAGS += -D__NESTED_VIRTUALIZATION__
