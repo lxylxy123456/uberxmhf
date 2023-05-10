@@ -189,6 +189,16 @@ AS_IF([test "x${enable_skip_bootloader_hash}" != "xno"],
       [SKIP_BOOTLOADER_HASH=y],
       [SKIP_BOOTLOADER_HASH=n])
 
+# Specify the number of times the guest performs INIT-SIPI-SIPI on APs other
+# than the 1 time by default. For example, when KVM UEFI boots a guest,
+# INIT-SIPI-SIPI is performed 2 times. So need to set EXTRA_AP_INIT_COUNT to 1.
+AC_SUBST([EXTRA_AP_INIT_COUNT])
+AC_ARG_WITH([extra_ap_init_count],
+        AS_HELP_STRING([--with-extra-ap-init-count=@<:@EXTRA_AP_INIT_COUNT@:>@],
+                [number of times the guest performs INIT-SIPI-SIPI times minus 1]),
+                , [with_extra_ap_init_count=0])
+EXTRA_AP_INIT_COUNT=$[]with_extra_ap_init_count
+
 # Support for nested virtualization
 AC_SUBST([NESTED_VIRTUALIZATION])
 AC_ARG_ENABLE([nested_virtualization],

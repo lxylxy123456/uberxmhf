@@ -206,11 +206,11 @@ typedef struct _vcpu {
   u32 idx;                //this vcpu's index in the g_vcpubuffers array
   u32 sipivector;         //SIPI vector
   volatile u32 sipireceived; //SIPI received indicator, 1 if yes
-#ifdef __EXTRA_INIT_COUNT__
+#ifdef __EXTRA_AP_INIT_COUNT__
   u32 extra_init_count;   //Number of INIT interrupts to be treated as booting
                           //APs by the guest. When this number is 0, INIT
                           //interrupt causes XMHF to restart.
-#endif /* __EXTRA_INIT_COUNT__ */
+#endif /* __EXTRA_AP_INIT_COUNT__ */
   //u32 nmiinhvm;           //this is 1 if there was a NMI when in HVM, else 0
   u32 cpu_vendor;         //Intel or AMD
   u32 isbsp;              //1 if this core is BSP else 0

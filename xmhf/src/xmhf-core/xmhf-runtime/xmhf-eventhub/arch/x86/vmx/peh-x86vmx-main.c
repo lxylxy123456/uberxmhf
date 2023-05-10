@@ -1499,7 +1499,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 		break;
 
 		case VMX_VMEXIT_INIT:{
-#ifdef __EXTRA_INIT_COUNT__
+#ifdef __EXTRA_AP_INIT_COUNT__
 			if (vcpu->extra_init_count) {
 				vcpu->extra_init_count--;
 				vcpu->sipireceived = 0;
@@ -1511,7 +1511,7 @@ u32 xmhf_parteventhub_arch_x86vmx_intercept_handler(VCPU *vcpu, struct regs *r){
 				xmhf_partition_arch_x86vmx_guestVMCS_INIT(vcpu);
 				break;
 			}
-#endif /* __EXTRA_INIT_COUNT__ */
+#endif /* __EXTRA_AP_INIT_COUNT__ */
 			printf("***** VMEXIT_INIT xmhf_runtime_shutdown\n\n");
 			xmhf_runtime_shutdown(vcpu, r);
 			printf("CPU(0x%02x): Fatal, xmhf_runtime_shutdown returned. Halting!\n", vcpu->id);

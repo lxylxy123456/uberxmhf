@@ -124,16 +124,16 @@ static u32 have_all_cores_recievedSIPI(void){
 		if(!vcpu->sipireceived)
 			return 0;	//one or more logical cores have not received SIPI
 
-#ifdef __EXTRA_INIT_COUNT__
+#ifdef __EXTRA_AP_INIT_COUNT__
 		if (vcpu->extra_init_count > 0)
 			return 0;	//one or more logical cores need INIT in the future
-#endif /* __EXTRA_INIT_COUNT__ */
+#endif /* __EXTRA_AP_INIT_COUNT__ */
   }
 
   return 1;	//all logical cores have received SIPI
 }
 
-#ifdef __EXTRA_INIT_COUNT__
+#ifdef __EXTRA_AP_INIT_COUNT__
 static void processINITcpu(VCPU *vcpu, VCPU *dest_vcpu)
 {
 	HALT_ON_ERRORCOND( dest_vcpu != (VCPU *)0 );
@@ -183,11 +183,11 @@ static void processINITcpu(VCPU *vcpu, VCPU *dest_vcpu)
 			   vcpu->id, dest_vcpu->id);
 	}
 }
-#endif /* __EXTRA_INIT_COUNT__ */
+#endif /* __EXTRA_AP_INIT_COUNT__ */
 
 static void processINIT(VCPU *vcpu, u32 icr_low_value, u32 dest_lapic_id)
 {
-#ifdef __EXTRA_INIT_COUNT__
+#ifdef __EXTRA_AP_INIT_COUNT__
 	VCPU *dest_vcpu = NULL;
 	if ((icr_low_value & 0x000C0000) == 0x0) {
 		printf("CPU(0x%02x): %s, dest_lapic_id is 0x%02x\n",
@@ -215,12 +215,12 @@ static void processINIT(VCPU *vcpu, u32 icr_low_value, u32 dest_lapic_id)
 			processINITcpu(vcpu, dest_vcpu);
 		}
 	}
-#else /* !__EXTRA_INIT_COUNT__ */
+#else /* !__EXTRA_AP_INIT_COUNT__ */
 	/* If the guest only needs INIT-SIPI-SIPI once, we ignore the INIT */
 	printf("CPU(0x%02x): INIT IPI skipped\n", vcpu->id);
 	(void) icr_low_value;
 	(void) dest_lapic_id;
-#endif /* __EXTRA_INIT_COUNT__ */
+#endif /* __EXTRA_AP_INIT_COUNT__ */
 }
 
 //---SIPI processing logic------------------------------------------------------
