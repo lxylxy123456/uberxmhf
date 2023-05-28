@@ -171,7 +171,9 @@ Fixed the bug in `xmhf64 a7fb6764b`.
 
 Write bug report for tboot in `tboot_bug.txt`, sent to
 `tboot-devel@lists.sourceforge.net`. I then receive an email saying the bug
-report is held due to "Post by non-member to a members-only list".
+report is held due to "Post by non-member to a members-only list". After some
+time, email went through, see
+<https://sourceforge.net/p/tboot/mailman/message/37843463/>.
 
 ### Windows 11 Future
 
