@@ -62,7 +62,6 @@
 #include "_apic.h"       	//APIC
 #include "_svm.h"        	//SVM extensions
 #include "_vmx.h"			//VMX extensions
-#include "_txt.h"			//Trusted eXecution Technology (SENTER support)
 #include "_pci.h"        	//PCI bus glue
 #include "_acpi.h"			//ACPI glue
 #include "_svm_eap.h"		//SVM DMA protection

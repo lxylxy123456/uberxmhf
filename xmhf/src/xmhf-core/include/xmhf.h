@@ -72,12 +72,6 @@
 //pull in required crypto (SHA-1)
 //libXMHFcrypto
 
-//pull in required TPM library
-//libtpm
-#ifndef __ASSEMBLY__
-	#include <tpm.h>
-#endif /* __ASSEMBLY__ */
-
 #include <xmhf-debug.h>			//XMHF debug component
 #include <xmhf-types.h>			//XMHF specific base types
 #include <xmhf-var.h>
@@ -113,7 +107,6 @@ extern RPB *rpb;
 #include <xmhf-smpguest.h>		//XMHF SMP guest component
 #include <xmhf-parteventhub.h>	//XMHF partition event-hub component
 #include <xmhf-xcphandler.h>	//XMHF exception handler component
-#include <xmhf-tpm.h>			//XMHF Trusted Platform Module component
 #include <xmhf-bootloader.h>	//XMHF boot loader component
 #include <xmhf-sl.h>			//XMHF secure loader component
 #include <xmhf-runtime.h>		//XMHF runtime component
