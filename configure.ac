@@ -326,28 +326,6 @@ AC_CHECK_FILE([${LIBBAREMETAL_SRC}/libxmhfc],
         ,
         AC_MSG_FAILURE([libbaremetal not found at "${LIBBAREMETAL_SRC}"]))
 
-# libtommath source directory
-AC_SUBST([LIBTOMMATH_SRC])
-AC_ARG_WITH([libtommathsrc],
-        AS_HELP_STRING([--with-libtommathsrc=@<:@path@:>@],
-                [path to libtommath source directory]),
-                , [with_libtommathsrc=./xmhf/third-party/libtommath])
-LIBTOMMATH_SRC=$[]with_libtommathsrc
-AC_CHECK_FILE([${LIBTOMMATH_SRC}/tommath.h],
-        ,
-        AC_MSG_FAILURE([libtommath not found at "${LIBTOMMATH_SRC}"]))
-
-# libtomcrypt source directory
-AC_SUBST([LIBTOMCRYPT_SRC])
-AC_ARG_WITH([libtomcryptsrc],
-        AS_HELP_STRING([--with-libtomcryptsrc=@<:@path@:>@],
-                [path to libtomcrypt source directory]),
-                , [with_libtomcryptsrc=./xmhf/third-party/libtomcrypt])
-LIBTOMCRYPT_SRC=$[]with_libtomcryptsrc
-AC_CHECK_FILE([${LIBTOMCRYPT_SRC}/src/headers/tomcrypt.h],
-        ,
-        AC_MSG_FAILURE([libtomcrypt not found at "${LIBTOMCRYPT_SRC}"]))
-
 # gnu-efi source directory
 AC_SUBST([GNUEFI_SRC])
 AC_ARG_WITH([gnuefisrc],
