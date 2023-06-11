@@ -1417,6 +1417,11 @@ void mp_cstartup (VCPU *vcpu){
 
         printf("BSP(0x%02x): Rallying APs...\n", vcpu->id);
 
+		{
+			extern void lhv_main(VCPU *vcpu);
+			lhv_main(vcpu);
+		}
+
 #ifndef __SKIP_INIT_SMP__
         //increment a CPU to account for the BSP
         spin_lock(&lock_cpus_active);

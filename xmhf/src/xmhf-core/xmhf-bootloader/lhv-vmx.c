@@ -41,6 +41,11 @@ __attribute__((aligned(16)));
 
 extern u64 x_gdt_start[MAX_VCPU_ENTRIES][XMHF_GDT_SIZE];
 
+VCPU *_svm_and_vmx_getvcpu(void)
+{
+	HALT_ON_ERRORCOND(0 && "LHV: not implemented yet");
+}
+
 static void lhv_vmx_vmcs_init(VCPU *vcpu)
 {
 	// From vmx_initunrestrictedguestVMCS
@@ -54,9 +59,11 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_host_GS_selector, read_segreg_gs());
 	vmcs_vmwrite(vcpu, VMCS_host_SS_selector, read_segreg_ss());
 	vmcs_vmwrite(vcpu, VMCS_host_TR_selector, read_tr_sel());
-	vmcs_vmwrite(vcpu, VMCS_host_GDTR_base, (u64)(hva_t)x_gdt_start[vcpu->idx]);
-	vmcs_vmwrite(vcpu, VMCS_host_IDTR_base,
-					(u64)(hva_t)xmhf_xcphandler_get_idt_start());
+	HALT_ON_ERRORCOND(0 && "LHV: need to get GDT");
+	//vmcs_vmwrite(vcpu, VMCS_host_GDTR_base, (u64)(hva_t)x_gdt_start[vcpu->idx]);
+	HALT_ON_ERRORCOND(0 && "LHV: need to get IDT");
+//	vmcs_vmwrite(vcpu, VMCS_host_IDTR_base,
+//					(u64)(hva_t)xmhf_xcphandler_get_idt_start());
 	vmcs_vmwrite(vcpu, VMCS_host_TR_base, (u64)(hva_t)g_runtime_TSS[vcpu->idx]);
 	vmcs_vmwrite(vcpu, VMCS_host_RIP, (u64)(hva_t)vmexit_asm);
 

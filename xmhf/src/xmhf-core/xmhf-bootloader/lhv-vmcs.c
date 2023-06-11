@@ -21,6 +21,90 @@
 
 // TODO: optimize by caching
 
+/* Write 16-bit VMCS field, never fails */
+void __vmx_vmwrite16(u16 encoding, u16 value) {
+	HALT_ON_ERRORCOND((encoding >> 12) == 0UL);
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
+}
+
+/* Write 64-bit VMCS field, never fails */
+void __vmx_vmwrite64(u16 encoding, u64 value) {
+	HALT_ON_ERRORCOND((encoding >> 12) == 2UL);
+	HALT_ON_ERRORCOND((encoding & 0x1) == 0x0);
+#ifdef __AMD64__
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
+#elif defined(__I386__)
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding + 1, value >> 32));
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+}
+
+/* Write 32-bit VMCS field, never fails */
+void __vmx_vmwrite32(u16 encoding, u32 value) {
+	HALT_ON_ERRORCOND((encoding >> 12) == 4UL);
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
+}
+
+/* Write natural width (NW) VMCS field, never fails */
+void __vmx_vmwriteNW(u16 encoding, ulong_t value) {
+	HALT_ON_ERRORCOND((encoding >> 12) == 6UL);
+	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
+}
+
+/* Read 16-bit VMCS field, never fails */
+u16 __vmx_vmread16(u16 encoding) {
+	unsigned long value;
+	HALT_ON_ERRORCOND((encoding >> 12) == 0UL);
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
+	HALT_ON_ERRORCOND(value == (unsigned long)(u16)value);
+	return value;
+}
+
+/* Read 64-bit VMCS field, never fails */
+u64 __vmx_vmread64(u16 encoding) {
+#ifdef __AMD64__
+	unsigned long value;
+	HALT_ON_ERRORCOND((encoding >> 12) == 2UL);
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
+	return value;
+#elif defined(__I386__)
+	union {
+		struct {
+			unsigned long low, high;
+		};
+		u64 full;
+	} ans;
+	_Static_assert(sizeof(u32) == sizeof(unsigned long), "incorrect size");
+	HALT_ON_ERRORCOND((encoding >> 12) == 2UL);
+	HALT_ON_ERRORCOND((encoding & 0x1) == 0x0);
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &ans.low));
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding + 1, &ans.high));
+	return ans.full;
+#else /* !defined(__I386__) && !defined(__AMD64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__I386__) && !defined(__AMD64__) */
+}
+
+/* Read 32-bit VMCS field, never fails */
+u32 __vmx_vmread32(u16 encoding) {
+	unsigned long value;
+	HALT_ON_ERRORCOND((encoding >> 12) == 4UL);
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
+	HALT_ON_ERRORCOND(value == (unsigned long)(u32)value);
+	return value;
+}
+
+/* Read natural width (NW) VMCS field, never fails */
+ulong_t __vmx_vmreadNW(u16 encoding) {
+	unsigned long value;
+	HALT_ON_ERRORCOND((encoding >> 12) == 6UL);
+	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
+	HALT_ON_ERRORCOND(value == (unsigned long)(ulong_t)value);
+	return value;
+}
+
 void vmcs_vmwrite(VCPU *vcpu, ulong_t encoding, ulong_t value)
 {
 	(void) vcpu;
@@ -51,6 +135,8 @@ u64 vmcs_vmread64(VCPU *vcpu, ulong_t encoding)
 
 void vmcs_dump(VCPU *vcpu, int verbose)
 {
+	HALT_ON_ERRORCOND(0 && "LHV: not implemented yet (need __vmx_vmread16)"); (void)vcpu; (void) verbose;
+#if 0
 	#define DECLARE_FIELD(encoding, name)								\
 		do {															\
 			if ((encoding & 0x6000) == 0x0000) {						\
@@ -81,10 +167,13 @@ void vmcs_dump(VCPU *vcpu, int verbose)
 		} while (0);
 	#include <lhv-vmcs-template.h>
 	#undef DECLARE_FIELD
+#endif
 }
 
 void vmcs_load(VCPU *vcpu)
 {
+	HALT_ON_ERRORCOND(0 && "LHV: not implemented yet (need __vmx_vmwrite16)"); (void)vcpu;
+#if 0
 	#define DECLARE_FIELD(encoding, name)								\
 		do {															\
 			if ((encoding & 0x6000) == 0x0000) {						\
@@ -100,4 +189,5 @@ void vmcs_load(VCPU *vcpu)
 		} while (0);
 	#include <lhv-vmcs-template.h>
 	#undef DECLARE_FIELD
+#endif
 }
