@@ -30,6 +30,12 @@ C_SOURCES += lhv-guest.c
 C_SOURCES += lhv-user.c
 C_SOURCES += lhv-mouse.c
 
+AS_SOURCES += spinlock.S
+
+C_SOURCES += debug.c
+C_SOURCES += debug-uart.c
+C_SOURCES += debug-vga.c
+
 OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))
 OBJECTS += $(patsubst %.c, %.o, $(C_SOURCES))
 
@@ -39,30 +45,22 @@ OBJECTS += $(GNUEFI_BUILD)/x86_64/gnuefi/crt0-efi-x86_64.o
 OBJECTS += efi.o
 endif
 
-OBJECTS_PRECOMPILED = ../xmhf-runtime/xmhf-debug/lib.a
-
-#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-tpm/tpm-interface.o
-#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-tpm/arch/x86/tpm-x86.o
-#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-tpm/arch/x86/svm/tpm-x86svm.o
-#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-tpm/arch/x86/vmx/tpm-x86vmx.o
-
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pci.o
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-acpi.o
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pit.o
-ifeq ($(TARGET_UEFI), y)
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-amd64-smplock.o
-else
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-i386-smplock.o
-endif
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
+#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pci.o
+#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-acpi.o
+#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-pit.o
+#ifeq ($(TARGET_UEFI), y)
+#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-amd64-smplock.o
+#else
+#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-i386-smplock.o
+#endif
+#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
+#OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
 
 # FIXME: This is overly general; init/ doesn't need all of these
 CFLAGS += $(ADDL_INCLUDES_BOOTLOADER)
 
 # separate from OBJECTS_PRECOMPILED becasue needs to come after libs on link line
-OBJECTS_PRECOMPILED_LIBBACKENDS = ../xmhf-runtime/xmhf-xmhfcbackend/xmhfc-putchar.o
-OBJECTS_PRECOMPILED_LIBBACKENDS += ../xmhf-runtime/xmhf-debug/lib.a
+#OBJECTS_PRECOMPILED_LIBBACKENDS = ../xmhf-runtime/xmhf-xmhfcbackend/xmhfc-putchar.o
 
 I_SOURCES =  $(wildcard $(INCLUDEDIR)/*.h)
 

@@ -44,56 +44,66 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-/**
- * smpg-x86vmx-data.c
- * EMHF SMP guest component x86 (VMX) backend data
- * author: amit vasudevan (amitvasudevan@acm.org)
- */
+// multi-processor support routines
+// author: amit vasudevan (amitvasudevan@acm.org)
 
-#include <xmhf.h>
+//---spinlock/unlock------------------------------------------------------------
+.section .text
 
-//the BSP LAPIC base address
-//smpguest x86vmx
-u32 g_vmx_lapic_base __attribute__(( section(".data") )) = 0;
+// Implement test and test-and-set lock
 
-//4k buffer which is the virtual LAPIC page that guest reads and writes from/to
-//during INIT-SIPI-SIPI emulation
-//smpguest x86vmx
-u8 g_vmx_virtual_LAPIC_base[PAGE_SIZE_4K] __attribute__((aligned(PAGE_SIZE_4K)));
+#ifdef __I386__
+.global spin_lock
+spin_lock:
+    pushl   %esi
+    movl    0x8(%esp), %esi
 
-//the quiesce counter, all CPUs except for the one requesting the
-//quiesce will increment this when they get their quiesce signal
-//smpguest x86vmx
-volatile u32 g_vmx_quiesce_counter __attribute__(( section(".data") )) = 0;
+spin:
+    btl     $0, (%esi)      //mutex is available?
+    jnc     spin_pause      //wait till it is
 
-//SMP lock to access the above variable
-//smpguest x86vmx
-volatile u32 g_vmx_lock_quiesce_counter __attribute__(( section(".data") )) = 1;
+    lock                    //lock the bus (exclusive access)
+    btrl    $0, (%esi)      //and try to grab the mutex
+    jnc     spin_pause      //spin until successful --> spinlock :p
 
-//resume counter to rally all CPUs after resumption from quiesce
-//smpguest x86vmx
-volatile u32 g_vmx_quiesce_resume_counter __attribute__(( section(".data") )) = 0;
+    popl    %esi
+    ret
 
-//SMP lock to access the above variable
-//smpguest x86vmx
-volatile u32 g_vmx_lock_quiesce_resume_counter __attribute__(( section(".data") )) = 1;
+spin_pause:
+    pause                   //pause improves performance in spin loop
+    jmp     spin
 
-//the "quiesce" variable, if 1, then we have a quiesce in process
-//smpguest x86vmx
-volatile u32 g_vmx_quiesce __attribute__(( section(".data") )) = 0;;
 
-//SMP lock to access the above variable
-//smpguest x86vmx
-volatile u32 g_vmx_lock_quiesce __attribute__(( section(".data") )) = 1;
+.global spin_unlock
+spin_unlock:
+    pushl   %esi
+    movl    0x8(%esp), %esi
+    btsl    $0, (%esi)      //release the spinlock
+    popl    %esi
+    ret
 
-//resume signal, becomes 1 to signal resume after quiescing
-//smpguest x86vmx
-volatile u32 g_vmx_quiesce_resume_signal __attribute__(( section(".data") )) = 0;
+#else
 
-//SMP lock to access the above variable
-//smpguest x86vmx
-volatile u32 g_vmx_lock_quiesce_resume_signal __attribute__(( section(".data") )) = 1;
+.global spin_lock
+spin_lock:
+    btl     $0, (%rdi)
+    jnc     spin_pause
 
-//Flush all EPT TLB on all cores
-//smpguest x86vmx
-volatile u32 g_vmx_flush_all_tlb_signal __attribute__(( section(".data") )) = 0;
+    lock
+    btrl    $0, (%rdi)
+    jnc     spin_pause
+
+    ret
+
+spin_pause:
+    pause
+    jmp     spin_lock
+
+
+.global spin_unlock
+spin_unlock:
+    btsl $0, (%rdi)
+    ret
+
+#endif
+

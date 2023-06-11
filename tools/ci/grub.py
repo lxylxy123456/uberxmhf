@@ -97,7 +97,7 @@ def generate_xmhf_image(args):
 	debugfs_cmds.append('mkdir boot')
 	debugfs_cmds.append('cd boot')
 	if args.subarch in ['i386', 'amd64']:
-		for i in ['init-x86-%s.bin', 'hypervisor-x86-%s.bin.gz']:
+		for i in ['init-x86-%s.bin']:
 			name = i % args.subarch
 			src_pathname = os.path.join(args.xmhf_bin, name)
 			debugfs_cmds.append('write %s %s' % (src_pathname, name))

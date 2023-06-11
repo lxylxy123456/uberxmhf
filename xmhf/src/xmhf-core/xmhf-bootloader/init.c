@@ -445,20 +445,6 @@ void cstartup(multiboot_info_t *mbi)
     g_cmdline[sizeof(g_cmdline)-1] = '\0'; /* in case strncpy truncated */
     tboot_parse_cmdline();
 
-#if defined (__DEBUG_SERIAL__)
-    /* parse serial port params */
-    {
-      uart_config_t uart_config_backup = g_uart_config;
-      if(!get_tboot_serial()) {
-          /* TODO: What's going on here? Redundant? */
-          g_uart_config = uart_config_backup;
-      }
-    }
-
-    //initialize debugging early on
-	xmhf_debug_init((char *)&g_uart_config);
-#endif
-
 #ifndef __UEFI__
     mod_array = (module_t*)mbi->mods_addr;
     mods_count = mbi->mods_count;
@@ -536,11 +522,6 @@ void cstartup(multiboot_info_t *mbi)
 	}
 
 #else /* !__UEFI__ */
-
-    //check number of elements in mod_array. Currently bootloader assumes that
-    //mod_array[0] is SL+RT, mod_array[1] is guest OS boot module.
-    HALT_ON_ERRORCOND(mods_count >= 1);
-    // HALT_ON_ERRORCOND(mods_count >= 2);
 
     //find highest 2MB aligned physical memory address that the hypervisor
     //binary must be moved to
@@ -675,9 +656,6 @@ void cstartup(multiboot_info_t *mbi)
 
 #endif /* __UEFI__ */
 
-#if defined (__DEBUG_SERIAL__)
-        slpb->uart_config = g_uart_config;
-#endif
 #ifdef __UEFI__
         strncpy(slpb->cmdline, xei->cmdline, sizeof(slpb->cmdline));
 #else /* !__UEFI__ */

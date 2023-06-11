@@ -46,38 +46,31 @@
 
 #include <xmhf.h>
 
-void xmhf_debug_arch_init(char *params)
+// From xmhfc-putchar.c
+
+void *emhfc_putchar_arg;
+
+static u32 emhfc_putchar_linelock_spinlock = 1;
+void *emhfc_putchar_linelock_arg = &emhfc_putchar_linelock_spinlock;
+
+void emhfc_putchar(int ch, void *arg)
 {
-	(void)params;
+  (void)arg;
 #ifdef __DEBUG_SERIAL__
-  dbg_x86_uart_init(params);
+  dbg_x86_uart_putc(ch);
 #endif
 
 #ifdef __DEBUG_VGA__
-  dbg_x86_vgamem_init(NULL);
+  dbg_x86_vgamem_putc(ch);
 #endif
 }
 
-void xmhf_debug_arch_putc(char c)
+void emhfc_putchar_linelock(void *arg)
 {
-	(void)c;
-#ifdef __DEBUG_SERIAL__
-  dbg_x86_uart_putc(c);
-#endif
-
-#ifdef __DEBUG_VGA__
-  dbg_x86_vgamem_putc(c);
-#endif
+  spin_lock(arg);
 }
 
-void xmhf_debug_arch_putstr(const char *str)
+void emhfc_putchar_lineunlock(void *arg)
 {
-	(void)str;
-#ifdef __DEBUG_SERIAL__
-  dbg_x86_uart_putstr(str);
-#endif
-
-#ifdef __DEBUG_VGA__
-  dbg_x86_vgamem_putstr(str);
-#endif
+  spin_unlock(arg);
 }
