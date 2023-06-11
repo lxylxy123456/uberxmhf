@@ -337,20 +337,6 @@ AC_CHECK_FILE([${GNUEFI_SRC}/inc/efi.h],
         ,
         AC_MSG_FAILURE([gnu-efi not found at "${GNUEFI_SRC}"]))
 
-# EMHF app root directory
-AC_SUBST([APP_ROOT])
-AC_ARG_WITH([approot],
-        AS_HELP_STRING([--with-approot=@<:@path@:>@],
-                [path to EMHF app source directory]),
-                , [with_approot=./hypapps/app])
-APP_ROOT=$[]with_approot
-# AC_CONFIG_SUBDIRS fails silently on absolute paths
-AS_IF([test "x${APP_ROOT:0:1}" == "x/"],
-            AC_MSG_FAILURE([approot must be a relative path.]))
-# make absolute
-dnl AS_IF([test "x${APP_ROOT:0:1}" != "x/"],
-dnl       [EMHFCOREDIR=$ac_abs_top_builddir/$APP_ROOT])
-
 # Choose minimum L2 VMCALL EAX number that will be forwarded to hypapp
 # When NESTED_VIRTUALIZATION=n, this configuration is ignored
 AC_SUBST([VMX_HYPAPP_L2_VMCALL_MIN])

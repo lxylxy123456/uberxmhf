@@ -19,14 +19,9 @@ export NESTED_PAGING := y
 #where you want loader and runtime binaries to go
 export HYPOUTDIR = $(CURDIR)
 
-# App's source tree root (
-export APP_ROOT := $(realpath @APP_ROOT@)
-
 # The APP_ARCHIVE is what MUST contain ALL of the App's binary code
 # 'make install-dev' is handled indepdendently
 export builddir=@builddir@
-
-export APP_ARCHIVE := $(APP_ROOT)/xmhfhypapp.a
 
 ##################################################################################
 ### BEGIN Variables controlled using autoconf
@@ -410,15 +405,6 @@ export LDFLAGS
 .PHONY: all $(APP_ARCHIVE) $(LIB_SUBDIRS) core
 all: core
 
-$(APP_ARCHIVE):
-	@echo ---------------------------------------------------------------
-	@echo Building primary hyperapp...
-	@echo ---------------------------------------------------------------
-	cd $(APP_ROOT) && $(MAKE) -w all
-	@echo ---------------------------------------------------------------
-	@echo primary hyperapp build SUCCESS
-	@echo ---------------------------------------------------------------
-
 $(LIBBAREMETAL_BUILD):
 	@echo ---------------------------------------------------------------
 	@echo Building libbaremetal...
@@ -474,29 +460,9 @@ install-bin:
 	install --mode=644 $(HYPOUTDIR)/hypervisor-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin.gz $(DESTDIR)/boot
 	install --mode=644 $(HYPOUTDIR)/init-$(TARGET_HWPLATFORM)-$(TARGET_SUBARCH).bin $(DESTDIR)/boot
 
-.PHONY: install-dev
-install-dev:
-	cd $(APP_ROOT) && $(MAKE) -w install-dev
-	@for i in $(SUBDIRS) ;\
-	do \
-		(cd $$i && echo "making install-dev in $$i..." && $(MAKE) -w install-dev) || exit 1; \
-	done;
-
-# Currently the only tests we have are in the TrustVisor tree
-.PHONY: test
-test:
-	cd $(APP_ROOT) && $(MAKE) -w test
-
 #.PHONY: clean distclean init-late-clean
 .PHONY: clean distclean
 clean:
-	@echo ---------------------------------------------------------------
-	@echo Cleaning primary hyperapp...
-	@echo ---------------------------------------------------------------
-	cd $(APP_ROOT) && $(MAKE) -w clean
-	@echo ---------------------------------------------------------------
-	@echo primary hyperapp clean SUCCESS
-	@echo ---------------------------------------------------------------
 	@echo ---------------------------------------------------------------
 	@echo Cleaning libbaremetal...
 	@echo ---------------------------------------------------------------
@@ -535,7 +501,6 @@ distclean: clean
 	$(RM) config.log config.status
 	# http://www.gnu.org/software/automake/manual/automake.html#Clean
 	$(RM) -rf Makefile
-	cd $(APP_ROOT) && $(MAKE) -w distclean
 
 
 verify:
