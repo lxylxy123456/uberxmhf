@@ -69,9 +69,5 @@ u8 * xmhf_xcphandler_get_idt_start(void){
 void xmhf_xcphandler_hub(uintptr_t vector, struct regs *r){
 	u32 eax, ebx, ecx, edx;
 	cpuid(1, &eax, &ebx, &ecx, &edx);
-	if (ecx & (1U << 5)) {
-		xmhf_xcphandler_arch_hub(vector, r);
-	} else {
-		lhv_guest_xcphandler(vector, r);
-	}
+	xmhf_xcphandler_arch_hub(vector, r);
 }

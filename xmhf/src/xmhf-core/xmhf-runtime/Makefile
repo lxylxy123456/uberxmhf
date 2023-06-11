@@ -108,20 +108,6 @@ OBJECTS_PRECOMPILED += ./xmhf-startup/runtime.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/rntm-data.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-data.o
 OBJECTS_PRECOMPILED += ./xmhf-startup/arch/x86/rntm-x86-dmap.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-console.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-timer.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-pic.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-keyboard.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-vmx.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-asm.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-vmcs.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-ept.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-guest.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-guest-asm.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-user.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-user-asm.o
-OBJECTS_PRECOMPILED += ./xmhf-startup/lhv-mouse.o
 
 
 # separate from OBJECTS_PRECOMPILED because needs to come after libs on link line

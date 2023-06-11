@@ -150,7 +150,7 @@ void xmhf_runtime_entry(void){
 
 #endif
 
-	pic_init();
+	//pic_init();
 
 	//initialize base platform with SMP
 	xmhf_baseplatform_smpinitialize();
@@ -218,7 +218,7 @@ void xmhf_runtime_main(VCPU *vcpu, u32 isEarlyInit){
 	/* Enable LAPIC (at this time only BSP is enabled) */
 	write_lapic(LAPIC_SVR, read_lapic(LAPIC_SVR) | LAPIC_ENABLE);
 
-	lhv_main(vcpu);
+	//lhv_main(vcpu);
 
 #if 0 /* __NOT_RUNNING_LHV__ */
   //initialize CPU

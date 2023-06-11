@@ -145,6 +145,7 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
         HALT_ON_ERRORCOND(0);	// TODO: not implemented
         break;
 
+#if 0
 	case 0x20:
 		if (pic_spurious(0) != 0) {
 			emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
@@ -195,6 +196,7 @@ void xmhf_xcphandler_arch_hub(uintptr_t vector, struct regs *r){
 	case 0x2c:
 		handle_mouse_interrupt(vcpu, vector, 0);
 		break;
+#endif
 
     default:
         {

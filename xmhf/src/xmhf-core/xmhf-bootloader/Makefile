@@ -16,6 +16,23 @@ ifeq ($(DRT), y)
 C_SOURCES += txt.c txt_acmod.c txt_heap.c txt_hash.c
 endif
 
+# LHV files
+AS_SOURCES += lhv-asm.S
+AS_SOURCES += lhv-guest-asm.S
+AS_SOURCES += lhv-user-asm.S
+
+C_SOURCES += lhv.c
+C_SOURCES += lhv-console.c
+C_SOURCES += lhv-timer.c
+C_SOURCES += lhv-pic.c
+C_SOURCES += lhv-keyboard.c
+C_SOURCES += lhv-vmx.c
+C_SOURCES += lhv-ept.c
+C_SOURCES += lhv-vmcs.c
+C_SOURCES += lhv-guest.c
+C_SOURCES += lhv-user.c
+C_SOURCES += lhv-mouse.c
+
 OBJECTS = $(patsubst %.S, %.o, $(AS_SOURCES))
 OBJECTS += $(patsubst %.c, %.o, $(C_SOURCES))
 
