@@ -56,6 +56,10 @@ void lhv_main(VCPU *vcpu)
     #error "Unsupported Arch"
 #endif /* !defined(__I386__) && !defined(__AMD64__) */
 	}
+
+	printf("Stopping enabling interrupts\n");
+	HALT();
+
 	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 		/* Set EFLAGS.IF */
 		asm volatile ("sti");
