@@ -12,9 +12,6 @@ else
 AS_SOURCES = header.S initsup_bios.S
 endif
 C_SOURCES = init.c smp.c cmdline.c
-ifeq ($(DRT), y)
-C_SOURCES += txt.c txt_acmod.c txt_heap.c txt_hash.c
-endif
 
 # LHV files
 AS_SOURCES += lhv-asm.S
@@ -59,11 +56,6 @@ OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-i386-
 endif
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-addressing.o
 OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/bplt-x86-cpu.o
-
-ifeq ($(DRT), y)
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs-common.o
-OBJECTS_PRECOMPILED += ../xmhf-runtime/xmhf-baseplatform/arch/x86/vmx/bplt-x86vmx-mtrrs-bootloader.o
-endif
 
 # FIXME: This is overly general; init/ doesn't need all of these
 CFLAGS += $(ADDL_INCLUDES_BOOTLOADER)
