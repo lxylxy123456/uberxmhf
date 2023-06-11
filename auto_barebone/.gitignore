@@ -3,3 +3,12 @@
 *.iso
 isodir
 
+.deps/
+autom4te.cache/
+aclocal.m4
+build-aux/
+configure
+config.log
+config.status
+/Makefile
+/Makefile.in

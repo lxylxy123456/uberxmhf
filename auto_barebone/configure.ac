@@ -1,8 +1,10 @@
+# Template from http://www.idryman.org/blog/2016/03/10/autoconf-tutorial-1/
+
 # Must init the autoconf setup
 # The first parameter is project name
 # second is version number
 # third is bug report address
-AC_INIT([hello], [1.0])
+AC_INIT([shv], [1.0])
 
 # Safety checks in case user overwritten --srcdir
 AC_CONFIG_SRCDIR([kernel.c])
