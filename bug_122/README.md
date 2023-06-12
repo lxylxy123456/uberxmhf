@@ -22,3 +22,14 @@ command becomes:
 ../notes/kvm.sh -d grub/c.img +1
 ```
 
+New branch for SHV: `shv`
+
+### Autoconf
+
+We follow these to remove XMHF dependency, hoping the code base becomes smaller
+* <https://wiki.osdev.org/Bare_Bones>
+* <http://www.idryman.org/blog/2016/03/10/autoconf-tutorial-1/>
+
+In directory `auto_barebone`, combine OSDev bare bone and autoconf. Then port
+SHV to use this framework.
+
