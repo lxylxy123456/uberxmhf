@@ -51,37 +51,24 @@
 
 #include <xmhf.h>
 
-// frequency of UART clock source
-#define UART_CLOCKFREQ   1843200
-
-// default config parameters for serial port
-uart_config_t g_uart_config = {
-    115200,
-    UART_CLOCKFREQ,
-    LCR_8BITS | (!LCR_PENAB) | 0,    // GET_LCR_VALUE(8, 'n', 1)
-    DEBUG_PORT,
-};
+#define UART_PORT 0x3f8
 
 //low-level UART character output
 static void dbg_x86_uart_putc_bare(char ch){
-  //wait for xmit hold register to be empty
-  while ( ! (inb(g_uart_config.comc_port+0x5) & 0x20) ) {
-    xmhf_cpu_relax();
-  }
+	//wait for xmit hold register to be empty
+	while ( ! (inb(UART_PORT+0x5) & 0x20) ) {
+		xmhf_cpu_relax();
+	}
 
-  //write the character
-  outb((u8)ch, g_uart_config.comc_port);
+	//write the character
+	outb(UART_PORT, (u8)ch);
 
-  return;
+	return;
 }
 
-
-// write character to serial port, translating '\n' to '\r\n'
+// write character to serial port
 void dbg_x86_uart_putc(char ch){
-  if (ch == '\n') {
-    dbg_x86_uart_putc_bare('\r');
-  }
-  dbg_x86_uart_putc_bare(ch);
+	dbg_x86_uart_putc_bare(ch);
 }
 
 
@@ -91,36 +78,3 @@ void dbg_x86_uart_putstr(const char *s){
 		dbg_x86_uart_putc(*s++);
 }
 
-
-//initialize UART comms.
-void dbg_x86_uart_init(char *params){
-
-  //override default UART parameters with the one passed via the
-  //command line
-  memcpy((void *)&g_uart_config, params, sizeof(uart_config_t));
-
-  // disable UART interrupts
-  outb((u8)0, g_uart_config.comc_port+0x1); //clear interrupt enable register
-
-  //compute divisor latch data from baud-rate and set baud-rate
-  {
-	u16 divisor_latch_data = g_uart_config.comc_clockhz / (g_uart_config.comc_curspeed * 16);
-
-	outb(0x80, g_uart_config.comc_port+0x3); //enable divisor latch access by
-									    //writing to line control register
-
-	outb((u8)divisor_latch_data, g_uart_config.comc_port); //write low 8-bits of divisor latch data
-	outb((u8)(divisor_latch_data >> 8), g_uart_config.comc_port+0x1); //write high 8-bits of divisor latch data
-
-   }
-
-  //set data bits, stop bits and parity info. by writing to
-  //line control register
-  outb(g_uart_config.comc_fmt, g_uart_config.comc_port+0x3);
-
-  //signal ready by setting DTR and RTS high in
-  //modem control register
-  outb((u8)0x3, g_uart_config.comc_port+0x4);
-
-  return;
-}

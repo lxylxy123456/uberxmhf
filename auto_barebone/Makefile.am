@@ -1,10 +1,12 @@
 # Template from http://www.idryman.org/blog/2016/03/10/autoconf-tutorial-1/
 
 bin_PROGRAMS = shv.bin
-shv_bin_SOURCES = boot.s kernel.c
+shv_bin_SOURCES = boot.s kernel.c \
+	debug.c debug-uart.c debug-vga.c \
+	libc_string.c
 
-shv_bin_CCASFLAGS = -m32
-shv_bin_CFLAGS = -m32
+shv_bin_CCASFLAGS = -m32 -Iinclude/
+shv_bin_CFLAGS = -m32 -Iinclude/
 shv_bin_LDFLAGS = -T linker.ld -ffreestanding -O2 -nostdlib
 shv_bin_LDADD = -lgcc
 

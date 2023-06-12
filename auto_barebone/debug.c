@@ -53,24 +53,23 @@ void *emhfc_putchar_arg;
 static u32 emhfc_putchar_linelock_spinlock = 1;
 void *emhfc_putchar_linelock_arg = &emhfc_putchar_linelock_spinlock;
 
-void emhfc_putchar(int ch, void *arg)
-{
-  (void)arg;
-#ifdef __DEBUG_SERIAL__
-  dbg_x86_uart_putc(ch);
-#endif
+extern void dbg_x86_uart_putc(char c);
+extern void dbg_x86_vgamem_putc(char c);
 
-#ifdef __DEBUG_VGA__
-  dbg_x86_vgamem_putc(ch);
-#endif
+void emhfc_putchar(char ch)
+{
+	// TODO: allow configure to select which way to output
+	dbg_x86_uart_putc(ch);
+	dbg_x86_vgamem_putc(ch);
 }
 
-void emhfc_putchar_linelock(void *arg)
+void emhfc_putchar_linelock(spin_lock_t *arg)
 {
-  spin_lock(arg);
+	spin_lock(arg);
 }
 
-void emhfc_putchar_lineunlock(void *arg)
+void emhfc_putchar_lineunlock(spin_lock_t *arg)
 {
-  spin_unlock(arg);
+	spin_unlock(arg);
 }
+
