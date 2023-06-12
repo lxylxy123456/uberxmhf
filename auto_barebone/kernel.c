@@ -17,15 +17,7 @@ void kernel_main(void)
 
 //	terminal_writestring("Hello, kernel World!\n");
 
-	{
-		extern void emhfc_putchar(char ch);
-		emhfc_putchar('H');
-		emhfc_putchar('e');
-		emhfc_putchar('l');
-		emhfc_putchar('\n');
-	}
-
-	//printf("Hello, kernel World!\n", "asdf");
+	printf("Hello, %s World %d!\n", "kernel", 1);
 
 	cpu_halt();
 }

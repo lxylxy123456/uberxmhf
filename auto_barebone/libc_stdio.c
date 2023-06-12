@@ -66,12 +66,18 @@
 /* #ifdef DDB */
 /* #include <ddb/ddb.h> */
 /* #endif */
+#include <xmhf.h>
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
-#include <ctype.h>
 
-#include <sys/libkern.h>
+//#include <sys/libkern.h>
+#define	hex2ascii(hex)	(hex2ascii_data[hex])
+char const hex2ascii_data[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+static __inline int imax(int a, int b) { return (a > b ? a : b); }
+#define toupper(c)      ((c) - 0x20 * (((c) >= 'a') && ((c) <= 'z')))
+#define tolower(c)      ((c) + 0x20 * (((c) >= 'A') && ((c) <= 'Z')))
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both
@@ -79,6 +85,8 @@
  */
 /* #include <machine/stdarg.h> */
 #include <stdarg.h>
+
+#define NBBY 8
 
 #define TOCONS	0x01
 #define TOTTY	0x02
@@ -97,7 +105,7 @@
 /* 	size_t	remain; */
 /* }; */
 
-#include "emhfc_callbacks.h"
+//#include "emhfc_callbacks.h"
 
 struct snprintf_arg {
 	char	*str;
@@ -343,7 +351,7 @@ vprintf(const char *fmt, va_list ap)
 /* #endif */
 
         emhfc_putchar_linelock(emhfc_putchar_linelock_arg);
-	retval = kvprintf(fmt, emhfc_putchar, emhfc_putchar_arg, 10, ap);
+	retval = kvprintf(fmt, emhfc_putchar, NULL, 10, ap);
         emhfc_putchar_lineunlock(emhfc_putchar_linelock_arg);
 
 /* #ifdef PRINTF_BUFR_SIZE */

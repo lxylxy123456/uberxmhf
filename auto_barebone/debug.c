@@ -48,16 +48,17 @@
 
 // From xmhfc-putchar.c
 
-void *emhfc_putchar_arg;
-
-static u32 emhfc_putchar_linelock_spinlock = 1;
-void *emhfc_putchar_linelock_arg = &emhfc_putchar_linelock_spinlock;
+static spin_lock_t emhfc_putchar_linelock_spinlock;
+spin_lock_t *emhfc_putchar_linelock_arg = &emhfc_putchar_linelock_spinlock;
 
 extern void dbg_x86_uart_putc(char c);
 extern void dbg_x86_vgamem_putc(char c);
 
-void emhfc_putchar(char ch)
+void emhfc_putchar(int c, void *arg)
 {
+	char ch = (char)c;
+	(void)arg;
+
 	// TODO: allow configure to select which way to output
 	dbg_x86_uart_putc(ch);
 	dbg_x86_vgamem_putc(ch);

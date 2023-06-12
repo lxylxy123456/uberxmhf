@@ -3,7 +3,7 @@
 bin_PROGRAMS = shv.bin
 shv_bin_SOURCES = boot.s kernel.c \
 	debug.c debug-uart.c debug-vga.c \
-	libc_string.c
+	libc_string.c libc_stdio.c
 
 shv_bin_CCASFLAGS = -m32 -Iinclude/
 shv_bin_CFLAGS = -m32 -Iinclude/
