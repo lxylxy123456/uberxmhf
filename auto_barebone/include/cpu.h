@@ -23,3 +23,15 @@ static inline void outb(u16 port, u8 val)
 	asm volatile("outb %1, %0" : : "d"(port), "a"(val));
 }
 
+static inline ulong_t read_cr0(void)
+{
+	ulong_t ans;
+	asm volatile("mov %%cr0, %0" : "=r"(ans));
+	return ans;
+}
+
+static inline void write_cr0(ulong_t val)
+{
+	asm volatile("mov %0, %%cr0" : : "r"(val));
+}
+

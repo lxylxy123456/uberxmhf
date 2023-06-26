@@ -8,8 +8,9 @@ shv_bin_SOURCES = boot.s kernel.c \
 	lhv-keyboard.c lhv-mouse.c lhv-pic.c lhv-timer.c lhv-user-asm.S lhv-user.c \
 	lhv-vmcs.c lhv-vmx.c 
 
-shv_bin_CCASFLAGS = -m32 -Iinclude/
-shv_bin_CFLAGS = -m32 -Iinclude/
+# TODO: __LHV_OPT__
+shv_bin_CCASFLAGS = -m32 -Iinclude/ -D __LHV_OPT__=0 -D__ASSEMBLY__
+shv_bin_CFLAGS = -m32 -Iinclude/ -D __LHV_OPT__=0
 shv_bin_LDFLAGS = -T linker.ld -ffreestanding -O2 -nostdlib
 shv_bin_LDADD = -lgcc
 

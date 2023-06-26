@@ -31,18 +31,18 @@ __attribute__((aligned(PAGE_SIZE_4K)));
 /* When running user program, ESP of kernel code (used when user exits) */
 static uintptr_t esp0[MAX_VCPU_ENTRIES];
 
-#ifdef __AMD64__
+#ifdef __amd64__
 static u64 user_pml4t[P4L_NPLM4T * 512] __attribute__((aligned(PAGE_SIZE_4K)));
 static u64 user_pdpt[P4L_NPDPT * 512] __attribute__((aligned(PAGE_SIZE_4K)));
 static u64 user_pdt[P4L_NPDT * 512] __attribute__((aligned(PAGE_SIZE_4K)));
 static u64 user_pt[P4L_NPT * 512] __attribute__((aligned(PAGE_SIZE_4K)));
-#elif defined(__I386__)
+#elif defined(__i386__)
 static u64 user_pdpt[4] __attribute__ ((aligned (32)));
 static u64 user_pd[4][512] __attribute__((aligned(PAGE_SIZE_4K)));
 static u64 user_pt[4][512][512] __attribute__((aligned(PAGE_SIZE_4K)));
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 
 static void set_user_mode_page_table(void)
 {
@@ -50,7 +50,7 @@ static void set_user_mode_page_table(void)
 	static u32 lock = 1;
 	spin_lock(&lock);
 	if (!initialized) {
-#ifdef __AMD64__
+#ifdef __amd64__
 		u64 i = 0;
 		u64 paddr = (uintptr_t) user_pdpt;
 		for (i = 0; i < P4L_NPDPT; i++) {
@@ -74,7 +74,7 @@ static void set_user_mode_page_table(void)
 			paddr += PAGE_SIZE_4K;
 		}
 		initialized = (uintptr_t) user_pml4t;
-#elif defined(__I386__)
+#elif defined(__i386__)
 		u32 i, j, k;
 		u64 paddr = 0;
 		for (i = 0; i < 4; i++) {
@@ -88,9 +88,9 @@ static void set_user_mode_page_table(void)
 			}
 		}
 		initialized = (uintptr_t) user_pdpt;
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 	}
 	write_cr3(initialized);
 	spin_unlock(&lock);
@@ -114,22 +114,22 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 	}
 	{
 		uintptr_t top = ((uintptr_t) interrupt_stack[vcpu->idx]) + PAGE_SIZE_4K;
-#ifdef __AMD64__
+#ifdef __amd64__
 		ureg->r.rsi = arg;
 		ureg->r.rdi = (uintptr_t) vcpu;
 		stack[-3] = 0xdeadbeef;
 		/* Setup TSS */
 		*(u64 *)(g_runtime_TSS[vcpu->idx] + 4) = top;
-#elif defined(__I386__)
+#elif defined(__i386__)
 		stack[-1] = arg;
 		stack[-2] = (uintptr_t) vcpu;
 		stack[-3] = 0xdeadbeef;
 		/* Setup TSS */
 		*(u32 *)(g_runtime_TSS[vcpu->idx] + 4) = top;
 		*(u16 *)(g_runtime_TSS[vcpu->idx] + 8) = __DS;
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 	}
 	/* Setup page table */
 	set_user_mode_page_table();

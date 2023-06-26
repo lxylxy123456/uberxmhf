@@ -31,14 +31,14 @@ void __vmx_vmwrite16(u16 encoding, u16 value) {
 void __vmx_vmwrite64(u16 encoding, u64 value) {
 	HALT_ON_ERRORCOND((encoding >> 12) == 2UL);
 	HALT_ON_ERRORCOND((encoding & 0x1) == 0x0);
-#ifdef __AMD64__
+#ifdef __amd64__
 	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
-#elif defined(__I386__)
+#elif defined(__i386__)
 	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding, value));
 	HALT_ON_ERRORCOND(__vmx_vmwrite(encoding + 1, value >> 32));
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 }
 
 /* Write 32-bit VMCS field, never fails */
@@ -64,12 +64,12 @@ u16 __vmx_vmread16(u16 encoding) {
 
 /* Read 64-bit VMCS field, never fails */
 u64 __vmx_vmread64(u16 encoding) {
-#ifdef __AMD64__
+#ifdef __amd64__
 	unsigned long value;
 	HALT_ON_ERRORCOND((encoding >> 12) == 2UL);
 	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &value));
 	return value;
-#elif defined(__I386__)
+#elif defined(__i386__)
 	union {
 		struct {
 			unsigned long low, high;
@@ -82,9 +82,9 @@ u64 __vmx_vmread64(u16 encoding) {
 	HALT_ON_ERRORCOND(__vmx_vmread(encoding, &ans.low));
 	HALT_ON_ERRORCOND(__vmx_vmread(encoding + 1, &ans.high));
 	return ans.full;
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 }
 
 /* Read 32-bit VMCS field, never fails */

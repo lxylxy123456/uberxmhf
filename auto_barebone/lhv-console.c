@@ -31,10 +31,10 @@
 
 void console_cursor_clear(void)
 {
-	outb(CRTC_CURSOR_LSB_IDX, CRTC_IDX_REG);
-	outb(0, CRTC_DATA_REG);
-	outb(CRTC_CURSOR_MSB_IDX, CRTC_IDX_REG);
-	outb(0, CRTC_DATA_REG);
+	outb(CRTC_IDX_REG, CRTC_CURSOR_LSB_IDX);
+	outb(CRTC_DATA_REG, 0);
+	outb(CRTC_IDX_REG, CRTC_CURSOR_MSB_IDX);
+	outb(CRTC_DATA_REG, 0);
 }
 
 static volatile char *console_get_mmio(console_vc_t *vc, int x, int y)

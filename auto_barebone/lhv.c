@@ -33,7 +33,7 @@ void lhv_main(VCPU *vcpu)
 		}
 	}
 	timer_init(vcpu);
-	assert(vc.height >= 2);
+	HALT_ON_ERRORCOND(vc.height >= 2);
 	for (int i = 0; i < vc.width; i++) {
 		for (int j = 0; j < 2; j++) {
 #ifndef __DEBUG_VGA__
@@ -44,17 +44,17 @@ void lhv_main(VCPU *vcpu)
 	}
 	/* Demonstrate disabling paging in hypervisor */
 	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
-#ifdef __AMD64__
+#ifdef __amd64__
 		extern void lhv_disable_enable_paging(char *);
 		lhv_disable_enable_paging("LHV hypervisor can disable paging\n");
-#elif defined(__I386__)
+#elif defined(__i386__)
 		ulong_t cr0 = read_cr0();
 		write_cr0(cr0 & 0x7fffffffUL);
 		printf("LHV hypervisor can disable paging\n");
 		write_cr0(cr0);
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 	}
 
 	printf("Stopping enabling interrupts\n");

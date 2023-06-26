@@ -36,17 +36,17 @@ static u32 _rdmsr_safe(u32 index, u64 *value) {
                   "movl $1, %%ebx\r\n"
                   "jmp 3f\r\n"
                   ".section .xcph_table\r\n"
-#ifdef __AMD64__
+#ifdef __amd64__
                   ".quad 0xd\r\n"
                   ".quad 1b\r\n"
                   ".quad 2b\r\n"
-#elif defined(__I386__)
+#elif defined(__i386__)
                   ".long 0xd\r\n"
                   ".long 1b\r\n"
                   ".long 2b\r\n"
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
                   ".previous\r\n"
                   "3:\r\n"
                   : "=a"(eax), "=d"(edx), "=b"(result)
@@ -72,17 +72,17 @@ static u32 _wrmsr_safe(u32 index, u64 value) {
                   "movl $1, %%ebx\r\n"
                   "jmp 3f\r\n"
                   ".section .xcph_table\r\n"
-#ifdef __AMD64__
+#ifdef __amd64__
                   ".quad 0xd\r\n"
                   ".quad 1b\r\n"
                   ".quad 2b\r\n"
-#elif defined(__I386__)
+#elif defined(__i386__)
                   ".long 0xd\r\n"
                   ".long 1b\r\n"
                   ".long 2b\r\n"
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
                   ".previous\r\n"
                   "3:\r\n"
                   : "=b"(result)
@@ -119,13 +119,13 @@ static void lhv_guest_test_msr_ls_vmexit_handler(VCPU *vcpu, struct regs *r,
 	if (info->vmexit_reason != VMX_VMEXIT_VMCALL) {
 		return;
 	}
-#ifdef __AMD64__
+#ifdef __amd64__
 	data = (void *)r->rbx;
-#elif defined(__I386__)
+#elif defined(__i386__)
 	data = (void *)r->ebx;
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
 	#error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 	switch (r->eax) {
 	case 12:
 		/*
@@ -388,17 +388,17 @@ static void lhv_guest_test_vmxoff_vmexit_handler(VCPU *vcpu, struct regs *r,
 						  "movl $1, %%ebx\r\n"
 						  "jmp 3f\r\n"
 						  ".section .xcph_table\r\n"
-#ifdef __AMD64__
+#ifdef __amd64__
 						  ".quad 0x6\r\n"
 						  ".quad 1b\r\n"
 						  ".quad 2b\r\n"
-#elif defined(__I386__)
+#elif defined(__i386__)
 						  ".long 0x6\r\n"
 						  ".long 1b\r\n"
 						  ".long 2b\r\n"
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
 	#error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 						  ".previous\r\n"
 						  "3:\r\n"
 						  : "=b"(result)
@@ -479,12 +479,12 @@ static void lhv_guest_test_vpid_vmexit_handler(VCPU *vcpu, struct regs *r,
 		 */
 		HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS, vpid,
 										0x12345678U));
-#ifdef __AMD64__
+#ifdef __amd64__
 		HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS, vpid,
 										 0xf0f0f0f0f0f0f0f0ULL));
-#elif !defined(__I386__)
+#elif !defined(__i386__)
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) */
+#endif /* !defined(__i386__) */
 		HALT_ON_ERRORCOND(!__vmx_invvpid(VMX_INVVPID_INDIVIDUALADDRESS, 0,
 										 0x12345678U));
 		HALT_ON_ERRORCOND(__vmx_invvpid(VMX_INVVPID_SINGLECONTEXT, vpid, 0));
@@ -541,14 +541,14 @@ static void lhv_guest_test_unrestricted_guest(VCPU *vcpu)
 {
 	(void)vcpu;
 	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
-#ifdef __AMD64__
+#ifdef __amd64__
 		extern void lhv_disable_enable_paging(char *);
 		if ("quiet") {
 			lhv_disable_enable_paging("");
 		} else {
 			lhv_disable_enable_paging("LHV guest can disable paging\n");
 		}
-#elif defined(__I386__)
+#elif defined(__i386__)
 		ulong_t cr0 = read_cr0();
 		asm volatile ("cli");
 		write_cr0(cr0 & 0x7fffffffUL);
@@ -559,9 +559,9 @@ static void lhv_guest_test_unrestricted_guest(VCPU *vcpu)
 		if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
 			asm volatile ("sti");
 		}
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 	}
 }
 
@@ -733,17 +733,17 @@ static void _test_rdmsr(u32 ecx, u32 expected_ebx)
 				  "movl %[e], %%ebx\n"
 				  "jmp 3f\n"
 				  ".section .xcph_table\n"
-#ifdef __AMD64__
+#ifdef __amd64__
 				  ".quad 0xd\r\n"
 				  ".quad 1b\r\n"
 				  ".quad 2b\r\n"
-#elif defined(__I386__)
+#elif defined(__i386__)
 				  ".long 0xd\r\n"
 				  ".long 1b\r\n"
 				  ".long 2b\r\n"
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 				  ".previous\r\n"
 				  "3:\r\n"
 				  : "+b"(ebx), "=a"(eax), "=d"(edx)
@@ -761,17 +761,17 @@ static void _test_wrmsr(u32 ecx, u32 expected_ebx, u64 val)
 				  "movl %[e], %%ebx\n"
 				  "jmp 3f\n"
 				  ".section .xcph_table\n"
-#ifdef __AMD64__
+#ifdef __amd64__
 				  ".quad 0xd\r\n"
 				  ".quad 1b\r\n"
 				  ".quad 2b\r\n"
-#elif defined(__I386__)
+#elif defined(__i386__)
 				  ".long 0xd\r\n"
 				  ".long 1b\r\n"
 				  ".long 2b\r\n"
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 				  ".previous\r\n"
 				  "3:\r\n"
 				  : "+b"(ebx)
@@ -1003,22 +1003,22 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
                 vector == CPU_EXCEPTION_GP ||
                 vector == CPU_EXCEPTION_PF ||
                 vector == CPU_EXCEPTION_AC) {
-#ifdef __AMD64__
+#ifdef __amd64__
                 r->rsp += sizeof(uintptr_t);
-#elif defined(__I386__)
+#elif defined(__i386__)
                 r->esp += sizeof(uintptr_t);
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
             }
 
-#ifdef __AMD64__
+#ifdef __amd64__
             exception_rip = ((uintptr_t *)(r->rsp))[0];
-#elif defined(__I386__)
+#elif defined(__i386__)
             exception_rip = ((uintptr_t *)(r->esp))[0];
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 
             for (i = (hva_t *)_begin_xcph_table;
                  i < (hva_t *)_end_xcph_table; i += 3) {
@@ -1030,13 +1030,13 @@ void lhv_guest_xcphandler(uintptr_t vector, struct regs *r)
 
             if (found) {
                 /* Found in xcph table; Modify EIP on stack and iret */
-#ifdef __AMD64__
+#ifdef __amd64__
                 ((uintptr_t *)(r->rsp))[0] = found[2];
-#elif defined(__I386__)
+#elif defined(__i386__)
                 ((uintptr_t *)(r->esp))[0] = found[2];
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
                 break;
             }
         }

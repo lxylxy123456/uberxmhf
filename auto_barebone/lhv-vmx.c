@@ -68,17 +68,17 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_host_RIP, (u64)(hva_t)vmexit_asm);
 
 	//store vcpu at TOS
-#ifdef __AMD64__
+#ifdef __amd64__
 	vcpu->rsp = vcpu->rsp - sizeof(hva_t);
 	*(hva_t *)vcpu->rsp = (hva_t)vcpu;
 	vmcs_vmwrite(vcpu, VMCS_host_RSP, (u64)vcpu->rsp);
-#elif defined(__I386__)
+#elif defined(__i386__)
 	vcpu->esp = vcpu->esp - sizeof(hva_t);
 	*(hva_t *)vcpu->esp = (hva_t)vcpu;
 	vmcs_vmwrite(vcpu, VMCS_host_RSP, (u64)vcpu->esp);
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 
 	vmcs_vmwrite(vcpu, VMCS_host_SYSENTER_CS, rdmsr64(IA32_SYSENTER_CS_MSR));
 	vmcs_vmwrite(vcpu, VMCS_host_SYSENTER_ESP, rdmsr64(IA32_SYSENTER_ESP_MSR));
@@ -99,20 +99,20 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	}
 	{
 		u32 vmexit_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_EXIT_CTLS_MSR];
-#ifdef __AMD64__
+#ifdef __amd64__
 		vmexit_ctls |= (1UL << 9);
-#elif !defined(__I386__)
+#elif !defined(__i386__)
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) */
+#endif /* !defined(__i386__) */
 		vmcs_vmwrite(vcpu, VMCS_control_VM_exit_controls, vmexit_ctls);
 	}
 	{
 		u32 vmentry_ctls = vcpu->vmx_msrs[INDEX_IA32_VMX_ENTRY_CTLS_MSR];
-#ifdef __AMD64__
+#ifdef __amd64__
 		vmentry_ctls |= (1UL << 9);
-#elif !defined(__I386__)
+#elif !defined(__i386__)
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) */
+#endif /* !defined(__i386__) */
 		vmcs_vmwrite(vcpu, VMCS_control_VM_entry_controls, vmentry_ctls);
 	}
 	vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based,
@@ -144,7 +144,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_EPT);
 		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
 		vmcs_vmwrite64(vcpu, VMCS_control_EPT_pointer, eptp | 0x1eULL);
-#ifdef __I386__
+#ifdef __i386__
 		{
 			u64 *cr3 = (u64 *)read_cr3();
 			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE0, cr3[0]);
@@ -152,7 +152,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE2, cr3[2]);
 			vmcs_vmwrite64(vcpu, VMCS_guest_PDPTE3, cr3[3]);
 		}
-#endif /* __I386__ */
+#endif /* __i386__ */
 	}
 
 	if (__LHV_OPT__ & LHV_USE_VPID) {
@@ -222,13 +222,13 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_guest_RFLAGS, (1 << 1));
 	//CS, DS, ES, FS, GS and SS segments
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_limit, 0xffffffff);
-#ifdef __AMD64__
+#ifdef __amd64__
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0xa09b);
-#elif defined(__I386__)
+#elif defined(__i386__)
 	vmcs_vmwrite(vcpu, VMCS_guest_CS_access_rights, 0xc09b);
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* !defined(__I386__) && !defined(__AMD64__) */
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 	vmcs_vmwrite(vcpu, VMCS_guest_DS_selector, __DS);
 	vmcs_vmwrite(vcpu, VMCS_guest_DS_base, 0);
 	vmcs_vmwrite(vcpu, VMCS_guest_DS_limit, 0xffffffff);

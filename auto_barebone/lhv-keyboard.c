@@ -36,6 +36,6 @@ void handle_keyboard_interrupt(VCPU *vcpu, int vector, int guest)
 		printf("CPU(0x%02x): key press: 0x%hh02x, guest=%d\n", vcpu->id,
 			   scancode, guest);
 	}
-	outb(INT_ACK_CURRENT, INT_CTL_PORT);
+	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 }
 

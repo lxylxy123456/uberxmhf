@@ -37,7 +37,7 @@ static void ps2_send_ctrl(u8 ctrl)
 	while (ps2_recv_stat() & 2) {
 		xmhf_cpu_relax();
 	}
-	outb(ctrl, PS2_CTRL_PORT);
+	outb(PS2_CTRL_PORT, ctrl);
 }
 
 /* Read from data port */
@@ -55,7 +55,7 @@ static void ps2_send_data(u8 data)
 	while (ps2_recv_stat() & 2) {
 		xmhf_cpu_relax();
 	}
-	outb(data, PS2_DATA_PORT);
+	outb(PS2_DATA_PORT, data);
 }
 
 /* Read from configuration byte */
@@ -161,7 +161,7 @@ void handle_mouse_interrupt(VCPU *vcpu, int vector, int guest)
 		printf("CPU(0x%02x): mouse: 0x%hh02x, guest=%d\n", vcpu->id,
 			   scancode, guest);
 	}
-	outb(INT_ACK_CURRENT, SLAVE_ICW);
-	outb(INT_ACK_CURRENT, INT_CTL_PORT);
+	outb(SLAVE_ICW, INT_ACK_CURRENT);
+	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 }
 

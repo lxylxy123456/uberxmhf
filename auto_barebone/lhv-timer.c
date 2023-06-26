@@ -41,7 +41,7 @@
 
 static int getrtcfield(int field) {
 	int bcd;
-	outb(field, RTC_PORT_OUT);
+	outb(RTC_PORT_OUT, field);
 	bcd = inb(RTC_PORT_IN);
 	return (bcd & 0xF) + (bcd >> 4) * 10;
 }
@@ -77,14 +77,14 @@ void timer_init(VCPU *vcpu)
 		u64 ncycles = TIMER_RATE * TIMER_PERIOD / 1000;
 		HALT_ON_ERRORCOND(ncycles == (u64)(u16)ncycles);
 		if (__LHV_OPT__ & LHV_NO_INTERRUPT) {
-			outb(TIMER_ONE_SHOT, TIMER_MODE_IO_PORT);
-			outb((u8)(1), TIMER_PERIOD_IO_PORT);
-			outb((u8)(0), TIMER_PERIOD_IO_PORT);
+			outb(TIMER_MODE_IO_PORT, TIMER_ONE_SHOT);
+			outb(TIMER_PERIOD_IO_PORT, (u8)(1));
+			outb(TIMER_PERIOD_IO_PORT, (u8)(0));
 			asm volatile ("sti; hlt; cli");
 		} else {
-			outb(TIMER_SQUARE_WAVE, TIMER_MODE_IO_PORT);
-			outb((u8)(ncycles), TIMER_PERIOD_IO_PORT);
-			outb((u8)(ncycles >> 8), TIMER_PERIOD_IO_PORT);
+			outb(TIMER_MODE_IO_PORT, TIMER_SQUARE_WAVE);
+			outb(TIMER_PERIOD_IO_PORT, (u8)(ncycles));
+			outb(TIMER_PERIOD_IO_PORT, (u8)(ncycles >> 8));
 		}
 	}
 
@@ -148,7 +148,7 @@ void handle_timer_interrupt(VCPU *vcpu, int vector, int guest)
 	if (vector == 0x20) {
 		vcpu->pit_time++;
 		update_screen(vcpu, &vcpu->lhv_pit_x[guest], 0, guest);
-		outb(INT_ACK_CURRENT, INT_CTL_PORT);
+		outb(INT_CTL_PORT, INT_ACK_CURRENT);
 		if (!"Calibrate timer" && vcpu->pit_time % 50 == 0) {
 			calibrate_timer(vcpu);
 		}

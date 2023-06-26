@@ -34,7 +34,7 @@ vmexit_asm:
 	popq	%rax
 9:	cmpq	$2, %rax
 	jne		9b
-#elif defined(__I386__)
+#elif defined(__i386__)
 	pushal
 	movl	32(%esp), %esi
 	movl	%esp, %eax
@@ -46,7 +46,7 @@ vmexit_asm:
 	popl	%eax
 9:	cmpl	$2, %eax
 	jne		9b
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
 #endif /* __XMHF_AMD64__ */
 	call	vmexit_handler
@@ -59,10 +59,10 @@ inst_name&_asm:
 #ifdef __XMHF_AMD64__
 	movq	%rdi, %rsp
 	POPAQ
-#elif defined(__I386__)
+#elif defined(__i386__)
 	movl	4(%esp), %esp
 	popal
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
 #endif /* __XMHF_AMD64__ */
 	inst_name
@@ -72,27 +72,27 @@ inst_name&_asm:
 2:
 #ifdef __XMHF_AMD64__
 	movq	$1, %rsi
-#elif defined(__I386__)
+#elif defined(__i386__)
 	pushl	$1
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
 #endif /* __XMHF_AMD64__ */
 	jmp		4f
 3:
 #ifdef __XMHF_AMD64__
 	movq	$0, %rsi
-#elif defined(__I386__)
+#elif defined(__i386__)
 	pushl	$0
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
 #endif /* __XMHF_AMD64__ */
 	jmp		4f
 4:
 #ifdef __XMHF_AMD64__
 	movq	$&inst_num&, %rdi	/* vmlaunch = 0, vmresume = 1 */
-#elif defined(__I386__)
+#elif defined(__i386__)
 	pushl	$&inst_num&			/* vmlaunch = 0, vmresume = 1 */
-#else /* !defined(__I386__) && !defined(__AMD64__) */
+#else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
 #endif /* __XMHF_AMD64__ */
 	call	vmentry_error
@@ -103,7 +103,7 @@ inst_name&_asm:
 vmentry_asm_template vmlaunch 0
 vmentry_asm_template vmresume 1
 
-#ifdef __AMD64__
+#ifdef __amd64__
 .global lhv_disable_enable_paging
 lhv_disable_enable_paging:
 	/* Argument %rdi is pointer to string to print */
@@ -173,5 +173,5 @@ lhv_disable_enable_paging:
 
 	/* Done */
 	ret
-#endif /* __AMD64__ */
+#endif /* __amd64__ */
 

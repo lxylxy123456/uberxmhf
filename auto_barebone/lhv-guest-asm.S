@@ -22,11 +22,11 @@
 .global lhv_guest_entry
 
 lhv_guest_entry:
-#ifdef __I386__
+#ifdef __i386__
 	push	%edi
-#elif !defined(__AMD64__)
+#elif !defined(__amd64__)
     #error "Unsupported Arch"
-#endif /* !defined(__AMD64__) */
+#endif /* !defined(__amd64__) */
 	call	lhv_guest_main
 1:	jmp		1b		/* Should never return */
 
