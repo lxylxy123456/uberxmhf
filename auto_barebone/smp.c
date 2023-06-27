@@ -63,131 +63,131 @@ u32 _ACPIGetRSDPComputeChecksum(uintptr_t spaddr, size_t size);
 //uefi_rsdp: RSDP pointer from UEFI, or NULL
 //returns: 1 on succes, 0 on any failure
 u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus, void *uefi_rsdp){
-	ACPI_RSDP *rsdp;
+  ACPI_RSDP *rsdp;
 
 #if 0
-	ACPI_XSDT *xsdt;
-	u32 n_xsdt_entries;
-	u64 *xsdtentrylist;
+  ACPI_XSDT *xsdt;
+  u32 n_xsdt_entries;
+  u64 *xsdtentrylist;
 #else
-	ACPI_RSDT	*rsdt;
-	u32 n_rsdt_entries;
-	u32 *rsdtentrylist;
+  ACPI_RSDT *rsdt;
+  u32 n_rsdt_entries;
+  u32 *rsdtentrylist;
 #endif
 
   ACPI_MADT *madt;
-	u8 madt_found=0;
-	u32 i;
+  u8 madt_found=0;
+  u32 i;
 
-	//we scan ACPI MADT and then the MP configuration table if one is
-	//present, in that order!
+  //we scan ACPI MADT and then the MP configuration table if one is
+  //present, in that order!
 
-	//if we get here it means that we did not find a MP table, so
-	//we need to look at ACPI MADT. Logical cores on some machines
-	//(e.g HP8540p laptop with Core i5) are reported only using ACPI MADT
-	//and there is no MP structures on such systems!
-	printf("Finding SMP info. via ACPI...\n");
-	if (uefi_rsdp == NULL) {
-		rsdp=(ACPI_RSDP *)ACPIGetRSDP();
-	} else {
-		rsdp = (ACPI_RSDP *)uefi_rsdp;
-		HALT_ON_ERRORCOND(_ACPIGetRSDPComputeChecksum((uintptr_t)rsdp, 20) == 0);
-	}
-	if(!rsdp){
-		printf("System is not ACPI Compliant, falling through...\n");
-		goto fallthrough;
-	}
+  //if we get here it means that we did not find a MP table, so
+  //we need to look at ACPI MADT. Logical cores on some machines
+  //(e.g HP8540p laptop with Core i5) are reported only using ACPI MADT
+  //and there is no MP structures on such systems!
+  printf("Finding SMP info. via ACPI...\n");
+  if (uefi_rsdp == NULL) {
+    rsdp=(ACPI_RSDP *)ACPIGetRSDP();
+  } else {
+    rsdp = (ACPI_RSDP *)uefi_rsdp;
+    HALT_ON_ERRORCOND(_ACPIGetRSDPComputeChecksum((uintptr_t)rsdp, 20) == 0);
+  }
+  if(!rsdp){
+    printf("System is not ACPI Compliant, falling through...\n");
+    goto fallthrough;
+  }
 
-	printf("ACPI RSDP at 0x%08lx\n", rsdp);
+  printf("ACPI RSDP at 0x%08lx\n", rsdp);
 
 #if 0
-	xsdt=(ACPI_XSDT *)(u32)rsdp->xsdtaddress;
-	n_xsdt_entries=(u32)((xsdt->length-sizeof(ACPI_XSDT))/8);
+  xsdt=(ACPI_XSDT *)(u32)rsdp->xsdtaddress;
+  n_xsdt_entries=(u32)((xsdt->length-sizeof(ACPI_XSDT))/8);
 
-	printf("ACPI XSDT at 0x%08x\n", xsdt);
-  printf("	len=0x%08x, headerlen=0x%08x, numentries=%u\n",
-			xsdt->length, sizeof(ACPI_XSDT), n_xsdt_entries);
+  printf("ACPI XSDT at 0x%08x\n", xsdt);
+  printf("  len=0x%08x, headerlen=0x%08x, numentries=%u\n",
+      xsdt->length, sizeof(ACPI_XSDT), n_xsdt_entries);
 
   xsdtentrylist=(u64 *) ( (u32)xsdt + sizeof(ACPI_XSDT) );
 
-	for(i=0; i< n_xsdt_entries; i++){
+  for(i=0; i< n_xsdt_entries; i++){
     madt=(ACPI_MADT *)( (u32)xsdtentrylist[i]);
     if(madt->signature == ACPI_MADT_SIGNATURE){
-    	madt_found=1;
-    	break;
+      madt_found=1;
+      break;
     }
-	}
+  }
 #else
-	rsdt=(ACPI_RSDT *)(uintptr_t)rsdp->rsdtaddress;
-	n_rsdt_entries=(u32)((rsdt->length-sizeof(ACPI_RSDT))/4);
+  rsdt=(ACPI_RSDT *)(uintptr_t)rsdp->rsdtaddress;
+  n_rsdt_entries=(u32)((rsdt->length-sizeof(ACPI_RSDT))/4);
 
-	printf("ACPI RSDT at 0x%08lx\n", rsdt);
-  printf("	len=0x%08x, headerlen=0x%08x, numentries=%u\n",
-			rsdt->length, sizeof(ACPI_RSDT), n_rsdt_entries);
+  printf("ACPI RSDT at 0x%08lx\n", rsdt);
+  printf("  len=0x%08x, headerlen=0x%08x, numentries=%u\n",
+      rsdt->length, sizeof(ACPI_RSDT), n_rsdt_entries);
 
   rsdtentrylist=(u32 *) ( (uintptr_t)rsdt + sizeof(ACPI_RSDT) );
 
-	for(i=0; i< n_rsdt_entries; i++){
+  for(i=0; i< n_rsdt_entries; i++){
     madt=(ACPI_MADT *)( (uintptr_t)rsdtentrylist[i]);
     if(madt->signature == ACPI_MADT_SIGNATURE){
-    	madt_found=1;
-    	break;
+      madt_found=1;
+      break;
     }
-	}
+  }
 
 #endif
 
 
-	if(!madt_found){
-		printf("ACPI MADT not found, falling through...\n");
-		goto fallthrough;
-	}
+  if(!madt_found){
+    printf("ACPI MADT not found, falling through...\n");
+    goto fallthrough;
+  }
 
-	printf("ACPI MADT at 0x%08lx\n", madt);
-	printf("	len=0x%08x, record-length=%u bytes\n", madt->length,
-			madt->length - sizeof(ACPI_MADT));
+  printf("ACPI MADT at 0x%08lx\n", madt);
+  printf("  len=0x%08x, record-length=%u bytes\n", madt->length,
+      madt->length - sizeof(ACPI_MADT));
 
-	//scan through MADT APIC records to find processors
-	*num_pcpus=0;
-	{
-		u32 madtrecordlength = madt->length - sizeof(ACPI_MADT);
-		u32 madtcurrentrecordoffset=0;
-		u32 i=0;
-		u32 foundcores=0;
+  //scan through MADT APIC records to find processors
+  *num_pcpus=0;
+  {
+    u32 madtrecordlength = madt->length - sizeof(ACPI_MADT);
+    u32 madtcurrentrecordoffset=0;
+    u32 i=0;
+    u32 foundcores=0;
 
-		do{
-			ACPI_MADT_APIC *apicrecord = (ACPI_MADT_APIC *)((uintptr_t)madt + sizeof(ACPI_MADT) + madtcurrentrecordoffset);
- 		  printf("rec type=0x%02x, length=%u bytes, flags=0x%08x, id=0x%02x\n", apicrecord->type,
-			 		apicrecord->length, apicrecord->flags, apicrecord->lapicid);
+    do{
+      ACPI_MADT_APIC *apicrecord = (ACPI_MADT_APIC *)((uintptr_t)madt + sizeof(ACPI_MADT) + madtcurrentrecordoffset);
+      printf("rec type=0x%02x, length=%u bytes, flags=0x%08x, id=0x%02x\n", apicrecord->type,
+          apicrecord->length, apicrecord->flags, apicrecord->lapicid);
 
-			if(apicrecord->type == 0x0 && (apicrecord->flags & 0x1)){ //processor record
+      if(apicrecord->type == 0x0 && (apicrecord->flags & 0x1)){ //processor record
 
-		    foundcores=1;
-				HALT_ON_ERRORCOND( *num_pcpus < MAX_PCPU_ENTRIES);
-				i = *num_pcpus;
-				pcpus[i].lapic_id = apicrecord->lapicid;
-		    pcpus[i].lapic_ver = 0;
-		    pcpus[i].lapic_base = madt->lapicaddress;
-		    if(i == 0)
-					pcpus[i].isbsp = 1;	//ACPI spec says that first processor entry MUST be BSP
-				else
-					pcpus[i].isbsp = 0;
+        foundcores=1;
+        HALT_ON_ERRORCOND( *num_pcpus < MAX_PCPU_ENTRIES);
+        i = *num_pcpus;
+        pcpus[i].lapic_id = apicrecord->lapicid;
+        pcpus[i].lapic_ver = 0;
+        pcpus[i].lapic_base = madt->lapicaddress;
+        if(i == 0)
+          pcpus[i].isbsp = 1; //ACPI spec says that first processor entry MUST be BSP
+        else
+          pcpus[i].isbsp = 0;
 
-				*num_pcpus = *num_pcpus + 1;
-			}
-			madtcurrentrecordoffset += apicrecord->length;
-		}while(madtcurrentrecordoffset < madtrecordlength);
+        *num_pcpus = *num_pcpus + 1;
+      }
+      madtcurrentrecordoffset += apicrecord->length;
+    }while(madtcurrentrecordoffset < madtrecordlength);
 
-		if(foundcores)
-			return 1;
-	}
+    if(foundcores)
+      return 1;
+  }
 
 
 fallthrough:
-	HALT_ON_ERRORCOND(0 && "ACPI detection failed");
+  HALT_ON_ERRORCOND(0 && "ACPI detection failed");
 
 
-	return 1;
+  return 1;
 }
 
 //------------------------------------------------------------------------------
