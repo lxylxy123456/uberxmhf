@@ -137,7 +137,7 @@ printf(const char *fmt, ...)
 int
 puts(const char *s)
 {
-	return printf("%s", s);
+	return printf("%s\n", s);
 }
 
 int

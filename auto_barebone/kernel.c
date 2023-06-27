@@ -18,11 +18,17 @@ void kernel_main(void)
 
 	/* initialize SMP */
 	{
-		HALT_ON_ERRORCOND(smp_getinfo(g_cpumap, &g_midtable_numentries, NULL));
-		
+		smp_init();
 	}
 
 	printf("Hello, %s World %d!\n", "kernel", 1);
+
+	cpu_halt();
+}
+
+void kernel_main_smp(VCPU *vcpu)
+{
+	printf("Hello, %s World %d!\n", "smp", 1);
 
 	cpu_halt();
 }

@@ -54,8 +54,93 @@
 
 //forward prototypes
 ACPI_RSDP * ACPIGetRSDP(void);
+void wakeupAPs(void);
+u32 smp_getinfo(PCPU *pcpus, u32 *num_pcpus, void *uefi_rsdp);
 
 u32 _ACPIGetRSDPComputeChecksum(uintptr_t spaddr, size_t size);
+
+static void udelay(u32 usecs){
+  u8 val;
+  u32 latchregval;
+
+  //enable 8254 ch-2 counter
+  val = inb(0x61);
+  val &= 0x0d; //turn PC speaker off
+  val |= 0x01; //turn on ch-2
+  outb(0x61, val);
+
+  //program ch-2 as one-shot
+  outb(0x43, 0xB0);
+
+  //compute appropriate latch register value depending on usecs
+  latchregval = ((u64)1193182 * usecs) / 1000000;
+
+  HALT_ON_ERRORCOND(latchregval < (1 << 16));
+
+  //write latch register to ch-2
+  val = (u8)latchregval;
+  outb(0x42, val);
+  val = (u8)((u32)latchregval >> (u32)8);
+  outb(0x42 , val);
+
+  #ifndef __XMHF_VERIFICATION__
+  //TODO: plug in a 8254 programmable interval timer h/w model
+  //wait for countdown
+  while(!(inb(0x61) & 0x20)) {
+    xmhf_cpu_relax();
+  }
+  #endif //__XMHF_VERIFICATION__
+
+  //disable ch-2 counter
+  val = inb(0x61);
+  val &= 0x0c;
+  outb(0x61, val);
+}
+
+void wakeupAPs(void){
+	u64 apic_base;
+    volatile u32 *icr;
+
+    //read LAPIC base address from MSR
+    apic_base = rdmsr64(MSR_APIC_BASE);
+    HALT_ON_ERRORCOND( apic_base < ADDR_4GB ); //APIC is below 4G
+
+    icr = (u32 *) (uintptr_t)((apic_base & ~0xFFFULL) | 0x300);
+
+    {
+        extern u32 _ap_bootstrap_start[], _ap_bootstrap_end[];
+        memcpy((void *)0x10000, (void *)_ap_bootstrap_start,
+               (uintptr_t)_ap_bootstrap_end - (uintptr_t)_ap_bootstrap_start);
+    }
+
+    //our test code is at 1000:0000, we need to send 10 as vector
+    //send INIT
+    printf("Sending INIT IPI to all APs...");
+    *icr = 0x000c4500U;
+    udelay(10000);
+    //wait for command completion
+    while ((*icr) & 0x1000U) {
+        cpu_relax();
+    }
+    printf("Done.\n");
+
+    //send SIPI (twice as per the MP protocol)
+    {
+        int i;
+        for(i=0; i < 2; i++){
+            printf("Sending SIPI-%u...", i);
+            *icr = 0x000c4610U;
+            udelay(200);
+            //wait for command completion
+            while ((*icr) & 0x1000U) {
+                xmhf_cpu_relax();
+            }
+            printf("Done.\n");
+        }
+    }
+
+    printf("APs should be awake!\n");
+}
 
 //exposed interface to the outside world
 //inputs: array of type PCPU and pointer to u32 which will
@@ -249,4 +334,17 @@ ACPI_RSDP * ACPIGetRSDP(void){
 
   return (ACPI_RSDP *)NULL;
 }
-//------------------------------------------------------------------------------
+
+void smp_init(void)
+{
+	HALT_ON_ERRORCOND(smp_getinfo(g_cpumap, &g_midtable_numentries, NULL));
+	for (u32 i = 0; i < g_midtable_numentries; i++) {
+		g_midtable[i].cpu_lapic_id = g_cpumap[i].lapic_id;
+		g_midtable[i].vcpu_vaddr_ptr = (uintptr_t)&g_vcpus[i];
+		g_vcpus[i].sp = (uintptr_t)(g_cpu_stack[i + 1]);
+		g_vcpus[i].id = g_cpumap[i].lapic_id;
+		g_vcpus[i].idx = i;
+		g_vcpus[i].isbsp = g_cpumap[i].isbsp;
+	}
+	wakeupAPs();
+}

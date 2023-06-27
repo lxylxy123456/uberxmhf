@@ -1,6 +1,8 @@
 #ifndef _XMHF_H_
 #define _XMHF_H_
 
+#include <_msr.h>
+
 #ifndef __ASSEMBLY__
 
 #include <stdio.h>
@@ -11,7 +13,6 @@
 
 #include <shv_types.h>
 
-#include <_msr.h>
 #include <_vmx.h>
 #include <_paging.h>
 #include <_processor.h>
@@ -117,11 +118,10 @@ struct _guestmtrrmsrs {
 };
 
 typedef struct _vcpu {
+	uintptr_t sp;
 	u32 id;
 	u32 idx;
 	bool isbsp;
-
-	uintptr_t sp;
 
 	u64 vmx_msrs[IA32_VMX_MSRCOUNT];
 	u64 vmx_pinbased_ctls;		//IA32_VMX_PINBASED_CTLS or IA32_VMX_TRUE_...
@@ -154,8 +154,14 @@ typedef struct _vcpu {
 											 vmexit_info_t *);
 } VCPU;
 
+#define SHV_STACK_SIZE (65536)
+
 extern u32 g_midtable_numentries;
 extern PCPU g_cpumap[MAX_PCPU_ENTRIES];
+extern MIDTAB g_midtable[MAX_VCPU_ENTRIES];
+extern VCPU g_vcpus[MAX_VCPU_ENTRIES];
+extern u8 g_cpu_stack[MAX_VCPU_ENTRIES][SHV_STACK_SIZE];
+
 extern u8 g_runtime_TSS[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
 
 #endif	/* !__ASSEMBLY__ */
@@ -176,5 +182,7 @@ extern u8 g_runtime_TSS[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
 #else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__i386__) && !defined(__amd64__) */
+
+#define AP_BOOTSTRAP_CODE_SEG 			0x1000
 
 #endif	/* _XMHF_H_ */
