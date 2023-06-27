@@ -68,6 +68,46 @@ void *memmove(void *dst_void, const void *src_void, size_t length){
 	return dst_void;
 }
 
+size_t strnlen(const char * s, size_t count){
+	const char *sc;
+
+	for (sc = s; count-- && *sc != '\0'; ++sc);
+	return (size_t)(sc - s);
+}
+
+void *memcpy(void * to, const void * from, size_t n)
+{
+	size_t i;
+	for(i=0; i<n; i++) {
+		((uint8_t*)to)[i] = ((const uint8_t*)from)[i];
+	}
+	return to;
+}
+
+void *memset (void *str, int c, size_t len) {
+	register uint8_t *st = str;
+
+	while (len-- > 0)
+		*st++ = (uint8_t)c;
+	return str;
+}
+
+#ifndef HAVE_MEMCMP
+int
+memcmp(const void *s1, const void *s2, size_t n)
+{
+	if (n != 0) {
+		const unsigned char *p1 = s1, *p2 = s2;
+
+		do {
+			if (*p1++ != *p2++)
+			return (*--p1 - *--p2);
+		} while (--n != 0);
+	}
+	return (0);
+}
+#endif /* HAVE_MEMCMP */
+
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.

@@ -150,6 +150,11 @@ typedef struct _vcpu {
 											 vmexit_info_t *);
 } VCPU;
 
+extern u32 g_midtable_numentries;
+extern u8 g_runtime_TSS[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
+
+#endif	/* !__ASSEMBLY__ */
+
 #ifdef __amd64__
 #define 	__CS 	0x0008 	//runtime code segment selector
 #define 	__DS 	0x0018 	//runtime data segment selector
@@ -166,10 +171,5 @@ typedef struct _vcpu {
 #else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__i386__) && !defined(__amd64__) */
-
-extern u32 g_midtable_numentries;
-extern u8 g_runtime_TSS[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
-
-#endif	/* !__ASSEMBLY__ */
 
 #endif	/* _XMHF_H_ */

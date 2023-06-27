@@ -6,7 +6,7 @@ shv_bin_SOURCES = boot.s kernel.c \
 	libc_string.c libc_stdio.c \
 	lhv-asm.S lhv.c lhv-console.c lhv-ept.c lhv-guest-asm.S lhv-guest.c \
 	lhv-keyboard.c lhv-mouse.c lhv-pic.c lhv-timer.c lhv-user-asm.S lhv-user.c \
-	lhv-vmcs.c lhv-vmx.c 
+	lhv-vmcs.c lhv-vmx.c lhv-global.c
 
 # TODO: __LHV_OPT__
 shv_bin_CCASFLAGS = -m32 -Iinclude/ -D __LHV_OPT__=0 -D__ASSEMBLY__

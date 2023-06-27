@@ -25,6 +25,12 @@ SECTIONS
 	.rodata BLOCK(4K) : ALIGN(4K)
 	{
 		*(.rodata)
+		. = ALIGN(8);
+		_begin_xcph_table = .;
+		KEEP(*(.xcph_table))
+		*(.xcph_table)
+		_end_xcph_table = .;
+
 	}
 
 	/* Read-write data (initialized) */
