@@ -53,8 +53,6 @@
 #include <xmhf.h>
 
 //forward prototypes
-static int mp_checksum(unsigned char *mp, int len);
-static u32 mp_getebda(void);
 ACPI_RSDP * ACPIGetRSDP(void);
 
 u32 _ACPIGetRSDPComputeChecksum(uintptr_t spaddr, size_t size);
@@ -190,32 +188,6 @@ fallthrough:
 
 
 	return 1;
-
-}
-
-
-static int mp_checksum(unsigned char *mp, int len){
-	int sum = 0;
-
-	while (len--)
-  	sum += *mp++;
-
-	return sum & 0xFF;
-}
-
-
-//returns 1 if MP table found and populates mpfp with MP table pointer
-//returns 0 if no MP table and makes mpfp=NULL
-
-
-u32 mp_getebda(void){
-  u16 ebdaseg;
-  u32 ebdaphys;
-  //get EBDA segment from 040E:0000h in BIOS data area
-  ebdaseg= * ((u16 *)0x0000040E);
-  //convert it to its 32-bit physical address
-  ebdaphys=(u32)(ebdaseg * 16);
-	return ebdaphys;
 }
 
 //------------------------------------------------------------------------------

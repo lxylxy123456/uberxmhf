@@ -7,6 +7,7 @@
 #error "This tutorial needs to be compiled with a ix86-elf compiler"
 #endif
 
+/* This function is called from boot.s, only BSP. */
 void kernel_main(void)
 {
 	/* Initialize terminal interface */
@@ -15,7 +16,11 @@ void kernel_main(void)
 		dbg_x86_vgamem_init();
 	}
 
-//	terminal_writestring("Hello, kernel World!\n");
+	/* initialize SMP */
+	{
+		HALT_ON_ERRORCOND(smp_getinfo(g_cpumap, &g_midtable_numentries, NULL));
+		
+	}
 
 	printf("Hello, %s World %d!\n", "kernel", 1);
 

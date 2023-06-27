@@ -19,6 +19,8 @@
 #include <_acpi.h>
 #include <hptw.h>
 
+#include <smp.h>
+
 #include <cpu.h>
 
 typedef uint32_t spin_lock_t;
@@ -60,8 +62,8 @@ static inline void *spa2hva(spa_t spa)
 // TODO: change its name
 #define HALT_ON_ERRORCOND(expr) \
 	do { \
-		if (!expr) { \
-			printf("Error: HALT_ON_ERRORCOND(" #expr ") @ %s %d failed\n", \
+		if (!(expr)) { \
+			printf("Error: HALT_ON_ERRORCOND(" #expr ") @ %s:%d failed\n", \
 				   __FILE__, __LINE__); \
 			cpu_halt(); \
 		} \
@@ -114,13 +116,6 @@ struct _guestmtrrmsrs {
     struct _guestvarmtrrmsrpair var_mtrrs[MAX_VARIABLE_MTRR_PAIRS];
 };
 
-typedef struct _pcpu {
-  u32 lapic_id;
-  u32 lapic_ver;
-  u32 lapic_base;
-  u32 isbsp;
-} __attribute__((packed)) PCPU;
-
 typedef struct _vcpu {
 	u32 id;
 	u32 idx;
@@ -160,6 +155,7 @@ typedef struct _vcpu {
 } VCPU;
 
 extern u32 g_midtable_numentries;
+extern PCPU g_cpumap[MAX_PCPU_ENTRIES];
 extern u8 g_runtime_TSS[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
 
 #endif	/* !__ASSEMBLY__ */

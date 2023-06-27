@@ -19,5 +19,8 @@
 #include <xmhf.h>
 #include <lhv.h>
 
+u32 g_midtable_numentries;
+PCPU g_cpumap[MAX_PCPU_ENTRIES];
+
 u8 g_runtime_TSS[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
 
