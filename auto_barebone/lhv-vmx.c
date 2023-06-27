@@ -52,13 +52,13 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_host_CR0, read_cr0());
 	vmcs_vmwrite(vcpu, VMCS_host_CR4, read_cr4());
 	vmcs_vmwrite(vcpu, VMCS_host_CR3, read_cr3());
-	vmcs_vmwrite(vcpu, VMCS_host_CS_selector, read_segreg_cs());
-	vmcs_vmwrite(vcpu, VMCS_host_DS_selector, read_segreg_ds());
-	vmcs_vmwrite(vcpu, VMCS_host_ES_selector, read_segreg_es());
-	vmcs_vmwrite(vcpu, VMCS_host_FS_selector, read_segreg_fs());
-	vmcs_vmwrite(vcpu, VMCS_host_GS_selector, read_segreg_gs());
-	vmcs_vmwrite(vcpu, VMCS_host_SS_selector, read_segreg_ss());
-	vmcs_vmwrite(vcpu, VMCS_host_TR_selector, read_tr_sel());
+	vmcs_vmwrite(vcpu, VMCS_host_CS_selector, read_cs());
+	vmcs_vmwrite(vcpu, VMCS_host_DS_selector, read_ds());
+	vmcs_vmwrite(vcpu, VMCS_host_ES_selector, read_es());
+	vmcs_vmwrite(vcpu, VMCS_host_FS_selector, read_fs());
+	vmcs_vmwrite(vcpu, VMCS_host_GS_selector, read_gs());
+	vmcs_vmwrite(vcpu, VMCS_host_SS_selector, read_ss());
+	vmcs_vmwrite(vcpu, VMCS_host_TR_selector, read_tr());
 	HALT_ON_ERRORCOND(0 && "LHV: need to get GDT");
 	//vmcs_vmwrite(vcpu, VMCS_host_GDTR_base, (u64)(hva_t)x_gdt_start[vcpu->idx]);
 	HALT_ON_ERRORCOND(0 && "LHV: need to get IDT");
@@ -68,17 +68,9 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_host_RIP, (u64)(hva_t)vmexit_asm);
 
 	//store vcpu at TOS
-#ifdef __amd64__
-	vcpu->rsp = vcpu->rsp - sizeof(hva_t);
-	*(hva_t *)vcpu->rsp = (hva_t)vcpu;
-	vmcs_vmwrite(vcpu, VMCS_host_RSP, (u64)vcpu->rsp);
-#elif defined(__i386__)
-	vcpu->esp = vcpu->esp - sizeof(hva_t);
-	*(hva_t *)vcpu->esp = (hva_t)vcpu;
-	vmcs_vmwrite(vcpu, VMCS_host_RSP, (u64)vcpu->esp);
-#else /* !defined(__i386__) && !defined(__amd64__) */
-    #error "Unsupported Arch"
-#endif /* !defined(__i386__) && !defined(__amd64__) */
+	vcpu->sp = vcpu->sp - sizeof(hva_t);
+	*(hva_t *)vcpu->sp = (hva_t)vcpu;
+	vmcs_vmwrite(vcpu, VMCS_host_RSP, (u64)vcpu->sp);
 
 	vmcs_vmwrite(vcpu, VMCS_host_SYSENTER_CS, rdmsr64(IA32_SYSENTER_CS_MSR));
 	vmcs_vmwrite(vcpu, VMCS_host_SYSENTER_ESP, rdmsr64(IA32_SYSENTER_ESP_MSR));
@@ -275,19 +267,17 @@ void lhv_vmx_main(VCPU *vcpu)
 	u32 vmcs_revision_identifier;
 
 	/* Make sure this is Intel CPU */
-	HALT_ON_ERRORCOND(get_cpu_vendor_or_die() == CPU_VENDOR_INTEL);
+	{
+		u32 eax, ebx, ecx, edx;
+		cpuid(0, &eax, &ebx, &ecx, &edx);
+		HALT_ON_ERRORCOND(ebx == INTEL_STRING_DWORD1);
+		HALT_ON_ERRORCOND(ecx == INTEL_STRING_DWORD3);
+		HALT_ON_ERRORCOND(edx == INTEL_STRING_DWORD2);
+	}
 
 	/* Save contents of MSRs (from _vmx_initVT) */
-	{
-		u32 i;
-		for(i = 0; i < IA32_VMX_MSRCOUNT; i++) {
-			vcpu->vmx_msrs[i] = rdmsr64(IA32_VMX_BASIC_MSR + i);
-		}
-		if (_vmx_hasctl_unrestricted_guest(&vcpu->vmx_caps)) {
-			vcpu->vmx_guest_unrestricted = 1;
-		} else {
-			vcpu->vmx_guest_unrestricted = 0;
-		}
+	for(u32 i = 0; i < IA32_VMX_MSRCOUNT; i++) {
+		vcpu->vmx_msrs[i] = rdmsr64(IA32_VMX_BASIC_MSR + i);
 	}
 
 	/* Discover support for VMX (22.6 DISCOVERING SUPPORT FOR VMX) */

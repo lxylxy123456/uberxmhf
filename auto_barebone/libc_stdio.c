@@ -135,6 +135,12 @@ printf(const char *fmt, ...)
 }
 
 int
+puts(const char *s)
+{
+	return printf("%s", s);
+}
+
+int
 vprintf(const char *fmt, va_list ap)
 {
 	int retval;

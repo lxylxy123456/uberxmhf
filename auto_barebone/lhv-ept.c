@@ -223,14 +223,20 @@ void lhv_ept_init(VCPU *vcpu)
 
 u64 lhv_build_ept(VCPU *vcpu, u8 ept_num)
 {
+#if 0
 	u64 low = rpb->XtVmmRuntimePhysBase;
 #ifdef __SKIP_RUNTIME_BSS__
 	u64 high = rpb->XtVmmRuntimeBssEnd;
 #else /* !__SKIP_RUNTIME_BSS__ */
 	u64 high = low + rpb->XtVmmRuntimeSize;
 #endif /* __SKIP_RUNTIME_BSS__ */
+#else
+	u64 low = 0;
+	u64 high = 0;
+#endif
 	lhv_ept_ctx_t ept_ctx;
 	hpt_pmeo_t pmeo;
+	HALT_ON_ERRORCOND(0 && "TOOD: low and high not defined");
 	/* Assuming that ept_pool and ept_alloc are initialized to 0 by bss */
 	ept_ctx.ctx.gzp = lhv_ept_gzp;
 	ept_ctx.ctx.pa2ptr = lhv_ept_pa2ptr;

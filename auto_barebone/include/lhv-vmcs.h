@@ -45,10 +45,8 @@ for i in a:
     #define VMCS_info_guest_linear_address 0x640A
 
     // Control fields
-    #if defined(__NESTED_PAGING__)
     //16-bit control field
     #define VMCS_control_vpid 0x0000
-    #endif
     // Natural 32-bit Control fields
     #define VMCS_control_VMX_pin_based 0x4000
     #define VMCS_control_VMX_cpu_based 0x4002
@@ -88,9 +86,7 @@ for i in a:
     #define VMCS_control_Executive_VMCS_pointer 0x200C
 #endif /* !__DEBUG_QEMU__ */
     #define VMCS_control_TSC_offset 0x2010
-    #if defined(__NESTED_PAGING__)
     #define VMCS_control_EPT_pointer 0x201A
-    #endif
     // Host-State fields
     // Natural 64-bit Host-State fields
     #define VMCS_host_CR0 0x6C00
@@ -137,12 +133,10 @@ for i in a:
     #define VMCS_guest_pending_debug_x 0x6822
     #define VMCS_guest_SYSENTER_ESP 0x6824
     #define VMCS_guest_SYSENTER_EIP 0x6826
-    #if defined(__NESTED_PAGING__)
     #define VMCS_guest_PDPTE0 0x280A
     #define VMCS_guest_PDPTE1 0x280C
     #define VMCS_guest_PDPTE2 0x280E
     #define VMCS_guest_PDPTE3 0x2810
-    #endif
     // Natural 32-bit Guest-State fields
     #define VMCS_guest_ES_limit 0x4800
     #define VMCS_guest_CS_limit 0x4802
