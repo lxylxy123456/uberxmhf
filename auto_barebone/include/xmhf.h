@@ -16,6 +16,7 @@
 #include <_paging.h>
 #include <_processor.h>
 #include <_vmx_ctls.h>
+#include <_acpi.h>
 #include <hptw.h>
 
 #include <cpu.h>
@@ -67,6 +68,7 @@ static inline void *spa2hva(spa_t spa)
 	} while (0)
 
 #define MAX_VCPU_ENTRIES 10
+#define MAX_PCPU_ENTRIES (MAX_VCPU_ENTRIES)
 
 typedef struct {
 	u32 vmexit_reason;
@@ -111,6 +113,13 @@ struct _guestmtrrmsrs {
     u32 var_count;                  /* Number of valid var_mtrrs's */
     struct _guestvarmtrrmsrpair var_mtrrs[MAX_VARIABLE_MTRR_PAIRS];
 };
+
+typedef struct _pcpu {
+  u32 lapic_id;
+  u32 lapic_ver;
+  u32 lapic_base;
+  u32 isbsp;
+} __attribute__((packed)) PCPU;
 
 typedef struct _vcpu {
 	u32 id;
