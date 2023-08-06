@@ -3,6 +3,7 @@ set -xe
 # Debian: apt install xorriso mtools grub-pc-bin
 
 autoreconf --install && ./configure --host=i686-linux-gnu && make
+autoreconf --install && ./configure --host=x86_64-linux-gnu && make
 
 set +x
 
