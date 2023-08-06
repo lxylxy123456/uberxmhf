@@ -1,9 +1,7 @@
 /* From https://wiki.osdev.org/Bare_Bones */
 
 /* Declare constants for the multiboot header. */
-.set ALIGN,    1<<0             /* align loaded modules on page boundaries */
-.set MEMINFO,  1<<1             /* provide memory map */
-.set FLAGS,    ALIGN | MEMINFO  /* this is the Multiboot 'flag' field */
+.set FLAGS,    0x10003          /* this is the Multiboot 'flag' field */
 .set MAGIC,    0x1BADB002       /* 'magic number' lets bootloader find the header */
 .set CHECKSUM, -(MAGIC + FLAGS) /* checksum of above, to prove we are multiboot */
 
@@ -15,10 +13,16 @@ search for this signature in the first 8 KiB of the kernel file, aligned at a
 forced to be within the first 8 KiB of the kernel file.
 */
 .section .multiboot
-.align 4
-.long MAGIC
-.long FLAGS
-.long CHECKSUM
+multiboot_header:
+	.align 4
+	.long MAGIC
+	.long FLAGS
+	.long CHECKSUM
+	.long multiboot_header
+	.long multiboot_header
+	.long _end_multiboot_data
+	.long _end_multiboot_bss
+	.long _start
 
 /*
 The multiboot standard does not define the value of the stack pointer register
