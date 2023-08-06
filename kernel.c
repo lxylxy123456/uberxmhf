@@ -21,14 +21,13 @@ void kernel_main(void)
 		smp_init();
 	}
 
-	printf("Hello, %s World %d!\n", "kernel", 1);
-
-	cpu_halt();
+	HALT_ON_ERRORCOND(0 && "Should not reach here");
 }
 
+/* This function is called from smp-asm.S, both BSP and AP. */
 void kernel_main_smp(VCPU *vcpu)
 {
-	printf("Hello, %s World %d!\n", "smp", 1);
+	printf("Hello, %s World %d!\n", "smp", vcpu->id);
 
 	cpu_halt();
 }

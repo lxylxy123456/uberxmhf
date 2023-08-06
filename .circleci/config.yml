@@ -53,13 +53,16 @@ jobs:
       - run:
           name: "Test"
           command: |
-            timeout 5 \
-              qemu-system-i386 -kernel shv.bin -display none \
-              -serial file:qemu-output.txt || true
+            timeout 15 \
+              qemu-system-i386 -kernel shv.bin -smp 4 -enable-kvm \
+                -display none -serial file:qemu-output.txt || true
             echo Begin qemu-output.txt
             cat qemu-output.txt
             echo End qemu-output.txt
-            grep 'Hello, kernel World' qemu-output.txt
+            grep 'Hello, smp World 0!' qemu-output.txt
+            grep 'Hello, smp World 1!' qemu-output.txt
+            grep 'Hello, smp World 2!' qemu-output.txt
+            grep 'Hello, smp World 3!' qemu-output.txt
 #            source ./tools/ci/circleci_env.sh << parameters.subarch >>
 #            rm -rf tmp qemu
 #            mkdir tmp qemu

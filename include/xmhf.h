@@ -24,7 +24,7 @@
 
 #include <cpu.h>
 
-typedef uint32_t spin_lock_t;
+typedef volatile uint32_t spin_lock_t;
 extern void spin_lock(spin_lock_t *lock);
 extern void spin_unlock(spin_lock_t *lock);
 

@@ -115,27 +115,27 @@ void wakeupAPs(void){
 
     //our test code is at 1000:0000, we need to send 10 as vector
     //send INIT
-    printf("Sending INIT IPI to all APs...");
+    printf("Sending INIT IPI to all APs\n");
     *icr = 0x000c4500U;
     udelay(10000);
     //wait for command completion
     while ((*icr) & 0x1000U) {
         cpu_relax();
     }
-    printf("Done.\n");
+    printf("Sent INIT IPI to all APs\n");
 
     //send SIPI (twice as per the MP protocol)
     {
         int i;
         for(i=0; i < 2; i++){
-            printf("Sending SIPI-%u...", i);
+            printf("Sending SIPI-%u\n", i);
             *icr = 0x000c4610U;
             udelay(200);
             //wait for command completion
             while ((*icr) & 0x1000U) {
                 xmhf_cpu_relax();
             }
-            printf("Done.\n");
+            printf("Sent SIPI-%u\n", i);
         }
     }
 
@@ -337,6 +337,7 @@ ACPI_RSDP * ACPIGetRSDP(void){
 
 void smp_init(void)
 {
+	/* Get list of CPUs information. */
 	HALT_ON_ERRORCOND(smp_getinfo(g_cpumap, &g_midtable_numentries, NULL));
 	for (u32 i = 0; i < g_midtable_numentries; i++) {
 		g_midtable[i].cpu_lapic_id = g_cpumap[i].lapic_id;
@@ -346,5 +347,15 @@ void smp_init(void)
 		g_vcpus[i].idx = i;
 		g_vcpus[i].isbsp = g_cpumap[i].isbsp;
 	}
+
+	/* Wake up APs. */
 	wakeupAPs();
+
+	/* Switch stack and call kernel_main_smp(). */
+	{
+		extern void init_core_lowlevel_setup(void);
+		init_core_lowlevel_setup();
+	}
+
+	HALT_ON_ERRORCOND(0 && "Should not return from init_core_lowlevel_setup()");
 }
