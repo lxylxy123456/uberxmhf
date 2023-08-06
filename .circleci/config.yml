@@ -17,13 +17,16 @@ jobs:
           command: |
             sudo apt-get update
             sudo apt-get -y -q install \
-                git crossbuild-essential-i386 \
-                pbuilder texinfo ruby build-essential autoconf libtool \
-                qemu-system-x86 sshpass
+                build-essential crossbuild-essential-i386 \
+                autoconf libtool xorriso mtools grub-pc \
+                git qemu-system-x86
       - run:
           name: "Build"
           command: |
-            ./tools/ci/build.sh << parameters.subarch >> circleci --no-x2apic
+            autoreconf --install && \
+            ./configure --host=i686-linux-gnu && \
+            make -j $(nproc)
+#            ./tools/ci/build.sh << parameters.subarch >> circleci --no-x2apic
       - run:
           name: "Versions"
           command: |
@@ -32,15 +35,9 @@ jobs:
             qemu-system-x86_64 -version
             gcc -v
       - store_artifacts:
-          path: xmhf/src/xmhf-core/xmhf-runtime/runtime.exe
+          path: shv.bin
       - store_artifacts:
-          path: xmhf/src/xmhf-core/xmhf-bootloader/init_syms.exe
-      - store_artifacts:
-          path: xmhf/src/xmhf-core/xmhf-secureloader/sl_syms.exe
-      - store_artifacts:
-          path: init-x86-amd64.bin
-      - store_artifacts:
-          path: hypervisor-x86-amd64.bin.gz
+          path: grub.iso
 #      - restore_cache:
 #          keys:
 #            - debian11x86x64-20220407-<< parameters.subarch >>
@@ -56,26 +53,29 @@ jobs:
       - run:
           name: "Test"
           command: |
-            source ./tools/ci/circleci_env.sh << parameters.subarch >>
-            rm -rf tmp qemu
-            mkdir tmp qemu
-            ln -s ${PWD}/cache/${qemu_image_back} qemu
-            # qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
-            #                 -F qcow2 ${PWD}/qemu/${qemu_image}
-            # sha512sum ${PWD}/qemu/${qemu_image_back}
-            python3 -m pip install jinja2
-            python3 -u ./tools/ci/grub.py \
-                --subarch ${SUBARCH} \
-                --xmhf-bin ${PWD}/ \
-                --work-dir ${PWD}/tmp/ \
-                --verbose \
-                --boot-dir ${PWD}/tools/ci/boot
-            python3 -u ./tools/ci/test5.py \
-                --lhv-img ${PWD}/tmp/grub/c.img \
-                --work-dir ${PWD}/tmp/ \
-                --no-display \
-                --verbose \
-                --watch-serial
+#            source ./tools/ci/circleci_env.sh << parameters.subarch >>
+#            rm -rf tmp qemu
+#            mkdir tmp qemu
+#            ln -s ${PWD}/cache/${qemu_image_back} qemu
+#            # qemu-img create -f qcow2 -b ${PWD}/qemu/${qemu_image_back} \
+#            #                 -F qcow2 ${PWD}/qemu/${qemu_image}
+#            # sha512sum ${PWD}/qemu/${qemu_image_back}
+#            python3 -m pip install jinja2
+#            python3 -u ./tools/ci/grub.py \
+#                --subarch ${SUBARCH} \
+#                --xmhf-bin ${PWD}/ \
+#                --work-dir ${PWD}/tmp/ \
+#                --verbose \
+#                --boot-dir ${PWD}/tools/ci/boot
+#            python3 -u ./tools/ci/test5.py \
+#                --lhv-img ${PWD}/tmp/grub/c.img \
+#                --work-dir ${PWD}/tmp/ \
+#                --no-display \
+#                --verbose \
+#                --watch-serial
+            qemu-system-i386 -kernel shv.bin -serial stdio -display none | \
+                grep 'Hello, kernel World' | head -n 1
+
 
 workflows:
   test-xmhf-workflow:
@@ -83,4 +83,5 @@ workflows:
       - test-xmhf:
           matrix:
             parameters:
-              subarch: ["i386", "amd64"]
+              #subarch: ["i386", "amd64"]
+              subarch: ["i386"]
