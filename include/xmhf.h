@@ -54,7 +54,7 @@ static inline void *spa2hva(spa_t spa)
 #define HALT_ON_ERRORCOND(expr) \
 	do { \
 		if (!(expr)) { \
-			printf("Error: HALT_ON_ERRORCOND(" #expr ") @ %s:%d failed\n", \
+			printf("Error: HALT_ON_ERRORCOND(%s) @ %s:%d failed\n", #expr, \
 				   __FILE__, __LINE__); \
 			cpu_halt(); \
 		} \
