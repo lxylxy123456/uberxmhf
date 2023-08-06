@@ -11,36 +11,29 @@ jobs:
       matrix:
         target_arch:
           - 'i386'
-          - 'amd64'
-        compile_mode:
-          - 'debug'
-        optimize_mode:
-          - 'O0'
-          - 'O3'
+#          - 'amd64'
+#        optimize_mode:
+#          - 'O0'
+#          - 'O3'
 
     steps:
     - uses: actions/checkout@v3
     - name: apt-get
       run: |
         sudo apt-get update && \
-        sudo apt-get install \
-                      pbuilder texinfo ruby build-essential autoconf libtool \
-                      crossbuild-essential-i386 \
-                      -y
+        sudo apt-get install -y \
+                     build-essential autoconf libtool crossbuild-essential-i386
     - name: Build
       run: |
-        ./tools/ci/build.sh \
-          ${{ matrix.target_arch }} \
-          ${{ matrix.compile_mode }} \
-          ${{ matrix.optimize_mode }}
+        autoreconf --install && \
+        ./configure --host=i686-linux-gnu && \
+        make -j $(nproc)
     - name: Release
       uses: actions/upload-artifact@v3
       with:
-        name: boot-${{ matrix.target_arch }}-${{ matrix.compile_mode }}-${{ matrix.optimize_mode }}
+        name: boot-${{ matrix.target_arch }}
+        #name: boot-${{ matrix.target_arch }}-${{ matrix.optimize_mode }}
         path: |
-          xmhf/src/xmhf-core/xmhf-secureloader/sl_syms.exe
-          xmhf/src/xmhf-core/xmhf-bootloader/init_syms.exe
-          xmhf/src/xmhf-core/xmhf-runtime/runtime.exe
-          hypervisor-x86-${{ matrix.target_arch }}.bin.gz
-          init-x86-${{ matrix.target_arch }}.bin
+          shv.bin
+          grub.iso
 

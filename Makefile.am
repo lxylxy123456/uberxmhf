@@ -8,6 +8,7 @@ shv_bin_SOURCES = boot.s kernel.c smp.c smp-asm.S spinlock.c \
 	lhv-keyboard.c lhv-mouse.c lhv-pic.c lhv-timer.c lhv-user-asm.S lhv-user.c \
 	lhv-vmcs.c lhv-vmx.c lhv-global.c
 
+# TODO: allow optimization
 # TODO: __LHV_OPT__
 shv_bin_CCASFLAGS = -m32 -Iinclude/ -D __LHV_OPT__=0 -D__ASSEMBLY__
 shv_bin_CFLAGS = -m32 -Iinclude/ -D __LHV_OPT__=0
