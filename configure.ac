@@ -24,6 +24,8 @@ AM_PROG_AS
 AC_CHECK_PROGS([GRUB_MKRESCUE], [grub2-mkrescue grub-mkrescue])
 # We can add more checks in this section
 
+AM_CONDITIONAL([I386], [test x"$host_alias" = x"i686-linux-gnu"])
+
 # Tells automake to create a Makefile
 # See https://www.gnu.org/software/automake/manual/html_node/Requirements.html
 AC_CONFIG_FILES([Makefile])
