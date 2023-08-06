@@ -21,6 +21,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 # Check for C compiler
 AC_PROG_CC
 AM_PROG_AS
+AC_CHECK_PROGS([GRUB_MKRESCUE], [grub2-mkrescue grub-mkrescue])
 # We can add more checks in this section
 
 # Tells automake to create a Makefile

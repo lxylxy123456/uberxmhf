@@ -25,22 +25,12 @@
 #include <cpu.h>
 
 typedef uint32_t spin_lock_t;
-
-// TODO: move to a non-static function
-static inline void spin_lock(spin_lock_t *lock)
-{
-	// TODO
-}
-
-// TODO: move to a non-static function
-static inline void spin_unlock(spin_lock_t *lock)
-{
-	// TODO
-}
+extern void spin_lock(spin_lock_t *lock);
+extern void spin_unlock(spin_lock_t *lock);
 
 extern void *emhfc_putchar_arg;
 extern spin_lock_t *emhfc_putchar_linelock_arg;
-void emhfc_putchar(int c, void *arg);
+extern void emhfc_putchar(int c, void *arg);
 extern void emhfc_putchar_linelock(spin_lock_t *arg);
 extern void emhfc_putchar_lineunlock(spin_lock_t *arg);
 
