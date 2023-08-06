@@ -53,6 +53,8 @@ jobs:
       - run:
           name: "Test"
           command: |
+            qemu-system-i386 -kernel shv.bin -serial stdio -display none | \
+                grep 'Hello, kernel World' | head -n 1
 #            source ./tools/ci/circleci_env.sh << parameters.subarch >>
 #            rm -rf tmp qemu
 #            mkdir tmp qemu
@@ -73,8 +75,6 @@ jobs:
 #                --no-display \
 #                --verbose \
 #                --watch-serial
-            qemu-system-i386 -kernel shv.bin -serial stdio -display none | \
-                grep 'Hello, kernel World' | head -n 1
 
 
 workflows:
