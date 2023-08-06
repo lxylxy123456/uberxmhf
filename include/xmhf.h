@@ -13,9 +13,14 @@
 
 #include <shv_types.h>
 
+#endif	/* !__ASSEMBLY__ */
+
+#include <_processor.h>
+
+#ifndef __ASSEMBLY__
+
 #include <_vmx.h>
 #include <_paging.h>
-#include <_processor.h>
 #include <_vmx_ctls.h>
 #include <_acpi.h>
 #include <hptw.h>

@@ -24,7 +24,7 @@
 .global vmresume_asm
 
 vmexit_asm:
-#ifdef __XMHF_AMD64__
+#ifdef __amd64__
 	PUSHAQ
 	movq	128(%rsp), %rdi
 	movq	%rsp, %rsi
@@ -48,7 +48,7 @@ vmexit_asm:
 	jne		9b
 #else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* __XMHF_AMD64__ */
+#endif /* __amd64__ */
 	call	vmexit_handler
 1:	jmp 1b				/* Should never return */
 
@@ -56,7 +56,7 @@ vmexit_asm:
 .macro vmentry_asm_template inst_name inst_num
 
 inst_name&_asm:
-#ifdef __XMHF_AMD64__
+#ifdef __amd64__
 	movq	%rdi, %rsp
 	POPAQ
 #elif defined(__i386__)
@@ -64,37 +64,37 @@ inst_name&_asm:
 	popal
 #else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* __XMHF_AMD64__ */
+#endif /* __amd64__ */
 	inst_name
 	je		2f			/* ZF set means VMfailValid */
 	jb		3f			/* CF set means VMfailInvalid */
 1:	jmp		1b			/* Unknown error */
 2:
-#ifdef __XMHF_AMD64__
+#ifdef __amd64__
 	movq	$1, %rsi
 #elif defined(__i386__)
 	pushl	$1
 #else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* __XMHF_AMD64__ */
+#endif /* __amd64__ */
 	jmp		4f
 3:
-#ifdef __XMHF_AMD64__
+#ifdef __amd64__
 	movq	$0, %rsi
 #elif defined(__i386__)
 	pushl	$0
 #else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* __XMHF_AMD64__ */
+#endif /* __amd64__ */
 	jmp		4f
 4:
-#ifdef __XMHF_AMD64__
+#ifdef __amd64__
 	movq	$&inst_num&, %rdi	/* vmlaunch = 0, vmresume = 1 */
 #elif defined(__i386__)
 	pushl	$&inst_num&			/* vmlaunch = 0, vmresume = 1 */
 #else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
-#endif /* __XMHF_AMD64__ */
+#endif /* __amd64__ */
 	call	vmentry_error
 1:	jmp		1b			/* Should never return */
 

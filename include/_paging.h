@@ -239,5 +239,14 @@
 #define PA_PAGE_ALIGNED_512G(x) _PAGE_ALIGNED((x), PA_, 512G)
 #define PA_PAGE_ALIGNED_256T(x) _PAGE_ALIGNED((x), PA_, 256T)
 
+// TODO: make this configurable
+#define MAX_PHYS_ADDR 0x100000000UL
+
+// 4-level paging specific definitions
+#define P4L_NPLM4T  (PA_PAGE_ALIGN_UP_256T(MAX_PHYS_ADDR) >> PAGE_SHIFT_256T)
+#define P4L_NPDPT   (PA_PAGE_ALIGN_UP_512G(MAX_PHYS_ADDR) >> PAGE_SHIFT_512G)
+#define P4L_NPDT    (PA_PAGE_ALIGN_UP_1G(MAX_PHYS_ADDR) >> PAGE_SHIFT_1G)
+#define P4L_NPT     (PA_PAGE_ALIGN_UP_2M(MAX_PHYS_ADDR) >> PAGE_SHIFT_2M)
+
 #endif /* __PAGING_H__ */
 

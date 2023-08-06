@@ -15,7 +15,7 @@ shv_bin_CCASFLAGS = -Iinclude/ -D __LHV_OPT__=0 -D__ASSEMBLY__ \
 shv_bin_CFLAGS = -Iinclude/ -D __LHV_OPT__=0 \
 	-Wall -Werror -Wno-format -Wno-array-bounds \
 	-fno-stack-protector -fno-mudflap -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
-shv_bin_LDFLAGS = -T linker.ld -ffreestanding -O2 -nostdlib
+shv_bin_LDFLAGS = -T linker.ld -ffreestanding -nostdlib
 shv_bin_LDADD = -lgcc
 
 if I386
@@ -24,6 +24,8 @@ shv_bin_CFLAGS += -m32
 else
 shv_bin_CCASFLAGS += -m64
 shv_bin_CFLAGS += -m64
+shv_bin_CCASFLAGS += -fno-pie -fno-pic -mno-red-zone
+shv_bin_CFLAGS += -fno-pie -fno-pic -mno-red-zone
 endif
 
 all: grub.iso
