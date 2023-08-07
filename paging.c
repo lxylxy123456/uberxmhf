@@ -31,7 +31,7 @@ volatile u32 shv_pd[1024] ALIGNED_PAGE;
 uintptr_t shv_page_table_init(void)
 {
 #ifdef __amd64__
-	for (u64 i = 0, paddr = (uintptr_t)shv_pdpt; i < P4L_NPLM4T; i++) {
+	for (u64 i = 0, paddr = (uintptr_t)shv_pdpt; i < P4L_NPDPT; i++) {
 		if (i < 1) {
 			HALT_ON_ERRORCOND((0x60ULL | shv_pml4t[i]) == (0x63ULL | paddr));
 		} else {
@@ -39,7 +39,7 @@ uintptr_t shv_page_table_init(void)
 		}
 		paddr += PAGE_SIZE_4K;
 	}
-	for (u64 i = 0, paddr = (uintptr_t)shv_pdt; i < P4L_NPDPT; i++) {
+	for (u64 i = 0, paddr = (uintptr_t)shv_pdt; i < P4L_NPDT; i++) {
 		if (i < 4) {
 			HALT_ON_ERRORCOND((0x60ULL | shv_pdpt[i]) == (0x63ULL | paddr));
 		} else {
@@ -47,7 +47,7 @@ uintptr_t shv_page_table_init(void)
 		}
 		paddr += PAGE_SIZE_4K;
 	}
-	for (u64 i = 0, paddr = 0; i < P4L_NPDT; i++, paddr += PA_PAGE_SIZE_2M) {
+	for (u64 i = 0, paddr = 0; i < P4L_NPT; i++, paddr += PA_PAGE_SIZE_2M) {
 		if (i < 2048) {
 			HALT_ON_ERRORCOND((0x60ULL | shv_pdt[i]) == (0xe3ULL | paddr));
 		} else {
