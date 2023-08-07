@@ -1,7 +1,7 @@
 # Template from http://www.idryman.org/blog/2016/03/10/autoconf-tutorial-1/
 
 bin_PROGRAMS = shv.bin
-shv_bin_SOURCES = boot.s kernel.c paging.c smp.c smp-asm.S spinlock.c \
+shv_bin_SOURCES = boot.S kernel.c paging.c smp.c smp-asm.S spinlock.c \
 	debug.c debug-uart.c debug-vga.c \
 	libc_string.c libc_stdio.c hpt.c hpto.c hptw.c \
 	lhv-asm.S lhv.c lhv-console.c lhv-ept.c lhv-guest-asm.S lhv-guest.c \
@@ -10,9 +10,10 @@ shv_bin_SOURCES = boot.s kernel.c paging.c smp.c smp-asm.S spinlock.c \
 
 # TODO: allow optimization
 # TODO: __LHV_OPT__
-shv_bin_CCASFLAGS = -Iinclude/ -D __LHV_OPT__=0 -D__ASSEMBLY__ \
+shv_bin_CPPFLAGS = -Iinclude/
+shv_bin_CCASFLAGS = -D __LHV_OPT__=0 -D__ASSEMBLY__ \
 	-Wall -Werror
-shv_bin_CFLAGS = -Iinclude/ -D __LHV_OPT__=0 \
+shv_bin_CFLAGS = -D __LHV_OPT__=0 \
 	-Wall -Werror -Wno-format -Wno-array-bounds \
 	-fno-stack-protector -fno-mudflap -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
 shv_bin_LDFLAGS = -T linker.ld -ffreestanding -nostdlib -no-pie

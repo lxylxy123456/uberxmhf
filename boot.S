@@ -1,5 +1,7 @@
 /* From https://wiki.osdev.org/Bare_Bones */
 
+#include <xmhf.h>
+
 /* Declare constants for the multiboot header. */
 .set FLAGS,    0x10003          /* this is the Multiboot 'flag' field */
 .set MAGIC,    0x1BADB002       /* 'magic number' lets bootloader find the header */
@@ -82,18 +84,18 @@ _start:
 	movl	$(shv_pdt), %eax
 	orl		$3, %eax
 	movl	%eax, shv_pdpt + 8 * 0
-	addl	$0x1000, %eax
+	addl	$PAGE_SIZE_4K, %eax
 	movl	%eax, shv_pdpt + 8 * 1
-	addl	$0x1000, %eax
+	addl	$PAGE_SIZE_4K, %eax
 	movl	%eax, shv_pdpt + 8 * 2
-	addl	$0x1000, %eax
+	addl	$PAGE_SIZE_4K, %eax
 	movl	%eax, shv_pdpt + 8 * 3
 
 	/* Set up PDT for 64-bit paging. */
 	xorl	%ecx, %ecx		/* Counter in [0, 2048) */
 	movl	$0x83, %eax		/* Address of 2MB page */
 1:	movl	%eax, shv_pdt(, %ecx, 8)
-	addl	$0x200000, %eax
+	addl	$PAGE_SIZE_2M, %eax
 	incl	%ecx
 	cmpl	$2048, %ecx
 	jb		1b

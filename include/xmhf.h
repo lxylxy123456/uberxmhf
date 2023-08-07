@@ -16,6 +16,7 @@
 #endif	/* !__ASSEMBLY__ */
 
 #include <_processor.h>
+#include <_paging.h>
 
 #ifndef __ASSEMBLY__
 
@@ -32,7 +33,6 @@
 	} while (0)
 
 #include <_vmx.h>
-#include <_paging.h>
 #include <_vmx_ctls.h>
 #include <_acpi.h>
 #include <hptw.h>
