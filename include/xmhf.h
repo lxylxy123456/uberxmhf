@@ -165,14 +165,11 @@ extern uintptr_t g_cr3;
 /* paging.c */
 extern uintptr_t shv_page_table_init(void);
 #ifdef __amd64__
-extern volatile u64 shv_pml4t[P4L_NPLM4T * 512] \
-	__attribute__((aligned(PAGE_SIZE_4K)));
-extern volatile u64 shv_pdpt[P4L_NPDPT * 512] \
-	__attribute__((aligned(PAGE_SIZE_4K)));
-extern volatile u64 shv_pdt[P4L_NPDT * 512] \
-	__attribute__((aligned(PAGE_SIZE_4K)));
+extern volatile u64 shv_pml4t[P4L_NPLM4T * 512] ALIGNED_PAGE;
+extern volatile u64 shv_pdpt[P4L_NPDPT * 512] ALIGNED_PAGE;
+extern volatile u64 shv_pdt[P4L_NPDT * 512] ALIGNED_PAGE;
 #elif defined(__i386__)
-extern volatile u32 shv_pd[1024] __attribute__((aligned(PAGE_SIZE_4K)));
+extern volatile u32 shv_pd[1024] ALIGNED_PAGE;
 #else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__i386__) && !defined(__amd64__) */

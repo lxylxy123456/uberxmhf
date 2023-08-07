@@ -26,18 +26,18 @@ static u8 ept_valid[MAX_VCPU_ENTRIES][LHV_EPT_COUNT];
 
 /* Root EPT pages */
 static u8 ept_root[MAX_VCPU_ENTRIES][LHV_EPT_COUNT][PAGE_SIZE_4K]
-__attribute__((aligned(PAGE_SIZE_4K)));
+ALIGNED_PAGE;
 
 /* Physical memory for storing more  */
 static u8 ept_pool[MAX_VCPU_ENTRIES][LHV_EPT_COUNT][EPT_POOL_SIZE][PAGE_SIZE_4K]
-__attribute__((aligned(PAGE_SIZE_4K)));
+ALIGNED_PAGE;
 
 /* Indicate whether the page in ept_pool is free */
 static u8 ept_alloc[MAX_VCPU_ENTRIES][LHV_EPT_COUNT][EPT_POOL_SIZE];
 
 /* Memory to be mapped */
 static u8 ept_target[256][PAGE_SIZE_4K]
-__attribute__((aligned(PAGE_SIZE_4K)));
+ALIGNED_PAGE;
 
 /* Large pages to be swapped */
 u8 large_pages[2][512 * 4096] __attribute__((aligned(512 * 4096)));

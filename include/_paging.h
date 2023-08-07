@@ -248,5 +248,7 @@
 #define P4L_NPDT    (PA_PAGE_ALIGN_UP_1G(MAX_PHYS_ADDR) >> PAGE_SHIFT_1G)
 #define P4L_NPT     (PA_PAGE_ALIGN_UP_2M(MAX_PHYS_ADDR) >> PAGE_SHIFT_2M)
 
+#define ALIGNED_PAGE __attribute__((aligned(PAGE_SIZE_4K)))
+
 #endif /* __PAGING_H__ */
 

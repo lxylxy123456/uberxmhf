@@ -19,11 +19,11 @@
 #include <xmhf.h>
 
 #ifdef __amd64__
-volatile u64 shv_pml4t[P4L_NPLM4T * 512] __attribute__((aligned(PAGE_SIZE_4K)));
-volatile u64 shv_pdpt[P4L_NPDPT * 512] __attribute__((aligned(PAGE_SIZE_4K)));
-volatile u64 shv_pdt[P4L_NPDT * 512] __attribute__((aligned(PAGE_SIZE_4K)));
+volatile u64 shv_pml4t[P4L_NPLM4T * 512] ALIGNED_PAGE;
+volatile u64 shv_pdpt[P4L_NPDPT * 512] ALIGNED_PAGE;
+volatile u64 shv_pdt[P4L_NPDT * 512] ALIGNED_PAGE;
 #elif defined(__i386__)
-volatile u32 shv_pd[1024] __attribute__((aligned(PAGE_SIZE_4K)));
+volatile u32 shv_pd[1024] ALIGNED_PAGE;
 #else /* !defined(__i386__) && !defined(__amd64__) */
     #error "Unsupported Arch"
 #endif /* !defined(__i386__) && !defined(__amd64__) */
