@@ -3,9 +3,9 @@
 #include <xmhf.h>
 
 /* Declare constants for the multiboot header. */
-.set FLAGS,    0x10003          /* this is the Multiboot 'flag' field */
-.set MAGIC,    0x1BADB002       /* 'magic number' lets bootloader find the header */
-.set CHECKSUM, -(MAGIC + FLAGS) /* checksum of above, to prove we are multiboot */
+.set FLAGS, 0x10003				/* this is the Multiboot 'flag' field */
+.set MAGIC, 0x1BADB002			/* 'magic number' lets bootloader find the header */
+.set CHECKSUM, -(MAGIC + FLAGS)	/* checksum of above, to prove we are multiboot */
 
 /*
 Declare a multiboot header that marks the program as a kernel. These are magic
@@ -75,6 +75,9 @@ _start:
 	jmp		1b
 2:
 
+	/* Load GDT that contains 64-bit CS */
+	lgdt	boot_gdt
+
 	/* Set up PML4T for 64-bit paging. */
 	movl	$(shv_pdpt), %eax
 	orl		$3, %eax
@@ -100,7 +103,35 @@ _start:
 	cmpl	$2048, %ecx
 	jb		1b
 
-	hlt
+	/* Set CR4.PAE. */
+	movl	%cr4, %eax
+	orl		$CR4_PAE, %eax
+	movl	%eax, %cr4
+
+	/* Set CR3 for 64-bit paging. */
+	leal	shv_pml4t(%ebp), %eax
+	movl	%eax, %cr3
+
+	/* Set EFER.LME. */
+	movl	$(MSR_EFER), %ecx
+	rdmsr
+	btsl	$(EFER_LME), %eax
+	wrmsr
+
+	/* setup jump to 64-bit mode */
+	pushl	$(__CS64)
+	leal	_boot_start_64(%ebp), %eax
+	pushl	%eax
+
+	/* enable paging */
+	movl	%cr0, %eax
+	orl		$(CR0_PG), %eax
+	movl	%eax, %cr0
+
+	/* jump to 64-bit mode */
+	lret
+
+_boot_start_64:
 
 .code64
 
@@ -122,3 +153,21 @@ Set the size of the _start symbol to the current location '.' minus its start.
 This is useful when debugging or when you implement call tracing.
 */
 .size _start, . - _start
+
+/* Store GDT */
+.section .data
+	boot_gdt:
+	.word	boot_gdt_end - boot_gdt_start - 1
+	.long	boot_gdt_start
+	.align   16
+	boot_gdt_start:
+	.quad 0x0000000000000000
+	.quad 0x00cf9a000000ffff	/* __CS32 */
+	.quad 0x00cf92000000ffff	/* __DS */
+	.quad 0x00af9a000000ffff	/* __CS64 */
+	.quad 0x0000000000000000	/* __TRSEL */
+	.quad 0x0000000000000000
+	.quad 0x0000000000000000	/* __CS_R3 */
+	.quad 0x0000000000000000	/* __DS_R3 */
+	boot_gdt_end:
+
