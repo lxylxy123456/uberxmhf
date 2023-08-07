@@ -160,6 +160,7 @@ extern MIDTAB g_midtable[MAX_VCPU_ENTRIES];
 extern VCPU g_vcpus[MAX_VCPU_ENTRIES];
 extern u8 g_cpu_stack[MAX_VCPU_ENTRIES][SHV_STACK_SIZE];
 extern u8 g_runtime_TSS[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
+extern uintptr_t g_cr3;
 
 /* paging.c */
 extern uintptr_t shv_page_table_init(void);

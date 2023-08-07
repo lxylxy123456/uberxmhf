@@ -30,14 +30,13 @@ volatile u32 shv_pd[1024] __attribute__((aligned(PAGE_SIZE_4K)));
 uintptr_t shv_page_table_init(void)
 {
 #ifdef __amd64__
-	HALT_ON_ERRORCOND(shv_pml4t[0] == (uintptr_t)user_pdpt);
-	for (u64 i = 0, paddr = 0, paddr = ; i < P4L_NPDT; i++) {
+	HALT_ON_ERRORCOND(shv_pml4t[0] == (uintptr_t)shv_pdpt);
+	for (u64 i = 0, paddr = 0; i < P4L_NPDT; i++, paddr += PAGE_SIZE_1G) {
 		if (i < 4) {
 			HALT_ON_ERRORCOND(shv_pdpt[i] == (0x83ULL | paddr));
 		} else {
 			shv_pdpt[i] = 0x83ULL | paddr;
 		}
-		paddr += PAGE_SIZE_1G;
 	}
 	return (uintptr_t)shv_pml4t;
 #elif defined(__i386__)

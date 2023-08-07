@@ -13,10 +13,12 @@ void kernel_main(void)
 
 	/* Set up page table and enable paging. */
 	{
-		uintptr_t cr3 = shv_page_table_init();
-		write_cr3(cr3);
+		g_cr3 = shv_page_table_init();
 
 #ifdef __i386__
+		/* In i386, CR3 is not set in assembly code. */
+		write_cr3(g_cr3);
+
 		/* Enable CR4.PSE, so we can use 4MB pages. */
 		HALT_ON_ERRORCOND((cpuid_edx(1U, 0U) & (1U << 3)));
 		write_cr4(read_cr4() | CR4_PSE);
