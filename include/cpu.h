@@ -144,3 +144,29 @@ static inline void cpuid_raw(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 	asm volatile("cpuid" : "+a"(*eax), "=b"(*ebx), "+c"(*ecx), "=d"(*edx));
 }
 
+static inline u32 cpuid_eax(u32 eax, u32 ecx)
+{
+	asm volatile("cpuid" : "+a"(eax) : "c"(ecx) : "ebx", "edx");
+	return eax;
+}
+
+static inline u32 cpuid_ebx(u32 eax, u32 ecx)
+{
+	u32 ebx;
+	asm volatile("cpuid" : "=b"(ebx) : "a"(eax), "c"(ecx) : "edx");
+	return ebx;
+}
+
+static inline u32 cpuid_ecx(u32 eax, u32 ecx)
+{
+	asm volatile("cpuid" : "+c"(ecx) : "a"(eax) : "ebx", "edx");
+	return eax;
+}
+
+static inline u32 cpuid_edx(u32 eax, u32 ecx)
+{
+	u32 edx;
+	asm volatile("cpuid" : "=d"(edx) : "a"(eax), "c"(ecx) : "ebx");
+	return edx;
+}
+
