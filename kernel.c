@@ -2,7 +2,7 @@
 
 #include <xmhf.h>
 
-/* This function is called from boot.s, only BSP. */
+/* This function is called from boot.S, only BSP. */
 void kernel_main(void)
 {
 	/* Initialize terminal interface. */
