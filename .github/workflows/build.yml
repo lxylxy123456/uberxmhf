@@ -10,11 +10,12 @@ jobs:
     strategy:
       matrix:
         target_arch:
-          - 'i386'
-#          - 'amd64'
-#        optimize_mode:
-#          - 'O0'
-#          - 'O3'
+          - 'i686'
+          - 'x86_64'
+        optimize_mode:
+          - 'O0'
+          - 'O2'
+          - 'O3'
 
     steps:
     - uses: actions/checkout@v3
@@ -26,14 +27,14 @@ jobs:
                      autoconf libtool xorriso mtools grub-pc
     - name: Build
       run: |
+        export CFLAGS="-g -${{ matrix.optimize_mode }}"
         autoreconf --install && \
-        ./configure --host=i686-linux-gnu && \
+        ./configure --host=${{ matrix.target_arch }}-linux-gnu && \
         make -j $(nproc)
     - name: Release
       uses: actions/upload-artifact@v3
       with:
-        name: boot-${{ matrix.target_arch }}
-        #name: boot-${{ matrix.target_arch }}-${{ matrix.optimize_mode }}
+        name: boot-${{ matrix.target_arch }}-${{ matrix.optimize_mode }}
         path: |
           shv.bin
           grub.iso
