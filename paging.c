@@ -37,7 +37,7 @@ uintptr_t shv_page_table_init(void)
 		} else {
 			shv_pml4t[i] = 0x3ULL | paddr;
 		}
-		paddr += PAGE_SIZE_512G;
+		paddr += PAGE_SIZE_4K;
 	}
 	for (u64 i = 0, paddr = (uintptr_t)shv_pdt; i < P4L_NPDPT; i++) {
 		if (i < 4) {
@@ -45,7 +45,7 @@ uintptr_t shv_page_table_init(void)
 		} else {
 			shv_pdpt[i] = 0x3ULL | paddr;
 		}
-		paddr += PAGE_SIZE_1G;
+		paddr += PAGE_SIZE_4K;
 	}
 	for (u64 i = 0, paddr = 0; i < P4L_NPDT; i++, paddr += PA_PAGE_SIZE_2M) {
 		if (i < 2048) {

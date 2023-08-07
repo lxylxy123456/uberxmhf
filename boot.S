@@ -73,10 +73,30 @@ _start:
 	jmp		1b
 2:
 
-	/* Set up page table for 64-bit. */
+	/* Set up PML4T for 64-bit paging. */
 	movl	$(shv_pdpt), %eax
 	orl		$3, %eax
 	movl	%eax, shv_pml4t
+
+	/* Set up PDPT for 64-bit paging. */
+	movl	$(shv_pdt), %eax
+	orl		$3, %eax
+	movl	%eax, shv_pdpt + 8 * 0
+	addl	$0x1000, %eax
+	movl	%eax, shv_pdpt + 8 * 1
+	addl	$0x1000, %eax
+	movl	%eax, shv_pdpt + 8 * 2
+	addl	$0x1000, %eax
+	movl	%eax, shv_pdpt + 8 * 3
+
+	/* Set up PDT for 64-bit paging. */
+	xorl	%ecx, %ecx		/* Counter in [0, 2048) */
+	movl	$0x83, %eax		/* Address of 2MB page */
+1:	movl	%eax, shv_pdt(, %ecx, 8)
+	addl	$0x200000, %eax
+	incl	%ecx
+	cmpl	$2048, %ecx
+	jb		1b
 
 	hlt
 
