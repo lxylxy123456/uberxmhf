@@ -8,5 +8,5 @@ autoreconf --install && ./configure --host=x86_64-linux-gnu && make -j `nproc`
 set +x
 
 echo qemu-system-i386 -cdrom grub.iso
-echo qemu-system-i386 -kernel shv.bin
+echo qemu-system-x86_64 -kernel shv.bin -serial stdio -display none
 

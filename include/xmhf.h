@@ -159,8 +159,20 @@ extern PCPU g_cpumap[MAX_PCPU_ENTRIES];
 extern MIDTAB g_midtable[MAX_VCPU_ENTRIES];
 extern VCPU g_vcpus[MAX_VCPU_ENTRIES];
 extern u8 g_cpu_stack[MAX_VCPU_ENTRIES][SHV_STACK_SIZE];
-
 extern u8 g_runtime_TSS[MAX_VCPU_ENTRIES][PAGE_SIZE_4K];
+
+/* paging.c */
+extern uintptr_t shv_page_table_init(void);
+#ifdef __amd64__
+extern volatile u64 shv_pml4t[P4L_NPLM4T * 512] \
+	__attribute__((aligned(PAGE_SIZE_4K)));
+extern volatile u64 shv_pdpt[P4L_NPDPT * 512] \
+	__attribute__((aligned(PAGE_SIZE_4K)));
+#elif defined(__i386__)
+extern volatile u32 shv_pd[1024] __attribute__((aligned(PAGE_SIZE_4K)));
+#else /* !defined(__i386__) && !defined(__amd64__) */
+    #error "Unsupported Arch"
+#endif /* !defined(__i386__) && !defined(__amd64__) */
 
 #endif	/* !__ASSEMBLY__ */
 
