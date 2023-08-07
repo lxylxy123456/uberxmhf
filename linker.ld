@@ -22,19 +22,23 @@ SECTIONS
 	/* First put the multiboot header, as it is required to be put very early
 	   early in the image or the bootloader won't recognize the file format.
 	   Next we'll put the .text section. */
-	.text BLOCK(4K) : ALIGN(4K)
+	/*
+	 * Note: we put .text, .rodata, and .data into a single section. When
+	 * buildingin 32-bits, this allows the ELF file to be loaded directly into
+	 * QEMU.
+	 */
+	.text :
 	{
 		KEEP(*(.multiboot))
 		*(.multiboot)
+
+		/* .text */
 		*(.text)
 		*(.text.*)
 		*(.rel.text)
 		*(.rel.text.*)
-	}
 
-	/* Read-only data. */
-	.rodata BLOCK(4K) : ALIGN(4K)
-	{
+		/* .rodata */
 		*(.rodata)
 		*(.rodata.*)
 		*(.rel.rodata)
@@ -46,30 +50,31 @@ SECTIONS
 		KEEP(*(.xcph_table))
 		*(.xcph_table)
 		_end_xcph_table = .;
-	}
 
-	/* Read-write data (initialized) */
-	.data BLOCK(4K) : ALIGN(4K)
-	{
+		/* .data */
 		*(.data)
 		*(.data.*)
 		*(.rel.data)
 		*(.rel.data.*)
 		*(.got)
 		*(.got.plt)
+
+		/* unknown */
+		*(.note.gnu.build-id)
+
+		/* Mark end of non-zero sections */
 		. = ALIGN(16);
 		_end_multiboot_data = .;
 	}
 
 	/* Read-write data (uninitialized) and stack */
-	.bss BLOCK(4K) : ALIGN(4K)
+	.bss :
 	{
 		*(COMMON)
 		*(.bss)
 		*(SORT_BY_ALIGNMENT(.bss.*))
 		*(.rel.bss)
 		*(.rel.bss.*)
-		*(.note.gnu.build-id)
 		. = ALIGN(16);
 		_end_multiboot_bss = .;
 	}
