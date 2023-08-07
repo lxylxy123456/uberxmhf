@@ -79,8 +79,6 @@ typedef struct {
 #define NUM_FIXED_MTRRS 11
 #define MAX_VARIABLE_MTRR_PAIRS 10
 
-#define XMHF_GDT_SIZE 10
-
 #define INDEX_IA32_VMX_BASIC_MSR                0x0
 #define INDEX_IA32_VMX_PINBASED_CTLS_MSR        0x1
 #define INDEX_IA32_VMX_PROCBASED_CTLS_MSR       0x2
@@ -176,21 +174,21 @@ extern volatile u32 shv_pd[1024] ALIGNED_PAGE;
 
 #endif	/* !__ASSEMBLY__ */
 
+#define XMHF_GDT_SIZE 10
+
+#define __CS32	0x08	/* CS (code segment selector) */
+#define __DS	0x10	/* DS (data segment selector) */
+#define __CS64	0x18	/* 64-bit CS, only used in amd64 */
+#define __TRSEL	0x20	/* TSS selector (also occupies 0x28 in amd64) */
+#define __CS_R3	0x33	/* CS for user mode */
+#define __DS_R3 0x3b	/* DS for user mode */
+
 #ifdef __amd64__
-#define 	__CS 	0x0008 	//runtime code segment selector
-#define 	__DS 	0x0018 	//runtime data segment selector
-#define 	__CS32 	0x0010 	//runtime 32-bit code segment selector
-#define 	__TRSEL 0x0020  //runtime TSS (task) selector
-#define 	__CS_R3 0x0033  //runtime user mode code segment selector
-#define 	__DS_R3 0x003b  //runtime user mode data segment selector
+#define __CS	__CS64
 #elif defined(__i386__)
-#define 	__CS 	0x0008 	//runtime code segment selector
-#define 	__DS 	0x0010 	//runtime data segment selector
-#define 	__TRSEL 0x0018  //runtime TSS (task) selector
-#define 	__CS_R3 0x0023  //runtime user mode code segment selector
-#define 	__DS_R3 0x002b  //runtime user mode data segment selector
+#define __CS	__CS32
 #else /* !defined(__i386__) && !defined(__amd64__) */
-    #error "Unsupported Arch"
+	#error "Unsupported Arch"
 #endif /* !defined(__i386__) && !defined(__amd64__) */
 
 #define AP_BOOTSTRAP_CODE_SEG 			0x1000

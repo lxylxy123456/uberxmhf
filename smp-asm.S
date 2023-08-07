@@ -166,7 +166,11 @@ gotvcpu:
   .align  16
   init_gdt_start:
   .quad 0x0000000000000000
-  .quad 0x00cf9a000000ffff
-  .quad 0x00cf92000000ffff
+  .quad 0x00cf9a000000ffff	/* __CS32 */
+  .quad 0x00cf92000000ffff	/* __DS */
+  .quad 0x00af9a000000ffff	/* __CS64 */
+  .quad 0x0000000000000000	/* __TRSEL */
   .quad 0x0000000000000000
+  .quad 0x0000000000000000	/* __CS_R3 */
+  .quad 0x0000000000000000	/* __DS_R3 */
   init_gdt_end:
