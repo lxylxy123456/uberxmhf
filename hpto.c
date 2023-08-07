@@ -44,7 +44,7 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-#include <hpt.h>
+#include <xmhf.h>
 #include "hpt_internal.h"
 
 /* Get the physical address (of page / page table) */

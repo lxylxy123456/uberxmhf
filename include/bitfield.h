@@ -63,7 +63,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <assert.h>
+
+#define assert HALT_ON_ERRORCOND
 
 static inline u64 ZERO_HI64(u64 x, int bits)
 {

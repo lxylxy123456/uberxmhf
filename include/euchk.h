@@ -47,12 +47,19 @@
 #ifndef EUCHK_H
 #define EUCHK_H
 
-#include <eulog.h>
 #include <stdlib.h>
+
+#define EU_TRACE 0
+#define EU_PERF  1
+#define EU_WARN  2
+#define EU_ERR   3
+
+#define eu_trace(...)
+#define eu_warn_e(...) 1
 
 /* normally use eu_log, but give option for client to override */
 #ifndef EU_CHK_LOG
-#define EU_CHK_LOG( pri, fmt, args...) EU_LOG( pri, fmt, ## args)
+#define EU_CHK_LOG( pri, fmt, args...) printf(fmt, ## args)
 #endif
 
 /* EU_CHK(cond) - if condition is false, will log an error, including
@@ -101,7 +108,6 @@
   do {                                                  \
     if (_euchk_unlikely(!(cond))) {                     \
       EU_CHK_LOG(priority, "EU_CHK( %s) failed", #cond);    \
-      (void)0, ## args;                                 \
       goto out;                                         \
     }                                                   \
   } while(0)
@@ -124,7 +130,7 @@
     if (_euchk_unlikely(!(cond))) {             \
       EU_CHK_LOG( EU_ERR, "EU_VERIFY( %s) failed", #cond);       \
       (void)0, ## args;                         \
-      abort();                                  \
+      HALT();                                   \
     }                                           \
   } while(0)
 
@@ -135,7 +141,7 @@
     if (_euchk_unlikely(_eu_chk_cond)) {                                \
       EU_CHK_LOG( EU_ERR, "EU_VERIFYN( %s) failed with %d", #cond, _eu_chk_cond); \
       (void)0, ## args;                                                 \
-      abort();                                                          \
+      HALT();                                                           \
     }                                                                   \
   } while(0)
 

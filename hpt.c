@@ -44,7 +44,7 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-#include <hpt.h>
+#include <xmhf.h>
 #include "hpt_internal.h"
 
 /* page map sizes, in bytes. note that zero index is invalid. */

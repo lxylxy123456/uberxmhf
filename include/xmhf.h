@@ -19,6 +19,18 @@
 
 #ifndef __ASSEMBLY__
 
+#include <cpu.h>
+
+// TODO: change its name
+#define HALT_ON_ERRORCOND(expr) \
+	do { \
+		if (!(expr)) { \
+			printf("Error: HALT_ON_ERRORCOND(%s) @ %s:%d failed\n", #expr, \
+				   __FILE__, __LINE__); \
+			cpu_halt(); \
+		} \
+	} while (0)
+
 #include <_vmx.h>
 #include <_paging.h>
 #include <_vmx_ctls.h>
@@ -27,12 +39,12 @@
 
 #include <smp.h>
 
-#include <cpu.h>
-
+/* spinlock.c */
 typedef volatile uint32_t spin_lock_t;
 extern void spin_lock(spin_lock_t *lock);
 extern void spin_unlock(spin_lock_t *lock);
 
+/* debug.c */
 extern void *emhfc_putchar_arg;
 extern spin_lock_t *emhfc_putchar_linelock_arg;
 extern void emhfc_putchar(int c, void *arg);
@@ -54,16 +66,6 @@ static inline void *spa2hva(spa_t spa)
 {
 	return (void *)(uintptr_t)spa;
 }
-
-// TODO: change its name
-#define HALT_ON_ERRORCOND(expr) \
-	do { \
-		if (!(expr)) { \
-			printf("Error: HALT_ON_ERRORCOND(%s) @ %s:%d failed\n", #expr, \
-				   __FILE__, __LINE__); \
-			cpu_halt(); \
-		} \
-	} while (0)
 
 #define MAX_VCPU_ENTRIES 10
 #define MAX_PCPU_ENTRIES (MAX_VCPU_ENTRIES)
@@ -151,6 +153,7 @@ typedef struct _vcpu {
 
 #define SHV_STACK_SIZE (65536)
 
+/* lhv-global.c */
 extern u32 g_midtable_numentries;
 extern PCPU g_cpumap[MAX_PCPU_ENTRIES];
 extern MIDTAB g_midtable[MAX_VCPU_ENTRIES];

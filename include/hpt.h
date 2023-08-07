@@ -58,7 +58,6 @@
 
 #include <bitfield.h>
 #include <stddef.h>
-#include <assert.h>
 
 typedef enum {
   HPT_TYPE_NORM=0, /* x86 'normal'\legacy */

@@ -44,11 +44,10 @@
  * @XMHF_LICENSE_HEADER_END@
  */
 
-#include <hpt.h>
-#include <hptw.h>
+#include <xmhf.h>
 #include <string.h> /* for memset */
 
-#include "hpt_log.h"
+#include "euchk.h"
 
 /*
  * Get the root page map object (pmo) for context (ctx)
