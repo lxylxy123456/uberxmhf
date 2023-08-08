@@ -53,7 +53,7 @@ jobs:
           name: "Test"
           command: |
             timeout 15 \
-              qemu-system-i386 -kernel shv.bin -smp 4 -enable-kvm \
+              qemu-system-x86_64 -kernel shv.bin -smp 4 -enable-kvm \
                 -display none -serial file:qemu-output.txt || true
             echo Begin qemu-output.txt
             cat qemu-output.txt
