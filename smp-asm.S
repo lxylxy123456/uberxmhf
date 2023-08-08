@@ -49,6 +49,28 @@
 
 #include <xmhf.h>
 
+#ifdef __i386__
+#define _EAX %eax
+#define _ECX %ecx
+#define _EDX %edx
+#define _EBX %ebx
+#define _ESP %esp
+#define _EBP %ebp
+#define _ESI %esi
+#define _EDI %edi
+#elif defined(__amd64__)
+#define _EAX %rax
+#define _ECX %rcx
+#define _EDX %rdx
+#define _EBX %rbx
+#define _ESP %rsp
+#define _EBP %rbp
+#define _ESI %rsi
+#define _EDI %rdi
+#else
+	#error "Unsupported Arch"
+#endif /* __i386__ */
+
 //---AP boot-strap code---------------------------------------------------------
 .section .text
 .code16
@@ -112,6 +134,10 @@ _ap_bootstrap_end:
 .global init_core_lowlevel_setup
 init_core_lowlevel_setup:
 
+#ifdef __amd64__
+.code64
+#endif /* __amd64__ */
+
 	//load our gdt
 	lgdt	init_gdt
 
@@ -120,20 +146,20 @@ init_core_lowlevel_setup:
 	rdmsr
 	andl	$0xFFFFF000, %eax
 	addl	$0x20, %eax
-	movl	(%eax), %eax
+	movl	(_EAX), %eax
 	shrl	$24, %eax
 
 	movl	g_midtable_numentries, %edx
 
 	//get vcpu virtual address of this CPU/core
-	movl	$(g_midtable), %ebx
+	mov		$(g_midtable), _EBX
 	xorl	%ecx, %ecx
 getvcpuloop:
 #ifdef __i386__
-	movl	0x0(%ebx, %ecx, 8), %ebp  //ebp contains the lapic id
+	movl	0x0(_EBX, _ECX, 8), %ebp  //ebp contains the lapic id
 #elif defined(__amd64__)
-	leal	0x0(%ebx, %ecx, 8), %esp
-	movl	0x0(%esp, %ecx, 8), %ebp  //ebp contains the lapic id
+	lea		0x0(_EBX, _ECX, 8), _ESP
+	movl	0x0(_ESP, _ECX, 8), %ebp  //ebp contains the lapic id
 #else
 	#error "Unsupported Arch"
 #endif /* __i386__ */
@@ -146,14 +172,14 @@ getvcpuloop:
 	hlt
 gotvcpu:
 #ifdef __i386__
-	movl	0x4(%ebx, %ecx, 8), %esi //esi contains vcpu pointer
+	mov		0x4(_EBX, _ECX, 8), _EDI //edi contains vcpu pointer
 #elif defined(__amd64__)
-	movl	0x8(%esp, %ecx, 8), %esi //esi contains vcpu pointer
+	mov		0x8(_ESP, _ECX, 8), _EDI //rdi contains vcpu pointer
 #else
 	#error "Unsupported Arch"
 #endif /* __i386__ */
-	movl	0x0(%esi), %esp	//load stack for this CPU
-	pushl	%esi
+	mov		0x0(_EDI), _ESP	//load stack for this CPU
+	push	_EDI
 	call	kernel_main_smp
 	//we should never get here, if so just halt
 	hlt
