@@ -348,14 +348,19 @@ void smp_init(void)
 		g_vcpus[i].isbsp = g_cpumap[i].isbsp;
 	}
 
+#ifdef __amd64__
+	/* Set lret stack for 64-bit mode. */
+	{
+		g_smp_lret_stack[0] = (uintptr_t)init_core_lowlevel_setup;
+		g_smp_lret_stack[1] = __CS64;
+	}
+#endif /* __amd64__ */
+
 	/* Wake up APs. */
 	wakeupAPs();
 
 	/* Switch stack and call kernel_main_smp(). */
-	{
-		extern void init_core_lowlevel_setup(void);
-		init_core_lowlevel_setup();
-	}
+	init_core_lowlevel_setup();
 
 	HALT_ON_ERRORCOND(0 && "Should not return from init_core_lowlevel_setup()");
 }

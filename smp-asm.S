@@ -118,7 +118,7 @@ _ap_clear_pipe:
 	movw	%ax, %fs
 	movw	%ax, %gs
 
-	movl	$init_core_lowlevel_setup, %eax
+	movl	$init_core_lowlevel_setup_32, %eax
 	jmpl	*%eax
 	hlt
 
@@ -130,13 +130,39 @@ _ap_bootstrap_end:
 	nop
 
 //---init_core_lowlevel_setup---------------------------------------------------
-.section .text
-.global init_core_lowlevel_setup
-init_core_lowlevel_setup:
+
+init_core_lowlevel_setup_32:
 
 #ifdef __amd64__
+	/* Set CR3 and CR4 (copy from BSP's value) */
+	movl	(g_cr3), %eax
+	movl	%eax, %cr3
+	movl	(g_cr4), %eax
+	movl	%eax, %cr4
+
+	/* Set EFER MSR LME */
+	movl	$(MSR_EFER), %ecx
+	rdmsr
+	btsl	$(EFER_LME), %eax
+	wrmsr
+
+	/* Set stack to perform lret */
+	movl	$(g_smp_lret_stack), %esp
+
+	/* set CR0 */
+	movl	%cr0, %eax
+	orl		$(CR0_PG), %eax
+	andl	$(~(CR0_NW | CR0_CD)), %eax
+	movl	%eax, %cr0
+
+	/* jump to 64-bit mode */
+	lret
+
 .code64
 #endif /* __amd64__ */
+
+.global init_core_lowlevel_setup
+init_core_lowlevel_setup:
 
 	//load our gdt
 	lgdt	init_gdt

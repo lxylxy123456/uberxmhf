@@ -14,6 +14,7 @@ void kernel_main(void)
 	/* Set up page table and enable paging. */
 	{
 		g_cr3 = shv_page_table_init();
+		g_cr4 = read_cr4();
 
 #ifdef __i386__
 		/* In i386, CR3 is not set in assembly code. */
@@ -21,7 +22,8 @@ void kernel_main(void)
 
 		/* Enable CR4.PSE, so we can use 4MB pages. */
 		HALT_ON_ERRORCOND((cpuid_edx(1U, 0U) & (1U << 3)));
-		write_cr4(read_cr4() | CR4_PSE);
+		g_cr4 |= CR4_PSE;
+		write_cr4(g_cr4);
 
 		/* Enable CR0.PG, because multiboot does not enable paging. */
 		write_cr0(read_cr0() | CR0_PG);

@@ -59,5 +59,6 @@ typedef struct _pcpu {
   u32 isbsp;
 } __attribute__((packed)) PCPU;
 
-void smp_init(void);
+extern void init_core_lowlevel_setup(void);
+extern void smp_init(void);
 
