@@ -24,9 +24,8 @@ jobs:
           name: "Build"
           command: |
             autoreconf --install && \
-            ./configure --host=i686-linux-gnu && \
+            ./configure --host=<< parameters.subarch >>-linux-gnu && \
             make -j $(nproc)
-#            ./tools/ci/build.sh << parameters.subarch >> circleci --no-x2apic
       - run:
           name: "Versions"
           command: |
@@ -91,5 +90,4 @@ workflows:
       - test-xmhf:
           matrix:
             parameters:
-              #subarch: ["i386", "amd64"]
-              subarch: ["i386"]
+              subarch: ["i686", "x86_64"]
