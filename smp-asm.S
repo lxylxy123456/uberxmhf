@@ -93,33 +93,33 @@ _ap_gdt_start:
 _ap_gdt_end:
 	.word 0
 ap_bootstrap_bypassdata:
-	movw $0x1000, %ax
-	movw %ax, %ds
-	movw %ax, %es
-	movw $0xFFFF, %sp
-	movw $0x4000, %ax
-	movw %ax, %ss
+	movw	$0x1000, %ax
+	movw	%ax, %ds
+	movw	%ax, %es
+	movw	$0xFFFF, %sp
+	movw	$0x4000, %ax
+	movw	%ax, %ss
 
-	movw $(_ap_gdtdesc - _ap_bootstrap_start), %si
+	movw	$(_ap_gdtdesc - _ap_bootstrap_start), %si
 
-	lgdt (%si)
+	lgdt	(%si)
 
-	movl %cr0, %eax
-	orl $0x1, %eax
-	movl %eax, %cr0
+	movl	%cr0, %eax
+	orl		$0x1, %eax
+	movl	%eax, %cr0
 
-	jmpl $0x08, $(_ap_clear_pipe - _ap_bootstrap_start + (AP_BOOTSTRAP_CODE_SEG << 4))
+	jmpl	$0x08, $(_ap_clear_pipe - _ap_bootstrap_start + (AP_BOOTSTRAP_CODE_SEG << 4))
 .code32
 _ap_clear_pipe:
-	movw $0x10, %ax
-	movw %ax, %ds
-	movw %ax, %es
-	movw %ax, %ss
-	movw %ax, %fs
-	movw %ax, %gs
+	movw	$0x10, %ax
+	movw	%ax, %ds
+	movw	%ax, %es
+	movw	%ax, %ss
+	movw	%ax, %fs
+	movw	%ax, %gs
 
-	movl $init_core_lowlevel_setup, %eax
-	jmpl *%eax
+	movl	$init_core_lowlevel_setup, %eax
+	jmpl	*%eax
 	hlt
 
 .global _ap_bootstrap_end
