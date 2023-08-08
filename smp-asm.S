@@ -51,126 +51,131 @@
 
 //---AP boot-strap code---------------------------------------------------------
 .section .text
-  .code16
-  .global _ap_bootstrap_start
-  _ap_bootstrap_start:
-    jmp ap_bootstrap_bypassdata
-    _ap_gdtdesc:
-      .word _ap_gdt_end - _ap_gdt_start - 1
-      .long _ap_gdt_start - _ap_bootstrap_start + 0x10000
-    .align 16
-    _ap_gdt_start:
-      .quad 0x0000000000000000
-      .quad 0x00cf9a000000ffff
-      .quad 0x00cf92000000ffff
-    _ap_gdt_end:
-      .word 0
-  ap_bootstrap_bypassdata:
-      movw $0x1000, %ax
-      movw %ax, %ds
-      movw %ax, %es
-      movw $0xFFFF, %sp
-      movw $0x4000, %ax
-      movw %ax, %ss
+.code16
+.global _ap_bootstrap_start
+_ap_bootstrap_start:
+	jmp ap_bootstrap_bypassdata
+_ap_gdtdesc:
+	.word _ap_gdt_end - _ap_gdt_start - 1
+	.long _ap_gdt_start - _ap_bootstrap_start + 0x10000
+	.align 16
+_ap_gdt_start:
+	.quad 0x0000000000000000
+	.quad 0x00cf9a000000ffff	/* __CS32 */
+	.quad 0x00cf92000000ffff	/* __DS */
+	.quad 0x00af9a000000ffff	/* __CS64 */
+	.quad 0x0000000000000000	/* __TRSEL */
+	.quad 0x0000000000000000
+	.quad 0x0000000000000000	/* __CS_R3 */
+	.quad 0x0000000000000000	/* __DS_R3 */
+_ap_gdt_end:
+	.word 0
+ap_bootstrap_bypassdata:
+	movw $0x1000, %ax
+	movw %ax, %ds
+	movw %ax, %es
+	movw $0xFFFF, %sp
+	movw $0x4000, %ax
+	movw %ax, %ss
 
-      movw $(_ap_gdtdesc - _ap_bootstrap_start), %si
+	movw $(_ap_gdtdesc - _ap_bootstrap_start), %si
 
-      lgdt (%si)
+	lgdt (%si)
 
-      movl %cr0, %eax
-      orl $0x1, %eax
-      movl %eax, %cr0
+	movl %cr0, %eax
+	orl $0x1, %eax
+	movl %eax, %cr0
 
-      jmpl $0x08, $(_ap_clear_pipe - _ap_bootstrap_start + (AP_BOOTSTRAP_CODE_SEG << 4))
-    .code32
-    _ap_clear_pipe:
-      movw $0x10, %ax
-      movw %ax, %ds
-      movw %ax, %es
-      movw %ax, %ss
-      movw %ax, %fs
-      movw %ax, %gs
+	jmpl $0x08, $(_ap_clear_pipe - _ap_bootstrap_start + (AP_BOOTSTRAP_CODE_SEG << 4))
+.code32
+_ap_clear_pipe:
+	movw $0x10, %ax
+	movw %ax, %ds
+	movw %ax, %es
+	movw %ax, %ss
+	movw %ax, %fs
+	movw %ax, %gs
 
-      movl $init_core_lowlevel_setup, %eax
-      jmpl *%eax
-      hlt
+	movl $init_core_lowlevel_setup, %eax
+	jmpl *%eax
+	hlt
 
-  .global _ap_bootstrap_end
-  _ap_bootstrap_end:
-    nop
-    nop
-    nop
-    nop
+.global _ap_bootstrap_end
+_ap_bootstrap_end:
+	nop
+	nop
+	nop
+	nop
 
 //---init_core_lowlevel_setup---------------------------------------------------
 .section .text
-  .global init_core_lowlevel_setup
-  init_core_lowlevel_setup:
+.global init_core_lowlevel_setup
+init_core_lowlevel_setup:
 
-  //load our gdt
-  lgdt init_gdt
+	//load our gdt
+	lgdt	init_gdt
 
-  //get hold of local APIC id
-  mov $(MSR_APIC_BASE), %ecx
-  rdmsr
-  andl $0xFFFFF000, %eax
-  addl $0x20, %eax
-  movl (%eax), %eax
-  shr $24, %eax
+	//get hold of local APIC id
+	movl	$(MSR_APIC_BASE), %ecx
+	rdmsr
+	andl	$0xFFFFF000, %eax
+	addl	$0x20, %eax
+	movl	(%eax), %eax
+	shrl	$24, %eax
 
-  movl g_midtable_numentries, %edx
+	movl	g_midtable_numentries, %edx
 
-  //get vcpu virtual address of this CPU/core
-    movl $(g_midtable), %ebx
-    xorl %ecx, %ecx
+	//get vcpu virtual address of this CPU/core
+	movl	$(g_midtable), %ebx
+	xorl	%ecx, %ecx
 getvcpuloop:
 #ifdef __i386__
-    movl 0x0(%ebx, %ecx, 8), %ebp  //ebp contains the lapic id
+	movl	0x0(%ebx, %ecx, 8), %ebp  //ebp contains the lapic id
 #elif defined(__amd64__)
-    leal 0x0(%ebx, %ecx, 8), %esp
-    movl 0x0(%esp, %ecx, 8), %ebp  //ebp contains the lapic id
+	leal	0x0(%ebx, %ecx, 8), %esp
+	movl	0x0(%esp, %ecx, 8), %ebp  //ebp contains the lapic id
 #else
-    #error "Unsupported Arch"
+	#error "Unsupported Arch"
 #endif /* __i386__ */
-    cmpl %eax, %ebp
-    jz gotvcpu
-    incl %ecx
-    cmpl %edx, %ecx
-    jb getvcpuloop
-    //we should never get here, if so just halt
-    hlt
+	cmpl	%eax, %ebp
+	jz		gotvcpu
+	incl	%ecx
+	cmpl	%edx, %ecx
+	jb		getvcpuloop
+	//we should never get here, if so just halt
+	hlt
 gotvcpu:
 #ifdef __i386__
-   movl 0x4(%ebx, %ecx, 8), %esi //esi contains vcpu pointer
+	movl	0x4(%ebx, %ecx, 8), %esi //esi contains vcpu pointer
 #elif defined(__amd64__)
-   movl 0x8(%esp, %ecx, 8), %esi //esi contains vcpu pointer
+	movl	0x8(%esp, %ecx, 8), %esi //esi contains vcpu pointer
 #else
-    #error "Unsupported Arch"
+	#error "Unsupported Arch"
 #endif /* __i386__ */
-   movl 0x0(%esi), %esp     //load stack for this CPU
-   pushl %esi
-   call kernel_main_smp
-   //we should never get here, if so just halt
-   hlt
+	movl	0x0(%esi), %esp	//load stack for this CPU
+	pushl	%esi
+	call	kernel_main_smp
+	//we should never get here, if so just halt
+	hlt
 
 
 
 //------------------------------------------------------------------------------
-.section  .data
+.section .data
 
-  //the GDT
-  init_gdt:
-  .word init_gdt_end - init_gdt_start - 1
-  .long init_gdt_start
+	//the GDT
+init_gdt:
+	.word init_gdt_end - init_gdt_start - 1
+	.long init_gdt_start
 
-  .align  16
-  init_gdt_start:
-  .quad 0x0000000000000000
-  .quad 0x00cf9a000000ffff	/* __CS32 */
-  .quad 0x00cf92000000ffff	/* __DS */
-  .quad 0x00af9a000000ffff	/* __CS64 */
-  .quad 0x0000000000000000	/* __TRSEL */
-  .quad 0x0000000000000000
-  .quad 0x0000000000000000	/* __CS_R3 */
-  .quad 0x0000000000000000	/* __DS_R3 */
-  init_gdt_end:
+	.align 16
+init_gdt_start:
+	.quad 0x0000000000000000
+	.quad 0x00cf9a000000ffff	/* __CS32 */
+	.quad 0x00cf92000000ffff	/* __DS */
+	.quad 0x00af9a000000ffff	/* __CS64 */
+	.quad 0x0000000000000000	/* __TRSEL */
+	.quad 0x0000000000000000
+	.quad 0x0000000000000000	/* __CS_R3 */
+	.quad 0x0000000000000000	/* __DS_R3 */
+init_gdt_end:
