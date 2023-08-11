@@ -13,6 +13,9 @@ AC_CONFIG_SRCDIR([kernel.c])
 # in this dir (build-aux)
 AC_CONFIG_AUX_DIR([build-aux])
 
+# https://stackoverflow.com/questions/71709907/
+AC_CONFIG_HEADERS([include/config.h])
+
 # Init automake, and specify this program use relaxed structures.
 # i.e. this program doesn't follow the gnu coding standards, and doesn't have
 # ChangeLog, COPYING, AUTHORS, INSTALL, README etc. files.
@@ -25,6 +28,16 @@ AC_CHECK_PROGS([GRUB_MKRESCUE], [grub2-mkrescue grub-mkrescue])
 # We can add more checks in this section
 
 AM_CONDITIONAL([I386], [test x"$host_alias" = x"i686-linux-gnu"])
+
+# Define macros that will be passed to C and assembly files, following:
+# https://stackoverflow.com/questions/71709907/
+
+shv_opt=0
+AC_ARG_WITH([shv_opt],
+            [AS_HELP_STRING([--with-shv-opt=SHV_OPT],
+                            [specify SHV options, see shv.h])],
+            [shv_opt="$withval"], [])
+AC_DEFINE_UNQUOTED([SHV_OPT],[${shv_opt}],[SHV options])
 
 # Tells automake to create a Makefile
 # See https://www.gnu.org/software/automake/manual/html_node/Requirements.html

@@ -13,3 +13,7 @@ config.status
 /Makefile
 /Makefile.in
 *~
+
+stamp-h1
+include/config.h
+include/config.h.in
