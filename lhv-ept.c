@@ -236,7 +236,7 @@ u64 lhv_build_ept(VCPU *vcpu, u8 ept_num)
 #endif
 	lhv_ept_ctx_t ept_ctx;
 	hpt_pmeo_t pmeo;
-	HALT_ON_ERRORCOND(0 && "TOOD: low and high not defined");
+	HALT_ON_ERRORCOND(0 && "TODO: low and high not defined");
 	/* Assuming that ept_pool and ept_alloc are initialized to 0 by bss */
 	ept_ctx.ctx.gzp = lhv_ept_gzp;
 	ept_ctx.ctx.pa2ptr = lhv_ept_pa2ptr;
