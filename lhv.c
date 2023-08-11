@@ -43,7 +43,7 @@ void lhv_main(VCPU *vcpu)
 		}
 	}
 	/* Demonstrate disabling paging in hypervisor */
-	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
+	if (SHV_OPT & LHV_USE_UNRESTRICTED_GUEST) {
 #ifdef __amd64__
 		extern void lhv_disable_enable_paging(char *);
 		lhv_disable_enable_paging("LHV hypervisor can disable paging\n");
@@ -60,12 +60,12 @@ void lhv_main(VCPU *vcpu)
 	printf("Stopping enabling interrupts\n");
 	HALT();
 
-	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+	if (!(SHV_OPT & LHV_NO_EFLAGS_IF)) {
 		/* Set EFLAGS.IF */
 		asm volatile ("sti");
 	}
 
-	if (__LHV_OPT__ & LHV_USE_PS2_MOUSE) {
+	if (SHV_OPT & LHV_USE_PS2_MOUSE) {
 		if (vcpu->isbsp) {
 			mouse_init(vcpu);
 		}

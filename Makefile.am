@@ -8,12 +8,10 @@ shv_bin_SOURCES = boot.S kernel.c paging.c smp.c smp-asm.S spinlock.c \
 	lhv-keyboard.c lhv-mouse.c lhv-pic.c lhv-timer.c lhv-user-asm.S lhv-user.c \
 	lhv-vmcs.c lhv-vmx.c lhv-global.c
 
-# TODO: allow optimization
-# TODO: __LHV_OPT__
 shv_bin_CPPFLAGS = -Iinclude/
-shv_bin_CCASFLAGS = -D __LHV_OPT__=0 -D__ASSEMBLY__ \
+shv_bin_CCASFLAGS = -D__ASSEMBLY__ \
 	-Wall -Werror
-shv_bin_CFLAGS = -D __LHV_OPT__=0 \
+shv_bin_CFLAGS = \
 	-Wall -Werror -Wno-format -Wno-array-bounds \
 	-fno-stack-protector -fno-mudflap -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
 shv_bin_LDFLAGS = -T linker.ld -ffreestanding -nostdlib -no-pie

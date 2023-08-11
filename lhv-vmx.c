@@ -111,7 +111,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 				vcpu->vmx_msrs[INDEX_IA32_VMX_PROCBASED_CTLS2_MSR]);
 
 	//Critical MSR load/store
-	if (__LHV_OPT__ & LHV_USE_MSR_LOAD) {
+	if (SHV_OPT & LHV_USE_MSR_LOAD) {
 		vcpu->my_vmexit_msrstore = vmexit_msrstore_entries[vcpu->idx][0];
 		vcpu->my_vmexit_msrload = vmexit_msrload_entries[vcpu->idx][0];
 		vcpu->my_vmentry_msrload = vmentry_msrload_entries[vcpu->idx][0];
@@ -127,7 +127,7 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 	vmcs_vmwrite(vcpu, VMCS_control_VM_entry_MSR_load_count, 0);
 	vmcs_vmwrite(vcpu, VMCS_control_VM_exit_MSR_store_count, 0);
 
-	if (__LHV_OPT__ & LHV_USE_EPT) {
+	if (SHV_OPT & LHV_USE_EPT) {
 		u64 eptp;
 		u32 seccpu;
 		lhv_ept_init(vcpu);
@@ -147,16 +147,16 @@ static void lhv_vmx_vmcs_init(VCPU *vcpu)
 #endif /* __i386__ */
 	}
 
-	if (__LHV_OPT__ & LHV_USE_VPID) {
+	if (SHV_OPT & LHV_USE_VPID) {
 		u32 seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
 		seccpu |= (1U << VMX_SECPROCBASED_ENABLE_VPID);
 		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
 		vmcs_vmwrite(vcpu, VMCS_control_vpid, 1);
 	}
 
-	if (__LHV_OPT__ & LHV_USE_UNRESTRICTED_GUEST) {
+	if (SHV_OPT & LHV_USE_UNRESTRICTED_GUEST) {
 		u32 seccpu;
-		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+		HALT_ON_ERRORCOND(SHV_OPT & LHV_USE_EPT);
 		seccpu = vmcs_vmread(vcpu, VMCS_control_VMX_seccpu_based);
 		seccpu |= (1U << VMX_SECPROCBASED_UNRESTRICTED_GUEST);
 		vmcs_vmwrite(vcpu, VMCS_control_VMX_seccpu_based, seccpu);
@@ -396,7 +396,7 @@ void vmexit_handler(VCPU *vcpu, struct regs *r)
 			break;
 		}
 	case VMX_VMEXIT_EPT_VIOLATION:
-		HALT_ON_ERRORCOND(__LHV_OPT__ & LHV_USE_EPT);
+		HALT_ON_ERRORCOND(SHV_OPT & LHV_USE_EPT);
 		{
 			ulong_t q = vmcs_vmread(vcpu, VMCS_info_exit_qualification);
 			u64 paddr = vmcs_vmread64(vcpu, VMCS_guest_paddr);

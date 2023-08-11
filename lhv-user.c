@@ -109,7 +109,7 @@ void enter_user_mode(VCPU *vcpu, ulong_t arg)
 	ureg->eflags = 2 | (3 << 12);
 	ureg->esp = (uintptr_t) (&stack[-3]);
 	ureg->ss = __DS_R3;
-	if (!(__LHV_OPT__ & LHV_NO_EFLAGS_IF)) {
+	if (!(SHV_OPT & LHV_NO_EFLAGS_IF)) {
 		ureg->eflags |= EFLAGS_IF;
 	}
 	{

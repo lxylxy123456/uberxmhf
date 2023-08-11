@@ -76,7 +76,7 @@ void timer_init(VCPU *vcpu)
 	if (vcpu->isbsp) {
 		u64 ncycles = TIMER_RATE * TIMER_PERIOD / 1000;
 		HALT_ON_ERRORCOND(ncycles == (u64)(u16)ncycles);
-		if (__LHV_OPT__ & LHV_NO_INTERRUPT) {
+		if (SHV_OPT & LHV_NO_INTERRUPT) {
 			outb(TIMER_MODE_IO_PORT, TIMER_ONE_SHOT);
 			outb(TIMER_PERIOD_IO_PORT, (u8)(1));
 			outb(TIMER_PERIOD_IO_PORT, (u8)(0));
@@ -89,7 +89,7 @@ void timer_init(VCPU *vcpu)
 	}
 
 	/* LAPIC Timer */
-	if (!(__LHV_OPT__ & LHV_NO_INTERRUPT)) {
+	if (!(SHV_OPT & LHV_NO_INTERRUPT)) {
 		write_lapic(LAPIC_TIMER_DIV, 0x0000000b);
 		write_lapic(LAPIC_TIMER_INIT, LAPIC_PERIOD);
 		write_lapic(LAPIC_LVT_TIMER, 0x00020022);
@@ -137,7 +137,7 @@ static void calibrate_timer(VCPU *vcpu) {
 
 void handle_timer_interrupt(VCPU *vcpu, int vector, int guest)
 {
-	if (__LHV_OPT__ & LHV_NO_INTERRUPT) {
+	if (SHV_OPT & LHV_NO_INTERRUPT) {
 		/* Only one interrupt should arrive, ever */
 		static bool shot_arrived = false;
 		HALT_ON_ERRORCOND(vcpu->isbsp);
