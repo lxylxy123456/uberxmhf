@@ -170,3 +170,8 @@ static inline u32 cpuid_edx(u32 eax, u32 ecx)
 	return edx;
 }
 
+static inline void lock_incl(volatile u32 *num)
+{
+	asm volatile("lock incl %0" : "+m"(*num));
+}
+

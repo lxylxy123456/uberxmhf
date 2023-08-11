@@ -49,5 +49,20 @@ void kernel_main_smp(VCPU *vcpu)
 {
 	printf("Hello, %s World %d!\n", "smp", vcpu->id);
 
-	cpu_halt();
+	/* Barrier */
+	{
+		static u32 count = 0;
+		lock_incl(&count);
+		while (count < g_midtable_numentries) {
+			cpu_relax();
+		}
+	}
+
+	/* Transfer control to LHV */
+	{
+		extern void lhv_main(VCPU *vcpu);
+		lhv_main(vcpu);
+	}
+
+	HALT_ON_ERRORCOND(0 && "Should not reach here");
 }
