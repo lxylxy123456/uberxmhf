@@ -14,8 +14,7 @@ void kernel_main(void)
 	/* Print banner. */
 	{
 		printf("Small Hyper Visor (SHV)\n");
-		printf("Build revision: TODO\n");	// TODO
-		printf("SHV Options: TODO\n");		// TODO
+		printf("SHV Options: 0x%x\n", SHV_OPT);
 	}
 
 	/* Set up page table and enable paging. */
