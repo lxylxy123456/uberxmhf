@@ -58,6 +58,13 @@ void kernel_main_smp(VCPU *vcpu)
 		}
 	}
 
+	/* Initialize GDT, IDT, etc. */
+	{
+		init_gdt(vcpu);
+		// TODO: initialize idt
+		// TODO: initialize tss?
+	}
+
 	/* Transfer control to LHV */
 	{
 		extern void lhv_main(VCPU *vcpu);

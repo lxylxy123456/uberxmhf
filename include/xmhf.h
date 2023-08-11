@@ -179,9 +179,12 @@ extern volatile u32 shv_pd[1024] ALIGNED_PAGE;
     #error "Unsupported Arch"
 #endif /* !defined(__i386__) && !defined(__amd64__) */
 
-#endif	/* !__ASSEMBLY__ */
-
+/* gdt.c */
 #define XMHF_GDT_SIZE 10
+extern u64 g_gdt[MAX_VCPU_ENTRIES][XMHF_GDT_SIZE];
+extern void init_gdt(VCPU * vcpu);
+
+#endif	/* !__ASSEMBLY__ */
 
 #define __CS32	0x08	/* CS (code segment selector) */
 #define __DS	0x10	/* DS (data segment selector) */

@@ -1,7 +1,7 @@
 # Template from http://www.idryman.org/blog/2016/03/10/autoconf-tutorial-1/
 
 bin_PROGRAMS = shv.bin
-shv_bin_SOURCES = boot.S kernel.c paging.c smp.c smp-asm.S spinlock.c \
+shv_bin_SOURCES = boot.S gdt.c kernel.c paging.c smp.c smp-asm.S spinlock.c \
 	debug.c debug-uart.c debug-vga.c \
 	libc_string.c libc_stdio.c hpt.c hpto.c hptw.c \
 	lhv-asm.S lhv.c lhv-console.c lhv-ept.c lhv-guest-asm.S lhv-guest.c \
