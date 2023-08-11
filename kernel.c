@@ -11,6 +11,13 @@ void kernel_main(void)
 		dbg_x86_vgamem_init();
 	}
 
+	/* Print banner. */
+	{
+		printf("Small Hyper Visor (SHV)\n");
+		printf("Build revision: TODO\n");	// TODO
+		printf("SHV Options: TODO\n");		// TODO
+	}
+
 	/* Set up page table and enable paging. */
 	{
 		g_cr3 = shv_page_table_init();

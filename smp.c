@@ -83,13 +83,10 @@ static void udelay(u32 usecs){
   val = (u8)((u32)latchregval >> (u32)8);
   outb(0x42 , val);
 
-  #ifndef __XMHF_VERIFICATION__
-  //TODO: plug in a 8254 programmable interval timer h/w model
   //wait for countdown
   while(!(inb(0x61) & 0x20)) {
     xmhf_cpu_relax();
   }
-  #endif //__XMHF_VERIFICATION__
 
   //disable ch-2 counter
   val = inb(0x61);
