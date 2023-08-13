@@ -76,11 +76,7 @@ static void dbg_x86_uart_putc_bare(char ch){
 }
 
 
-// write character to serial port, translating '\n' to '\r\n'
 void dbg_x86_uart_putc(char ch){
-  if (ch == '\n') {
-    dbg_x86_uart_putc_bare('\r');
-  }
   dbg_x86_uart_putc_bare(ch);
 }
 
