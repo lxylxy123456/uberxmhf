@@ -52,7 +52,7 @@ void vmcs_dump(VCPU *vcpu, int verbose)
 				printf("CPU(0x%02x): vcpu->vmcs." #name "=0x%08x\n",	\
 						vcpu->id, vcpu->vmcs.name);						\
 			} else if (sizeof(vcpu->vmcs.name) == 8) {					\
-				printf("CPU(0x%02x): vcpu->vmcs." #name "=0x%016lx\n",	\
+				printf("CPU(0x%02x): vcpu->vmcs." #name "=0x%016llx\n",	\
 						vcpu->id, vcpu->vmcs.name);						\
 			} else if (sizeof(vcpu->vmcs.name) == 2) {					\
 				printf("CPU(0x%02x): vcpu->vmcs." #name "=0x%04x\n",	\
