@@ -51,13 +51,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Check VMCS macros
       run: |
         python3 tools/vmcs/read_macro.py
         python3 tools/vmcs/read_macro.py > vmcs.csv
     - name: Release vmcs.csv
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         path: vmcs.csv
 
