@@ -1,9 +1,10 @@
 /*
  * @XMHF_LICENSE_HEADER_START@
  *
- * eXtensible, Modular Hypervisor Framework (XMHF)
+ * eXtensible, Modular Hypervisor Framework 64 (XMHF64)
  * Copyright (c) 2009-2012 Carnegie Mellon University
  * Copyright (c) 2010-2012 VDG Inc.
+ * Copyright (c) 2023 Eric Li
  * All Rights Reserved.
  *
  * Developed by: XMHF Team
