@@ -60,7 +60,7 @@ download () {
 			python3 -m pip install gdown
 		fi
 		URL="https://drive.google.com/uc?id=${1}&confirm=t"
-		python3 -m gdown.cli "$URL" -O "$TARGET_FILE"
+		python3 -m gdown "$URL" -O "$TARGET_FILE"
 	fi
 }
 
