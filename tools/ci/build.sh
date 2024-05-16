@@ -137,7 +137,7 @@ case "$1" in
 		UEFI="y"
 		;;
 	*)
-		echo 'Error: subarch incorrect, should be i386 or amd64'; exit 1
+		echo 'Error: subarch incorrect, should be i386, amd64, or uefi'; exit 1
 		;;
 esac
 shift
