@@ -124,11 +124,11 @@ u32 xmhf_app_handle_nest_exit(VCPU *vcpu, struct regs *r)
 #endif /* __NESTED_VIRTUALIZATION__ */
 
 //handles h/w pagetable violations
-//for now this always returns APP_SUCCESS
+//for now this always returns APP_ERROR
 u32 xmhf_app_handleintercept_hwpgtblviolation(VCPU *vcpu,
       struct regs *r,
       gpa_t gpa, gva_t gva, u64 violationcode){
-	u32 status = APP_SUCCESS;
+	u32 status = APP_ERROR;
 
 	(void)vcpu; //unused
 	(void)r; //unused
