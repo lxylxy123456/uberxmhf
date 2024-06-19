@@ -44,9 +44,6 @@
 version: 2.1
 
 jobs:
-  tmp:
-    machine:
-    
   test-xmhf:
     machine:
       # Need nested virtualization
