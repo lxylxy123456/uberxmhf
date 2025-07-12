@@ -326,6 +326,7 @@ This page will be used to track various bugs reported to QEMU / KVM
 			* However these emails are no longer valid
 * `bug_058`: GCC `-Werror=stringop-overflow=` false positive
 	* <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105100>
+	* Fixed in GCC 13.
 * `bug_106`: GCC `-Werror=uninitialized` false negative
 	* <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107663>
 * `bug_111`: KVM instruction emulation does not honor atomic instruction
